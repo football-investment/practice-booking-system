@@ -38,8 +38,8 @@
            class="nav-item{% if p.startswith('/admin/programs') or p.startswith('/admin/semesters') or p.startswith('/admin/enrollments') %} active{% endif %}">📚 Programs</a>
         <a href="/admin/sessions"
            class="nav-item{% if p.startswith('/admin/sessions') or p.startswith('/admin/bookings') %} active{% endif %}">📅 Sessions</a>
-        <a href="/admin/tournaments"
-           class="nav-item{% if p.startswith('/admin/tournaments') %} active{% endif %}">🏆 Tournaments</a>
+        <a href="/admin/events"
+           class="nav-item{% if p.startswith('/admin/events') or p.startswith('/admin/tournaments') or p.startswith('/admin/camps') %} active{% endif %}">🎯 Events</a>
         <a href="/admin/payments"
            class="nav-item{% if p.startswith('/admin/payments') or p.startswith('/admin/coupons') or p.startswith('/admin/invitation-codes') %} active{% endif %}">🛒 Commerce</a>
         <a href="/admin/locations"

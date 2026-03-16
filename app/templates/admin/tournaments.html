@@ -220,6 +220,12 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Events</span>
+    <a href="/admin/events" class="module-strip-item">🎯 All Events</a>
+    <span class="module-strip-item active">🏆 Tournaments</span>
+</div>
+
     {% if flash %}
     <div class="alert alert-success">✅ {{ flash }}</div>
     {% endif %}

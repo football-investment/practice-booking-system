@@ -642,6 +642,9 @@ ADMIN_PAGES = [
     # Nav hub landing pages (SMOKE-27)
     "/admin/programs",
     "/admin/config",
+    # Events module (SMOKE-30)
+    "/admin/events",
+    "/admin/camps",
 ]
 
 
@@ -663,7 +666,7 @@ class TestSmoke07Navigation:
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
         for link in ["/admin/users", "/admin/programs", "/admin/sessions",
-                     "/admin/tournaments", "/admin/payments", "/admin/locations",
+                     "/admin/events", "/admin/payments", "/admin/locations",
                      "/admin/config", "/admin/analytics", "/admin/system-events"]:
             assert link in resp.text, f"Nav link {link} missing from analytics.html"
 
@@ -3386,9 +3389,9 @@ class TestSmoke27NavHubs:
             "/admin/users",
             "/admin/programs",
             "/admin/sessions",
-            "/admin/tournaments",
+            "/admin/events",       # Events hub (replaces Tournaments nav item)
             "/admin/payments",     # Commerce entry point
-            "/admin/locations",    # New top-level Locations module
+            "/admin/locations",    # Locations module
             "/admin/config",
             "/admin/analytics",
             "/admin/system-events",
@@ -3637,3 +3640,75 @@ class TestSmoke29LocationModule:
         html = resp.text
         assert "Upcoming Sessions" in html, "'Upcoming Sessions' section heading missing"
         assert "SMOKE29d City" in html, "Parent location city not rendered in campus detail"
+
+
+# ============================================================================
+# SMOKE-30: Event Management module — hub + camps + sessions filter
+# ============================================================================
+
+
+class TestSmoke30EventModule:
+    """SMOKE-30: Event Management hub, Camps list, and sessions EventCategory filter."""
+
+    # ── SMOKE-30a ──────────────────────────────────────────────────────────────
+
+    def test_30a_events_hub_loads_with_four_hub_cards(self, admin_client):
+        """GET /admin/events → 200 + all 4 hub card titles present."""
+        resp = admin_client.get("/admin/events")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        for card_title in ["Tournaments", "Camps", "Training Sessions", "Match Sessions"]:
+            assert card_title in html, f"Hub card '{card_title}' missing from /admin/events"
+
+    # ── SMOKE-30b ──────────────────────────────────────────────────────────────
+
+    def test_30b_camps_page_loads(self, admin_client):
+        """GET /admin/camps → 200, no Internal Server Error (empty list is OK)."""
+        resp = admin_client.get("/admin/camps")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+
+    # ── SMOKE-30c ──────────────────────────────────────────────────────────────
+
+    def test_30c_camps_page_renders_seeded_camp(
+        self, admin_client, test_db: Session
+    ):
+        """Seeded CAMP semester appears on /admin/camps list."""
+        camp = Semester(
+            name="SMOKE30c Summer Camp",
+            code="CAMP-SMOKE30C",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=7),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        # Set semester_category via attribute (string value accepted by SA)
+        from app.models.semester import SemesterCategory as SC
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.get("/admin/camps")
+        assert resp.status_code == 200
+        assert "SMOKE30c Summer Camp" in resp.text, (
+            "Seeded CAMP semester name not visible on /admin/camps"
+        )
+
+    # ── SMOKE-30d ──────────────────────────────────────────────────────────────
+
+    def test_30d_sessions_event_category_filter_returns_200(self, admin_client):
+        """GET /admin/sessions?event_category=MATCH → 200, no 500."""
+        resp = admin_client.get("/admin/sessions?event_category=MATCH")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+
+        resp2 = admin_client.get("/admin/sessions?event_category=TRAINING")
+        assert resp2.status_code == 200
+        assert "Internal Server Error" not in resp2.text

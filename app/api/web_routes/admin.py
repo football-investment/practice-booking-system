@@ -18,7 +18,7 @@ from sqlalchemy import func as sqlfunc, or_, case
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
-from ...models.semester import Semester, SemesterStatus
+from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.license import UserLicense, LicenseProgression
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.specialization import SpecializationType
@@ -28,7 +28,7 @@ from ...core.security import get_password_hash
 import uuid as _uuid
 from ...models.coupon import Coupon
 from ...models.invitation_code import InvitationCode
-from ...models.session import Session as SessionModel
+from ...models.session import Session as SessionModel, EventCategory
 from ...models.booking import Booking, BookingStatus
 from ...models.attendance import Attendance, AttendanceStatus
 from ...services.audit_service import AuditService
@@ -1399,6 +1399,175 @@ async def admin_config_hub_page(
     )
 
 
+@router.get("/admin/events", response_class=HTMLResponse)
+async def admin_events_hub_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Event Management hub — tournaments, camps, training sessions, match sessions."""
+    _admin_guard(user)
+
+    today = date.today()
+    two_weeks = today + timedelta(days=14)
+
+    tournament_count = db.query(sqlfunc.count(Semester.id)).filter(
+        Semester.semester_category == SemesterCategory.TOURNAMENT,
+        Semester.status != SemesterStatus.CANCELLED,
+    ).scalar() or 0
+
+    camp_count = db.query(sqlfunc.count(Semester.id)).filter(
+        Semester.semester_category == SemesterCategory.CAMP,
+        Semester.status != SemesterStatus.CANCELLED,
+    ).scalar() or 0
+
+    training_count = db.query(sqlfunc.count(SessionModel.id)).filter(
+        SessionModel.event_category == EventCategory.TRAINING,
+        sqlfunc.date(SessionModel.date_start) >= today,
+        sqlfunc.date(SessionModel.date_start) <= two_weeks,
+        SessionModel.session_status != "cancelled",
+    ).scalar() or 0
+
+    match_count = db.query(sqlfunc.count(SessionModel.id)).filter(
+        SessionModel.event_category == EventCategory.MATCH,
+        sqlfunc.date(SessionModel.date_start) >= today,
+        sqlfunc.date(SessionModel.date_start) <= two_weeks,
+        SessionModel.session_status != "cancelled",
+    ).scalar() or 0
+
+    upcoming_events = db.query(Semester).filter(
+        Semester.semester_category.in_([SemesterCategory.TOURNAMENT, SemesterCategory.CAMP]),
+        Semester.start_date >= today,
+        Semester.status != SemesterStatus.CANCELLED,
+    ).order_by(Semester.start_date).limit(5).all()
+
+    # Batch-load locations and campuses for upcoming events table
+    ev_loc_ids = list({e.location_id for e in upcoming_events if e.location_id})
+    ev_cam_ids = list({e.campus_id for e in upcoming_events if e.campus_id})
+    ev_loc_map = {l.id: l for l in db.query(Location).filter(Location.id.in_(ev_loc_ids)).all()} if ev_loc_ids else {}
+    ev_cam_map = {c.id: c for c in db.query(Campus).filter(Campus.id.in_(ev_cam_ids)).all()} if ev_cam_ids else {}
+
+    return templates.TemplateResponse(
+        "admin/events_hub.html",
+        {
+            "request": request,
+            "user": user,
+            "tournament_count": tournament_count,
+            "camp_count": camp_count,
+            "training_count": training_count,
+            "match_count": match_count,
+            "upcoming_events": upcoming_events,
+            "ev_loc_map": ev_loc_map,
+            "ev_cam_map": ev_cam_map,
+            "SemesterCategory": SemesterCategory,
+        }
+    )
+
+
+@router.get("/admin/camps", response_class=HTMLResponse)
+async def admin_camps_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+    status_filter: str = "active",
+    age_group_filter: str = "",
+    location_filter: str = "",
+    name_search: str = "",
+):
+    """Admin-only: Camp management — list of CAMP-category semesters."""
+    _admin_guard(user)
+
+    query = db.query(Semester).filter(Semester.semester_category == SemesterCategory.CAMP)
+    if status_filter == "active":
+        query = query.filter(Semester.status != SemesterStatus.CANCELLED)
+    elif status_filter == "cancelled":
+        query = query.filter(Semester.status == SemesterStatus.CANCELLED)
+    if age_group_filter:
+        query = query.filter(Semester.age_group == age_group_filter)
+    if name_search:
+        query = query.filter(Semester.name.ilike(f"%{name_search}%"))
+    camps = query.order_by(Semester.start_date.desc()).all()
+
+    loc_ids = list({c.location_id for c in camps if c.location_id})
+    campus_ids_set = list({c.campus_id for c in camps if c.campus_id})
+    location_map = {l.id: l for l in db.query(Location).filter(Location.id.in_(loc_ids)).all()} if loc_ids else {}
+    campus_map = {c.id: c for c in db.query(Campus).filter(Campus.id.in_(campus_ids_set)).all()} if campus_ids_set else {}
+
+    all_locations = db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
+
+    total = len(camps)
+    ongoing = sum(1 for c in camps if c.status == SemesterStatus.ONGOING)
+    upcoming = sum(1 for c in camps if c.start_date and c.start_date >= date.today() and c.status not in [SemesterStatus.CANCELLED, SemesterStatus.COMPLETED])
+    completed = sum(1 for c in camps if c.status == SemesterStatus.COMPLETED)
+
+    return templates.TemplateResponse(
+        "admin/camps.html",
+        {
+            "request": request,
+            "user": user,
+            "camps": camps,
+            "location_map": location_map,
+            "campus_map": campus_map,
+            "all_locations": all_locations,
+            "status_filter": status_filter,
+            "age_group_filter": age_group_filter,
+            "name_search": name_search,
+            "total": total,
+            "ongoing": ongoing,
+            "upcoming": upcoming,
+            "completed": completed,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+            "SemesterStatus": SemesterStatus,
+        }
+    )
+
+
+@router.post("/admin/camps", response_class=HTMLResponse)
+async def admin_create_camp(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+    name: str = Form(...),
+    code: str = Form(""),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    age_group: str = Form(""),
+    location_id: str = Form(""),
+    campus_id: str = Form(""),
+    enrollment_cost: str = Form("0"),
+):
+    """Admin-only: Create a new Camp semester."""
+    _admin_guard(user)
+
+    camp_code = code.strip() if code.strip() else f"CAMP-{_uuid.uuid4().hex[:6].upper()}"
+    if not camp_code.startswith("CAMP-"):
+        camp_code = f"CAMP-{camp_code}"
+
+    try:
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+    except ValueError:
+        return RedirectResponse(f"/admin/camps?error=Invalid+date+format", status_code=303)
+
+    semester = Semester(
+        name=name.strip(),
+        code=camp_code,
+        start_date=start,
+        end_date=end,
+        semester_category=SemesterCategory.CAMP,
+        status=SemesterStatus.DRAFT,
+        age_group=age_group.strip() or None,
+        location_id=int(location_id) if location_id.strip() else None,
+        campus_id=int(campus_id) if campus_id.strip() else None,
+        enrollment_cost=int(enrollment_cost) if enrollment_cost.strip().isdigit() else 0,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+    )
+    db.add(semester)
+    db.commit()
+    return RedirectResponse(f"/admin/camps?flash=Camp+created", status_code=303)
+
+
 @router.get("/admin/locations", response_class=HTMLResponse)
 async def admin_locations_page(
     request: Request,
@@ -2315,6 +2484,7 @@ async def admin_sessions_page(
     date_from: str = "",
     date_to: str = "",
     cleared: str = "",
+    event_category: str = "",
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web)
 ):
@@ -2347,6 +2517,8 @@ async def admin_sessions_page(
             q = q.filter(SessionModel.date_start <= datetime.strptime(date_to, "%Y-%m-%d").replace(hour=23, minute=59))
         except ValueError:
             pass
+    if event_category in ("TRAINING", "MATCH"):
+        q = q.filter(SessionModel.event_category == event_category)
 
     all_sessions = q.order_by(SessionModel.date_start).all()
 
@@ -2400,6 +2572,7 @@ async def admin_sessions_page(
             "filter_location": location_filter,
             "filter_date_from": date_from,
             "filter_date_to": date_to,
+            "filter_event_category": event_category,
             "SessionType": SessionType,
         }
     )

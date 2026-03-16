@@ -36,7 +36,7 @@ from ...models.credit_transaction import CreditTransaction
 from ...models.game_preset import GamePreset
 from ...models.license import UserLicense
 from ...models.location import Location
-from ...models.semester import Semester, SemesterStatus
+from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel
 from ...models.instructor_assignment import (
@@ -412,12 +412,15 @@ async def admin_tournaments_list(
     """Admin: list all tournaments (all statuses) + create form."""
     _admin_only(user)
 
+    # Include both code-pattern records (legacy, semester_category=NULL)
+    # and records explicitly categorised as TOURNAMENT (new creates).
     tournaments = (
         db.query(Semester)
         .filter(
             or_(
                 Semester.code.like("TOURN-%"),
                 Semester.code.like("OPS-%"),
+                Semester.semester_category == SemesterCategory.TOURNAMENT,
             )
         )
         .order_by(Semester.start_date.desc())
@@ -503,6 +506,7 @@ async def admin_create_tournament(
         end_date=date.fromisoformat(end_date),
         status=SemesterStatus.DRAFT,
         tournament_status="DRAFT",
+        semester_category=SemesterCategory.TOURNAMENT,
         specialization_type="LFA_FOOTBALL_PLAYER",
         age_group=age_group,
         enrollment_cost=enrollment_cost,

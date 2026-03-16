@@ -1981,6 +1981,54 @@
         "title": "Body_admin_booking_cancel_admin_bookings__booking_id__cancel_post",
         "type": "object"
       },
+      "Body_admin_create_camp_admin_camps_post": {
+        "properties": {
+          "age_group": {
+            "default": "",
+            "title": "Age Group",
+            "type": "string"
+          },
+          "campus_id": {
+            "default": "",
+            "title": "Campus Id",
+            "type": "string"
+          },
+          "code": {
+            "default": "",
+            "title": "Code",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "enrollment_cost": {
+            "default": "0",
+            "title": "Enrollment Cost",
+            "type": "string"
+          },
+          "location_id": {
+            "default": "",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_create_camp_admin_camps_post",
+        "type": "object"
+      },
       "Body_admin_create_campus_admin_locations__location_id__campuses_post": {
         "properties": {
           "address": {
@@ -21788,6 +21836,120 @@
         ]
       }
     },
+    "/admin/camps": {
+      "get": {
+        "description": "Admin-only: Camp management \u2014 list of CAMP-category semesters.",
+        "operationId": "admin_camps_page_admin_camps_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "title": "Status Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "age_group_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Age Group Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name_search",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Name Search",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Camps Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Create a new Camp semester.",
+        "operationId": "admin_create_camp_admin_camps_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_camp_admin_camps_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Camp",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/campuses/{campus_id}": {
       "get": {
         "description": "Admin-only: Campus detail \u2014 programs, upcoming sessions, location instructors.",
@@ -22179,6 +22341,28 @@
           }
         },
         "summary": "Admin Enrollments Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/events": {
+      "get": {
+        "description": "Admin-only: Event Management hub \u2014 tournaments, camps, training sessions, match sessions.",
+        "operationId": "admin_events_hub_page_admin_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Events Hub Page",
         "tags": [
           "web"
         ]
@@ -23225,6 +23409,16 @@
             "schema": {
               "default": "",
               "title": "Cleared",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "event_category",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Event Category",
               "type": "string"
             }
           }

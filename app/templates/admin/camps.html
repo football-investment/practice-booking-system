@@ -1,0 +1,237 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Camps{% endblock %}
+{% block page_heading %}⛺ Camps{% endblock %}
+{% block page_subtitle %}Short-term intensive camp programs — create, schedule and manage across locations{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .dtable { width: 100%; border-collapse: collapse; }
+    .dtable th { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #718096; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e2e8f0; text-align: left; }
+    .dtable td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; vertical-align: middle; }
+    .dtable tr:last-child td { border-bottom: none; }
+    .dtable tr:hover td { background: #f8faff; }
+    .badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    .badge-ongoing { background: #c6f6d5; color: #276749; }
+    .badge-draft { background: #e2e8f0; color: #4a5568; }
+    .badge-ready { background: #bee3f8; color: #2c5282; }
+    .badge-completed { background: #d6bcfa; color: #553c9a; }
+    .badge-cancelled { background: #fed7d7; color: #9b2335; }
+    .badge-age { background: #fed7e2; color: #97266d; font-family: monospace; }
+    .action-link { font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block; }
+    .al-detail { background: #4299e1; color: white; }
+    .al-plain  { background: #e2e8f0; color: #4a5568; }
+    .no-data { color: #a0aec0; font-size: 0.88rem; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 1.25rem; color: #2d3748; }
+    .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; justify-content: flex-end; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
+    .form-group input, .form-group select { width: 100%; padding: 0.6rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; }
+    .form-group.full { grid-column: 1 / -1; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="module-strip">
+    <span class="module-strip-label">Events</span>
+    <a href="/admin/events" class="module-strip-item">🎯 All Events</a>
+    <span class="module-strip-item active">⛺ Camps</span>
+</div>
+
+{% if error %}
+<div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#c53030;font-size:0.9rem;">⚠️ {{ error }}</div>
+{% endif %}
+{% if flash %}
+<div style="background:#f0fff4;border:1px solid #68d391;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#276749;font-size:0.9rem;">✅ {{ flash }}</div>
+{% endif %}
+
+<!-- KPI strip -->
+<div class="stats-row" style="margin-bottom:1.5rem;">
+    <div class="stat-card"><div class="val">{{ total }}</div><div class="lbl">⛺ Total</div></div>
+    <div class="stat-card"><div class="val">{{ ongoing }}</div><div class="lbl">🟢 Ongoing</div></div>
+    <div class="stat-card"><div class="val">{{ upcoming }}</div><div class="lbl">📅 Upcoming</div></div>
+    <div class="stat-card"><div class="val">{{ completed }}</div><div class="lbl">✅ Completed</div></div>
+</div>
+
+<!-- Filters + Create button -->
+<form method="get" action="/admin/camps"
+      style="background:white;border-radius:12px;padding:1rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:1.25rem;display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+    <div style="display:flex;flex-direction:column;gap:0.3rem;min-width:130px;">
+        <label style="font-size:0.75rem;font-weight:700;color:#718096;text-transform:uppercase;">Status</label>
+        <select name="status_filter" style="padding:0.4rem 0.7rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;">
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>🟢 Active</option>
+            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>🔴 Cancelled</option>
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+        </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0.3rem;min-width:130px;">
+        <label style="font-size:0.75rem;font-weight:700;color:#718096;text-transform:uppercase;">Age Group</label>
+        <select name="age_group_filter" style="padding:0.4rem 0.7rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;">
+            <option value="" {% if not age_group_filter %}selected{% endif %}>All</option>
+            <option value="PRE"     {% if age_group_filter == 'PRE'     %}selected{% endif %}>PRE</option>
+            <option value="YOUTH"   {% if age_group_filter == 'YOUTH'   %}selected{% endif %}>YOUTH</option>
+            <option value="AMATEUR" {% if age_group_filter == 'AMATEUR' %}selected{% endif %}>AMATEUR</option>
+            <option value="PRO"     {% if age_group_filter == 'PRO'     %}selected{% endif %}>PRO</option>
+        </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0.3rem;min-width:180px;">
+        <label style="font-size:0.75rem;font-weight:700;color:#718096;text-transform:uppercase;">Search</label>
+        <input type="text" name="name_search" value="{{ name_search }}" placeholder="Camp name…"
+               style="padding:0.4rem 0.7rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;">
+    </div>
+    <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+        <button type="submit" style="padding:0.4rem 1rem;background:#4299e1;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88rem;">🔍 Filter</button>
+        <a href="/admin/camps" style="padding:0.4rem 1rem;background:#f0f0f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.88rem;">✕ Clear</a>
+    </div>
+    <div style="margin-left:auto;align-self:flex-end;">
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('createCampModal').classList.add('open')">➕ New Camp</button>
+    </div>
+</form>
+
+<!-- Camps table -->
+<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden;">
+    {% if camps %}
+    <table class="dtable">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Age Group</th>
+                <th>Location</th>
+                <th>Campus</th>
+                <th>Dates</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for camp in camps %}
+        {% set loc = location_map.get(camp.location_id) %}
+        {% set cam = campus_map.get(camp.campus_id) %}
+        <tr>
+            <td><code style="font-size:0.78rem;">{{ camp.code }}</code></td>
+            <td style="font-weight:600;color:#2d3748;">{{ camp.name }}</td>
+            <td>{% if camp.age_group %}<span class="badge badge-age">{{ camp.age_group }}</span>{% else %}—{% endif %}</td>
+            <td style="font-size:0.82rem;color:#718096;">
+                {% if loc %}<a href="/admin/locations/{{ loc.id }}" style="color:#4299e1;text-decoration:none;">{{ loc.city }}</a>{% else %}—{% endif %}
+            </td>
+            <td style="font-size:0.82rem;color:#718096;">
+                {% if cam %}<a href="/admin/campuses/{{ cam.id }}" style="color:#4299e1;text-decoration:none;">{{ cam.name }}</a>{% else %}—{% endif %}
+            </td>
+            <td style="font-size:0.82rem;white-space:nowrap;">{{ camp.start_date }} → {{ camp.end_date }}</td>
+            <td>
+                {% set s = camp.status.value if camp.status else '' %}
+                {% if s == 'ONGOING' %}<span class="badge badge-ongoing">ONGOING</span>
+                {% elif s == 'DRAFT' %}<span class="badge badge-draft">DRAFT</span>
+                {% elif s == 'READY_FOR_ENROLLMENT' %}<span class="badge badge-ready">READY</span>
+                {% elif s == 'COMPLETED' %}<span class="badge badge-completed">DONE</span>
+                {% elif s == 'CANCELLED' %}<span class="badge badge-cancelled">CANCELLED</span>
+                {% else %}<span class="badge badge-draft">{{ s }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/admin/semesters/{{ camp.id }}/edit" class="action-link al-detail">→ Edit</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:3rem;color:#718096;">
+        <p style="font-size:1.5rem;">⛺</p>
+        <p class="no-data">No camps found. Create the first one!</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Camp Modal -->
+<div class="modal-overlay" id="createCampModal">
+    <div class="modal">
+        <h3>➕ Create New Camp</h3>
+        <form method="post" action="/admin/camps">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Summer Football Camp 2026">
+                </div>
+                <div class="form-group">
+                    <label>Code <span style="font-size:0.75rem;color:#a0aec0;">(auto-generated if blank)</span></label>
+                    <input type="text" name="code" placeholder="e.g. CAMP-SUMMER26">
+                </div>
+                <div class="form-group">
+                    <label>Age Group</label>
+                    <select name="age_group">
+                        <option value="">— Any —</option>
+                        <option value="PRE">PRE</option>
+                        <option value="YOUTH">YOUTH</option>
+                        <option value="AMATEUR">AMATEUR</option>
+                        <option value="PRO">PRO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Start Date *</label>
+                    <input type="date" name="start_date" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date *</label>
+                    <input type="date" name="end_date" required>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <select name="location_id" id="campLocationSelect" onchange="filterCampCampuses(this.value)">
+                        <option value="">— None —</option>
+                        {% for loc in all_locations %}
+                        <option value="{{ loc.id }}">{{ loc.city }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Campus</label>
+                    <select name="campus_id" id="campCampusSelect">
+                        <option value="">— None —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Enrollment Cost (credits)</label>
+                    <input type="number" name="enrollment_cost" value="0" min="0">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('createCampModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn btn-primary">➕ Create Camp</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('createCampModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+});
+
+async function filterCampCampuses(locationId) {
+    var select = document.getElementById('campCampusSelect');
+    select.innerHTML = '<option value="">— None —</option>';
+    if (!locationId) return;
+    try {
+        var resp = await fetch('/api/v1/locations/' + locationId + '/campuses');
+        if (!resp.ok) return;
+        var data = await resp.json();
+        (data.campuses || data || []).forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            select.appendChild(opt);
+        });
+    } catch(e) { /* silently ignore if API unavailable */ }
+}
+</script>
+{% endblock %}
