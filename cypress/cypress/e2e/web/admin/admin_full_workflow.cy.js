@@ -69,8 +69,9 @@ describe('Business Workflow — Admin Full Process', {
     });
     // Edit form: clear name field and type new name
     cy.get('input[name="name"]').clear().type('DOM Updated Student Name');
-    // Submit → 303 redirect to /admin/users → 200
-    cy.get('form button[type="submit"]').click();
+    // Submit the Basic Information form (first submit button on the page).
+    // The edit page has multiple forms (password, credits, licenses) so .first() is required.
+    cy.get('form[action*="/edit"] button[type="submit"]').first().click();
     cy.get('body').should('not.contain.text', 'Internal Server Error');
     // Should land back on users list (or show a success state)
     cy.url().should('satisfy', (url) =>

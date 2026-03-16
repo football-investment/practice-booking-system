@@ -267,20 +267,56 @@ def start_scheduler():
     return scheduler
 
 
-def stop_scheduler():
+def stop_scheduler(timeout: float | None = None) -> None:
     """
-    Stop the background scheduler
+    Stop the background scheduler with a graceful shutdown timeout.
 
-    Call this on application shutdown
+    Waits up to ``timeout`` seconds for any currently running APScheduler
+    job to finish.  If the job has not finished within the timeout, the
+    scheduler is forcibly stopped; running job threads (which are daemon
+    threads) exit with the process.
+
+    Parameters
+    ----------
+    timeout:
+        Maximum seconds to wait.  Defaults to
+        ``settings.GRACEFUL_SHUTDOWN_TIMEOUT`` (30 s).  Pass ``0`` to
+        stop immediately without waiting.
     """
+    import threading
+
     global scheduler
 
     if scheduler is None:
-        logger.warning("Scheduler not running")
+        logger.warning("Scheduler not running — nothing to stop")
         return
 
-    logger.info("⏹️  Stopping background scheduler...")
-    scheduler.shutdown(wait=True)
+    _timeout = timeout if timeout is not None else settings.GRACEFUL_SHUTDOWN_TIMEOUT
+    logger.info("⏹️  Stopping background scheduler (timeout=%.0fs)...", _timeout)
+
+    # Run shutdown in a thread so we can enforce the timeout.
+    # scheduler.shutdown(wait=True) blocks until all running jobs finish.
+    _result: dict = {"done": False}
+
+    def _do_shutdown() -> None:
+        scheduler.shutdown(wait=True)
+        _result["done"] = True
+
+    t = threading.Thread(target=_do_shutdown, daemon=True, name="scheduler-shutdown")
+    t.start()
+    t.join(timeout=_timeout)
+
+    if not _result["done"]:
+        logger.warning(
+            "Background scheduler did not stop within %.0fs — forcing shutdown; "
+            "running jobs will be terminated with the process",
+            _timeout,
+        )
+        try:
+            scheduler.shutdown(wait=False)
+        except Exception:
+            pass  # best-effort: process is exiting anyway
+
     scheduler = None
     logger.info("✅ Background scheduler stopped")
 

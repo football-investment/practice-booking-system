@@ -1926,10 +1926,191 @@ jobs:
         echo "degrades linearly with row count.  Add an index or batch the operation."
         exit 1
 
+  operational-smoke-test:
+    # Starts the full application stack (API + PostgreSQL + Redis) and runs a
+    # short smoke test against the live HTTP endpoints.  Validates that:
+    #   - Migrations apply cleanly on a fresh DB
+    #   - The app becomes ready within 40 s (/health/ready → 200)
+    #   - Core endpoints are reachable and return expected JSON structure
+    #   - Prometheus export is available with text/plain content-type
+    name: "Operational Smoke Test (full stack)"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_smoke_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_smoke_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        alembic upgrade head
+        echo "✅ Migrations applied"
+
+    - name: Seed tournament types
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_smoke_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+      run: |
+        python scripts/seed_tournament_types.py
+        echo "✅ Tournament types seeded"
+
+    - name: Start application server
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_smoke_test
+        REDIS_URL: redis://localhost:6379/0
+        CELERY_BROKER_URL: redis://localhost:6379/0
+        CELERY_RESULT_BACKEND: redis://localhost:6379/1
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+        ADMIN_EMAIL: smoke@test.com
+        ADMIN_PASSWORD: SmokeTestPass123!
+        ENVIRONMENT: development
+        ENABLE_RATE_LIMITING: "false"
+      run: |
+        nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level warning &
+        echo "SERVER_PID=$!" >> $GITHUB_ENV
+        echo "Server started with PID $!"
+
+    - name: Wait for /health/ready (up to 40 s)
+      run: |
+        STATUS="000"
+        for i in $(seq 1 20); do
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health/ready || echo "000")
+          if [ "$STATUS" == "200" ]; then
+            echo "✅ /health/ready returned 200 (attempt $i)"
+            break
+          fi
+          echo "Attempt $i: HTTP $STATUS — retrying in 2 s"
+          sleep 2
+        done
+        if [ "$STATUS" != "200" ]; then
+          echo "::error::Application did not become ready within 40 seconds (last HTTP status: $STATUS)"
+          exit 1
+        fi
+
+    - name: API smoke checks
+      run: |
+        python - <<'PYEOF'
+        import sys, json, urllib.request, urllib.error
+
+        BASE = "http://127.0.0.1:8000"
+        failures = []
+
+        def check(label, url, expected_status, required_keys=None):
+            try:
+                with urllib.request.urlopen(url, timeout=10) as resp:
+                    status = resp.status
+                    body = json.loads(resp.read())
+            except urllib.error.HTTPError as exc:
+                status = exc.code
+                body = {}
+            except Exception as exc:
+                failures.append(f"FAIL {label}: {exc}")
+                return
+            if status != expected_status:
+                failures.append(f"FAIL {label}: expected HTTP {expected_status}, got {status}")
+                return
+            if required_keys:
+                missing = [k for k in required_keys if k not in body]
+                if missing:
+                    failures.append(f"FAIL {label}: missing keys {missing}")
+                    return
+            print(f"  PASS {label}: HTTP {status}")
+
+        # Health endpoints
+        check("GET /health/ready",   f"{BASE}/health/ready",   200, ["status"])
+        check("GET /health/worker",  f"{BASE}/health/worker",  200)
+
+        # Metrics endpoints
+        check("GET /metrics (json)",  f"{BASE}/metrics",         200, ["counters", "labeled_counters"])
+        check("GET /metrics/alerts",  f"{BASE}/metrics/alerts",  200, ["status", "thresholds"])
+
+        # Prometheus text format
+        try:
+            with urllib.request.urlopen(f"{BASE}/metrics?format=prometheus", timeout=10) as resp:
+                ctype = resp.headers.get("Content-Type", "")
+                text = resp.read().decode()
+            if "text/plain" not in ctype:
+                failures.append(f"FAIL GET /metrics?format=prometheus: expected text/plain, got {ctype!r}")
+            else:
+                print(f"  PASS GET /metrics?format=prometheus: content-type OK")
+        except Exception as exc:
+            failures.append(f"FAIL GET /metrics?format=prometheus: {exc}")
+
+        # OpenAPI schema
+        try:
+            with urllib.request.urlopen(f"{BASE}/api/v1/openapi.json", timeout=10) as resp:
+                schema = json.loads(resp.read())
+            path_count = len(schema.get("paths", {}))
+            if path_count < 100:
+                failures.append(f"FAIL GET /api/v1/openapi.json: only {path_count} paths (expected ≥ 100)")
+            else:
+                print(f"  PASS GET /api/v1/openapi.json: {path_count} paths")
+        except Exception as exc:
+            failures.append(f"FAIL GET /api/v1/openapi.json: {exc}")
+
+        if failures:
+            print("\n❌ Smoke check failures:")
+            for f in failures:
+                print(f"  {f}")
+            sys.exit(1)
+        else:
+            print(f"\n✅ All operational smoke checks passed ({6 - len(failures)}/6)")
+        PYEOF
+
+    - name: Collect application logs on failure
+      if: failure()
+      run: |
+        echo "=== Application logs (nohup.out) ==="
+        cat nohup.out 2>/dev/null || echo "(no nohup.out found)"
+
+    - name: Operational smoke test failure annotation
+      if: failure()
+      run: |
+        echo "::error::Operational smoke test failed."
+        echo "The application stack did not start cleanly or a core endpoint returned"
+        echo "an unexpected status code.  Check the 'Collect application logs' step above."
+
   baseline-report:
     name: Generate Baseline Report
     runs-on: ubuntu-latest
-    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, migration-integrity, migration-volume-test, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate, auth-lifecycle-gate, enrollment-workflow-gate, user-account-gate, instructor-assignment-lifecycle-gate]
+    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, migration-integrity, migration-volume-test, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate, auth-lifecycle-gate, enrollment-workflow-gate, user-account-gate, instructor-assignment-lifecycle-gate, operational-smoke-test]
     if: always()
 
     steps:
@@ -1959,8 +2140,9 @@ jobs:
         USER_ACCOUNT="${{ needs.user-account-gate.result }}"
         INSTRUCTOR_ASSIGNMENT="${{ needs.instructor-assignment-lifecycle-gate.result }}"
         MIGRATION_VOLUME="${{ needs.migration-volume-test.result }}"
+        OPERATIONAL_SMOKE="${{ needs.operational-smoke-test.result }}"
 
-        if [ "$UNIT" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ] && [ "$ID_GUARD" == "success" ] && [ "$MIGRATION" == "success" ] && [ "$MIGRATION_VOLUME" == "success" ] && [ "$PAYMENT" == "success" ] && [ "$CORE_ACCESS" == "success" ] && [ "$STUDENT_LIFECYCLE" == "success" ] && [ "$INSTRUCTOR_LIFECYCLE" == "success" ] && [ "$REFUND_WORKFLOW" == "success" ] && [ "$MULTI_CAMPUS" == "success" ] && [ "$SESSION_MANAGEMENT" == "success" ] && [ "$SKILL_LIFECYCLE" == "success" ] && [ "$BOOKING_LIFECYCLE" == "success" ] && [ "$AUTH_LIFECYCLE" == "success" ] && [ "$ENROLLMENT_WORKFLOW" == "success" ] && [ "$USER_ACCOUNT" == "success" ] && [ "$INSTRUCTOR_ASSIGNMENT" == "success" ]; then
+        if [ "$UNIT" == "success" ] && [ "$SMOKE" == "success" ] && [ "$INTEGRITY" == "success" ] && [ "$ID_GUARD" == "success" ] && [ "$MIGRATION" == "success" ] && [ "$MIGRATION_VOLUME" == "success" ] && [ "$OPERATIONAL_SMOKE" == "success" ] && [ "$PAYMENT" == "success" ] && [ "$CORE_ACCESS" == "success" ] && [ "$STUDENT_LIFECYCLE" == "success" ] && [ "$INSTRUCTOR_LIFECYCLE" == "success" ] && [ "$REFUND_WORKFLOW" == "success" ] && [ "$MULTI_CAMPUS" == "success" ] && [ "$SESSION_MANAGEMENT" == "success" ] && [ "$SKILL_LIFECYCLE" == "success" ] && [ "$BOOKING_LIFECYCLE" == "success" ] && [ "$AUTH_LIFECYCLE" == "success" ] && [ "$ENROLLMENT_WORKFLOW" == "success" ] && [ "$USER_ACCOUNT" == "success" ] && [ "$INSTRUCTOR_ASSIGNMENT" == "success" ]; then
           echo "✅ **PASS** - Baseline maintained (100% LIFECYCLE COVERAGE)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Unit & Integration Tests" >> $GITHUB_STEP_SUMMARY
@@ -2002,6 +2184,7 @@ jobs:
           echo "| Hardcoded FK ID guard | $ID_GUARD |" >> $GITHUB_STEP_SUMMARY
           echo "| **Migration chain integrity** | $MIGRATION |" >> $GITHUB_STEP_SUMMARY
           echo "| **Migration volume safety** | $MIGRATION_VOLUME |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Operational smoke test** | $OPERATIONAL_SMOKE |" >> $GITHUB_STEP_SUMMARY
           echo "| Payment workflow E2E | $PAYMENT |" >> $GITHUB_STEP_SUMMARY
           echo "| Core Access E2E | $CORE_ACCESS |" >> $GITHUB_STEP_SUMMARY
           echo "| **Student Lifecycle E2E** | $STUDENT_LIFECYCLE |" >> $GITHUB_STEP_SUMMARY

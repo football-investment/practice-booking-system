@@ -4091,3 +4091,16 @@ def downgrade() -> None:
         GRANT ALL ON SCHEMA public TO postgres;
         GRANT ALL ON SCHEMA public TO public;
     """)
+    # Alembic manages its own version-tracking table.  The CASCADE drop above
+    # removes it along with the rest of the schema, but Alembic still needs to
+    # execute "DELETE FROM alembic_version WHERE version_num = '1ec11c73ea62'"
+    # after this function returns (and it asserts exactly 1 row was deleted).
+    # Recreate the table and re-insert the revision row so that Alembic's
+    # post-downgrade cleanup can find and delete exactly one row.
+    op.execute("""
+        CREATE TABLE alembic_version (
+            version_num VARCHAR(32) NOT NULL,
+            CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+        );
+        INSERT INTO alembic_version (version_num) VALUES ('1ec11c73ea62');
+    """)
