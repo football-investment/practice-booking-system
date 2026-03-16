@@ -67,6 +67,95 @@
     .form-row { grid-template-columns: 1fr; }
     .save-row { flex-wrap: wrap; }
 }
+/* ── Session Gen Wizard modal ───────────────────────────────────────── */
+#sgw-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+.sgw-modal {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 620px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.sgw-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+.sgw-header h3 { font-size: 0.95rem; font-weight: 700; margin: 0; }
+.sgw-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 0.25rem 0.6rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.sgw-steps {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem 0;
+    flex-shrink: 0;
+}
+.sgw-step-dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: #e2e8f0;
+    transition: background 0.2s;
+}
+.sgw-step-active { background: #667eea; }
+.sgw-step-done   { background: #27ae60; }
+#sgw-body {
+    padding: 1.25rem 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+#sgw-nav {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+.sgw-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+.sgw-info-item { background: #f7fafc; border-radius: 8px; padding: 0.6rem 0.85rem; }
+.sgw-info-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #718096; margin-bottom: 0.15rem; }
+.sgw-ok   { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px; padding: 0.75rem 1rem; color: #276749; font-size: 0.9rem; }
+.sgw-warn { background: #fffaf0; border: 1px solid #fbd38d; border-radius: 8px; padding: 0.75rem 1rem; color: #c05621; font-size: 0.9rem; }
+.sgw-info-banner { background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 8px; padding: 0.75rem 1rem; color: #2b6cb0; font-size: 0.88rem; margin-top: 0.75rem; }
+.sgw-form-row { margin-bottom: 1.1rem; }
+.sgw-form-label { display: block; font-size: 0.78rem; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+.sgw-radio-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.sgw-radio-label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.35rem 0.7rem; font-size: 0.88rem; }
+.sgw-radio-label:has(input:checked) { background: #ebf4ff; border-color: #667eea; color: #4c51bf; font-weight: 600; }
+.sgw-summary-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.sgw-summary-table td, .sgw-summary-table th { padding: 0.4rem 0.6rem; border-bottom: 1px solid #e2e8f0; }
+.sgw-summary-table td:first-child { color: #718096; }
+.sgw-progress-bar { height: 0.75rem; background: #e2e8f0; border-radius: 6px; overflow: hidden; }
+.sgw-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 6px; transition: width 0.5s ease; }
 </style>
 {% endblock %}
 
@@ -377,7 +466,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 
     <div class="save-row">
         <button class="btn btn-primary" id="btn-generate-sessions"
-                onclick="openSessionGenWizard({{ t.id }})"
+                onclick="openSessionGenWizard()"
                 {% if t.tournament_status not in ['ENROLLMENT_CLOSED', 'IN_PROGRESS'] %}
                 title="Available when tournament is ENROLLMENT_CLOSED or IN_PROGRESS"
                 style="opacity:0.5;cursor:not-allowed"
@@ -432,9 +521,23 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
 </div>
 
+{# ── Session Gen Wizard modal overlay ─────────────────────────────────────── #}
+<div id="sgw-overlay" onclick="if(event.target===this)SessionGenWizard.close()">
+  <div class="sgw-modal">
+    <div class="sgw-header">
+      <h3 id="sgw-title">⚡ Generate Sessions</h3>
+      <button class="sgw-close" onclick="SessionGenWizard.close()" aria-label="Close">✕</button>
+    </div>
+    <div class="sgw-steps" id="sgw-step-dots"></div>
+    <div id="sgw-body"></div>
+    <div id="sgw-nav"></div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/session-gen-wizard.js"></script>
 <script>
 const TOURN_ID = {{ t.id }};
 
@@ -501,10 +604,20 @@ async function loadRewardConfig() {
     }
 }
 
-// ── Section 5: Session Generation (FÁZIS 3 placeholder) ───────────────────────
-function openSessionGenWizard(tournId) {
-    // FÁZIS 3: session generation wizard will be wired here
-    toast('Session generation wizard — coming in Phase 3', 'info');
+// ── Section 5: Session Generation wizard ─────────────────────────────────────
+function openSessionGenWizard() {
+    SessionGenWizard.open({
+        tournId:          {{ t.id }},
+        tournName:        {{ t.name | tojson }},
+        enrolledCount:    {{ enrollments|length }},
+        presetMinPlayers: {{ preset_min_players | tojson }},
+        format:           {{ (game_cfg.format if game_cfg and game_cfg.format else 'PLACEMENT') | tojson }},
+        schedule: {
+            match_duration_minutes: {{ schedule.match_duration_minutes | tojson }},
+            break_duration_minutes: {{ schedule.break_duration_minutes | tojson }},
+            parallel_fields:        {{ schedule.parallel_fields or 1 }},
+        },
+    });
 }
 
 // ── Section 6: Results ────────────────────────────────────────────────────────

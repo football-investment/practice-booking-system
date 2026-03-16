@@ -2901,3 +2901,195 @@ class TestSmoke23TournamentEditPage:
         )
         # Enrollment count stat visible
         assert "section-checkin" in html, "Check-in section missing"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-24 — Session Generation Wizard (FÁZIS 3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke24SessionGenWizard:
+    """SMOKE-24: Session generation wizard integration on the tournament edit page.
+
+    SMOKE-24a: Edit page renders preset warning banner when enrolled_count <
+               preset_min_players (GamePreset guard visible in HTML).
+    SMOKE-24b: POST /api/v1/tournaments/{id}/generate-sessions for an
+               INDIVIDUAL_RANKING tournament with 2 approved players → sync
+               response: success=True, sessions_generated_count >= 1.
+    SMOKE-24c: Edit page contains wizard overlay HTML (sgw-overlay) and loads
+               session-gen-wizard.js (FÁZIS 3 structural check).
+    """
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _make_ir_tournament(
+        self,
+        test_db: Session,
+        admin_user: User,
+        suffix: str = "",
+        status: str = "ENROLLMENT_CLOSED",
+    ) -> Semester:
+        """INDIVIDUAL_RANKING tournament (scoring_type=PLACEMENT, no tournament_type_id)."""
+        today = date.today()
+        tourn = Semester(
+            code=f"S24{suffix}-{uuid.uuid4().hex[:6]}",
+            name=f"SMOKE-24{suffix} Wizard Test",
+            start_date=today,
+            end_date=today + timedelta(days=7),
+            tournament_status=status,
+            master_instructor_id=admin_user.id,
+            tournament_config_obj=TournamentConfiguration(
+                participant_type="INDIVIDUAL",
+                scoring_type="PLACEMENT",  # → INDIVIDUAL_RANKING format
+                tournament_type_id=None,
+                sessions_generated=False,
+                parallel_fields=1,
+            ),
+        )
+        test_db.add(tourn)
+        test_db.commit()
+        test_db.refresh(tourn)
+        return tourn
+
+    def _attach_preset(
+        self,
+        test_db: Session,
+        tournament_id: int,
+        min_players: int = 10,
+    ) -> GamePreset:
+        """Create a GamePreset with min_players and attach it to the tournament via GameConfiguration."""
+        preset = GamePreset(
+            code=f"s24-preset-{uuid.uuid4().hex[:6]}",
+            name=f"SMOKE-24 Test Preset (min {min_players})",
+            game_config={
+                "metadata": {"min_players": min_players},
+                "format_config": {"INDIVIDUAL_RANKING": {}},
+            },
+            is_active=True,
+        )
+        test_db.add(preset)
+        test_db.flush()
+        game_cfg = GameConfiguration(
+            semester_id=tournament_id,
+            game_preset_id=preset.id,
+        )
+        test_db.add(game_cfg)
+        test_db.commit()
+        return preset
+
+    def _enroll_player(
+        self, test_db: Session, tournament_id: int
+    ) -> tuple:
+        """Create one student with an approved enrollment."""
+        u = User(
+            name=f"S24Player-{uuid.uuid4().hex[:4]}",
+            email=f"s24p-{uuid.uuid4().hex[:6]}@smoke24.test",
+            role=UserRole.STUDENT,
+            password_hash="x",
+        )
+        test_db.add(u)
+        test_db.flush()
+        lic = UserLicense(
+            user_id=u.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        test_db.add(lic)
+        test_db.flush()
+        enroll = SemesterEnrollment(
+            user_id=u.id,
+            semester_id=tournament_id,
+            user_license_id=lic.id,
+            is_active=True,
+            request_status=EnrollmentStatus.APPROVED,
+        )
+        test_db.add(enroll)
+        test_db.commit()
+        return u, enroll
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    @pytest.fixture(scope="function")
+    def api_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user] = lambda: admin_user
+        with TestClient(app) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-24a ─────────────────────────────────────────────────────────────
+
+    def test_24a_preset_warning_shown_when_enrolled_lt_min_players(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Edit page shows warn-banner when enrolled_count < preset_min_players."""
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="a")
+        self._attach_preset(test_db, tourn.id, min_players=10)
+        # 0 enrolled players → 0 < 10 → warning must appear
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert "Not enough players" in html, (
+            "Preset minimum-players warning not shown when enrolled < min_players"
+        )
+        assert "10" in html, "min_players value (10) not shown in warning"
+
+    # ── SMOKE-24b ─────────────────────────────────────────────────────────────
+
+    def test_24b_generate_sessions_sync_returns_session_count(
+        self, test_db: Session, admin_user: User, api_client: TestClient
+    ):
+        """POST generate-sessions for IR tournament with 2 players → sync result."""
+        tourn = self._make_ir_tournament(
+            test_db, admin_user, suffix="b", status="IN_PROGRESS"
+        )
+        self._enroll_player(test_db, tourn.id)
+        self._enroll_player(test_db, tourn.id)
+
+        resp = api_client.post(
+            f"/api/v1/tournaments/{tourn.id}/generate-sessions",
+            json={
+                "parallel_fields": 1,
+                "session_duration_minutes": 90,
+                "break_minutes": 15,
+                "number_of_rounds": 1,
+            },
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text}"
+        )
+        body = resp.json()
+        assert body.get("success") is True, f"success != True: {body}"
+        assert body.get("sessions_generated_count", 0) >= 1, (
+            f"Expected >= 1 session, got: {body.get('sessions_generated_count')}"
+        )
+
+    # ── SMOKE-24c ─────────────────────────────────────────────────────────────
+
+    def test_24c_edit_page_contains_wizard_overlay_and_script(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Edit page includes sgw-overlay modal and loads session-gen-wizard.js."""
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="c")
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+
+        html = resp.text
+        assert "sgw-overlay" in html, "Wizard overlay (#sgw-overlay) missing from edit page"
+        assert "session-gen-wizard.js" in html, "session-gen-wizard.js not loaded on edit page"
+        assert "SessionGenWizard.open" in html, "openSessionGenWizard() wiring missing from scripts block"
