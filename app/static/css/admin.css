@@ -1,0 +1,413 @@
+/* ── Reset & Base ──────────────────────────────────────────────────── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #f5f7fa;
+    min-height: 100vh;
+}
+
+/* ── Admin Header ──────────────────────────────────────────────────── */
+.admin-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.25rem 2rem 0.75rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.admin-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.9rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.admin-brand {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.admin-badge {
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.7);
+    padding: 0.3rem 0.9rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.admin-page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.admin-page-subtitle {
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+.admin-header-right {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+.hdr-btn {
+    padding: 0.4rem 0.85rem;
+    border-radius: 7px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+.hdr-btn-profile {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.5);
+}
+.hdr-btn-profile:hover { background: rgba(255,255,255,0.25); }
+.hdr-btn-logout {
+    background: rgba(231,76,60,0.75);
+    color: white;
+    border: 1px solid rgba(231,76,60,0.5);
+}
+.hdr-btn-logout:hover { background: rgba(231,76,60,0.95); }
+
+/* ── Admin Nav Bar ─────────────────────────────────────────────────── */
+.admin-nav {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.5rem;
+}
+.nav-item {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: rgba(255,255,255,0.78);
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.nav-item:hover {
+    background: rgba(255,255,255,0.18);
+    color: white;
+}
+.nav-item.active {
+    background: rgba(255,255,255,0.95);
+    color: #5a4a9a;
+}
+
+/* ── Main Container ────────────────────────────────────────────────── */
+.admin-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* ── Shared Card & Table Styles ────────────────────────────────────── */
+.content-card {
+    background: white;
+    border-radius: 14px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+    margin-bottom: 1.5rem;
+}
+.content-card h2 {
+    font-size: 1.3rem;
+    color: #2d3748;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #667eea;
+}
+.card {
+    background: white;
+    border-radius: 14px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+    margin-bottom: 1.5rem;
+}
+.card h2 {
+    font-size: 1.3rem;
+    color: #2d3748;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #667eea;
+}
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: #f8f9fa; border-bottom: 2px solid #e2e8f0; }
+th {
+    padding: 0.85rem 0.75rem;
+    text-align: left;
+    font-weight: 700;
+    color: #2d3748;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+tbody tr { border-bottom: 1px solid #e2e8f0; transition: background 0.15s; }
+tbody tr:hover { background: #f8f9fa; }
+td { padding: 0.85rem 0.75rem; color: #4a5568; }
+
+/* ── Badges ────────────────────────────────────────────────────────── */
+.badge {
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-block;
+}
+.badge-admin    { background: linear-gradient(135deg,#e74c3c,#c0392b); color:white; }
+.badge-instructor{ background: linear-gradient(135deg,#3498db,#2980b9); color:white; }
+.badge-student  { background: linear-gradient(135deg,#27ae60,#229954); color:white; }
+.status-yes { color: #27ae60; font-weight: 600; }
+.status-no  { color: #e74c3c; font-weight: 600; }
+.text-muted { color: #95a5a6; }
+
+/* ── Stats Row ─────────────────────────────────────────────────────── */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    text-align: center;
+}
+.stat-card .val { font-size: 2rem; font-weight: 700; color: #2d3748; }
+.stat-card .lbl { color: #718096; font-size: 0.82rem; margin-top: 0.25rem; }
+
+/* ── Filter Bar ────────────────────────────────────────────────────── */
+.filter-bar {
+    background: white;
+    border-radius: 12px;
+    padding: 1.1rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.filter-group { display: flex; flex-direction: column; gap: 0.4rem; min-width: 150px; }
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.filter-group select, .filter-group input {
+    padding: 0.5rem 0.85rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+.filter-actions { display: flex; gap: 0.5rem; align-items: flex-end; }
+.btn-filter {
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.88rem;
+    text-decoration: none;
+    display: inline-block;
+}
+.btn-filter-primary { background: #4299e1; color: white; }
+.btn-filter-primary:hover { background: #3182ce; }
+.btn-filter-white { background: #edf2f7; color: #4a5568; }
+.btn-filter-white:hover { background: #e2e8f0; }
+
+/* ── Pagination ────────────────────────────────────────────────────── */
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1.25rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.pagination a, .pagination span {
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    text-decoration: none;
+    font-weight: 600;
+}
+.pagination a { background: #ebf4ff; color: #2b6cb0; }
+.pagination a:hover { background: #bee3f8; }
+.pagination .current { background: #4299e1; color: white; }
+.pagination .disabled { background: #f0f0f0; color: #a0aec0; cursor: default; }
+.page-info { text-align: center; font-size: 0.82rem; color: #718096; margin-top: 0.5rem; }
+
+/* ── Action Buttons ────────────────────────────────────────────────── */
+.btn {
+    padding: 0.5rem 1.1rem;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.88; }
+.btn-primary { background: #667eea; color: white; }
+.btn-success { background: #27ae60; color: white; }
+.btn-danger  { background: #e74c3c; color: white; }
+.btn-warning { background: #f39c12; color: white; }
+.btn-secondary { background: #edf2f7; color: #4a5568; border: 1px solid #e2e8f0; }
+
+/* ── Welcome Section (analytics / enrollments style) ───────────────── */
+.welcome-section {
+    background: white;
+    border-radius: 14px;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 1.5rem;
+}
+.welcome-section h1 { font-size: 1.6rem; color: #2d3748; margin-bottom: 0.4rem; }
+.welcome-section p  { color: #718096; }
+
+/* ── Footer ────────────────────────────────────────────────────────── */
+.admin-footer {
+    background: #2d3748;
+    color: white;
+    text-align: center;
+    padding: 1.5rem 2rem;
+    margin-top: 4rem;
+    font-size: 0.88rem;
+    opacity: 0.9;
+}
+
+/* ── Responsive Utilities ───────────────────────────────────────────── */
+
+/* Horizontal scroll wrapper — replaces inline style="overflow-x: auto" */
+.table-scroll-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+}
+
+/* data-priority column hiding — applied via [data-priority] on <th>/<td> */
+/* low   → hide at tablet + mobile (≤1023px) */
+/* medium → hide at mobile only (≤639px)      */
+
+/* Hamburger button — hidden on desktop */
+.nav-hamburger {
+    display: none;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.5);
+    color: white;
+    padding: 0.4rem 0.7rem;
+    border-radius: 7px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Toast Notifications ────────────────────────────────────────────── */
+#toast-container {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+.toast {
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: toast-in 0.2s ease, toast-out 0.3s ease 3.7s forwards;
+    pointer-events: auto;
+    max-width: 320px;
+    word-break: break-word;
+}
+.toast-success { background: #27ae60; color: white; }
+.toast-error   { background: #e74c3c; color: white; }
+.toast-warning { background: #f39c12; color: white; }
+.toast-info    { background: #3498db; color: white; }
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes toast-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+/* ── Tablet: 640–1023px ─────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+    [data-priority="low"] { display: none; }
+    .admin-container { padding: 1.25rem; }
+}
+
+/* ── Mobile: ≤639px ─────────────────────────────────────────────────── */
+@media (max-width: 639px) {
+    [data-priority="medium"] { display: none; }
+
+    .admin-container { padding: 0.75rem; }
+    .admin-header { padding: 0.85rem 1rem 0; }
+    .admin-page-title { font-size: 1.1rem; }
+    .admin-page-subtitle { font-size: 0.8rem; }
+
+    /* Hamburger visible, nav collapses */
+    .nav-hamburger { display: inline-block; }
+    .admin-nav {
+        max-height: 0;
+        overflow: hidden;
+        flex-direction: column;
+        flex-wrap: nowrap;  /* prevent column→row wrap when max-height:0 */
+        gap: 0.15rem;
+        transition: max-height 0.3s ease;
+        padding-bottom: 0;
+        width: 100%;
+    }
+    .admin-nav.nav-open {
+        max-height: 600px;
+        padding-bottom: 0.75rem;
+    }
+    .nav-item { width: 100%; padding: 0.5rem 0.85rem; }
+
+    /* Stats compact — 2-column grid on mobile */
+    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .stat-card { padding: 0.85rem 0.5rem; }
+    .stat-card .val { font-size: 1.5rem; }
+
+    /* Filter bar stacks vertically */
+    .filter-bar { flex-direction: column; align-items: stretch; padding: 0.85rem 1rem; gap: 0.6rem; }
+    .filter-group { min-width: unset; }
+    .filter-actions { flex-direction: row; }
+
+    /* Card padding reduced */
+    .content-card, .card { padding: 1rem; }
+
+    /* Table cells compact */
+    td, th { padding: 0.5rem 0.4rem; font-size: 0.82rem; }
+
+    /* Action cells: stack buttons vertically */
+    .user-actions-cell { white-space: normal !important; }
+    .user-actions-cell form { display: block !important; margin-top: 0.3rem; }
+    .user-actions-cell a { display: block !important; margin-bottom: 0.25rem; }
+
+    /* Toast container repositioned on mobile */
+    #toast-container { bottom: 0.5rem; right: 0.5rem; left: 0.5rem; }
+    .toast { max-width: 100%; }
+}
