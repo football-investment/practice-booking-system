@@ -146,6 +146,13 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Commerce</span>
+    <a href="/admin/payments" class="module-strip-item{% if request.url.path.startswith('/admin/payments') %} active{% endif %}">💳 Payments</a>
+    <a href="/admin/coupons" class="module-strip-item{% if request.url.path.startswith('/admin/coupons') %} active{% endif %}">🎟️ Coupons</a>
+    <a href="/admin/invitation-codes" class="module-strip-item{% if request.url.path.startswith('/admin/invitation-codes') %} active{% endif %}">🎁 Invitation Codes</a>
+</div>
+
     <!-- Alert Messages -->
     <div id="alert-success" class="alert alert-success"></div>
     <div id="alert-error" class="alert alert-error"></div>

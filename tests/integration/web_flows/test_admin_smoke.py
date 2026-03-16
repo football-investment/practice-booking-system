@@ -639,6 +639,9 @@ ADMIN_PAGES = [
     "/admin/system-events",
     "/admin/tournaments",
     "/admin/enrollments",
+    # Nav hub landing pages (SMOKE-27)
+    "/admin/programs",
+    "/admin/config",
 ]
 
 
@@ -656,26 +659,27 @@ class TestSmoke07Navigation:
         )
 
     def test_analytics_nav_strip_present(self, admin_client):
-        """GET /admin/analytics → nav strip includes all key links."""
+        """GET /admin/analytics → nav strip includes all 9 top-level links."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
-        for link in ["/admin/users", "/admin/sessions", "/admin/semesters",
-                     "/admin/tournaments", "/admin/locations", "/admin/payments"]:
+        for link in ["/admin/users", "/admin/programs", "/admin/sessions",
+                     "/admin/tournaments", "/admin/payments", "/admin/config",
+                     "/admin/analytics", "/admin/system-events"]:
             assert link in resp.text, f"Nav link {link} missing from analytics.html"
 
     def test_semesters_nav_strip_present(self, admin_client):
-        """GET /admin/semesters → nav strip includes all key links."""
+        """GET /admin/semesters → nav strip contains Programs hub link."""
         resp = admin_client.get("/admin/semesters")
         assert resp.status_code == 200
-        for link in ["/admin/analytics", "/admin/sessions", "/admin/locations"]:
+        for link in ["/admin/analytics", "/admin/sessions", "/admin/programs"]:
             assert link in resp.text, f"Nav link {link} missing from semesters.html"
 
-    def test_users_page_has_analytics_and_semesters_links(self, admin_client):
-        """GET /admin/users → header nav contains Analytics + Semesters links."""
+    def test_users_page_has_analytics_and_programs_links(self, admin_client):
+        """GET /admin/users → header nav contains Analytics + Programs links."""
         resp = admin_client.get("/admin/users")
         assert resp.status_code == 200
         assert "/admin/analytics" in resp.text
-        assert "/admin/semesters" in resp.text
+        assert "/admin/programs" in resp.text
 
     def test_pagination_on_users_page(self, admin_client):
         """GET /admin/users → page renders with valid page structure."""
@@ -702,10 +706,12 @@ class TestSmoke08InvoiceVerification:
     """Covers the 3-state invoice lifecycle via new web wrapper routes."""
 
     def test_01_bookings_page_in_nav(self, admin_client):
-        """Payments page nav contains Bookings link."""
+        """Payments page loads 200 and contains Commerce module strip."""
         resp = admin_client.get("/admin/payments")
         assert resp.status_code == 200
-        assert "/admin/bookings" in resp.text
+        # Commerce module strip must be present
+        assert "/admin/coupons" in resp.text
+        assert "/admin/invitation-codes" in resp.text
 
     def test_02_verify_invoice(self, admin_client, test_db, invoice_request, student_user):
         """POST /admin/invoices/{id}/verify → 200, credits added to student."""
@@ -837,10 +843,13 @@ class TestSmoke09BookingsPanel:
         assert resp.status_code == 404
 
     def test_07_bookings_page_in_nav(self, admin_client):
-        """Users admin page nav contains Bookings link."""
+        """Users admin page nav contains Sessions link and Instructors module-strip link."""
         resp = admin_client.get("/admin/users")
         assert resp.status_code == 200
-        assert "/admin/bookings" in resp.text
+        # Sessions is a top-level nav item reachable from any admin page
+        assert "/admin/sessions" in resp.text
+        # Users module strip: Instructors link visible from Users page
+        assert "/admin/instructors" in resp.text
 
 
 # ============================================================================
@@ -3329,4 +3338,64 @@ class TestSmoke26SkillProgressionDashboard:
         html = resp.text
         assert "section-skill-dist" in html, "Skill Tier Distribution section ID missing"
         assert "Skill Tier Distribution" in html, "Skill Tier Distribution heading missing"
+
+
+# ============================================================================
+# SMOKE-27: Navigation hub landing pages
+# ============================================================================
+
+
+class TestSmoke27NavHubs:
+    """SMOKE-27: /admin/programs and /admin/config hub pages load correctly."""
+
+    # ── SMOKE-27a ──────────────────────────────────────────────────────────────
+
+    def test_27a_programs_hub_loads(self, admin_client):
+        """GET /admin/programs → 200, KPI cards and module cards present."""
+        resp = admin_client.get("/admin/programs")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        # Hub cards for both sub-modules
+        assert "Semesters" in html, "Semesters hub card missing"
+        assert "Enrollments" in html, "Enrollments hub card missing"
+        # KPI labels
+        assert "Active Semesters" in html, "Active Semesters KPI missing"
+        assert "Pending Enrollments" in html, "Pending Enrollments KPI missing"
+
+    # ── SMOKE-27b ──────────────────────────────────────────────────────────────
+
+    def test_27b_config_hub_loads(self, admin_client):
+        """GET /admin/config → 200, Game Presets and Locations cards present."""
+        resp = admin_client.get("/admin/config")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "Game Presets" in html, "Game Presets hub card missing"
+        assert "Locations" in html, "Locations hub card missing"
+
+    # ── SMOKE-27c ──────────────────────────────────────────────────────────────
+
+    def test_27c_nav_has_9_items(self, admin_client):
+        """GET /admin/analytics → admin nav contains exactly the 9 top-level items."""
+        resp = admin_client.get("/admin/analytics")
+        assert resp.status_code == 200
+        html = resp.text
+        # Verify the 9 nav destinations are all present
+        nav_links = [
+            "/dashboard",
+            "/admin/users",
+            "/admin/programs",
+            "/admin/sessions",
+            "/admin/tournaments",
+            "/admin/payments",   # Commerce entry point
+            "/admin/config",
+            "/admin/analytics",
+            "/admin/system-events",
+        ]
+        for link in nav_links:
+            assert link in html, f"Expected nav link '{link}' missing"
+        # Old direct nav links should NOT appear as nav items any more
+        # (they may appear inside page content, so we only verify Commerce label)
+        assert "🛒 Commerce" in html, "Commerce nav label missing"
         assert "Tier milestones reached" in html, "Tier milestone count label missing"

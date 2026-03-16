@@ -1335,6 +1335,72 @@ def _admin_guard(user: User):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
+@router.get("/admin/programs", response_class=HTMLResponse)
+async def admin_programs_hub_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Programs operational hub (Semesters + Enrollments)"""
+    _admin_guard(user)
+
+    active_semesters_count = db.query(Semester).filter(
+        Semester.status == SemesterStatus.ONGOING
+    ).count()
+    pending_enrollments_count = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.request_status == EnrollmentStatus.PENDING
+    ).count()
+    today = date.today()
+    upcoming_semesters = (
+        db.query(Semester)
+        .filter(Semester.start_date >= today, Semester.status != SemesterStatus.CANCELLED)
+        .options(joinedload(Semester.location))
+        .order_by(Semester.start_date.asc())
+        .limit(5)
+        .all()
+    )
+    total_semesters = db.query(Semester).filter(Semester.status != SemesterStatus.CANCELLED).count()
+    total_enrollments = db.query(SemesterEnrollment).count()
+
+    return templates.TemplateResponse(
+        "admin/programs_hub.html",
+        {
+            "request": request,
+            "user": user,
+            "active_semesters_count": active_semesters_count,
+            "pending_enrollments_count": pending_enrollments_count,
+            "upcoming_semesters": upcoming_semesters,
+            "total_semesters": total_semesters,
+            "total_enrollments": total_enrollments,
+        }
+    )
+
+
+@router.get("/admin/config", response_class=HTMLResponse)
+async def admin_config_hub_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Game Config hub (Game Presets + Locations/Campuses)"""
+    _admin_guard(user)
+
+    game_presets_count = db.query(GamePreset).count()
+    locations_count = db.query(Location).filter(Location.is_active == True).count()
+    campuses_count = db.query(Campus).count()
+
+    return templates.TemplateResponse(
+        "admin/config_hub.html",
+        {
+            "request": request,
+            "user": user,
+            "game_presets_count": game_presets_count,
+            "locations_count": locations_count,
+            "campuses_count": campuses_count,
+        }
+    )
+
+
 @router.get("/admin/locations", response_class=HTMLResponse)
 async def admin_locations_page(
     request: Request,

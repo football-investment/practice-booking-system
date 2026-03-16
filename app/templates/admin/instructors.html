@@ -63,6 +63,12 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Users</span>
+    <a href="/admin/users" class="module-strip-item{% if request.url.path.startswith('/admin/users') %} active{% endif %}">👥 User Management</a>
+    <a href="/admin/instructors" class="module-strip-item{% if request.url.path.startswith('/admin/instructors') %} active{% endif %}">👨‍🏫 Instructors</a>
+</div>
+
 {# ── Stats row ────────────────────────────────────────────────────────────────── #}
 <div class="stats-row" style="margin-bottom:1.25rem;">
     <div class="stat-card">

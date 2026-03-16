@@ -21958,6 +21958,28 @@
         ]
       }
     },
+    "/admin/config": {
+      "get": {
+        "description": "Admin-only: Game Config hub (Game Presets + Locations/Campuses)",
+        "operationId": "admin_config_hub_page_admin_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Config Hub Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/coupons": {
       "get": {
         "description": "Admin-only: Coupon Management page",
@@ -22905,6 +22927,28 @@
           }
         },
         "summary": "Admin Payments Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/programs": {
+      "get": {
+        "description": "Admin-only: Programs operational hub (Semesters + Enrollments)",
+        "operationId": "admin_programs_hub_page_admin_programs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Programs Hub Page",
         "tags": [
           "web"
         ]

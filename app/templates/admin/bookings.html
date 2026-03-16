@@ -70,6 +70,12 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Sessions</span>
+    <a href="/admin/sessions" class="module-strip-item{% if request.url.path.startswith('/admin/sessions') %} active{% endif %}">📅 Sessions</a>
+    <a href="/admin/bookings" class="module-strip-item{% if request.url.path.startswith('/admin/bookings') %} active{% endif %}">📋 Bookings</a>
+</div>
+
     <!-- Stats -->
     <div class="stats-row">
         <div class="stat-card confirmed">

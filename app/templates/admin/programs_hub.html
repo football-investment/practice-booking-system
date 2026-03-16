@@ -1,0 +1,81 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Programs{% endblock %}
+{% block page_heading %}📚 Programs{% endblock %}
+{% block page_subtitle %}Semester and enrollment management{% endblock %}
+
+{% block admin_content %}
+
+<!-- KPI dashboard row -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.75rem;">
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #48bb78;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#276749;">{{ active_semesters_count }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">🟢 Active Semesters</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid {% if pending_enrollments_count > 0 %}#e74c3c{% else %}#a0aec0{% endif %};text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:{% if pending_enrollments_count > 0 %}#c0392b{% else %}#718096{% endif %};">{{ pending_enrollments_count }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">⏳ Pending Enrollments</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #667eea;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#553c9a;">{{ total_semesters }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">📋 Total Semesters</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #4299e1;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#2b6cb0;">{{ total_enrollments }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">📝 Total Enrollments</div>
+    </div>
+</div>
+
+<!-- Upcoming semesters -->
+{% if upcoming_semesters %}
+<div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:1.75rem;">
+    <h3 style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:1rem;">📅 Upcoming Program Starts</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
+        <thead>
+            <tr>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Semester</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Specialization</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Start Date</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Location</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for sem in upcoming_semesters %}
+        <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:0.5rem 0.75rem;font-weight:600;color:#2d3748;">{{ sem.name }}</td>
+            <td style="padding:0.5rem 0.75rem;color:#4a5568;">{{ sem.specialization_type.replace('_',' ').title() if sem.specialization_type else '—' }}</td>
+            <td style="padding:0.5rem 0.75rem;color:#4a5568;">{{ sem.start_date.strftime('%Y-%m-%d') if sem.start_date else '—' }}</td>
+            <td style="padding:0.5rem 0.75rem;color:#718096;">{{ sem.location.city if sem.location else '—' }}</td>
+            <td style="padding:0.5rem 0.75rem;">
+                {% set s = sem.status.value if sem.status else '' %}
+                {% if s == 'ONGOING' %}<span style="background:#c6f6d5;color:#276749;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;">🟢 ONGOING</span>
+                {% elif s == 'READY_FOR_ENROLLMENT' %}<span style="background:#bee3f8;color:#2c5282;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;">🔵 READY</span>
+                {% elif s == 'DRAFT' %}<span style="background:#e2e8f0;color:#4a5568;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;">⚪ DRAFT</span>
+                {% else %}<span style="background:#e2e8f0;color:#4a5568;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;">{{ s }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Module hub cards -->
+<div class="hub-grid">
+    <a href="/admin/semesters" class="hub-card">
+        <div class="hub-card-icon">🎓</div>
+        <div class="hub-card-title">Semesters</div>
+        <div class="hub-card-desc">Create and manage training programs, assign instructors, and control semester lifecycle.</div>
+        <div class="hub-card-count">{{ total_semesters }}</div>
+    </a>
+    <a href="/admin/enrollments" class="hub-card" style="border-top-color:#e74c3c;">
+        <div class="hub-card-icon">📝</div>
+        <div class="hub-card-title">Enrollments</div>
+        <div class="hub-card-desc">Review and approve student enrollment requests per specialization and semester.</div>
+        <div class="hub-card-count" style="color:{% if pending_enrollments_count > 0 %}#e74c3c{% else %}#667eea{% endif %};">{{ pending_enrollments_count }} pending</div>
+    </a>
+</div>
+
+{% endblock %}

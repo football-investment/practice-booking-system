@@ -73,6 +73,12 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Users</span>
+    <a href="/admin/users" class="module-strip-item">👥 User Management</a>
+    <a href="/admin/instructors" class="module-strip-item active">👨‍🏫 Instructors</a>
+</div>
+
 {% if flash %}
 <div class="info-banner" style="margin-bottom:1rem;">✅ {{ flash }}</div>
 {% endif %}
