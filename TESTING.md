@@ -48,8 +48,8 @@ Every gate runs after `unit-tests` succeeds. All must be **green** before merge.
 
 | Gate Job | Tests | What It Validates |
 |----------|-------|-------------------|
-| `unit-tests` | ~6440 unit + contract + openapi-snapshot + tournament | 0 failures, stmt ≥ 87%, branch ≥ 78%, `--durations=20` for slow-test profiling |
-| `smoke-tests` | ~1654 API smoke | All API endpoints return expected status codes |
+| `unit-tests` | 9188 total (7319 main step + 14 rollback + 1737 api_smoke) | 0 failures, stmt ≥ 85%, branch ≥ 80%, covers `tests/unit/ tests/integration/tournament/ tests/integration/web_flows/ tests/integration/domain/` |
+| `smoke-tests` | 1737 API smoke | All API endpoints return expected status codes |
 | `api-module-integrity` | Import check | All `app/` modules load cleanly, route count ≥ 71 |
 | `hardcoded-id-guard` | Lint | No `user_id=1` in unit/service tests |
 | `payment-workflow-gate` | 3 E2E tests | Credit purchase → balance → deduct flow |
@@ -1319,3 +1319,95 @@ never assert it equals a specific value after `upgrade head` (head moves forward
 1. Grep for `ModelName(` within ±15 lines of each `is_active=` site to distinguish models
 2. Fix app/ code first (generators, endpoints, web routes), then test fixtures
 3. The migration rollback test checks for the presence of DB-level constraints, not revision IDs
+
+---
+
+## Sprint 59 — CI Health Rules & Root-Cause Catalog (2026-03-16)
+
+### Sprint baseline
+
+| Metric | Value |
+|--------|-------|
+| Tests passing | 9188 passed, 1 xfailed |
+| Routes | 555 |
+| PRs merged | #36 (K1/K2/K3 location hardening), #38 (pre-existing CI fix) |
+| `test-baseline-check.yml` | 22/22 SUCCESS on every PR |
+
+### CI health standing rules
+
+**Rule 1 — Every new test path must appear in `test-baseline-check.yml` line 63.**
+The `unit-tests` pytest command is:
+```
+pytest tests/unit/ tests/integration/tournament/ tests/integration/web_flows/ tests/integration/domain/ ...
+```
+New `tests/integration/<subdir>/` directories must be added to this command before merging.
+Currently covered: `tournament/`, `web_flows/`, `domain/`.
+
+**Rule 2 — Pre-existing CI failures must be filed as issues before any PR merge.**
+When a PR's CI shows a red job that also fails on main: open a GitHub issue, add evidence
+(3× main run URLs), add "pre-existing" label, reference from the PR comment. Never merge
+without documenting whether red = new or pre-existing.
+
+**Rule 3 — E2E Wizard Coverage is informational, not a hard merge block.**
+`test-baseline-check.yml` (22 blocking jobs) is the definitive gate. `E2E Wizard Coverage`
+runs end-to-end browser tests against a live server — its failures may be pre-existing or
+environment-specific. Always cross-check against recent main runs before treating as a blocker.
+
+**Rule 4 — New integration tests in `tests/integration/domain/` and `tests/integration/web_flows/`
+are automatically picked up by CI.** No workflow changes needed for new files in these directories.
+
+### Root-cause catalog — pre-existing failures fixed in Sprint 59
+
+#### Pattern A — Tournament type masks the actual constraint under test
+
+**Symptom**: Test asserts `resp.status_code != 422` but gets 422 from an *unrelated* guard.
+**Example**: `test_branch_safety_gate_at_127_no_confirmation_needed` used `tournament_type_code="knockout"`.
+Knockout requires power-of-2 player counts. 127 is not a power of 2 → generator fires 422
+for format reason, masking the safety-gate branch (player_count ≥ 128 → 422).
+**Fix**: use a tournament type whose constraints do NOT overlap with the branch under test.
+`"league"` accepts any count ≥ 2 → only the safety-gate fires.
+**Rule**: when testing a high-level guard (safety gate, rate limit, auth), choose a payload
+whose lower-level constraints cannot produce the same error code.
+
+#### Pattern B — Wall-clock time dependency in datetime arithmetic
+
+**Symptom**: Test passes locally in the morning but fails in CI (or fails after ~10:00 UTC).
+**Example**: `test_sched03_multiday_camp_schedule` used `now = _now()` (wall-clock UTC).
+`now + timedelta(days=7, hours=14)` crossed midnight into the next calendar day when the
+test ran after 10:00 UTC, breaking the "Day 1 pair must share date" assertion.
+**Fix**: anchor base time to midnight — `datetime.combine(date.today() + Nd, datetime.min.time())`.
+**Rule**: any test that asserts on `.date()` equality of computed datetimes must use a
+deterministic midnight anchor, never wall-clock `datetime.now()`.
+
+#### Pattern C — String vs enum comparison always returns False
+
+**Symptom**: a set/list membership check silently passes when it should block.
+**Example**: `semester_data.specialization_type` (Python `str`) `in` `[SpecializationType.X, ...]`
+(enum members) always returns `False`. The LocationValidationService guard never fired.
+**Fix**: `SpecializationType(semester_data.specialization_type)` before the `in` check.
+**Rule**: never compare raw strings to enum members with `in`. Always convert to enum first,
+or use `.value` on the enum side: `spec.value in {"LFA_PLAYER_PRE_ACADEMY", ...}`.
+
+#### Pattern D — Custom exception handler double-nesting
+
+**Symptom**: `_get_error_message(resp)` returns a dict instead of a string; `assert "x" in msg` fails.
+**Example**: the app's `http_exception_handler` places `HTTPException.detail` (a dict) as the
+`"message"` key inside `{"error": {"code": ..., "message": <dict>, ...}}`. A single
+`.get("message")` returns the inner dict, not a string.
+**Fix**: unwrap two levels:
+```python
+body = resp.json()
+error = body.get("error", {})
+msg = error.get("message", "")
+if isinstance(msg, dict):
+    msg = msg.get("message", "") or str(msg)
+```
+**Rule**: always check `isinstance(msg, dict)` after extracting `"message"` from error envelopes.
+
+### New test files added in Sprint 59
+
+| File | Tests | Scope |
+|------|-------|-------|
+| `tests/integration/domain/test_location_capability_api.py` | LOC-API-01–15 (22 tests) | CENTER/PARTNER enforcement via REST + admin form |
+| SMOKE-20 (4 tests in `test_admin_smoke.py`) | admin semester-creation form | K1: PARTNER+ACADEMY→error, CENTER+ACADEMY→ok, no-loc→error |
+| SMOKE-21 (3 tests in `test_admin_smoke.py`) | admin location-edit form | K2: CENTER→PARTNER blocked when active Academy sem exists |
