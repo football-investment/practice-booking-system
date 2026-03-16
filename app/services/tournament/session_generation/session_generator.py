@@ -215,6 +215,23 @@ class TournamentSessionGenerator:
                     f"investigate _player_filter and concurrent DB state before proceeding."
                 )
 
+            # Validate player count against GamePreset min_players (applies to ALL formats)
+            # This guard runs before format routing so it covers both INDIVIDUAL_RANKING
+            # and HEAD_TO_HEAD tournaments equally.
+            if tournament.game_config_obj and tournament.game_config_obj.game_preset:
+                _preset = tournament.game_config_obj.game_preset
+                _preset_min = _preset.game_config.get("metadata", {}).get("min_players", 0)
+                if _preset_min and player_count < _preset_min:
+                    logger.warning(
+                        f"❌ GamePreset min_players guard: preset '{_preset.name}' "
+                        f"requires {_preset_min} players, have {player_count}"
+                    )
+                    return (
+                        False,
+                        f"Game preset '{_preset.name}' requires at least {_preset_min} players (got {player_count})",
+                        [],
+                    )
+
             # ✅ CRITICAL: Check tournament format
             logger.info(f"🔀 Checking tournament format: {tournament.format}")
             if tournament.format == "INDIVIDUAL_RANKING":
