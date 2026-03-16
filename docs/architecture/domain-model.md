@@ -426,3 +426,129 @@ through the game-preset template, not through the location type.
 **Test evidence**: `TestAcademySeasonGeneratorLocationRules` (LOC-API-02) confirms that once
 the location check passes, a CENTER-hosted Academy Season is created with the standard semester
 template. No location-specific session overrides are applied.
+
+---
+
+## 9. Session Generation — Validation Chain
+
+Every call to `TournamentSessionGenerator.generate_sessions()` passes through a layered
+validation chain before any session record is written to the database.
+
+### 9.1 Validation layers (in order of execution)
+
+```
+generate_sessions(tournament_id, ...)
+  │
+  ├─ [L1] GenerationValidator.can_generate_sessions()
+  │        ↳ tournament status must be ONGOING / IN_PROGRESS
+  │        ↳ sessions_generated must be False
+  │        ↳ enrollment period must be closed
+  │        → (False, reason)  if any condition fails
+  │
+  ├─ [L2] Campus schedule resolution
+  │        ↳ get_campus_schedule() — per-campus or global defaults
+  │
+  ├─ [L3] Player-count determination
+  │        ↳ prefer check-in confirmed pool; fall back to APPROVED enrollments
+  │
+  ├─ [L4] GamePreset min_players guard   ← NEW (Sprint 59 / 2026-03-16)
+  │        ↳ if tournament.game_config_obj.game_preset exists:
+  │              min_p = game_preset.game_config["metadata"]["min_players"]
+  │              if min_p and player_count < min_p → return (False, msg, [])
+  │        ↳ applies to BOTH HEAD_TO_HEAD and INDIVIDUAL_RANKING
+  │        ↳ fires BEFORE format routing — no format-specific code runs
+  │
+  ├─ [L5] Format routing
+  │   │
+  │   ├─ INDIVIDUAL_RANKING
+  │   │    ↳ built-in minimum: player_count >= 2
+  │   │    ↳ delegates to IndividualRankingGenerator
+  │   │
+  │   └─ HEAD_TO_HEAD
+  │        ↳ TournamentType.validate_player_count(player_count)
+  │            — min_players / max_players / requires_power_of_two
+  │        ↳ delegates to format generator (League / Knockout / Swiss / GroupKnockout)
+  │
+  └─ [L6] Database write (bulk INSERT + flush + commit)
+```
+
+### 9.2 GamePreset min_players guard — design rationale
+
+**Why a separate guard instead of embedding in validate_player_count()?**
+
+`TournamentType.validate_player_count()` is a pure model-layer method that operates on
+player count, min/max bounds, and power-of-two constraints. It has no access to the
+`GamePreset` relationship (which lives on the `Semester / GameConfiguration` side, not
+on `TournamentType`). Adding preset awareness there would cross domain boundaries.
+
+The guard is placed in the coordinator (`session_generator.py`) because it:
+1. Has access to the full tournament object (including `game_config_obj → game_preset`)
+2. Runs once per generation call, before any format-specific logic
+3. Applies uniformly to all formats — no duplication in individual generators
+
+**Access path:**
+
+```python
+tournament.game_config_obj      # GameConfiguration (via relationship)
+    .game_preset                # GamePreset (via relationship)
+    .game_config                # JSONB column
+    ["metadata"]
+    ["min_players"]             # int — minimum players required by this game type
+```
+
+If `game_preset` is `None` (no preset configured), the guard is skipped entirely.
+If `min_players` is `0` or absent, the guard is also skipped (falsy check).
+
+### 9.3 TournamentType constraint matrix
+
+Production tournament types and their `validate_player_count()` constraints:
+
+| Type | `min_players` | `max_players` | `requires_power_of_two` | Multi-campus eligible |
+|------|--------------|--------------|------------------------|----------------------|
+| `league` | 2 | 1024 | False | Yes (≥128) |
+| `knockout` | 4 | 1024 | **True** | Yes (≥128, pow2 only) |
+| `group_knockout` | 8 | **64** | False | No (max < 128) |
+| `swiss` | 4 | **64** | False | No (max < 128) |
+
+**Pattern A** (root-cause catalog, Sprint 59): Using the wrong tournament type in a
+boundary/safety-gate test causes `validate_player_count()` to fire for a different reason
+than the one under test, masking the actual branch.
+
+- `knockout + 127` → fails **pow2** check, never reaches the safety gate
+- `group_knockout + 127` → fails **max=64** check, never reaches the safety gate
+- `league + 127` → **passes** (min=2, max=1024, no pow2) — correct type for safety-gate tests
+
+**Test file**: `tests/unit/models/test_tournament_type_constraints.py` (TCM-01–23)
+
+### 9.4 Adding a new GamePreset — checklist for future contributors
+
+When a new `GamePreset` is introduced that imposes a player-count minimum:
+
+1. Set `game_config["metadata"]["min_players"]` to the desired integer value in the preset
+   JSON / DB record.
+2. **No code change required** — the L4 guard in `session_generator.py` reads this field
+   automatically for every generation call.
+3. Add a unit test with `_mock_tournament(preset_min=<value>)` verifying the guard fires
+   for `player_count < value` and passes for `player_count >= value`.
+4. Add an integration test (SMOKE-22 pattern) if the preset is used in a real tournament
+   type to confirm end-to-end enforcement.
+
+### 9.5 API safety gate (large tournaments)
+
+An additional gate exists at the API layer (`ops_scenario.py`):
+
+```
+_OPS_CONFIRM_THRESHOLD = 128
+
+if player_count >= 128 and not confirmed:
+    → HTTP 422 "Confirmation required for large tournaments"
+```
+
+This gate is separate from the validation chain above and fires before
+`generate_sessions()` is called. It requires an explicit `confirmed=True` flag from the
+operator for tournaments with 128 or more players.
+
+**Pattern A relevance**: Tests targeting this gate must use `league` as the tournament type
+(not `knockout` or `group_knockout`) — see §9.3.
+
+Last updated: 2026-03-16
