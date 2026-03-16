@@ -38,7 +38,9 @@ from app.models.invitation_code import InvitationCode
 from app.models.invoice_request import InvoiceRequest, InvoiceRequestStatus
 from app.models.semester import Semester, SemesterStatus
 from app.models.session import Session as SessionModel, SessionType
-from app.models.semester_enrollment import SemesterEnrollment
+from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from app.models.tournament_configuration import TournamentConfiguration
+from app.models.game_configuration import GameConfiguration
 from app.models.license import UserLicense, LicenseProgression
 from app.models.system_event import SystemEvent, SystemEventLevel
 from app.models.credit_transaction import CreditTransaction, TransactionType
@@ -2476,4 +2478,221 @@ class TestSmoke21LocationTypeDowngradeAdminForm:
         )
         assert resp.status_code == 303, (
             f"Expected 303 (PARTNER→CENTER always OK), got {resp.status_code}"
+        )
+
+
+# ── SMOKE-22: GamePreset min_players guard ──────────────────────────────────
+
+
+class TestSmoke22GamePresetPlayerCountGuard:
+    """SMOKE-22: verify GamePreset.metadata.min_players is enforced by
+    TournamentSessionGenerator.generate_sessions() for INDIVIDUAL_RANKING
+    tournaments.
+
+    Tests the guard added to session_generator.py (before format routing):
+        if tournament.game_config_obj and tournament.game_config_obj.game_preset:
+            preset_min = preset.game_config["metadata"].get("min_players", 0)
+            if preset_min and player_count < preset_min: return False, ...
+
+    SMOKE-22a: preset min=8, 5 enrolled players → generation blocked (preset guard)
+    SMOKE-22b: no preset attached, 1 enrolled player → generation blocked
+               by hardcoded >=2 guard (confirms preset guard is NOT the blocker)
+    """
+
+    def _make_ir_tournament(self, test_db, admin_user, suffix=""):
+        """Create an INDIVIDUAL_RANKING tournament in IN_PROGRESS status."""
+        from datetime import date, timedelta
+        today = date.today()
+        tourn = Semester(
+            code=f"S22{suffix}-{uuid.uuid4().hex[:6]}",
+            name=f"SMOKE-22{suffix} Preset Guard Test",
+            start_date=today,
+            end_date=today + timedelta(days=7),
+            tournament_status="IN_PROGRESS",
+            master_instructor_id=admin_user.id,
+            tournament_config_obj=TournamentConfiguration(
+                tournament_type_id=None,
+                participant_type="INDIVIDUAL",
+                scoring_type="PLACEMENT",   # scoring_type != "HEAD_TO_HEAD" → format = INDIVIDUAL_RANKING
+                sessions_generated=False,
+            ),
+        )
+        test_db.add(tourn)
+        test_db.flush()
+        return tourn
+
+    def _enroll(self, test_db, tournament_id, n):
+        """Create n minimal users (each with a UserLicense) and APPROVED enrollments."""
+        from datetime import date
+        for i in range(n):
+            u = User(
+                name=f"S22Player-{i}-{uuid.uuid4().hex[:4]}",
+                email=f"s22p{i}-{uuid.uuid4().hex[:6]}@smoke22.test",
+                role=UserRole.STUDENT,
+                password_hash="x",
+            )
+            test_db.add(u)
+            test_db.flush()
+            lic = UserLicense(
+                user_id=u.id,
+                specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+                started_at=date.today(),
+                is_active=True,
+            )
+            test_db.add(lic)
+            test_db.flush()
+            test_db.add(SemesterEnrollment(
+                user_id=u.id,
+                semester_id=tournament_id,
+                user_license_id=lic.id,
+                is_active=True,
+                request_status=EnrollmentStatus.APPROVED,
+            ))
+        test_db.flush()
+
+    def test_22a_preset_min_blocks_when_insufficient_players(
+        self, test_db: Session, admin_user: User
+    ):
+        """SMOKE-22a: preset min=8, 5 enrolled → fail with preset error.
+
+        Validates the guard at real-DB level:
+        - validator passes (5 >= 2 minimum for INDIVIDUAL_RANKING)
+        - preset guard fires before the IR generator is invoked
+        - error message names the preset and cites both the minimum and actual count
+        """
+        from app.services.tournament.session_generation.session_generator import TournamentSessionGenerator
+
+        preset = GamePreset(
+            name="SMOKE22 MinPlayers Preset",
+            code=f"S22P-{uuid.uuid4().hex[:4].upper()}",
+            is_active=True,
+            game_config={
+                "metadata": {"min_players": 8},
+                "skill_config": {"skill_weights": {}},
+                "format_config": {},
+            },
+        )
+        test_db.add(preset)
+        test_db.flush()
+
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="a")
+
+        test_db.add(GameConfiguration(
+            semester_id=tourn.id,
+            game_preset_id=preset.id,
+            game_config=preset.game_config,
+        ))
+        test_db.flush()
+
+        self._enroll(test_db, tourn.id, n=5)
+
+        ok, msg, sessions = TournamentSessionGenerator(test_db).generate_sessions(tourn.id)
+
+        assert ok is False, f"Expected generation blocked by preset guard, got ok=True; msg={msg}"
+        assert "SMOKE22 MinPlayers Preset" in msg, f"Expected preset name in msg: {msg}"
+        assert "8" in msg, f"Expected preset min (8) cited in msg: {msg}"
+        assert "5" in msg, f"Expected actual count (5) cited in msg: {msg}"
+        assert sessions == []
+
+    def test_22b_no_preset_falls_through_to_builtin_minimum(
+        self, test_db: Session, admin_user: User
+    ):
+        """SMOKE-22b: no preset, 1 enrolled player → fail with hardcoded >=2 error.
+
+        Confirms that when no GamePreset is attached, the preset guard is skipped
+        entirely and the hardcoded INDIVIDUAL_RANKING minimum (2 players) remains
+        the active guard.
+        """
+        from app.services.tournament.session_generation.session_generator import TournamentSessionGenerator
+
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="b")
+        # No GameConfiguration / GamePreset attached
+
+        self._enroll(test_db, tourn.id, n=1)
+
+        ok, msg, sessions = TournamentSessionGenerator(test_db).generate_sessions(tourn.id)
+
+        assert ok is False, f"Expected generation blocked by >=2 guard, got ok=True"
+        assert "2" in msg, f"Expected '2' (minimum) cited in msg: {msg}"
+        # Preset name must NOT appear (no preset was attached)
+        assert "Preset" not in msg, f"Unexpected preset reference in msg: {msg}"
+        assert sessions == []
+
+    def test_22c_lifecycle_regeneration_after_player_addition(
+        self, test_db: Session, admin_user: User
+    ):
+        """SMOKE-22c: lifecycle regeneration scenario — V3 stability proof.
+
+        Sequence:
+          1. INDIVIDUAL_RANKING tournament, preset min=8
+          2. First generation attempt (5 players) → blocked by preset guard
+          3. sessions_generated flag must still be False (no state corruption)
+          4. 3 more players added → total 8 (meets preset minimum)
+          5. Second generation attempt → succeeds
+          6. sessions_generated flag is now True, sessions exist in DB
+
+        This proves the guard is idempotent: a failed generation leaves the
+        tournament in a clean re-tryable state.
+        """
+        from app.services.tournament.session_generation.session_generator import TournamentSessionGenerator
+
+        # ── Setup: tournament + preset(min=8) ─────────────────────────────────
+        preset = GamePreset(
+            name="SMOKE22c Regen Preset",
+            code=f"S22C-{uuid.uuid4().hex[:4].upper()}",
+            is_active=True,
+            game_config={
+                "metadata": {"min_players": 8},
+                "skill_config": {"skill_weights": {}},
+                "format_config": {},
+            },
+        )
+        test_db.add(preset)
+        test_db.flush()
+
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="c")
+        game_cfg = GameConfiguration(
+            semester_id=tourn.id,
+            game_preset_id=preset.id,
+            game_config=preset.game_config,
+        )
+        test_db.add(game_cfg)
+        test_db.flush()
+
+        # ── Step 1: enroll 5 players (below preset minimum of 8) ──────────────
+        self._enroll(test_db, tourn.id, n=5)
+
+        # ── Step 2: first generation attempt → must be blocked ────────────────
+        gen = TournamentSessionGenerator(test_db)
+        ok1, msg1, sessions1 = gen.generate_sessions(tourn.id)
+
+        assert ok1 is False, f"Expected blocked, got ok=True; msg={msg1}"
+        assert "8" in msg1 and "5" in msg1, f"Guard message must cite 8 and 5: {msg1}"
+        assert sessions1 == []
+
+        # ── Step 3: verify no state corruption after failed attempt ────────────
+        test_db.refresh(tourn)
+        assert tourn.sessions_generated is False, (
+            "sessions_generated must remain False after blocked generation"
+        )
+        cfg = test_db.query(TournamentConfiguration).filter(
+            TournamentConfiguration.semester_id == tourn.id
+        ).first()
+        assert cfg.sessions_generated is False, (
+            "TournamentConfiguration.sessions_generated must remain False"
+        )
+
+        # ── Step 4: add 3 more players → total 8 ──────────────────────────────
+        self._enroll(test_db, tourn.id, n=3)
+
+        # ── Step 5: second generation attempt → must succeed ──────────────────
+        ok2, msg2, sessions2 = gen.generate_sessions(tourn.id)
+
+        assert ok2 is True, f"Expected success after reaching 8 players; msg={msg2}"
+        assert len(sessions2) > 0, "Expected at least one session to be created"
+
+        # ── Step 6: state reflects success ────────────────────────────────────
+        test_db.refresh(tourn)
+        assert tourn.sessions_generated is True, (
+            "sessions_generated must be True after successful generation"
         )

@@ -426,3 +426,222 @@ through the game-preset template, not through the location type.
 **Test evidence**: `TestAcademySeasonGeneratorLocationRules` (LOC-API-02) confirms that once
 the location check passes, a CENTER-hosted Academy Season is created with the standard semester
 template. No location-specific session overrides are applied.
+
+---
+
+## 9. Session Generation — Validation Chain
+
+
+Every call to `TournamentSessionGenerator.generate_sessions()` passes through a layered
+validation chain before any session record is written to the database.
+
+### 9.1 Validation layers (in order of execution)
+
+```
+generate_sessions(tournament_id, ...)
+  │
+  ├─ [L1] GenerationValidator.can_generate_sessions()
+  │        ↳ tournament status must be ONGOING / IN_PROGRESS
+  │        ↳ sessions_generated must be False
+  │        ↳ enrollment period must be closed
+  │        → (False, reason)  if any condition fails
+  │
+  ├─ [L2] Campus schedule resolution
+  │        ↳ get_campus_schedule() — per-campus or global defaults
+  │
+  ├─ [L3] Player-count determination
+  │        ↳ prefer check-in confirmed pool; fall back to APPROVED enrollments
+  │
+  ├─ [L4] GamePreset min_players guard   ← NEW (Sprint 59 / 2026-03-16)
+  │        ↳ if tournament.game_config_obj.game_preset exists:
+  │              min_p = game_preset.game_config["metadata"]["min_players"]
+  │              if min_p and player_count < min_p → return (False, msg, [])
+  │        ↳ applies to BOTH HEAD_TO_HEAD and INDIVIDUAL_RANKING
+  │        ↳ fires BEFORE format routing — no format-specific code runs
+  │
+  ├─ [L5] Format routing
+  │   │
+  │   ├─ INDIVIDUAL_RANKING
+  │   │    ↳ built-in minimum: player_count >= 2
+  │   │    ↳ delegates to IndividualRankingGenerator
+  │   │
+  │   └─ HEAD_TO_HEAD
+  │        ↳ TournamentType.validate_player_count(player_count)
+  │            — min_players / max_players / requires_power_of_two
+  │        ↳ delegates to format generator (League / Knockout / Swiss / GroupKnockout)
+  │
+  └─ [L6] Database write (bulk INSERT + flush + commit)
+```
+
+### 9.2 GamePreset min_players guard — design rationale
+
+**Why a separate guard instead of embedding in validate_player_count()?**
+
+`TournamentType.validate_player_count()` is a pure model-layer method that operates on
+player count, min/max bounds, and power-of-two constraints. It has no access to the
+`GamePreset` relationship (which lives on the `Semester / GameConfiguration` side, not
+on `TournamentType`). Adding preset awareness there would cross domain boundaries.
+
+The guard is placed in the coordinator (`session_generator.py`) because it:
+1. Has access to the full tournament object (including `game_config_obj → game_preset`)
+2. Runs once per generation call, before any format-specific logic
+3. Applies uniformly to all formats — no duplication in individual generators
+
+**Access path:**
+
+```python
+tournament.game_config_obj      # GameConfiguration (via relationship)
+    .game_preset                # GamePreset (via relationship)
+    .game_config                # JSONB column
+    ["metadata"]
+    ["min_players"]             # int — minimum players required by this game type
+```
+
+If `game_preset` is `None` (no preset configured), the guard is skipped entirely.
+If `min_players` is `0` or absent, the guard is also skipped (falsy check).
+
+### 9.3 TournamentType constraint matrix
+
+Production tournament types and their `validate_player_count()` constraints:
+
+| Type | `min_players` | `max_players` | `requires_power_of_two` | Multi-campus eligible |
+|------|--------------|--------------|------------------------|----------------------|
+| `league` | 2 | 1024 | False | Yes (≥128) |
+| `knockout` | 4 | 1024 | **True** | Yes (≥128, pow2 only) |
+| `group_knockout` | 8 | **64** | False | No (max < 128) |
+| `swiss` | 4 | **64** | False | No (max < 128) |
+
+**Pattern A** (root-cause catalog, Sprint 59): Using the wrong tournament type in a
+boundary/safety-gate test causes `validate_player_count()` to fire for a different reason
+than the one under test, masking the actual branch.
+
+- `knockout + 127` → fails **pow2** check, never reaches the safety gate
+- `group_knockout + 127` → fails **max=64** check, never reaches the safety gate
+- `league + 127` → **passes** (min=2, max=1024, no pow2) — correct type for safety-gate tests
+
+**Test file**: `tests/unit/models/test_tournament_type_constraints.py` (TCM-01–23)
+
+### 9.4 Adding a new GamePreset — checklist for future contributors
+
+When a new `GamePreset` is introduced that imposes a player-count minimum:
+
+1. Set `game_config["metadata"]["min_players"]` to the desired integer value in the preset
+   JSON / DB record.
+2. **No code change required** — the L4 guard in `session_generator.py` reads this field
+   automatically for every generation call.
+3. Add a unit test with `_mock_tournament(preset_min=<value>)` verifying the guard fires
+   for `player_count < value` and passes for `player_count >= value`.
+4. Add an integration test (SMOKE-22 pattern) if the preset is used in a real tournament
+   type to confirm end-to-end enforcement.
+
+### 9.5 API safety gate (large tournaments)
+
+An additional gate exists at the API layer (`ops_scenario.py`):
+
+```
+_OPS_CONFIRM_THRESHOLD = 128
+
+if player_count >= 128 and not confirmed:
+    → HTTP 422 "Confirmation required for large tournaments"
+```
+
+This gate is separate from the validation chain above and fires before
+`generate_sessions()` is called. It requires an explicit `confirmed=True` flag from the
+operator for tournaments with 128 or more players.
+
+**Pattern A relevance**: Tests targeting this gate must use `league` as the tournament type
+(not `knockout` or `group_knockout`) — see §9.3.
+
+### 9.6 Format generator isolation — DB write boundary
+
+All five format generators are **pure computation**: they receive arguments, build a
+`List[Dict[str, Any]]`, and return it. They do **not** hold a direct DB reference
+beyond what the coordinator passes, and they never call `db.add()`, `db.commit()`,
+or `db.flush()`.
+
+The DB write boundary is strictly in the coordinator (`session_generator.py`):
+
+```
+coordinator.generate_sessions()
+  │
+  ├─ L1–L4  validation (read-only queries)
+  │
+  ├─ format_generator.generate(...)   ← pure computation, returns List[Dict]
+  │     LeagueGenerator               no db.add / db.commit / db.flush
+  │     KnockoutGenerator             no db.add / db.commit / db.flush
+  │     SwissGenerator                no db.add / db.commit / db.flush
+  │     GroupKnockoutGenerator        no db.add / db.commit / db.flush
+  │     IndividualRankingGenerator    no db.add / db.commit / db.flush
+  │
+  └─ [DB write] for session_data in sessions:
+         SessionModel(**session_data) → db.add()
+     db.flush()                       ← single bulk INSERT
+     tournament_config.sessions_generated = True
+     db.commit()                      ← single commit for the entire generation
+```
+
+**Proof**: `grep -rn "db\.add\|db\.commit\|db\.flush" formats/` returns 0 results.
+Verified in CI via unit tests and SMOKE-22a/b/c (real-DB).
+
+This design makes the L4 guard the **sole** gatekeeper before any DB mutation occurs.
+If the guard returns `(False, ...)`, no `SessionModel` row is ever written.
+
+### 9.7 Manual session creation — domain boundary
+
+`POST /api/v1/sessions/` creates standalone sessions directly (admin/instructor action).
+This path does **not** go through `TournamentSessionGenerator` and is intentionally
+exempt from the L4 guard.
+
+**Why the exemption is safe:**
+
+| Property | Tournament session (generated) | Manual session (`POST /sessions/`) |
+|----------|-------------------------------|-------------------------------------|
+| `auto_generated` | `True` | `False` (not in schema → default) |
+| `tournament_phase` | `GROUP_STAGE / KNOCKOUT / ...` | `None` (not in schema) |
+| `participant_user_ids` | bracket-assigned players | `None` (not in schema) |
+| `group_identifier` | group label (e.g. "A") | `None` (not in schema) |
+| `event_category` | `MATCH` (set by coordinator) | `TRAINING` (schema default) |
+
+`SessionCreate` (the schema for `POST /sessions/`) exposes only the deprecated
+`is_tournament_game: bool = False` field, which maps to `event_category` via a
+property setter. Even if a caller sets `is_tournament_game=True`, the resulting row
+has no `tournament_phase`, no `auto_generated=True`, and no `participant_user_ids` —
+it is structurally distinguishable from a generated tournament bracket slot.
+
+**Domain rule (explicit):**
+
+> A session created via `POST /api/v1/sessions/` is an **administrative override**
+> — a one-off session that an admin or instructor manually schedules within a semester.
+> It is NOT a bracket slot. The GamePreset `min_players` constraint applies to the
+> tournament **bracket** (the full schedule generated by `TournamentSessionGenerator`),
+> not to individual administrative sessions.
+>
+> If a future feature needs to enforce preset constraints on manual sessions, add a
+> dedicated guard to `sessions/crud.py:create_session()` that reads the semester's
+> `game_config_obj.game_preset.game_config["metadata"]["min_players"]` and compares
+> it to the current enrollment count. This is a deliberate future-extension point,
+> not an oversight.
+
+### 9.8 Lifecycle regeneration stability
+
+A failed `generate_sessions()` call (guard returns `False`) is **fully idempotent**:
+
+- No `SessionModel` rows are written (generator isolation — §9.6)
+- `tournament_config.sessions_generated` remains `False`
+- No `db.commit()` is called
+
+The tournament is therefore in an identical state to before the call, and a second
+attempt after resolving the blocking condition (e.g. enrolling more players) succeeds
+normally.
+
+**Test evidence (SMOKE-22c)**:
+```
+preset min=8, 5 players enrolled
+→ generate_sessions() → (False, "...requires at least 8...", [])
+→ sessions_generated = False  ✓  (state unchanged)
+→ 3 more players enrolled (total 8)
+→ generate_sessions() → (True, "Successfully generated N sessions", [...])
+→ sessions_generated = True   ✓  (flag set, sessions in DB)
+```
+
+Last updated: 2026-03-16

@@ -1411,3 +1411,103 @@ if isinstance(msg, dict):
 | `tests/integration/domain/test_location_capability_api.py` | LOC-API-01–15 (22 tests) | CENTER/PARTNER enforcement via REST + admin form |
 | SMOKE-20 (4 tests in `test_admin_smoke.py`) | admin semester-creation form | K1: PARTNER+ACADEMY→error, CENTER+ACADEMY→ok, no-loc→error |
 | SMOKE-21 (3 tests in `test_admin_smoke.py`) | admin location-edit form | K2: CENTER→PARTNER blocked when active Academy sem exists |
+
+---
+
+## Sprint 60 — Session Generation Validation Chain + TCM (2026-03-16)
+
+### Sprint baseline
+
+| Metric | Value |
+|--------|-------|
+| Tests passing | 9223 passed, 1 xfailed |
+| Routes | 555 |
+| Branch | `feature/tcm-tournament-type-constraint-matrix` → PR #40 |
+| `test-baseline-check.yml` | All jobs ✅ on previous commit; new CI run triggered on push |
+
+### Feature: GamePreset min_players guard (L4 in validation chain)
+
+**What changed**: `TournamentSessionGenerator.generate_sessions()` in
+`app/services/tournament/session_generation/session_generator.py` now checks
+`game_preset.game_config["metadata"]["min_players"]` **before** any format routing.
+
+**Why this matters**: Previously, a GamePreset could declare `min_players=8` in its
+metadata, but the session generator would happily run a 2-player tournament with that
+preset because the field was never read. The guard closes this gap.
+
+**Behaviour**:
+- If `tournament.game_config_obj.game_preset` is `None` → guard skipped (safe)
+- If `game_config["metadata"]["min_players"]` is `0` or absent → guard skipped (safe)
+- If `player_count < min_players` → `(False, "Game preset '{name}' requires at least {n} players (got {actual})", [])` returned; no DB writes
+
+**Future-proof**: any new GamePreset that sets `metadata.min_players > 0` is
+automatically enforced without additional code changes. See checklist in
+`docs/architecture/domain-model.md §9.4`.
+
+### Feature: Tournament Type Constraint Matrix (TCM-01–23)
+
+**What changed**: new file `tests/unit/models/test_tournament_type_constraints.py`
+with 24 pure-unit tests (no DB required) covering all 4 production tournament types
+and formally cataloguing Pattern A.
+
+**TCM structure**:
+- TCM-01–04: `knockout` — min=4, max=1024, pow2=True
+- TCM-05–07: `league` — min=2, max=1024, pow2=False
+- TCM-08–11: `group_knockout` — min=8, max=64, pow2=False
+- TCM-12–14: `swiss` — min=4, max=64, pow2=False
+- TCM-15–17: Pattern A isolation — formally asserts why `league` is the correct
+  neutral type for safety-gate tests
+- TCM-18–23: Large-tournament multi-campus boundaries (128–1024) — the range
+  that triggers campus round-robin distribution in `pick_campus()`
+
+**Regression catch**: TCM-04 and TCM-17 jointly document and assert that
+`knockout + 127` fails for `power-of-2`, NOT for the safety gate at 128.
+This was the root cause of Pattern A (pre-existing CI failure fixed in Sprint 59 / PR #38).
+
+### New test files added in Sprint 60
+
+| File | Tests | Scope |
+|------|-------|-------|
+| `tests/unit/models/test_tournament_type_constraints.py` | TCM-01–23 (24 tests) | Pure constraint matrix, no DB |
+| IRGV-01–04 (in `test_session_generator.py`) | Unit | INDIVIDUAL_RANKING + preset guard |
+| GPV-01–05 (in `test_session_generator.py`) | Unit | HEAD_TO_HEAD + preset guard |
+| SMOKE-22a/b (in `test_admin_smoke.py`) | Integration | Real DB: preset blocks insufficient players |
+
+### Pattern E — MagicMock truthiness in optional-relationship guards
+
+**Symptom**: a new guard like `if obj.relationship_attr:` triggers on ALL mock objects
+even when the relationship should be absent, causing unrelated tests to fail.
+
+**Example**: after adding `if tournament.game_config_obj and tournament.game_config_obj.game_preset:`,
+every test using `_mock_tournament()` whose `game_config_obj = MagicMock()` had a truthy
+`.game_preset` attribute (also a MagicMock), so the guard always fired.
+
+**Fix**: explicitly set the attribute to `None` when the relationship is absent:
+```python
+t.game_config_obj = MagicMock()
+t.game_config_obj.game_preset = None  # explicit None prevents guard trigger
+```
+
+**Rule**: after adding any `if obj.attr:` guard on an ORM relationship, audit every
+mock helper in the test suite and add `mock_obj.attr = None` for the "no relationship"
+cases. Never rely on MagicMock's default attribute generation for ORM Optional fields.
+
+### Pattern F — psycopg2 cannot adapt Python enum objects directly
+
+**Symptom**: `psycopg2.ProgrammingError: can't adapt type 'SpecializationType'` when
+inserting a model with a String column populated from a Python `Enum` member.
+
+**Example**:
+```python
+# WRONG — enum object, psycopg2 cannot serialize
+lic = UserLicense(specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER)
+
+# CORRECT — string value
+lic = UserLicense(specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value)
+# OR equivalently
+lic = UserLicense(specialization_type="LFA_FOOTBALL_PLAYER")
+```
+
+**Rule**: columns defined as `Column(String)` (not `Column(Enum(MyEnum))`) must receive
+the string value, not the Python enum member. Always use `.value` when populating
+String columns from enum members in tests and application code.
