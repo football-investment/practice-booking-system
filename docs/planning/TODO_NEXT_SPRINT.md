@@ -12,13 +12,33 @@
 - OpenAPI snapshot regenerated
 
 ### K2 — Block CENTER→PARTNER downgrade when active Academy semesters exist
-**Status**: ✅ DONE 2026-03-16 — 9185 passed, 0 regressions
+**Status**: ✅ DONE 2026-03-16 — 9188 passed, 0 regressions
 - `locations.py` (`PUT /{id}`): 409 guard; `admin.py` form: 409 re-render with error flash
 - `location_edit.html`: `{% if error %}` flash band added
 - LOC-API-13 (block READY/ONGOING), LOC-API-14 (allow DRAFT), LOC-API-15 (PARTNER→CENTER OK)
+- SMOKE-21a/b/c: admin form K2 guard tested end-to-end
+- **PR #36 merged 2026-03-16** (commit 33ee039) — CI `test-baseline-check.yml` 22/22 ✅
+- **No new regressions introduced**: pre-existing `E2E Wizard Coverage` failure (Issue #37) fixed in PR #38
 
 ### K3 — Session generation location-agnostic (RESOLVED ✅)
 No action. Documented in [domain-model.md §8.6](../architecture/domain-model.md#86-session-generation--location-agnostic-by-design).
+
+---
+
+## Pre-existing CI Fixes (PR #38)
+
+### Fix: `test_branch_safety_gate_at_127_no_confirmation_needed` + `test_sched03_multiday_camp_schedule`
+**Status**: ✅ DONE 2026-03-16 — PR #38 open, CI pending
+**Issue**: #37
+
+**Fix 1** — `tests/e2e/test_full_boundary_matrix.py`: changed `tournament_type_code` from `"knockout"` to `"league"` for the 127-player safety-gate test.
+- Root cause: Knockout requires power-of-2 counts; 127 is not a power of 2 → generator fired 422 for a *different* reason, masking the intended safety-gate test.
+
+**Fix 2** — `tests/integration/domain/test_session_scheduling.py`: anchored base time to midnight for SCHED-03.
+- Root cause: `now = _now()` (wall-clock UTC) — afternoon slot `+14h` crossed midnight when run after ~10:00 UTC.
+
+**CI before fix** (last 3 `main` runs): ❌ all three failed on same test
+**Local after fix**: 9188 passed, 1 xfailed — 0 regressions
 
 ---
 
