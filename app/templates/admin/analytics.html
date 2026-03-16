@@ -210,4 +210,47 @@
     {% endif %}
 </div>
 
+<!-- Skill Tier Distribution -->
+<div class="analytics-section" id="section-skill-dist">
+    <h2>⚡ Skill Tier Distribution</h2>
+    <p style="font-size:0.88rem;color:#718096;margin-bottom:0.75rem;">
+        Active assessments by tier &nbsp;·&nbsp;
+        <span style="color:#553c9a;font-weight:600;">Expert ≥90%</span>&nbsp;
+        <span style="color:#2b6cb0;font-weight:600;">Advanced 75–89%</span>&nbsp;
+        <span style="color:#744210;font-weight:600;">Intermediate 60–74%</span>&nbsp;
+        <span style="color:#718096;font-weight:600;">Beginner &lt;60%</span>
+        &nbsp;·&nbsp; Tier milestones reached: <strong>{{ tier_milestone_count }}</strong>
+    </p>
+    {% if skill_dist %}
+    <div class="table-scroll-wrap">
+    <table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
+        <thead>
+            <tr>
+                <th style="background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:0.55rem 0.75rem;text-align:left;border-bottom:2px solid #e2e8f0;">Skill</th>
+                <th style="background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:0.55rem 0.75rem;text-align:center;border-bottom:2px solid #e2e8f0;">Beginner</th>
+                <th style="background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:0.55rem 0.75rem;text-align:center;border-bottom:2px solid #e2e8f0;">Intermediate</th>
+                <th style="background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:0.55rem 0.75rem;text-align:center;border-bottom:2px solid #e2e8f0;">Advanced</th>
+                <th style="background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:0.55rem 0.75rem;text-align:center;border-bottom:2px solid #e2e8f0;">Expert</th>
+                <th style="background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:0.55rem 0.75rem;text-align:center;border-bottom:2px solid #e2e8f0;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in skill_dist %}
+        <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:0.55rem 0.75rem;font-weight:600;color:#2d3748;">{{ row.skill }}</td>
+            <td style="padding:0.55rem 0.75rem;text-align:center;color:#718096;">{{ row.beginner }}</td>
+            <td style="padding:0.55rem 0.75rem;text-align:center;color:#744210;font-weight:{% if row.intermediate > 0 %}600{% else %}400{% endif %};">{{ row.intermediate }}</td>
+            <td style="padding:0.55rem 0.75rem;text-align:center;color:#2b6cb0;font-weight:{% if row.advanced > 0 %}600{% else %}400{% endif %};">{{ row.advanced }}</td>
+            <td style="padding:0.55rem 0.75rem;text-align:center;color:#553c9a;font-weight:{% if row.expert > 0 %}600{% else %}400{% endif %};">{{ row.expert }}</td>
+            <td style="padding:0.55rem 0.75rem;text-align:center;color:#4a5568;font-weight:600;">{{ row.beginner + row.intermediate + row.advanced + row.expert }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color:#718096">No skill assessment data available yet.</p>
+    {% endif %}
+</div>
+
 {% endblock %}

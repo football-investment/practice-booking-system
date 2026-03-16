@@ -40,6 +40,9 @@ from ...models.system_event import SystemEvent, SystemEventLevel
 from ...models.game_preset import GamePreset
 from ...skills_config import SKILL_CATEGORIES
 from ...services.location_validation_service import LocationValidationService
+from ...models.event_reward_log import EventRewardLog
+from ...models.football_skill_assessment import FootballSkillAssessment
+from ...models.notification import Notification, NotificationType
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -550,6 +553,47 @@ async def admin_edit_user_page(
         if lic.is_active and lic.expires_at is not None and lic.expires_at < now_naive
     }
 
+    # ── FÁZIS 5: Skill Progression data (LFA_FOOTBALL_PLAYER only) ──────────────
+    has_lfa_player = any(
+        lic.specialization_type == "LFA_FOOTBALL_PLAYER"
+        for lic in licenses if lic.is_active
+    )
+    xp_logs: list = []
+    xp_total: int = 0
+    skill_assessments: list = []
+    skill_tier_milestones: list = []
+    if has_lfa_player:
+        xp_logs = (
+            db.query(EventRewardLog)
+            .filter(EventRewardLog.user_id == user_id)
+            .order_by(EventRewardLog.created_at.desc())
+            .limit(20)
+            .all()
+        )
+        xp_total = db.query(sqlfunc.sum(EventRewardLog.xp_earned)).filter(
+            EventRewardLog.user_id == user_id
+        ).scalar() or 0
+        if license_ids:
+            skill_assessments = (
+                db.query(FootballSkillAssessment)
+                .filter(
+                    FootballSkillAssessment.user_license_id.in_(license_ids),
+                    FootballSkillAssessment.status != "ARCHIVED",
+                )
+                .order_by(FootballSkillAssessment.assessed_at.desc())
+                .limit(20)
+                .all()
+            )
+        skill_tier_milestones = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user_id,
+                Notification.type == NotificationType.SKILL_TIER_REACHED,
+            )
+            .order_by(Notification.created_at.desc())
+            .all()
+        )
+
     return templates.TemplateResponse(
         "admin/user_edit.html",
         {
@@ -568,6 +612,11 @@ async def admin_edit_user_page(
             "msg": request.query_params.get("msg", ""),
             "error": request.query_params.get("error", ""),
             "error_detail": request.query_params.get("error_detail", ""),
+            "has_lfa_player": has_lfa_player,
+            "xp_logs": xp_logs,
+            "xp_total": xp_total,
+            "skill_assessments": skill_assessments,
+            "skill_tier_milestones": skill_tier_milestones,
         }
     )
 
@@ -1117,6 +1166,30 @@ async def admin_analytics_page(
                     "past": len(matching) - upcoming,
                 })
 
+    # ── FÁZIS 5: Skill tier distribution ─────────────────────────────────────────
+    all_active_assessments = (
+        db.query(FootballSkillAssessment)
+        .filter(FootballSkillAssessment.status != "ARCHIVED")
+        .all()
+    )
+    from collections import defaultdict as _dd
+    _by_skill: dict = _dd(list)
+    for _a in all_active_assessments:
+        _by_skill[_a.skill_name].append(_a.percentage)
+    skill_dist = [
+        {
+            "skill": sn,
+            "beginner": sum(1 for p in pcts if p < 60),
+            "intermediate": sum(1 for p in pcts if 60 <= p < 75),
+            "advanced": sum(1 for p in pcts if 75 <= p < 90),
+            "expert": sum(1 for p in pcts if p >= 90),
+        }
+        for sn, pcts in sorted(_by_skill.items())
+    ]
+    tier_milestone_count = db.query(Notification).filter(
+        Notification.type == NotificationType.SKILL_TIER_REACHED
+    ).count()
+
     return templates.TemplateResponse(
         "admin/analytics.html",
         {
@@ -1129,6 +1202,8 @@ async def admin_analytics_page(
             "selected_location_id": location_id,
             "spec_semesters": dict(spec_semesters),
             "location_campuses": location_campuses,
+            "skill_dist": skill_dist,
+            "tier_milestone_count": tier_milestone_count,
         }
     )
 

@@ -3224,3 +3224,109 @@ class TestSmoke25InstructorManagement:
         # Availability window visible
         assert "Q2" in html, "Availability period 'Q2' not rendered"
         assert "2026" in html, "Availability year '2026' not rendered"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-26 — Reward & Skill Progression Dashboard (FÁZIS 5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke26SkillProgressionDashboard:
+    """SMOKE-26: Skill & XP Progression section in user_edit + skill tier distribution in analytics.
+
+    SMOKE-26a: user_edit for LFA_FOOTBALL_PLAYER license holder → #progression section
+               present with XP summary block (zero state).
+    SMOKE-26b: SKILL_TIER_REACHED notification title renders in the milestones list.
+    SMOKE-26c: GET /admin/analytics contains "Skill Tier Distribution" section.
+    """
+
+    def _make_student_with_lfa(self, db: Session) -> tuple:
+        """Create a student + active LFA_FOOTBALL_PLAYER license."""
+        u = User(
+            name="SMOKE-26 Student",
+            email=f"s26-{uuid.uuid4().hex[:6]}@smoke26.test",
+            role=UserRole.STUDENT,
+            password_hash="x",
+            is_active=True,
+        )
+        db.add(u)
+        db.flush()
+        lic = UserLicense(
+            user_id=u.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        db.add(lic)
+        db.flush()
+        return u, lic
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-26a ─────────────────────────────────────────────────────────────
+
+    def test_26a_progression_section_visible_for_lfa_player(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """user_edit shows #progression section for LFA_FOOTBALL_PLAYER license holder."""
+        student, _ = self._make_student_with_lfa(test_db)
+        test_db.commit()
+
+        resp = web_client.get(f"/admin/users/{student.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert 'id="progression"' in html, "#progression section missing from page"
+        assert "Total XP Earned" in html, "XP summary block missing from progression section"
+        assert "Skill &amp; XP Progression" in html or "Skill & XP Progression" in html, (
+            "Progression section heading missing"
+        )
+
+    # ── SMOKE-26b ─────────────────────────────────────────────────────────────
+
+    def test_26b_skill_tier_milestone_renders_in_progression(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """SKILL_TIER_REACHED notification title appears in the progression milestones list."""
+        from app.models.notification import Notification, NotificationType
+
+        student, _ = self._make_student_with_lfa(test_db)
+
+        milestone_title = f"Skill Milestone: Dribbling SMOKE26b-{uuid.uuid4().hex[:4]}"
+        notif = Notification(
+            user_id=student.id,
+            title=milestone_title,
+            message="You reached the 60% threshold in Dribbling.",
+            type=NotificationType.SKILL_TIER_REACHED,
+        )
+        test_db.add(notif)
+        test_db.commit()
+
+        resp = web_client.get(f"/admin/users/{student.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert "Skill Tier Milestones" in html, "Milestones sub-heading missing"
+        assert "SMOKE26b" in html, "Milestone notification title not rendered in page"
+
+    # ── SMOKE-26c ─────────────────────────────────────────────────────────────
+
+    def test_26c_analytics_page_has_skill_tier_distribution_section(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/analytics contains the Skill Tier Distribution section."""
+        resp = web_client.get("/admin/analytics")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert "section-skill-dist" in html, "Skill Tier Distribution section ID missing"
+        assert "Skill Tier Distribution" in html, "Skill Tier Distribution heading missing"
+        assert "Tier milestones reached" in html, "Tier milestone count label missing"
