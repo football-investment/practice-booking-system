@@ -4,8 +4,20 @@ TCM — Tournament Type Constraint Matrix
 Pure unit tests for TournamentType.validate_player_count().
 No DB required — TournamentType instances are built directly.
 
-Coverage: all 4 tournament types (knockout, league, group_knockout, swiss)
-plus formal Pattern-A isolation assertions.
+Production player limits (from app/tournament_types/*.json):
+  knockout      : min=4,  max=1024, pow2=True   — multi-campus eligible (≥128)
+  league        : min=2,  max=1024, pow2=False  — multi-campus eligible (≥128)
+  group_knockout: min=8,  max=64,   pow2=False  — single-campus only (max < 128)
+  swiss         : min=4,  max=64,   pow2=False  — single-campus only (max < 128)
+
+Multi-campus design:
+  Tournaments with player_count ≥ 128 require multi-campus session distribution
+  (round-robin modulo assignment in session_generator.pick_campus()).
+  The API-level safety gate (ops_scenario.py:_OPS_CONFIRM_THRESHOLD=128) requires
+  confirmed=True before the generator runs for these counts.
+  validate_player_count() itself does NOT know about campuses — it only checks
+  min/max/pow2. Tests in TestLargeTournamentMultiCampusBoundaries verify that
+  valid large counts reach the generator (only gate = confirmed flag).
 
 Pattern A (root cause catalog, Sprint 59):
   Using the WRONG tournament type in a boundary/safety-gate test can cause
@@ -13,11 +25,12 @@ Pattern A (root cause catalog, Sprint 59):
   masking the actual branch. These tests formally document which types fire which
   constraint at which player counts.
 
-TCM-01–04 : knockout
-TCM-05–07 : league
+TCM-01–04 : knockout (small + large boundaries)
+TCM-05–07 : league (small + large boundaries)
 TCM-08–11 : group_knockout
 TCM-12–14 : swiss
 TCM-15–17 : safety-gate / Pattern-A isolation
+TCM-18–23 : large-tournament multi-campus boundaries (128 – 1024)
 """
 import pytest
 from app.models.tournament_type import TournamentType
@@ -59,8 +72,8 @@ class TestKnockoutConstraints:
         assert ok is True
         assert msg == ""
 
-    def test_tcm02_valid_power_of_two(self):
-        """TCM-02: typical valid counts — 8, 16, 32, 64."""
+    def test_tcm02_valid_power_of_two_small(self):
+        """TCM-02: small valid counts — 8, 16, 32, 64 (single-campus territory)."""
         for n in (8, 16, 32, 64):
             ok, msg = KNOCKOUT.validate_player_count(n)
             assert ok is True, f"Expected valid for n={n}, got: {msg}"
@@ -250,3 +263,110 @@ class TestSafetyGateConstraintIsolation:
         )
         # Confirm this is NOT the max_players guard
         assert "maximum" not in msg
+
+
+# ---------------------------------------------------------------------------
+# TCM-18–23  Large-Tournament Multi-Campus Boundaries (128 – 1024)
+# ---------------------------------------------------------------------------
+
+class TestLargeTournamentMultiCampusBoundaries:
+    """Player counts in [128, 1024] — the multi-campus territory.
+
+    The system was designed to handle tournaments up to 1024 players.
+    Sessions are distributed across campuses via round-robin assignment
+    (pick_campus() in session_generation/utils.py).
+
+    At the validate_player_count() layer these counts must all be ACCEPTED
+    by knockout and league. The only guards above this layer are:
+      1. API safety gate (player_count >= 128 AND confirmed=False → HTTP 422)
+      2. Power-of-2 check for knockout (non-pow2 rejected regardless of size)
+
+    group_knockout and swiss are NOT multi-campus types: their max=64 means
+    they are structurally capped below the safety-gate threshold.
+    """
+
+    # -- TCM-18 : knockout valid in multi-campus territory -------------------
+
+    def test_tcm18_knockout_valid_large_power_of_two(self):
+        """TCM-18: knockout accepts 128, 256, 512, 1024 — all valid powers of 2.
+
+        These are the player counts that trigger multi-campus session distribution.
+        validate_player_count() must return True so only the confirmed flag
+        (safety gate) gates these operations, not the model itself.
+        """
+        for n in (128, 256, 512, 1024):
+            ok, msg = KNOCKOUT.validate_player_count(n)
+            assert ok is True, f"knockout must accept {n} players (multi-campus): {msg}"
+
+    # -- TCM-19 : knockout upper boundary ------------------------------------
+
+    def test_tcm19_knockout_at_exact_maximum(self):
+        """TCM-19: knockout at exactly max=1024 → valid (the system maximum)."""
+        ok, msg = KNOCKOUT.validate_player_count(1024)
+        assert ok is True
+        assert msg == ""
+
+    def test_tcm19b_knockout_above_maximum(self):
+        """TCM-19b: knockout at 1025 (above max=1024) → invalid.
+
+        The max=1024 guard must fire before the pow2 check would ever apply.
+        """
+        ok, msg = KNOCKOUT.validate_player_count(1025)
+        assert ok is False
+        assert "maximum 1024" in msg
+        assert "power-of-2" not in msg  # max guard fires first
+
+    # -- TCM-20 : league valid in multi-campus territory --------------------
+
+    def test_tcm20_league_valid_large_counts(self):
+        """TCM-20: league accepts 128, 256, 512, 1024 — the multi-campus range.
+
+        League has no pow2 constraint, so ANY integer in [2, 1024] is valid.
+        This makes it the canonical neutral type for safety-gate tests
+        (TCM-15 / TCM-16) AND for large-scale round-robin tournaments.
+        """
+        for n in (128, 256, 512, 1024):
+            ok, msg = LEAGUE.validate_player_count(n)
+            assert ok is True, f"league must accept {n} players (multi-campus): {msg}"
+
+    # -- TCM-21 : league upper boundary -------------------------------------
+
+    def test_tcm21_league_above_maximum(self):
+        """TCM-21: league at 1025 (above max=1024) → invalid."""
+        ok, msg = LEAGUE.validate_player_count(1025)
+        assert ok is False
+        assert "maximum 1024" in msg
+
+    # -- TCM-22 : group_knockout and swiss are capped below 128 -------------
+
+    def test_tcm22_group_knockout_and_swiss_not_multi_campus_eligible(self):
+        """TCM-22: group_knockout (max=64) and swiss (max=64) reject all counts
+        at or above the multi-campus threshold (128).
+
+        These formats are structurally single-campus: their maximum player count
+        (64) is below the safety-gate threshold (128). A 'group_knockout' or
+        'swiss' tournament can NEVER reach multi-campus territory.
+        """
+        for n in (65, 128, 256, 512, 1024):
+            ok_gk, msg_gk = GROUP_KNOCK.validate_player_count(n)
+            assert ok_gk is False, f"group_knockout must reject {n}: got valid"
+            assert "maximum 64" in msg_gk
+
+            ok_sw, msg_sw = SWISS.validate_player_count(n)
+            assert ok_sw is False, f"swiss must reject {n}: got valid"
+            assert "maximum 64" in msg_sw
+
+    # -- TCM-23 : non-pow2 large counts in knockout -------------------------
+
+    def test_tcm23_knockout_rejects_large_non_power_of_two(self):
+        """TCM-23: knockout rejects large but non-power-of-2 counts.
+
+        Even within multi-campus territory, knockout enforces the power-of-2
+        rule. 192, 384, 768 are > 128 but not powers of 2 → invalid.
+        The error must cite pow2, not max_players (all are ≤ 1024).
+        """
+        for n in (192, 384, 768):
+            ok, msg = KNOCKOUT.validate_player_count(n)
+            assert ok is False, f"knockout must reject non-pow2 n={n}"
+            assert "power-of-2" in msg
+            assert "maximum" not in msg
