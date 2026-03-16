@@ -2617,3 +2617,82 @@ class TestSmoke22GamePresetPlayerCountGuard:
         # Preset name must NOT appear (no preset was attached)
         assert "Preset" not in msg, f"Unexpected preset reference in msg: {msg}"
         assert sessions == []
+
+    def test_22c_lifecycle_regeneration_after_player_addition(
+        self, test_db: Session, admin_user: User
+    ):
+        """SMOKE-22c: lifecycle regeneration scenario — V3 stability proof.
+
+        Sequence:
+          1. INDIVIDUAL_RANKING tournament, preset min=8
+          2. First generation attempt (5 players) → blocked by preset guard
+          3. sessions_generated flag must still be False (no state corruption)
+          4. 3 more players added → total 8 (meets preset minimum)
+          5. Second generation attempt → succeeds
+          6. sessions_generated flag is now True, sessions exist in DB
+
+        This proves the guard is idempotent: a failed generation leaves the
+        tournament in a clean re-tryable state.
+        """
+        from app.services.tournament.session_generation.session_generator import TournamentSessionGenerator
+
+        # ── Setup: tournament + preset(min=8) ─────────────────────────────────
+        preset = GamePreset(
+            name="SMOKE22c Regen Preset",
+            code=f"S22C-{uuid.uuid4().hex[:4].upper()}",
+            is_active=True,
+            game_config={
+                "metadata": {"min_players": 8},
+                "skill_config": {"skill_weights": {}},
+                "format_config": {},
+            },
+        )
+        test_db.add(preset)
+        test_db.flush()
+
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="c")
+        game_cfg = GameConfiguration(
+            semester_id=tourn.id,
+            game_preset_id=preset.id,
+            game_config=preset.game_config,
+        )
+        test_db.add(game_cfg)
+        test_db.flush()
+
+        # ── Step 1: enroll 5 players (below preset minimum of 8) ──────────────
+        self._enroll(test_db, tourn.id, n=5)
+
+        # ── Step 2: first generation attempt → must be blocked ────────────────
+        gen = TournamentSessionGenerator(test_db)
+        ok1, msg1, sessions1 = gen.generate_sessions(tourn.id)
+
+        assert ok1 is False, f"Expected blocked, got ok=True; msg={msg1}"
+        assert "8" in msg1 and "5" in msg1, f"Guard message must cite 8 and 5: {msg1}"
+        assert sessions1 == []
+
+        # ── Step 3: verify no state corruption after failed attempt ────────────
+        test_db.refresh(tourn)
+        assert tourn.sessions_generated is False, (
+            "sessions_generated must remain False after blocked generation"
+        )
+        cfg = test_db.query(TournamentConfiguration).filter(
+            TournamentConfiguration.semester_id == tourn.id
+        ).first()
+        assert cfg.sessions_generated is False, (
+            "TournamentConfiguration.sessions_generated must remain False"
+        )
+
+        # ── Step 4: add 3 more players → total 8 ──────────────────────────────
+        self._enroll(test_db, tourn.id, n=3)
+
+        # ── Step 5: second generation attempt → must succeed ──────────────────
+        ok2, msg2, sessions2 = gen.generate_sessions(tourn.id)
+
+        assert ok2 is True, f"Expected success after reaching 8 players; msg={msg2}"
+        assert len(sessions2) > 0, "Expected at least one session to be created"
+
+        # ── Step 6: state reflects success ────────────────────────────────────
+        test_db.refresh(tourn)
+        assert tourn.sessions_generated is True, (
+            "sessions_generated must be True after successful generation"
+        )
