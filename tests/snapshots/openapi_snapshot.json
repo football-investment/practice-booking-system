@@ -22348,6 +22348,71 @@
         ]
       }
     },
+    "/admin/instructors": {
+      "get": {
+        "description": "Admin instructor list \u2014 all users with role=INSTRUCTOR.",
+        "operationId": "admin_instructors_page_admin_instructors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Instructors Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/instructors/{instructor_id}": {
+      "get": {
+        "description": "Admin instructor detail \u2014 licenses, assignments, availability, requests.",
+        "operationId": "admin_instructor_detail_page_admin_instructors__instructor_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instructor_id",
+            "required": true,
+            "schema": {
+              "title": "Instructor Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Instructor Detail Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/invitation-codes": {
       "get": {
         "description": "Admin-only: Partner Invitation Codes Management page",

@@ -3093,3 +3093,134 @@ class TestSmoke24SessionGenWizard:
         assert "sgw-overlay" in html, "Wizard overlay (#sgw-overlay) missing from edit page"
         assert "session-gen-wizard.js" in html, "session-gen-wizard.js not loaded on edit page"
         assert "SessionGenWizard.open" in html, "openSessionGenWizard() wiring missing from scripts block"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-25 — Instructor Management Pages (FÁZIS 4)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke25InstructorManagement:
+    """SMOKE-25: Admin instructor list + detail pages.
+
+    SMOKE-25a: GET /admin/instructors → 200, stats row + instructor table present,
+               nav item '👨‍🏫 Instructors' active.
+    SMOKE-25b: GET /admin/instructors/{id} → 200, all 5 section IDs present,
+               instructor name + email in HTML.
+    SMOKE-25c: GET /admin/instructors/{id} shows license + availability data
+               for a seeded instructor.
+    """
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _make_instructor(self, test_db: Session, suffix: str = "") -> User:
+        """Create a minimal INSTRUCTOR user."""
+        u = User(
+            name=f"SMOKE-25{suffix} Instructor",
+            email=f"s25inst{suffix}-{uuid.uuid4().hex[:6]}@smoke25.test",
+            role=UserRole.INSTRUCTOR,
+            password_hash="x",
+            is_active=True,
+        )
+        test_db.add(u)
+        test_db.commit()
+        test_db.refresh(u)
+        return u
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-25a ─────────────────────────────────────────────────────────────
+
+    def test_25a_instructor_list_page_loads(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/instructors → 200, stats + nav link present."""
+        self._make_instructor(test_db, suffix="a")
+
+        resp = web_client.get("/admin/instructors")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        # Nav item active
+        assert "/admin/instructors" in html, "Nav link to /admin/instructors missing"
+        # Stats row
+        assert "Total" in html, "'Total' stat label missing"
+        # Table header
+        assert "Licenses" in html, "Licenses column missing"
+        assert "Assignments" in html, "Assignments column missing"
+        # Detail link present
+        assert "Detail" in html or "🔍" in html, "Detail link missing from table"
+
+    # ── SMOKE-25b ─────────────────────────────────────────────────────────────
+
+    def test_25b_instructor_detail_page_loads_sections(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/instructors/{id} → 200, all section IDs + instructor identity."""
+        inst = self._make_instructor(test_db, suffix="b")
+
+        resp = web_client.get(f"/admin/instructors/{inst.id}")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        # Instructor identity
+        assert inst.name in html, "Instructor name missing from detail page"
+        assert inst.email in html, "Instructor email missing from detail page"
+        # All 5 section anchors
+        for section_id in [
+            "section-basic", "section-licenses", "section-assignments",
+            "section-availability", "section-requests",
+        ]:
+            assert section_id in html, f"Section '{section_id}' missing from detail page"
+        # Edit profile link
+        assert f"/admin/users/{inst.id}/edit" in html, "Edit profile link missing"
+
+    # ── SMOKE-25c ─────────────────────────────────────────────────────────────
+
+    def test_25c_instructor_detail_shows_license_and_availability(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Detail page renders seeded license + availability window data."""
+        from app.models.instructor_assignment import InstructorAvailabilityWindow
+
+        inst = self._make_instructor(test_db, suffix="c")
+
+        # Seed a license
+        lic = UserLicense(
+            user_id=inst.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        test_db.add(lic)
+
+        # Seed an availability window
+        avail = InstructorAvailabilityWindow(
+            instructor_id=inst.id,
+            year=2026,
+            time_period="Q2",
+            is_available=True,
+            notes="Smoke25 availability",
+        )
+        test_db.add(avail)
+        test_db.commit()
+
+        resp = web_client.get(f"/admin/instructors/{inst.id}")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+
+        html = resp.text
+        # License specialization visible
+        assert SpecializationType.LFA_FOOTBALL_PLAYER.value in html, (
+            "License specialization type not rendered"
+        )
+        # Availability window visible
+        assert "Q2" in html, "Availability period 'Q2' not rendered"
+        assert "2026" in html, "Availability year '2026' not rendered"
