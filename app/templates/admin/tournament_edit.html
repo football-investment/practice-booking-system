@@ -1,0 +1,533 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Edit: {{ t.name }}{% endblock %}
+{% block page_heading %}🏆 Tournament: {{ t.name }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #667eea;
+}
+.section-header h2 { font-size: 1.2rem; color: #2d3748; margin: 0; border: none; padding: 0; }
+.section-icon { font-size: 1.3rem; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-group label { font-size: 0.75rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+.form-group input, .form-group select, .form-group textarea {
+    padding: 0.5rem 0.85rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: white;
+}
+.form-group input:focus, .form-group select:focus { outline: 2px solid #667eea; border-color: transparent; }
+.form-group .field-hint { font-size: 0.75rem; color: #a0aec0; margin-top: 0.15rem; }
+.save-row { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0; }
+.status-badge-inline {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+.status-draft      { background: #edf2f7; color: #4a5568; }
+.status-open       { background: #ebf8ff; color: #2b6cb0; }
+.status-closed     { background: #fffaf0; color: #c05621; }
+.status-progress   { background: #f0fff4; color: #276749; }
+.status-completed  { background: #faf5ff; color: #553c9a; }
+.status-cancelled  { background: #fff5f5; color: #c53030; }
+.checkin-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid #f0f0f0; }
+.checkin-row:last-child { border-bottom: none; }
+.checkin-name { flex: 1; font-size: 0.9rem; color: #2d3748; }
+.checkin-email { font-size: 0.8rem; color: #718096; }
+.checkin-status { font-size: 0.8rem; font-weight: 600; }
+.checked-in { color: #27ae60; }
+.not-checked-in { color: #a0aec0; }
+.session-list-row { display: flex; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+.session-list-row:last-child { border-bottom: none; }
+.session-list-row .sess-time { color: #718096; white-space: nowrap; }
+.session-list-row .sess-type { font-size: 0.78rem; background: #ebf4ff; color: #2b6cb0; padding: 0.15rem 0.5rem; border-radius: 4px; }
+.info-banner { background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.88rem; color: #2b6cb0; margin-bottom: 1rem; }
+.warn-banner { background: #fffaf0; border: 1px solid #fbd38d; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.88rem; color: #c05621; margin-bottom: 1rem; }
+.reward-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+.reward-tier { background: #f7fafc; border-radius: 8px; padding: 0.75rem; text-align: center; border: 1px solid #e2e8f0; }
+.reward-tier .tier-label { font-size: 0.75rem; font-weight: 700; color: #718096; text-transform: uppercase; }
+.reward-tier .tier-credits { font-size: 1.4rem; font-weight: 700; color: #2d3748; }
+.reward-tier .tier-xp { font-size: 0.82rem; color: #667eea; }
+.breadcrumb { font-size: 0.85rem; color: rgba(255,255,255,0.75); margin-bottom: 0.3rem; }
+.breadcrumb a { color: rgba(255,255,255,0.85); text-decoration: none; }
+.breadcrumb a:hover { color: white; text-decoration: underline; }
+@media (max-width: 639px) {
+    .form-row { grid-template-columns: 1fr; }
+    .save-row { flex-wrap: wrap; }
+}
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<div class="breadcrumb"><a href="/admin/tournaments">← Tournaments</a></div>
+ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.value }}</strong>
+{% endblock %}
+
+{% block admin_content %}
+
+{# ── Flash / Error ─────────────────────────────────────────────────────────── #}
+{% if flash %}
+<div class="info-banner">✅ {{ flash }}</div>
+{% endif %}
+{% if error %}
+<div class="warn-banner">⚠️ {{ error }}</div>
+{% endif %}
+
+{# ── SECTION 1: Alapadatok ─────────────────────────────────────────────────── #}
+<div class="card" id="section-basic">
+    <div class="section-header">
+        <span class="section-icon">📋</span>
+        <h2>Basic Info</h2>
+        {% set ts = t.tournament_status or '' %}
+        {% if ts == 'DRAFT' %}<span class="status-badge-inline status-draft">DRAFT</span>
+        {% elif ts == 'ENROLLMENT_OPEN' %}<span class="status-badge-inline status-open">ENROLLMENT OPEN</span>
+        {% elif ts == 'ENROLLMENT_CLOSED' %}<span class="status-badge-inline status-closed">ENROLLMENT CLOSED</span>
+        {% elif ts == 'IN_PROGRESS' %}<span class="status-badge-inline status-progress">IN PROGRESS</span>
+        {% elif ts == 'COMPLETED' %}<span class="status-badge-inline status-completed">COMPLETED</span>
+        {% elif ts == 'CANCELLED' %}<span class="status-badge-inline status-cancelled">CANCELLED</span>
+        {% else %}<span class="status-badge-inline status-draft">{{ ts }}</span>{% endif %}
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>Tournament Name</label>
+            <input type="text" id="basic-name" value="{{ t.name }}">
+        </div>
+        <div class="form-group">
+            <label>Code <span style="color:#a0aec0">(read-only)</span></label>
+            <input type="text" value="{{ t.code }}" disabled style="background:#f7fafc;color:#718096;">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="basic-start-date" value="{{ t.start_date.isoformat() if t.start_date else '' }}">
+        </div>
+        <div class="form-group">
+            <label>End Date</label>
+            <input type="date" id="basic-end-date" value="{{ t.end_date.isoformat() if t.end_date else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Enrollment Cost (credits)</label>
+            <input type="number" id="basic-enrollment-cost" value="{{ t.enrollment_cost or 0 }}" min="0">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Age Group</label>
+            <select id="basic-age-group">
+                {% for ag in ['PRE', 'YOUTH', 'AMATEUR', 'PRO'] %}
+                <option value="{{ ag }}" {% if t.age_group == ag %}selected{% endif %}>{{ ag }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Max Players</label>
+            <input type="number" id="basic-max-players" value="{{ t.max_players or '' }}" min="2" placeholder="No limit">
+        </div>
+        <div class="form-group">
+            <label>Campus</label>
+            <select id="basic-campus-id">
+                <option value="">— No campus —</option>
+                {% for campus in campuses %}
+                <option value="{{ campus.id }}" {% if t.campus_id == campus.id %}selected{% endif %}>{{ campus.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="save-row">
+        <button class="btn btn-primary" onclick="saveBasicInfo()">💾 Save Basic Info</button>
+        <span id="basic-save-status" style="font-size:0.85rem;color:#718096;"></span>
+    </div>
+</div>
+
+{# ── SECTION 2: Schedule Config ────────────────────────────────────────────── #}
+<div class="card" id="section-schedule">
+    <div class="section-header">
+        <span class="section-icon">⏱️</span>
+        <h2>Schedule Configuration</h2>
+    </div>
+
+    <div class="info-banner">
+        These are global defaults used during session generation. Per-campus overrides take precedence.
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>Match Duration (min)</label>
+            <input type="number" id="sched-match-duration"
+                   value="{{ schedule.match_duration_minutes or '' }}"
+                   min="1" max="480" placeholder="90 (type default)">
+            <span class="field-hint">Leave blank to use tournament type default</span>
+        </div>
+        <div class="form-group">
+            <label>Break Between Matches (min)</label>
+            <input type="number" id="sched-break-duration"
+                   value="{{ schedule.break_duration_minutes or '' }}"
+                   min="0" max="120" placeholder="15 (type default)">
+        </div>
+        <div class="form-group">
+            <label>Parallel Fields / Courts</label>
+            <input type="number" id="sched-parallel-fields"
+                   value="{{ schedule.parallel_fields or 1 }}"
+                   min="1" max="20">
+            <span class="field-hint">Number of simultaneous pitches/boards</span>
+        </div>
+    </div>
+
+    <div class="save-row">
+        <button class="btn btn-primary" onclick="saveScheduleConfig()">💾 Save Schedule Config</button>
+        <span id="sched-save-status" style="font-size:0.85rem;color:#718096;"></span>
+    </div>
+</div>
+
+{# ── SECTION 3: Reward Config ──────────────────────────────────────────────── #}
+<div class="card" id="section-rewards">
+    <div class="section-header">
+        <span class="section-icon">🎁</span>
+        <h2>Reward Configuration</h2>
+    </div>
+
+    {% if reward_cfg %}
+        <div class="reward-summary">
+            {% if reward_cfg.get('first_place') %}
+            <div class="reward-tier">
+                <div class="tier-label">🥇 1st Place</div>
+                <div class="tier-credits">{{ reward_cfg.first_place.get('credits', 0) }} cr</div>
+                <div class="tier-xp">×{{ reward_cfg.first_place.get('xp_multiplier', 1.0) }} XP</div>
+            </div>
+            {% endif %}
+            {% if reward_cfg.get('second_place') %}
+            <div class="reward-tier">
+                <div class="tier-label">🥈 2nd Place</div>
+                <div class="tier-credits">{{ reward_cfg.second_place.get('credits', 0) }} cr</div>
+                <div class="tier-xp">×{{ reward_cfg.second_place.get('xp_multiplier', 1.0) }} XP</div>
+            </div>
+            {% endif %}
+            {% if reward_cfg.get('third_place') %}
+            <div class="reward-tier">
+                <div class="tier-label">🥉 3rd Place</div>
+                <div class="tier-credits">{{ reward_cfg.third_place.get('credits', 0) }} cr</div>
+                <div class="tier-xp">×{{ reward_cfg.third_place.get('xp_multiplier', 1.0) }} XP</div>
+            </div>
+            {% endif %}
+            {% if reward_cfg.get('participation') %}
+            <div class="reward-tier">
+                <div class="tier-label">🎽 Participation</div>
+                <div class="tier-credits">{{ reward_cfg.participation.get('credits', 0) }} cr</div>
+                <div class="tier-xp">×{{ reward_cfg.participation.get('xp_multiplier', 1.0) }} XP</div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% set skills = reward_cfg.get('skill_mappings', []) %}
+        {% if skills %}
+        <p style="margin-top:0.85rem;font-size:0.85rem;color:#718096;">
+            Skills tested:
+            {% for s in skills %}{% if s.get('enabled') %}<strong>{{ s.get('skill', '') }}</strong> ({{ s.get('weight', 1.0) }}×){% if not loop.last %}, {% endif %}{% endif %}{% endfor %}
+        </p>
+        {% endif %}
+
+        <div class="save-row">
+            <span style="font-size:0.85rem;color:#718096;">
+                Policy: <strong>{{ reward_cfg.get('template_name', 'Custom') }}</strong>
+            </span>
+            <button class="btn btn-secondary" onclick="loadRewardConfig()">🔄 Reload from API</button>
+        </div>
+    {% else %}
+        <div class="warn-banner">
+            No reward configuration set. Use the API to configure rewards:
+            <code>POST /api/v1/tournaments/{{ t.id }}/reward-config</code>
+        </div>
+        <div class="save-row">
+            <button class="btn btn-secondary" onclick="loadRewardConfig()">🔄 Load Reward Config</button>
+        </div>
+    {% endif %}
+    <div id="reward-config-detail" style="margin-top:1rem;display:none;"></div>
+</div>
+
+{# ── SECTION 4: Enrolled Players / Check-in Status ────────────────────────── #}
+<div class="card" id="section-checkin">
+    <div class="section-header">
+        <span class="section-icon">✅</span>
+        <h2>Enrolled Players</h2>
+    </div>
+
+    <div class="stats-row" style="margin-bottom:1rem;">
+        <div class="stat-card">
+            <div class="val">{{ enrollments|length }}</div>
+            <div class="lbl">Enrolled</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ checked_in_count }}</div>
+            <div class="lbl">Checked In</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ enrollments|length - checked_in_count }}</div>
+            <div class="lbl">Pending Check-in</div>
+        </div>
+        {% if preset_min_players %}
+        <div class="stat-card">
+            <div class="val" style="{% if enrollments|length >= preset_min_players %}color:#27ae60{% else %}color:#e74c3c{% endif %}">{{ preset_min_players }}</div>
+            <div class="lbl">Min Players (preset)</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if enrollments %}
+    <div class="info-banner">
+        Players self-check-in within 15 min of tournament start. If 0 check-ins occur, session
+        generation falls back to all approved enrollments automatically.
+    </div>
+
+    <div style="max-height:320px;overflow-y:auto;">
+        {% for enrollment in enrollments %}
+        {% set player = enrolled_users.get(enrollment.user_id) %}
+        <div class="checkin-row">
+            <div style="flex:1">
+                <div class="checkin-name">{{ player.full_name if player else 'User #' ~ enrollment.user_id }}</div>
+                <div class="checkin-email">{{ player.email if player else '' }}</div>
+            </div>
+            <div>
+                <span class="badge badge-{% if enrollment.request_status.value == 'APPROVED' %}student{% else %}instructor{% endif %}"
+                      style="font-size:0.75rem;">{{ enrollment.request_status.value }}</span>
+            </div>
+            <div class="checkin-status {% if enrollment.tournament_checked_in_at %}checked-in{% else %}not-checked-in{% endif %}">
+                {% if enrollment.tournament_checked_in_at %}
+                    ✅ {{ enrollment.tournament_checked_in_at.strftime('%H:%M') }}
+                {% else %}
+                    ⬜ Not checked in
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p style="color:#718096;font-style:italic;">No enrollments yet.</p>
+    {% endif %}
+</div>
+
+{# ── SECTION 5: Session Generation ────────────────────────────────────────── #}
+<div class="card" id="section-sessions">
+    <div class="section-header">
+        <span class="section-icon">📅</span>
+        <h2>Session Generation</h2>
+    </div>
+
+    <div class="stats-row" style="margin-bottom:1rem;">
+        <div class="stat-card">
+            <div class="val">{{ session_count }}</div>
+            <div class="lbl">Sessions</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ '✅' if (cfg and cfg.sessions_generated) else '⬜' }}</div>
+            <div class="lbl">Generated</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ enrollments|length }}</div>
+            <div class="lbl">Players</div>
+        </div>
+    </div>
+
+    {% if preset_min_players and enrollments|length < preset_min_players %}
+    <div class="warn-banner">
+        ⚠️ <strong>Not enough players.</strong>
+        Preset requires <strong>{{ preset_min_players }}</strong> players,
+        currently <strong>{{ enrollments|length }}</strong> enrolled.
+        Session generation will be blocked until minimum is reached.
+    </div>
+    {% endif %}
+
+    {% if cfg and cfg.sessions_generated %}
+        <div class="info-banner">✅ Sessions already generated ({{ session_count }} sessions).
+        Regeneration will delete existing sessions first.</div>
+
+        {% if sessions %}
+        <div style="margin-top:0.75rem;">
+            <p style="font-size:0.85rem;font-weight:600;color:#4a5568;margin-bottom:0.5rem;">First {{ sessions|length }} sessions:</p>
+            {% for s in sessions %}
+            <div class="session-list-row">
+                <span class="sess-time">{{ s.date_start.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span>{{ s.title }}</span>
+                {% if s.game_type %}<span class="sess-type">{{ s.game_type }}</span>{% endif %}
+            </div>
+            {% endfor %}
+            {% if session_count > sessions|length %}
+            <p style="font-size:0.82rem;color:#a0aec0;margin-top:0.4rem;">
+                … and {{ session_count - sessions|length }} more.
+                <a href="/admin/sessions?semester_id={{ t.id }}" style="color:#667eea;">View all →</a>
+            </p>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <div class="save-row">
+        <button class="btn btn-primary" id="btn-generate-sessions"
+                onclick="openSessionGenWizard({{ t.id }})"
+                {% if t.tournament_status not in ['ENROLLMENT_CLOSED', 'IN_PROGRESS'] %}
+                title="Available when tournament is ENROLLMENT_CLOSED or IN_PROGRESS"
+                style="opacity:0.5;cursor:not-allowed"
+                {% endif %}>
+            ⚡ Generate Sessions
+        </button>
+        {% if session_count > 0 %}
+        <a href="/admin/sessions?semester_id={{ t.id }}" class="btn btn-secondary">📋 View All Sessions</a>
+        {% endif %}
+    </div>
+</div>
+
+{# ── SECTION 6: Results & Finalization ────────────────────────────────────── #}
+<div class="card" id="section-results">
+    <div class="section-header">
+        <span class="section-icon">🏅</span>
+        <h2>Results &amp; Finalization</h2>
+    </div>
+
+    <div class="form-row" style="max-width:600px;">
+        <div class="form-group">
+            <label>Current Tournament Status</label>
+            <input type="text" value="{{ t.tournament_status or t.status.value }}" disabled style="background:#f7fafc;color:#718096;">
+        </div>
+        <div class="form-group">
+            <label>Sessions Generated</label>
+            <input type="text" value="{{ 'Yes — ' ~ session_count ~ ' sessions' if (cfg and cfg.sessions_generated) else 'No' }}"
+                   disabled style="background:#f7fafc;color:#718096;">
+        </div>
+    </div>
+
+    <div class="save-row" style="flex-wrap:wrap;gap:0.6rem;">
+        <button class="btn btn-warning"
+                onclick="finalizeResults({{ t.id }})"
+                {% if t.tournament_status != 'IN_PROGRESS' %}
+                title="Only available for IN_PROGRESS tournaments"
+                style="opacity:0.5;cursor:not-allowed"
+                {% endif %}>
+            🏁 Finalize Tournament
+        </button>
+
+        <button class="btn btn-success"
+                onclick="distributeRewards({{ t.id }})"
+                {% if t.tournament_status not in ['IN_PROGRESS', 'COMPLETED'] %}
+                title="Available for IN_PROGRESS or COMPLETED tournaments"
+                style="opacity:0.5;cursor:not-allowed"
+                {% endif %}>
+            🎁 Distribute Rewards
+        </button>
+
+        <a href="/admin/tournaments" class="btn btn-secondary">← Back to Tournaments</a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TOURN_ID = {{ t.id }};
+
+// ── Section 1: Basic Info ─────────────────────────────────────────────────────
+async function saveBasicInfo() {
+    const body = {
+        name:            document.getElementById('basic-name').value.trim() || undefined,
+        start_date:      document.getElementById('basic-start-date').value || undefined,
+        end_date:        document.getElementById('basic-end-date').value || undefined,
+        enrollment_cost: parseInt(document.getElementById('basic-enrollment-cost').value) || 0,
+        age_group:       document.getElementById('basic-age-group').value || undefined,
+        campus_id:       parseInt(document.getElementById('basic-campus-id').value) || undefined,
+    };
+    const maxP = document.getElementById('basic-max-players').value;
+    if (maxP) body.max_players = parseInt(maxP);
+
+    const statusEl = document.getElementById('basic-save-status');
+    statusEl.textContent = 'Saving…';
+    try {
+        const data = await AdminAPI.patch(`/api/v1/tournaments/${TOURN_ID}`, body);
+        statusEl.textContent = '✅ Saved';
+        toast('Basic info updated');
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 2: Schedule Config ────────────────────────────────────────────────
+async function saveScheduleConfig() {
+    const matchVal = document.getElementById('sched-match-duration').value;
+    const breakVal = document.getElementById('sched-break-duration').value;
+    const parallelVal = document.getElementById('sched-parallel-fields').value;
+
+    const body = {};
+    if (matchVal)   body.match_duration_minutes  = parseInt(matchVal);
+    if (breakVal)   body.break_duration_minutes  = parseInt(breakVal);
+    if (parallelVal) body.parallel_fields = parseInt(parallelVal);
+
+    const statusEl = document.getElementById('sched-save-status');
+    statusEl.textContent = 'Saving…';
+    try {
+        const data = await AdminAPI.patch(`/api/v1/tournaments/${TOURN_ID}/schedule-config`, body);
+        statusEl.textContent = '✅ Saved';
+        toast('Schedule config updated');
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 3: Reward Config ──────────────────────────────────────────────────
+async function loadRewardConfig() {
+    try {
+        const cfg = await AdminAPI.get(`/api/v1/tournaments/${TOURN_ID}/reward-config`);
+        const container = document.getElementById('reward-config-detail');
+        container.style.display = 'block';
+        container.innerHTML = `<pre style="font-size:0.78rem;background:#f7fafc;padding:1rem;border-radius:8px;overflow:auto;max-height:300px;">${JSON.stringify(cfg, null, 2)}</pre>`;
+        toast('Reward config loaded', 'info');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 5: Session Generation (FÁZIS 3 placeholder) ───────────────────────
+function openSessionGenWizard(tournId) {
+    // FÁZIS 3: session generation wizard will be wired here
+    toast('Session generation wizard — coming in Phase 3', 'info');
+}
+
+// ── Section 6: Results ────────────────────────────────────────────────────────
+async function finalizeResults(tournId) {
+    if (!confirm('Finalize this tournament? This will lock results and calculate final rankings.')) return;
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/finalize-tournament`, {});
+        toast('Tournament finalized');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function distributeRewards(tournId) {
+    if (!confirm('Distribute rewards to all participants? This action awards XP, credits, and badges.')) return;
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
+        toast('Rewards distributed successfully');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+</script>
+{% endblock %}

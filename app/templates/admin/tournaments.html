@@ -340,13 +340,8 @@
 
                     <!-- Action buttons -->
                     <div class="action-btns">
-                        <!-- Edit (stub) -->
-                        <button class="action-btn btn-stub" title="Coming soon">✏️ Edit</button>
-
-                        <!-- Edit Schedule (stub, hidden if enrollment started) -->
-                        {% if t.tournament_status not in ('ENROLLMENT_OPEN', 'IN_PROGRESS', 'COMPLETED') %}
-                        <button class="action-btn btn-stub" title="Coming soon">⚙️ Edit Schedule</button>
-                        {% endif %}
+                        <!-- Edit → tournament edit page -->
+                        <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn" style="text-decoration:none;">✏️ Edit</a>
 
                         <!-- Start (ENROLLMENT_CLOSED only) -->
                         {% if t.tournament_status == 'ENROLLMENT_CLOSED' %}
@@ -358,8 +353,8 @@
                         </form>
                         {% endif %}
 
-                        <!-- Reward Config (stub) -->
-                        <button class="action-btn btn-stub" title="Coming soon">🎁 Reward Config</button>
+                        <!-- Reward Config → edit page #section-rewards -->
+                        <a href="/admin/tournaments/{{ t.id }}/edit#section-rewards" class="action-btn" style="text-decoration:none;">🎁 Rewards</a>
 
                         <!-- Cancel (if not COMPLETED/CANCELLED) -->
                         {% if t.tournament_status not in ('COMPLETED', 'CANCELLED') %}

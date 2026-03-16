@@ -2696,3 +2696,208 @@ class TestSmoke22GamePresetPlayerCountGuard:
         assert tourn.sessions_generated is True, (
             "sessions_generated must be True after successful generation"
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-23 — Tournament Edit Page (FÁZIS 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke23TournamentEditPage:
+    """SMOKE-23: Admin tournament edit page — GET route, basic info PATCH,
+    schedule-config PATCH, and enrolled player check-in status display.
+
+    SMOKE-23a: GET /admin/tournaments/{id}/edit → 200, HTML contains tournament
+               name, code, and all 6 section IDs.
+    SMOKE-23b: PATCH /api/v1/tournaments/{id} (via API client) → name updated
+               in the DB, response contains updated name.
+    SMOKE-23c: PATCH /api/v1/tournaments/{id}/schedule-config → match_duration,
+               break_duration, parallel_fields persisted in TournamentConfiguration.
+    SMOKE-23d: GET /admin/tournaments/{id}/edit with enrolled player → HTML
+               shows enrolled player count and check-in status indicators.
+    """
+
+    # ── Shared helpers ────────────────────────────────────────────────────────
+
+    def _make_tournament(self, test_db: Session, admin_user: User, suffix: str = "") -> Semester:
+        """Create a minimal tournament with TournamentConfiguration."""
+        today = date.today()
+        tourn = Semester(
+            code=f"S23{suffix}-{uuid.uuid4().hex[:6]}",
+            name=f"SMOKE-23{suffix} Edit Test",
+            start_date=today,
+            end_date=today + timedelta(days=7),
+            tournament_status="ENROLLMENT_CLOSED",
+            master_instructor_id=admin_user.id,
+            tournament_config_obj=TournamentConfiguration(
+                participant_type="INDIVIDUAL",
+                scoring_type="PLACEMENT",
+                sessions_generated=False,
+                parallel_fields=1,
+            ),
+        )
+        test_db.add(tourn)
+        test_db.commit()
+        test_db.refresh(tourn)
+        return tourn
+
+    def _enroll_player(self, test_db: Session, tournament_id: int) -> tuple:
+        """Create one student + license + APPROVED enrollment. Returns (user, enrollment)."""
+        u = User(
+            name=f"S23Player-{uuid.uuid4().hex[:4]}",
+            email=f"s23p-{uuid.uuid4().hex[:6]}@smoke23.test",
+            role=UserRole.STUDENT,
+            password_hash="x",
+        )
+        test_db.add(u)
+        test_db.flush()
+        lic = UserLicense(
+            user_id=u.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        test_db.add(lic)
+        test_db.flush()
+        enroll = SemesterEnrollment(
+            user_id=u.id,
+            semester_id=tournament_id,
+            user_license_id=lic.id,
+            is_active=True,
+            request_status=EnrollmentStatus.APPROVED,
+        )
+        test_db.add(enroll)
+        test_db.commit()
+        test_db.refresh(enroll)
+        return u, enroll
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        """TestClient with web auth override (for GET /admin/... routes)."""
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+
+        app.dependency_overrides.clear()
+
+    @pytest.fixture(scope="function")
+    def api_client(self, test_db: Session, admin_user: User) -> TestClient:
+        """TestClient with Bearer auth override (for PATCH /api/v1/... routes)."""
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user] = lambda: admin_user
+
+        with TestClient(app) as c:
+            yield c
+
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-23a ─────────────────────────────────────────────────────────────
+
+    def test_23a_edit_page_loads_with_tournament_data(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/tournaments/{id}/edit → 200, contains name/code + sections."""
+        tourn = self._make_tournament(test_db, admin_user, suffix="a")
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:200]}"
+
+        html = resp.text
+        # Tournament identity present
+        assert tourn.name in html, "Tournament name missing from edit page"
+        assert tourn.code in html, "Tournament code missing from edit page"
+        # All 6 section anchors present
+        for section_id in [
+            "section-basic", "section-schedule", "section-rewards",
+            "section-checkin", "section-sessions", "section-results"
+        ]:
+            assert section_id in html, f"Section ID '{section_id}' missing from edit page"
+        # AdminAPI client loaded
+        assert "admin-api.js" in html, "admin-api.js not loaded on edit page"
+
+    # ── SMOKE-23b ─────────────────────────────────────────────────────────────
+
+    def test_23b_patch_tournament_updates_name(
+        self, test_db: Session, admin_user: User, api_client: TestClient
+    ):
+        """PATCH /api/v1/tournaments/{id} → name field updated in DB."""
+        tourn = self._make_tournament(test_db, admin_user, suffix="b")
+        new_name = f"SMOKE-23b Updated Name {uuid.uuid4().hex[:4]}"
+
+        resp = api_client.patch(
+            f"/api/v1/tournaments/{tourn.id}",
+            json={"name": new_name},
+        )
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+
+        body = resp.json()
+        assert body.get("tournament_name") == new_name, (
+            f"Response does not reflect new name: {body}"
+        )
+        # Verify DB state
+        test_db.refresh(tourn)
+        assert tourn.name == new_name, f"DB name not updated: {tourn.name}"
+
+    # ── SMOKE-23c ─────────────────────────────────────────────────────────────
+
+    def test_23c_patch_schedule_config_persists(
+        self, test_db: Session, admin_user: User, api_client: TestClient
+    ):
+        """PATCH /api/v1/tournaments/{id}/schedule-config → values stored in TournamentConfiguration."""
+        from app.models.tournament_configuration import TournamentConfiguration as TournConfig
+
+        tourn = self._make_tournament(test_db, admin_user, suffix="c")
+
+        resp = api_client.patch(
+            f"/api/v1/tournaments/{tourn.id}/schedule-config",
+            json={
+                "match_duration_minutes": 75,
+                "break_duration_minutes": 12,
+                "parallel_fields": 3,
+            },
+        )
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+
+        body = resp.json()
+        assert body.get("success") is True
+        assert body["match_duration_minutes"] == 75
+        assert body["break_duration_minutes"] == 12
+        assert body["parallel_fields"] == 3
+
+        # Verify DB persistence
+        cfg = test_db.query(TournConfig).filter(
+            TournConfig.semester_id == tourn.id
+        ).first()
+        assert cfg is not None
+        assert cfg.match_duration_minutes == 75
+        assert cfg.break_duration_minutes == 12
+        assert cfg.parallel_fields == 3
+
+    # ── SMOKE-23d ─────────────────────────────────────────────────────────────
+
+    def test_23d_edit_page_shows_enrolled_players_and_checkin_status(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Edit page lists enrolled players with check-in status indicators."""
+        tourn = self._make_tournament(test_db, admin_user, suffix="d")
+        player, enroll = self._enroll_player(test_db, tourn.id)
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200
+
+        html = resp.text
+        # Player appears in the check-in section
+        assert player.email in html, "Enrolled player email not shown on edit page"
+        # Check-in status indicator present
+        assert "Not checked in" in html or "Checked In" in html or "checked-in" in html, (
+            "Check-in status indicator missing from edit page"
+        )
+        # Enrollment count stat visible
+        assert "section-checkin" in html, "Check-in section missing"

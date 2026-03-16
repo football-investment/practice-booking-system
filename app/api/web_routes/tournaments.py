@@ -33,11 +33,13 @@ from ...dependencies import get_current_user_web
 from ...models.booking import Booking, BookingStatus
 from ...models.campus import Campus
 from ...models.credit_transaction import CreditTransaction
+from ...models.game_preset import GamePreset
 from ...models.license import UserLicense
 from ...models.location import Location
 from ...models.semester import Semester, SemesterStatus
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel
+from ...models.tournament_type import TournamentType
 from ...models.user import User, UserRole
 from ...services.age_category_service import (
     calculate_age_at_season_start,
@@ -616,4 +618,106 @@ async def admin_rollback_tournament(
     return RedirectResponse(
         url=f"/admin/tournaments?flash=Tournament+{t.code}+rolled+back+to+ENROLLMENT_CLOSED",
         status_code=303,
+    )
+
+
+# ── Tournament Edit Page ────────────────────────────────────────────────────────
+
+@router.get("/admin/tournaments/{tournament_id}/edit", response_class=HTMLResponse)
+async def admin_tournament_edit_page(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: tournament edit page — all lifecycle management in one place."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+
+    # Enrollments with user details
+    enrollments = (
+        db.query(SemesterEnrollment)
+        .filter(
+            SemesterEnrollment.semester_id == tournament_id,
+            SemesterEnrollment.is_active == True,
+        )
+        .all()
+    )
+    enrolled_user_ids = [e.user_id for e in enrollments]
+    enrolled_users = {}
+    if enrolled_user_ids:
+        for u in db.query(User).filter(User.id.in_(enrolled_user_ids)).all():
+            enrolled_users[u.id] = u
+
+    # Sessions generated
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.semester_id == tournament_id)
+        .order_by(SessionModel.date_start)
+        .limit(10)
+        .all()
+    )
+    session_count = (
+        db.query(SessionModel)
+        .filter(SessionModel.semester_id == tournament_id)
+        .count()
+    )
+
+    # Reference data for dropdowns
+    game_presets = db.query(GamePreset).filter(GamePreset.is_active == True).all()
+    tournament_types = db.query(TournamentType).all()
+    campuses = db.query(Campus).filter(Campus.is_active == True).all()
+    locations = db.query(Location).filter(Location.is_active == True).all()
+
+    # Schedule config (from tournament_config_obj)
+    cfg = t.tournament_config_obj
+    schedule = {
+        "match_duration_minutes": cfg.match_duration_minutes if cfg else None,
+        "break_duration_minutes": cfg.break_duration_minutes if cfg else None,
+        "parallel_fields": cfg.parallel_fields if cfg else 1,
+    }
+
+    # Reward config summary
+    reward_cfg = t.reward_config  # property → dict or None
+
+    # Game preset info (for session gen guard)
+    game_cfg = t.game_config_obj
+    preset = None
+    preset_min_players = None
+    if game_cfg and game_cfg.game_preset_id:
+        preset = db.query(GamePreset).filter(GamePreset.id == game_cfg.game_preset_id).first()
+        if preset:
+            preset_min_players = preset.game_config.get("metadata", {}).get("min_players")
+
+    checked_in_count = sum(
+        1 for e in enrollments if e.tournament_checked_in_at is not None
+    )
+
+    return templates.TemplateResponse(
+        "admin/tournament_edit.html",
+        {
+            "request": request,
+            "user": user,
+            "t": t,
+            "cfg": cfg,
+            "schedule": schedule,
+            "reward_cfg": reward_cfg,
+            "game_cfg": game_cfg,
+            "preset": preset,
+            "preset_min_players": preset_min_players,
+            "enrollments": enrollments,
+            "enrolled_users": enrolled_users,
+            "checked_in_count": checked_in_count,
+            "sessions": sessions,
+            "session_count": session_count,
+            "game_presets": game_presets,
+            "tournament_types": tournament_types,
+            "campuses": campuses,
+            "locations": locations,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        },
     )
