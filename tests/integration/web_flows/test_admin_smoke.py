@@ -659,12 +659,12 @@ class TestSmoke07Navigation:
         )
 
     def test_analytics_nav_strip_present(self, admin_client):
-        """GET /admin/analytics → nav strip includes all 9 top-level links."""
+        """GET /admin/analytics → nav strip includes all 10 top-level links."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
         for link in ["/admin/users", "/admin/programs", "/admin/sessions",
-                     "/admin/tournaments", "/admin/payments", "/admin/config",
-                     "/admin/analytics", "/admin/system-events"]:
+                     "/admin/tournaments", "/admin/payments", "/admin/locations",
+                     "/admin/config", "/admin/analytics", "/admin/system-events"]:
             assert link in resp.text, f"Nav link {link} missing from analytics.html"
 
     def test_semesters_nav_strip_present(self, admin_client):
@@ -3366,29 +3366,29 @@ class TestSmoke27NavHubs:
     # ── SMOKE-27b ──────────────────────────────────────────────────────────────
 
     def test_27b_config_hub_loads(self, admin_client):
-        """GET /admin/config → 200, Game Presets and Locations cards present."""
+        """GET /admin/config → 200, Game Presets card present."""
         resp = admin_client.get("/admin/config")
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
         assert "Internal Server Error" not in resp.text
         html = resp.text
         assert "Game Presets" in html, "Game Presets hub card missing"
-        assert "Locations" in html, "Locations hub card missing"
 
     # ── SMOKE-27c ──────────────────────────────────────────────────────────────
 
-    def test_27c_nav_has_9_items(self, admin_client):
-        """GET /admin/analytics → admin nav contains exactly the 9 top-level items."""
+    def test_27c_nav_has_10_items(self, admin_client):
+        """GET /admin/analytics → admin nav contains exactly the 10 top-level items."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
         html = resp.text
-        # Verify the 9 nav destinations are all present
+        # Verify the 10 nav destinations are all present
         nav_links = [
             "/dashboard",
             "/admin/users",
             "/admin/programs",
             "/admin/sessions",
             "/admin/tournaments",
-            "/admin/payments",   # Commerce entry point
+            "/admin/payments",     # Commerce entry point
+            "/admin/locations",    # New top-level Locations module
             "/admin/config",
             "/admin/analytics",
             "/admin/system-events",
@@ -3504,3 +3504,136 @@ class TestSmoke28Dashboard:
         assert "dashboard-alert-banner" in html, (
             "Alert banner div missing — expected when pending enrollment count > 0"
         )
+
+
+# ============================================================================
+# SMOKE-29: Location module — hierarchical location/campus views
+# ============================================================================
+
+
+class TestSmoke29LocationModule:
+    """SMOKE-29: Location-centric admin module — list, detail, campus detail."""
+
+    # ── SMOKE-29a ──────────────────────────────────────────────────────────────
+
+    def test_29a_locations_in_nav_not_under_config(self, admin_client):
+        """GET /admin/analytics → nav contains /admin/locations as top-level item,
+        not nested under /admin/config.
+        """
+        resp = admin_client.get("/admin/analytics")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "/admin/locations" in html, "/admin/locations missing from nav"
+        # Locations must appear as its own nav-item href, not inside /admin/config
+        assert 'href="/admin/locations"' in html, (
+            "/admin/locations should be a direct nav href, not nested"
+        )
+
+    # ── SMOKE-29b ──────────────────────────────────────────────────────────────
+
+    def test_29b_location_detail_loads_with_four_sections(
+        self, admin_client, test_db: Session
+    ):
+        """GET /admin/locations/{id} → 200 and all 4 section IDs present."""
+        loc = Location(
+            name="SMOKE29 Budapest",
+            city="SMOKE29 City",
+            country="Hungary",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/locations/{loc.id}")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        for section_id in [
+            "section-campuses",
+            "section-programs",
+            "section-sessions",
+            "section-instructors",
+        ]:
+            assert section_id in html, f"Section '{section_id}' missing from location detail"
+
+    # ── SMOKE-29c ──────────────────────────────────────────────────────────────
+
+    def test_29c_location_detail_renders_seeded_campus_and_semester(
+        self, admin_client, test_db: Session
+    ):
+        """Seeded Campus and Semester both appear in /admin/locations/{id}."""
+        loc = Location(
+            name="SMOKE29c Location",
+            city="SMOKE29c City",
+            country="Hungary",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        campus = Campus(
+            location_id=loc.id,
+            name="SMOKE29c Campus",
+            is_active=True,
+        )
+        test_db.add(campus)
+        test_db.flush()
+
+        semester = Semester(
+            location_id=loc.id,
+            campus_id=campus.id,
+            name="SMOKE29c Program",
+            code="SM29C",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=90),
+            status=SemesterStatus.ONGOING,
+            specialization_type="LFA_PLAYER_YOUTH",
+            age_group="YOUTH",
+        )
+        test_db.add(semester)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/locations/{loc.id}")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "SMOKE29c Campus" in html, "Seeded campus name not rendered in location detail"
+        assert "SMOKE29c Program" in html, "Seeded semester name not rendered in location detail"
+
+    # ── SMOKE-29d ──────────────────────────────────────────────────────────────
+
+    def test_29d_campus_detail_loads_with_sections_and_parent_location(
+        self, admin_client, test_db: Session
+    ):
+        """GET /admin/campuses/{id} → 200, 'Upcoming Sessions' section present,
+        and parent location name visible.
+        """
+        loc = Location(
+            name="SMOKE29d Location",
+            city="SMOKE29d City",
+            country="Hungary",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        campus = Campus(
+            location_id=loc.id,
+            name="SMOKE29d Campus",
+            is_active=True,
+        )
+        test_db.add(campus)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/campuses/{campus.id}")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "Upcoming Sessions" in html, "'Upcoming Sessions' section heading missing"
+        assert "SMOKE29d City" in html, "Parent location city not rendered in campus detail"

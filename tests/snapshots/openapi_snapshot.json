@@ -21788,6 +21788,49 @@
         ]
       }
     },
+    "/admin/campuses/{campus_id}": {
+      "get": {
+        "description": "Admin-only: Campus detail \u2014 programs, upcoming sessions, location instructors.",
+        "operationId": "admin_campus_detail_page_admin_campuses__campus_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Campus Detail Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/campuses/{campus_id}/delete": {
       "post": {
         "operationId": "admin_delete_campus_admin_campuses__campus_id__delete_post",
@@ -21960,7 +22003,7 @@
     },
     "/admin/config": {
       "get": {
-        "description": "Admin-only: Game Config hub (Game Presets + Locations/Campuses)",
+        "description": "Admin-only: Game Config hub (Game Presets only; Locations moved to top-level nav)",
         "operationId": "admin_config_hub_page_admin_config_get",
         "responses": {
           "200": {
@@ -22685,6 +22728,49 @@
           }
         },
         "summary": "Admin Create Location",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/locations/{location_id}": {
+      "get": {
+        "description": "Admin-only: Location detail \u2014 hierarchical view of campus, programs, sessions, instructors.",
+        "operationId": "admin_location_detail_page_admin_locations__location_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Location Detail Page",
         "tags": [
           "web"
         ]

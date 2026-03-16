@@ -2,7 +2,7 @@
 
 {% block title %}Game Config{% endblock %}
 {% block page_heading %}🎮 Game Config{% endblock %}
-{% block page_subtitle %}Game presets, locations, and campus configuration{% endblock %}
+{% block page_subtitle %}Game presets and scoring configuration{% endblock %}
 
 {% block admin_content %}
 
@@ -11,14 +11,6 @@
     <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #667eea;text-align:center;">
         <div style="font-size:2rem;font-weight:700;color:#553c9a;">{{ game_presets_count }}</div>
         <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">🎮 Game Presets</div>
-    </div>
-    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #48bb78;text-align:center;">
-        <div style="font-size:2rem;font-weight:700;color:#276749;">{{ locations_count }}</div>
-        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">📍 Active Locations</div>
-    </div>
-    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #4299e1;text-align:center;">
-        <div style="font-size:2rem;font-weight:700;color:#2b6cb0;">{{ campuses_count }}</div>
-        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">🏫 Campuses</div>
     </div>
 </div>
 
@@ -29,12 +21,6 @@
         <div class="hub-card-title">Game Presets</div>
         <div class="hub-card-desc">Define game formats, player requirements, scoring rules, and session reward config for each preset.</div>
         <div class="hub-card-count">{{ game_presets_count }}</div>
-    </a>
-    <a href="/admin/locations" class="hub-card" style="border-top-color:#48bb78;">
-        <div class="hub-card-icon">📍</div>
-        <div class="hub-card-title">Locations & Campuses</div>
-        <div class="hub-card-desc">Manage training locations, campus venues, and CENTER/PARTNER capability assignments.</div>
-        <div class="hub-card-count" style="color:#276749;">{{ locations_count }} loc · {{ campuses_count }} campus</div>
     </a>
 </div>
 

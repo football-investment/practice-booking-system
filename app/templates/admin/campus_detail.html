@@ -1,0 +1,199 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}{{ campus.name }} — Campus Detail{% endblock %}
+{% block page_heading %}🏢 {{ campus.name }}{% endblock %}
+{% block page_subtitle %}Part of 📍 {% if loc %}{{ loc.city }}{% endif %}{% if campus.venue %} · {{ campus.venue }}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .detail-header { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .detail-section { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.5rem; overflow: hidden; }
+    .section-hdr { padding: 0.85rem 1.25rem; background: #f8f9fa; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
+    .section-hdr h3 { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin: 0; }
+    .section-hdr .count-badge { font-size: 0.75rem; background: #e2e8f0; color: #4a5568; border-radius: 99px; padding: 0.15rem 0.55rem; font-weight: 600; }
+    .section-body { padding: 1.25rem; }
+    .badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    .badge-active { background: #c6f6d5; color: #276749; }
+    .badge-inactive { background: #fed7d7; color: #9b2335; }
+    .badge-center { background: #bee3f8; color: #2c5282; }
+    .badge-partner { background: #fefcbf; color: #744210; }
+    .badge-ongoing { background: #c6f6d5; color: #276749; }
+    .badge-ready { background: #bee3f8; color: #2c5282; }
+    .badge-master { background: #d6bcfa; color: #553c9a; }
+    .badge-age { background: #fed7e2; color: #97266d; font-family: monospace; }
+    .dtable { width: 100%; border-collapse: collapse; }
+    .dtable th { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #718096; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e2e8f0; text-align: left; }
+    .dtable td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; vertical-align: middle; }
+    .dtable tr:last-child td { border-bottom: none; }
+    .dtable tr:hover td { background: #f8faff; }
+    .action-link { font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block; }
+    .al-primary { background: #667eea; color: white; }
+    .al-warn { background: #f6ad55; color: white; }
+    .al-detail { background: #4299e1; color: white; }
+    .al-plain { background: #e2e8f0; color: #4a5568; }
+    .no-data { color: #a0aec0; font-size: 0.88rem; padding: 0.5rem 0; }
+    .session-via { font-size: 0.72rem; color: #a0aec0; }
+    .info-meta { font-size: 0.82rem; color: #718096; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="module-strip">
+    <span class="module-strip-label">Locations</span>
+    <a href="/admin/locations" class="module-strip-item">📍 All Locations</a>
+    {% if loc %}<a href="/admin/locations/{{ loc.id }}" class="module-strip-item">{{ loc.city }}</a>{% endif %}
+    <span class="module-strip-item active">{{ campus.name }}</span>
+</div>
+
+{% if error %}
+<div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#c53030;font-size:0.9rem;">⚠️ {{ error }}</div>
+{% endif %}
+{% if flash %}
+<div style="background:#f0fff4;border:1px solid #68d391;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#276749;font-size:0.9rem;">✅ {{ flash }}</div>
+{% endif %}
+
+<!-- Header card -->
+<div class="detail-header">
+    <div>
+        <div style="font-size:1.3rem;font-weight:700;color:#2d3748;">🏢 {{ campus.name }}</div>
+        <div style="margin-top:0.4rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+            <span class="badge {% if campus.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                {{ '✅ Active' if campus.is_active else '❌ Inactive' }}
+            </span>
+            {% if loc %}
+            <span class="info-meta">
+                Part of
+                <a href="/admin/locations/{{ loc.id }}" style="color:#4299e1;font-weight:600;">
+                    📍 {{ loc.city }}
+                </a>
+                <span class="badge {% if loc.location_type.value == 'CENTER' %}badge-center{% else %}badge-partner{% endif %}" style="margin-left:0.3rem;">
+                    {{ loc.location_type.value }}
+                </span>
+            </span>
+            {% endif %}
+            {% if campus.venue %}<span class="info-meta">· {{ campus.venue }}</span>{% endif %}
+            {% if campus.address %}<span class="info-meta">· {{ campus.address }}</span>{% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <a href="/admin/campuses/{{ campus.id }}/edit" class="action-link al-primary">✏️ Edit</a>
+        <form method="post" action="/admin/campuses/{{ campus.id }}/toggle" style="display:inline">
+            <button type="submit" class="action-link al-warn" style="border:none;cursor:pointer;">
+                {{ '⚫ Deactivate' if campus.is_active else '🟢 Activate' }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- KPI strip -->
+<div class="stats-row" style="margin-bottom:1.5rem;">
+    <div class="stat-card"><div class="val">{{ semesters | length }}</div><div class="lbl">📚 Programs</div></div>
+    <div class="stat-card"><div class="val">{{ sessions | length }}</div><div class="lbl">📅 Upcoming Sessions</div></div>
+    <div class="stat-card"><div class="val">{{ instructor_map | length }}</div><div class="lbl">👨‍🏫 Instructors</div></div>
+</div>
+
+<!-- SECTION 1: Programs -->
+<div class="detail-section" id="section-programs">
+    <div class="section-hdr">
+        <h3>📚 Programs at this Campus</h3>
+        <span class="count-badge">{{ semesters | length }}</span>
+    </div>
+    <div class="section-body">
+    {% if semesters %}
+    <table class="dtable">
+        <thead><tr><th>Code</th><th>Name</th><th>Age Group</th><th>Status</th><th>Dates</th><th></th></tr></thead>
+        <tbody>
+        {% for s in semesters %}
+        <tr>
+            <td><code style="font-size:0.78rem;">{{ s.code }}</code></td>
+            <td>{{ s.name }}</td>
+            <td>{% if s.age_group %}<span class="badge badge-age">{{ s.age_group }}</span>{% else %}—{% endif %}</td>
+            <td>
+                {% if s.status.value == 'ONGOING' %}<span class="badge badge-ongoing">ONGOING</span>
+                {% elif s.status.value == 'READY_FOR_ENROLLMENT' %}<span class="badge badge-ready">READY</span>
+                {% else %}<span class="badge al-plain" style="background:#e2e8f0;color:#4a5568;">{{ s.status.value }}</span>{% endif %}
+            </td>
+            <td style="font-size:0.8rem;white-space:nowrap;">{{ s.start_date }} → {{ s.end_date }}</td>
+            <td>
+                {% if s.semester_category and s.semester_category.value == 'TOURNAMENT' %}
+                <a href="/admin/tournaments/{{ s.id }}/edit" class="action-link al-detail">→</a>
+                {% else %}
+                <a href="/admin/semesters/{{ s.id }}/edit" class="action-link al-plain">→</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="no-data">No active programs at this campus.</p>
+    {% endif %}
+    </div>
+</div>
+
+<!-- SECTION 2: Upcoming Sessions -->
+<div class="detail-section" id="section-sessions">
+    <div class="section-hdr">
+        <h3>📅 Upcoming Sessions</h3>
+        <span class="count-badge">{{ sessions | length }}</span>
+    </div>
+    <div class="section-body">
+    {% if sessions %}
+    <table class="dtable">
+        <thead><tr><th>Date</th><th>Time</th><th>Title</th><th>Status</th><th>Capacity</th></tr></thead>
+        <tbody>
+        {% for sess in sessions %}
+        <tr>
+            <td style="white-space:nowrap;font-size:0.82rem;">{{ sess.date_start.strftime('%a %b %d') }}</td>
+            <td style="white-space:nowrap;font-size:0.82rem;">{{ sess.date_start.strftime('%H:%M') }}</td>
+            <td>{{ sess.title }}
+                {% if not sess.campus_id %}<br><span class="session-via">via semester</span>{% endif %}
+            </td>
+            <td>
+                {% if sess.session_status == 'completed' %}<span class="badge" style="background:#e2e8f0;color:#4a5568;">✅ done</span>
+                {% elif sess.session_status == 'in_progress' %}<span class="badge badge-ongoing">▶ live</span>
+                {% else %}<span class="badge" style="background:#ebf8ff;color:#2b6cb0;">📅 scheduled</span>{% endif %}
+            </td>
+            <td style="font-size:0.82rem;">{{ sess.capacity }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="no-data">No upcoming sessions at this campus.</p>
+    {% endif %}
+    </div>
+</div>
+
+<!-- SECTION 3: Location Instructors -->
+<div class="detail-section" id="section-instructors">
+    <div class="section-hdr">
+        <h3>👨‍🏫 Location Instructors</h3>
+        <span style="font-size:0.75rem;color:#718096;margin-left:0.5rem;">Assigned to {{ loc.city if loc else 'parent location' }}</span>
+        <span class="count-badge">{{ instructor_map | length }}</span>
+    </div>
+    <div class="section-body">
+    {% if assignments %}
+    <table class="dtable">
+        <thead><tr><th>Name</th><th>Age Group</th><th>Role</th><th>Year</th><th></th></tr></thead>
+        <tbody>
+        {% for asgn in assignments %}
+        {% set instr = instructor_map.get(asgn.instructor_id) %}
+        <tr>
+            <td>{{ instr.name if instr else '(unknown)' }}</td>
+            <td><span class="badge badge-age">{{ asgn.age_group }}</span></td>
+            <td>{% if asgn.is_master %}<span class="badge badge-master">👑 Master</span>{% else %}<span style="color:#718096;font-size:0.82rem;">Assistant</span>{% endif %}</td>
+            <td>{{ asgn.year }}</td>
+            <td>{% if instr %}<a href="/admin/instructors/{{ instr.id }}" class="action-link al-plain">→ Profile</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="no-data">No active instructors at the parent location.</p>
+    {% endif %}
+    </div>
+</div>
+
+{% endblock %}
