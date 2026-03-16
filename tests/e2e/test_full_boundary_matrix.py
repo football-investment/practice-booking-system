@@ -308,6 +308,7 @@ def _go_to_monitor(page: Page, base_url: str, api_url: str) -> None:
 
 @pytest.mark.e2e
 @pytest.mark.tournament_monitor
+@pytest.mark.ops_seed  # activates seed_ops_players fixture (512 @lfa-seed.hu users)
 class TestKnockoutFullBVA:
     """
     Knockout boundary value analysis — full BVA per spec.

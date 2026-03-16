@@ -441,7 +441,7 @@ def seed_ops_players(request):
         yield  # Yield nothing but satisfy fixture contract
         return
 
-    print("\n🌱 OPS Seed Players Setup (64 @lfa-seed.hu users)...")
+    print("\n🌱 OPS Seed Players Setup (512 @lfa-seed.hu users)...")
 
     # Database setup
     db_url = settings.DATABASE_URL
@@ -487,8 +487,9 @@ def seed_ops_players(request):
 
         db.commit()
 
-        # Create 64 players with deterministic emails
-        for i in range(1, 65):  # ops.player.001 ... ops.player.064
+        # Create 512 players with deterministic emails.
+        # 512 covers the largest @slow boundary test (256p + 512p knockout).
+        for i in range(1, 513):  # ops.player.001 ... ops.player.512
             email = f"ops.player.{i:03d}@lfa-seed.hu"
             password = "opstest123"
 
@@ -538,7 +539,7 @@ def seed_ops_players(request):
                 continue
 
         db.commit()
-        print(f"   ✅ OPS seed complete: {len(created_user_ids)} players created, {64 - len(created_user_ids)} already existed")
+        print(f"   ✅ OPS seed complete: {len(created_user_ids)} players created, {512 - len(created_user_ids)} already existed")
 
     except Exception as exc:
         db.rollback()
