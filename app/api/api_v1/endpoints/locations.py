@@ -5,16 +5,29 @@ Admin endpoints for managing LFA Education Centers.
 Only admin users can create, update, or delete locations.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel
 from datetime import datetime
 
 from ....database import get_db
-from ....models.location import Location
+from ....models.location import Location, LocationType
 from ....models.campus import Campus
+from ....models.semester import Semester, SemesterStatus
 from ....dependencies import get_current_admin_user
+
+# Academy Season types that require CENTER location (K2 guard)
+_ACADEMY_SPEC_VALUES = {
+    "LFA_PLAYER_PRE_ACADEMY",
+    "LFA_PLAYER_YOUTH_ACADEMY",
+    "LFA_PLAYER_AMATEUR_ACADEMY",
+    "LFA_PLAYER_PRO_ACADEMY",
+}
+_ACTIVE_SEMESTER_STATUSES = {
+    SemesterStatus.READY_FOR_ENROLLMENT,
+    SemesterStatus.ONGOING,
+}
 
 router = APIRouter()
 
@@ -197,6 +210,39 @@ async def update_location(
         update_data['is_active'] is False and
         location.is_active is True
     )
+
+    # K2: Block CENTER→PARTNER downgrade when active Academy semesters exist.
+    # Once a CENTER hosts an active Academy Season the type cannot be demoted.
+    new_type_str = update_data.get("location_type")
+    if (
+        new_type_str
+        and location.location_type == LocationType.CENTER
+        and new_type_str == LocationType.PARTNER.value
+    ):
+        conflict = (
+            db.query(Semester)
+            .filter(
+                Semester.location_id == location_id,
+                Semester.specialization_type.in_(_ACADEMY_SPEC_VALUES),
+                Semester.status.in_(_ACTIVE_SEMESTER_STATUSES),
+            )
+            .first()
+        )
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "Aktív Academy Season ütközés",
+                    "message": (
+                        f"Nem változtatható CENTER→PARTNER típusra: "
+                        f"'{conflict.name}' ({conflict.code}) aktív Academy Season "
+                        f"ehhez a helyszínhez van rendelve. "
+                        f"A szemeszter lezárása vagy törlése után hajtható végre a típusváltás."
+                    ),
+                    "conflicting_semester_id": conflict.id,
+                    "conflicting_semester_code": conflict.code,
+                }
+            )
 
     # Update only provided fields
     for field, value in update_data.items():

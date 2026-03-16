@@ -32,6 +32,12 @@
         <a href="/admin/locations" class="btn btn-secondary">← Back to Locations</a>
     </div>
 
+    {% if error %}
+    <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:0.8rem 1rem; margin-bottom:1rem; color:#856404;">
+        ⚠️ {{ error }}
+    </div>
+    {% endif %}
+
     <div class="edit-card">
         <h2>Location Details</h2>
         <form method="post" action="/admin/locations/{{ loc.id }}/edit">

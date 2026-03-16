@@ -307,7 +307,7 @@ class TestNewSemesterSubmit:
             _run(admin_new_semester_submit(
                 request=_req(), code="EXISTING_CODE", name="Test",
                 start_date="2026-06-01", end_date="2026-09-01",
-                master_instructor_id="",
+                specialization_type="", master_instructor_id="", location_id="",
                 db=db, user=_admin_user()
             ))
         _, ctx = mock_tmpl.TemplateResponse.call_args.args
@@ -325,7 +325,7 @@ class TestNewSemesterSubmit:
             result = _run(admin_new_semester_submit(
                 request=_req(), code="NEW_SEM_2026", name="New Semester",
                 start_date="2026-06-01", end_date="2026-09-01",
-                specialization_type="", master_instructor_id="",
+                specialization_type="", master_instructor_id="", location_id="",
                 db=db, user=_admin_user()
             ))
         db.add.assert_called_once_with(new_sem)

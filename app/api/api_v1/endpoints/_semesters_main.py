@@ -17,6 +17,7 @@ from ....schemas.semester import (
     SemesterWithStats, SemesterList
 )
 from ....services.location_validation_service import LocationValidationService
+from ....models.specialization import SpecializationType
 
 router = APIRouter()
 
@@ -42,27 +43,55 @@ def create_semester(
             detail="Semester with this code already exists"
         )
 
-    # NEW: Validate location type vs semester type
-    # NOTE: location_id is not in SemesterCreate schema (uses location_city/location_venue instead)
-    # This validation only applies when location_id is explicitly provided (e.g., from frontend)
-    location_id = getattr(semester_data, 'location_id', None)
-    if location_id:
-        validation = LocationValidationService.can_create_semester_at_location(
-            location_id=location_id,
-            specialization_type=semester_data.specialization_type,
-            db=db
-        )
-
-        if not validation["allowed"]:
+    # K1: ACADEMY types require an explicit location_id so the CENTER/PARTNER
+    # rule can be evaluated.  Without a location we cannot enforce the constraint.
+    _ACADEMY_TYPES = {
+        SpecializationType.LFA_PLAYER_PRE_ACADEMY,
+        SpecializationType.LFA_PLAYER_YOUTH_ACADEMY,
+        SpecializationType.LFA_PLAYER_AMATEUR_ACADEMY,
+        SpecializationType.LFA_PLAYER_PRO_ACADEMY,
+    }
+    if semester_data.specialization_type and not semester_data.location_id:
+        try:
+            _spec = SpecializationType(semester_data.specialization_type)
+        except ValueError:
+            _spec = None
+        if _spec in _ACADEMY_TYPES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
-                    "error": "Helyszín típus korlátozás",
-                    "message": validation["reason"],
-                    "location_type": validation["location_type"],
-                    "semester_type": str(semester_data.specialization_type)
+                    "error": "Hiányzó helyszín",
+                    "message": (
+                        "Academy Season típushoz kötelező a location_id megadása "
+                        "a CENTER / PARTNER helyszín-típus ellenőrzéséhez."
+                    ),
+                    "specialization_type": semester_data.specialization_type,
                 }
             )
+
+    # Validate location type vs semester type when location_id is provided
+    location_id = semester_data.location_id
+    if location_id and semester_data.specialization_type:
+        try:
+            spec_enum = SpecializationType(semester_data.specialization_type)
+        except ValueError:
+            spec_enum = None
+        if spec_enum:
+            validation = LocationValidationService.can_create_semester_at_location(
+                location_id=location_id,
+                specialization_type=spec_enum,
+                db=db
+            )
+            if not validation["allowed"]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "error": "Helyszín típus korlátozás",
+                        "message": validation["reason"],
+                        "location_type": validation["location_type"],
+                        "semester_type": str(semester_data.specialization_type)
+                    }
+                )
 
     # Separate fields for Semester table vs TournamentConfiguration table (P2 refactoring)
     semester_dict = semester_data.model_dump()

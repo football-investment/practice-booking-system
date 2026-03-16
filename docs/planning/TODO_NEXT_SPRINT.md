@@ -1,5 +1,27 @@
 # TODO - Next Sprint
 
+## 🏫 Priority: HIGH — Location Capability Hardening (K1 + K2)
+
+**Full spec**: [SPRINT_LOCATION_CAPABILITY_K1_K2_K3.md](SPRINT_LOCATION_CAPABILITY_K1_K2_K3.md)
+**Architecture ref**: [domain-model.md §8.5](../architecture/domain-model.md#85-open-business-decisions-k1k3)
+
+### K1 — Enforce `location_id` required for ACADEMY types (REST API)
+**Status**: ✅ DONE 2026-03-16 — 9185 passed, 0 regressions
+- `_semesters_main.py`: 400 guard (K1) + enum conversion before `LocationValidationService`
+- LOC-API-08 → 400; LOC-API-11 (×4 parametrized) + LOC-API-12 added
+- OpenAPI snapshot regenerated
+
+### K2 — Block CENTER→PARTNER downgrade when active Academy semesters exist
+**Status**: ✅ DONE 2026-03-16 — 9185 passed, 0 regressions
+- `locations.py` (`PUT /{id}`): 409 guard; `admin.py` form: 409 re-render with error flash
+- `location_edit.html`: `{% if error %}` flash band added
+- LOC-API-13 (block READY/ONGOING), LOC-API-14 (allow DRAFT), LOC-API-15 (PARTNER→CENTER OK)
+
+### K3 — Session generation location-agnostic (RESOLVED ✅)
+No action. Documented in [domain-model.md §8.6](../architecture/domain-model.md#86-session-generation--location-agnostic-by-design).
+
+---
+
 ## Priority: Medium - E2E Test Selector Fixes
 
 ### Task: Fix 3 Match Command Center E2E Test Selectors
