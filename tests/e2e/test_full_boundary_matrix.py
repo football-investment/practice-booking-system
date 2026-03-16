@@ -969,13 +969,20 @@ class TestGenerationValidatorBranchCoverage:
         """
         player_count=127: below threshold, confirmed=False must be ACCEPTED.
         This validates the <128 branch of the safety gate.
+
+        Uses tournament_type_code="league" (not "knockout") because:
+          - Knockout requires power-of-2 player counts (4, 8, 16, 32, 64, 128…).
+          - 127 is NOT a power of 2, so a Knockout generator would fire a 422
+            for a different reason (format constraint), masking the safety-gate test.
+          - League accepts any player_count >= 2, so only the safety-gate branch
+            (player_count >= 128 AND confirmed=False → 422) is under test here.
         """
         token = _get_admin_token(api_url)
         resp = _ops_post(api_url, token, {
             "scenario": "large_field_monitor",
             "player_count": 127,
             "tournament_format": "HEAD_TO_HEAD",
-            "tournament_type_code": "knockout",
+            "tournament_type_code": "league",  # league accepts non-power-of-2 counts
             "dry_run": False,
             "confirmed": False,
         })

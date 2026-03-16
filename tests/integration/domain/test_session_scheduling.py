@@ -20,7 +20,7 @@ Tests
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import List
 
 import pytest
@@ -141,10 +141,12 @@ class TestCampSchedule:
     def test_sched03_multiday_camp_schedule(self, test_db: Session):
         """SCHED-03: 3-day camp with 2 sessions per day (6 sessions total)."""
         sem = build_semester(test_db, semester_category=SemesterCategory.CAMP)
-        now = _now()
+        # Anchor to midnight so +9h and +14h slots always stay on the same
+        # calendar date regardless of what time the test suite runs.
+        base = datetime.combine(date.today() + timedelta(days=7), datetime.min.time())
         for day in range(3):
-            for slot in range(2):  # morning + afternoon
-                start = now + timedelta(days=7 + day, hours=9 + slot * 5)
+            for slot in range(2):  # morning (09:00) + afternoon (14:00)
+                start = base + timedelta(days=day, hours=9 + slot * 5)
                 build_session(
                     test_db, sem.id,
                     title=f"Day {day + 1} Session {slot + 1}",
