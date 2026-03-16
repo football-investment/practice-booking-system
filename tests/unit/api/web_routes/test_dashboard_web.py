@@ -192,15 +192,17 @@ class TestDashboardAdminPath:
         assert semester.specialization_type is not None
 
     def test_admin_view_returns_dashboard_admin(self):
-        """Admin role → dashboard_admin.html with stats."""
+        """Admin role → dashboard_admin.html with kpi / queue / quick_stats context."""
         user = _admin()
         db = MagicMock()
         # active_semesters: filter().order_by().all() → []
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
-        # total_users: .count() directly → 100
+        # total_users: db.query(User).count() → 100
         db.query.return_value.count.return_value = 100
-        # active_students, instructors: filter().count() → 50
+        # filtered counts (active_sessions, active_tournaments, etc.): filter().count() → 50
         db.query.return_value.filter.return_value.count.return_value = 50
+        # scalar() calls for revenue: return 0 so float() + round() work cleanly
+        db.query.return_value.filter.return_value.scalar.return_value = 0
 
         with patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
@@ -209,8 +211,15 @@ class TestDashboardAdminPath:
         template_name = mock_tmpl.TemplateResponse.call_args.args[0]
         assert template_name == "dashboard_admin.html"
         ctx = mock_tmpl.TemplateResponse.call_args.args[1]
-        assert ctx["stats"]["total_users"] == 100
-        assert ctx["stats"]["active_students"] == 50
+        # Layer 1: KPI dict replaces old stats dict
+        assert ctx["kpi"]["total_users"] == 100
+        assert ctx["kpi"]["active_sessions"] == 50
+        # Layer 2: queue dict present
+        assert "queue" in ctx
+        assert "pending_enrollments" in ctx["queue"]
+        # Layer 3: quick_stats present
+        assert "quick_stats" in ctx
+        assert ctx["quick_stats"]["total_students"] == 50
 
 
 # ──────────────────────────────────────────────────────────────────────────────

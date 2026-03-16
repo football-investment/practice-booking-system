@@ -10,13 +10,20 @@ from datetime import date
 import logging
 import re
 
+from sqlalchemy import func as sqlfunc
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 UserModel = User  # alias used in some template context sections
-from ...models.semester import Semester, SemesterStatus
+from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.license import UserLicense
-from ...models.semester_enrollment import SemesterEnrollment
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...models.session import Session as SessionModel
+from ...models.invoice_request import InvoiceRequest, InvoiceRequestStatus
+from ...models.system_event import SystemEvent
+from ...models.audit_log import AuditLog
+from ...models.coupon import Coupon
 from ...utils.age_requirements import get_available_specializations
 from .helpers import get_lfa_age_category
 
@@ -155,12 +162,92 @@ async def dashboard(
     # ========================================
 
     if user.role == UserRole.ADMIN:
-        # ADMIN Dashboard
+        # ADMIN Dashboard — operational 4-layer layout
         logger.debug("dashboard_routing", extra={"user": user.email, "template": "dashboard_admin.html"})
-        stats = {
-            "total_users": db.query(UserModel).count(),
-            "active_students": db.query(UserModel).filter(UserModel.role == UserRole.STUDENT).count(),
-            "instructors": db.query(UserModel).filter(UserModel.role == UserRole.INSTRUCTOR).count(),
+        _today = date.today()
+
+        # ── Layer 1: Primary KPI ──────────────────────────────────────────────
+        _active_sessions = db.query(SessionModel).filter(
+            sqlfunc.date(SessionModel.date_start) >= _today,
+            SessionModel.session_status != 'cancelled'
+        ).count()
+        _active_tournaments = db.query(Semester).filter(
+            Semester.semester_category == SemesterCategory.TOURNAMENT,
+            Semester.status.in_([SemesterStatus.READY_FOR_ENROLLMENT, SemesterStatus.ONGOING])
+        ).count()
+        _pending_revenue = db.query(
+            sqlfunc.coalesce(sqlfunc.sum(InvoiceRequest.amount_eur), 0)
+        ).filter(InvoiceRequest.status == InvoiceRequestStatus.PENDING.value).scalar() or 0.0
+
+        kpi = {
+            "total_users": db.query(User).count(),
+            "active_sessions": _active_sessions,
+            "active_tournaments": _active_tournaments,
+            "pending_revenue_eur": round(float(_pending_revenue), 2),
+        }
+
+        # ── Layer 2: Operational Queue ────────────────────────────────────────
+        _pending_enrollments = db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.request_status == EnrollmentStatus.PENDING
+        ).count()
+        _todays_sessions = db.query(SessionModel).filter(
+            sqlfunc.date(SessionModel.date_start) == _today,
+            SessionModel.session_status != 'cancelled'
+        ).count()
+        _pending_payments = db.query(InvoiceRequest).filter(
+            InvoiceRequest.status == InvoiceRequestStatus.PENDING.value
+        ).count()
+        _unresolved_events = db.query(SystemEvent).filter(
+            SystemEvent.resolved == False  # noqa: E712
+        ).count()
+
+        queue = {
+            "pending_enrollments": _pending_enrollments,
+            "todays_sessions": _todays_sessions,
+            "pending_payments": _pending_payments,
+            "unresolved_events": _unresolved_events,
+        }
+
+        # ── Layer 0: Alert condition ──────────────────────────────────────────
+        show_alert = _pending_enrollments > 0 or _pending_payments > 0 or _unresolved_events > 0
+
+        # ── Layer 3A: Recent activity feed ────────────────────────────────────
+        _recent_logs = (
+            db.query(AuditLog)
+            .filter(AuditLog.user_id.isnot(None))
+            .order_by(AuditLog.timestamp.desc())
+            .limit(10)
+            .all()
+        )
+        _actor_ids = list({log.user_id for log in _recent_logs if log.user_id})
+        actor_map = (
+            {u.id: u for u in db.query(User).filter(User.id.in_(_actor_ids)).all()}
+            if _actor_ids else {}
+        )
+
+        # ── Layer 3B: Quick stats ─────────────────────────────────────────────
+        _month_start = _today.replace(day=1)
+        _revenue_mtd = db.query(
+            sqlfunc.coalesce(sqlfunc.sum(InvoiceRequest.amount_eur), 0)
+        ).filter(
+            InvoiceRequest.status.in_([
+                InvoiceRequestStatus.PAID.value, InvoiceRequestStatus.VERIFIED.value
+            ]),
+            sqlfunc.date(InvoiceRequest.created_at) >= _month_start
+        ).scalar() or 0.0
+
+        quick_stats = {
+            "active_semesters": db.query(Semester).filter(
+                Semester.status == SemesterStatus.ONGOING,
+                Semester.semester_category != SemesterCategory.TOURNAMENT
+            ).count(),
+            "enrolled_students": db.query(SemesterEnrollment).filter(
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+            ).count(),
+            "active_coupons": db.query(Coupon).filter(Coupon.is_active == True).count(),  # noqa: E712
+            "revenue_mtd": round(float(_revenue_mtd), 2),
+            "total_students": db.query(User).filter(User.role == UserRole.STUDENT).count(),
+            "total_instructors": db.query(User).filter(User.role == UserRole.INSTRUCTOR).count(),
         }
 
         response = templates.TemplateResponse(
@@ -168,8 +255,14 @@ async def dashboard(
             {
                 "request": request,
                 "user": user,
-                "active_semesters": active_semesters,
-                "stats": stats
+                "active_semesters": active_semesters,  # kept for backward compat
+                "kpi": kpi,
+                "queue": queue,
+                "show_alert": show_alert,
+                "recent_activity": _recent_logs,
+                "actor_map": actor_map,
+                "quick_stats": quick_stats,
+                "today_display": _today.strftime('%A, %B %d, %Y'),
             }
         )
     elif user.role == UserRole.INSTRUCTOR:

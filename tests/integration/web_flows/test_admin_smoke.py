@@ -3399,3 +3399,108 @@ class TestSmoke27NavHubs:
         # (they may appear inside page content, so we only verify Commerce label)
         assert "🛒 Commerce" in html, "Commerce nav label missing"
         assert "Tier milestones reached" in html, "Tier milestone count label missing"
+
+
+# ============================================================================
+# SMOKE-28: Operational admin dashboard — 4-layer layout
+# ============================================================================
+
+
+class TestSmoke28Dashboard:
+    """SMOKE-28: Operational admin dashboard — 4-layer KPI + queue + activity layout."""
+
+    # ── SMOKE-28a ──────────────────────────────────────────────────────────────
+
+    def test_28a_dashboard_loads(self, admin_client):
+        """GET /dashboard → 200, no Internal Server Error."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        assert "Internal Server Error" not in resp.text
+
+    # ── SMOKE-28b ──────────────────────────────────────────────────────────────
+
+    def test_28b_kpi_labels_present(self, admin_client):
+        """Dashboard contains all 4 primary KPI metric labels."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "Total Users" in html, "Total Users KPI label missing"
+        assert "Upcoming Sessions" in html, "Upcoming Sessions KPI label missing"
+        assert "Active Tournaments" in html, "Active Tournaments KPI label missing"
+        assert "Pending Revenue" in html, "Pending Revenue KPI label missing"
+
+    # ── SMOKE-28c ──────────────────────────────────────────────────────────────
+
+    def test_28c_queue_labels_present(self, admin_client):
+        """Dashboard contains all 4 operational queue card labels."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "Pending Enrollments" in html, "Pending Enrollments queue label missing"
+        assert "Today's Sessions" in html, "Today's Sessions queue label missing"
+        assert "Pending Payments" in html, "Pending Payments queue label missing"
+        assert "Unresolved Events" in html, "Unresolved Events queue label missing"
+
+    # ── SMOKE-28d ──────────────────────────────────────────────────────────────
+
+    def test_28d_dashboard_no_server_error_clean_db(self, admin_client):
+        """Dashboard renders without error on a clean (empty) test DB."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "Internal Server Error" not in html
+        assert "Traceback" not in html
+        # Layer 3 quick-stats panel should be present
+        assert "Active Semesters" in html, "Quick stats panel missing Active Semesters label"
+
+    # ── SMOKE-28e ──────────────────────────────────────────────────────────────
+
+    def test_28e_alert_banner_present_with_pending_enrollment(
+        self, admin_client, test_db: Session
+    ):
+        """Alert banner renders when at least one PENDING enrollment exists."""
+        # Seed: student → license → semester → PENDING enrollment
+        student = User(
+            email=f"smoke28e+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="Smoke28e Student",
+            password_hash=get_password_hash("student123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        test_db.add(student)
+        test_db.flush()
+
+        license_ = UserLicense(
+            user_id=student.id,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            is_active=True,
+            started_at=datetime.now(ZoneInfo("UTC")),
+        )
+        test_db.add(license_)
+        test_db.flush()
+
+        semester = Semester(
+            code=f"SMOKE28E-{uuid.uuid4().hex[:6].upper()}",
+            name="Smoke28e Semester",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=90),
+            status=SemesterStatus.ONGOING,
+        )
+        test_db.add(semester)
+        test_db.flush()
+
+        enrollment = SemesterEnrollment(
+            user_id=student.id,
+            semester_id=semester.id,
+            user_license_id=license_.id,
+            request_status=EnrollmentStatus.PENDING,
+        )
+        test_db.add(enrollment)
+        test_db.flush()
+
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        html = resp.text
+        assert "dashboard-alert-banner" in html, (
+            "Alert banner div missing — expected when pending enrollment count > 0"
+        )
