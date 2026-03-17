@@ -1093,6 +1093,29 @@ async def admin_delete_semester(
     return RedirectResponse(url="/admin/semesters", status_code=303)
 
 
+@router.get("/admin/semesters/{semester_id}/edit", response_class=HTMLResponse)
+async def admin_semester_edit_dispatch(
+    semester_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Dispatch: redirect to the appropriate edit page based on semester category."""
+    _admin_guard(user)
+    sem = db.query(Semester).filter(Semester.id == semester_id).first()
+    if not sem:
+        raise HTTPException(status_code=404, detail="Semester not found")
+    is_tournament = (
+        sem.semester_category == SemesterCategory.TOURNAMENT
+        or (sem.code or "").startswith("TOURN-")
+        or (sem.code or "").startswith("OPS-")
+    )
+    if is_tournament:
+        return RedirectResponse(f"/admin/tournaments/{semester_id}/edit", status_code=303)
+    if sem.semester_category == SemesterCategory.CAMP:
+        return RedirectResponse(f"/admin/camps/{semester_id}/edit", status_code=303)
+    return RedirectResponse(f"/admin/semesters", status_code=303)
+
+
 @router.get("/admin/analytics", response_class=HTMLResponse)
 async def admin_analytics_page(
     request: Request,
@@ -1412,7 +1435,11 @@ async def admin_events_hub_page(
     two_weeks = today + timedelta(days=14)
 
     tournament_count = db.query(sqlfunc.count(Semester.id)).filter(
-        Semester.semester_category == SemesterCategory.TOURNAMENT,
+        or_(
+            Semester.code.like("TOURN-%"),
+            Semester.code.like("OPS-%"),
+            Semester.semester_category == SemesterCategory.TOURNAMENT,
+        ),
         Semester.status != SemesterStatus.CANCELLED,
     ).scalar() or 0
 
@@ -1436,7 +1463,11 @@ async def admin_events_hub_page(
     ).scalar() or 0
 
     upcoming_events = db.query(Semester).filter(
-        Semester.semester_category.in_([SemesterCategory.TOURNAMENT, SemesterCategory.CAMP]),
+        or_(
+            Semester.semester_category.in_([SemesterCategory.TOURNAMENT, SemesterCategory.CAMP]),
+            Semester.code.like("TOURN-%"),
+            Semester.code.like("OPS-%"),
+        ),
         Semester.start_date >= today,
         Semester.status != SemesterStatus.CANCELLED,
     ).order_by(Semester.start_date).limit(5).all()
@@ -1446,6 +1477,52 @@ async def admin_events_hub_page(
     ev_cam_ids = list({e.campus_id for e in upcoming_events if e.campus_id})
     ev_loc_map = {l.id: l for l in db.query(Location).filter(Location.id.in_(ev_loc_ids)).all()} if ev_loc_ids else {}
     ev_cam_map = {c.id: c for c in db.query(Campus).filter(Campus.id.in_(ev_cam_ids)).all()} if ev_cam_ids else {}
+
+    # Location cards — aggregate semester + session counts per location
+    all_locations = (
+        db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
+    )
+    all_loc_ids = [l.id for l in all_locations]
+    sem_by_loc = (
+        dict(
+            db.query(Semester.location_id, sqlfunc.count(Semester.id))
+            .filter(
+                Semester.location_id.in_(all_loc_ids),
+                Semester.status != SemesterStatus.CANCELLED,
+            )
+            .group_by(Semester.location_id)
+            .all()
+        )
+        if all_loc_ids
+        else {}
+    )
+    # Session has campus_id (no location_id) — count via Campus join
+    if all_loc_ids:
+        all_campuses = (
+            db.query(Campus).filter(Campus.location_id.in_(all_loc_ids)).all()
+        )
+        campus_to_loc = {c.id: c.location_id for c in all_campuses}
+        all_campus_ids = [c.id for c in all_campuses]
+        sess_by_campus = (
+            dict(
+                db.query(SessionModel.campus_id, sqlfunc.count(SessionModel.id))
+                .filter(
+                    SessionModel.campus_id.in_(all_campus_ids),
+                    SessionModel.session_status != "cancelled",
+                )
+                .group_by(SessionModel.campus_id)
+                .all()
+            )
+            if all_campus_ids
+            else {}
+        )
+        sess_by_loc: dict = {}
+        for cam_id, cnt in sess_by_campus.items():
+            loc_id = campus_to_loc.get(cam_id)
+            if loc_id:
+                sess_by_loc[loc_id] = sess_by_loc.get(loc_id, 0) + cnt
+    else:
+        sess_by_loc = {}
 
     return templates.TemplateResponse(
         "admin/events_hub.html",
@@ -1460,6 +1537,9 @@ async def admin_events_hub_page(
             "ev_loc_map": ev_loc_map,
             "ev_cam_map": ev_cam_map,
             "SemesterCategory": SemesterCategory,
+            "all_locations": all_locations,
+            "sem_by_loc": sem_by_loc,
+            "sess_by_loc": sess_by_loc,
         }
     )
 
@@ -1565,7 +1645,202 @@ async def admin_create_camp(
     )
     db.add(semester)
     db.commit()
+    if semester.location_id:
+        return RedirectResponse(
+            f"/admin/events/locations/{semester.location_id}?flash=Camp+created",
+            status_code=303,
+        )
     return RedirectResponse(f"/admin/camps?flash=Camp+created", status_code=303)
+
+
+@router.get("/admin/camps/{camp_id}/edit", response_class=HTMLResponse)
+async def admin_camp_edit_page(
+    camp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin-only: Edit a Camp semester."""
+    _admin_guard(user)
+    camp = db.query(Semester).filter(
+        Semester.id == camp_id,
+        Semester.semester_category == SemesterCategory.CAMP,
+    ).first()
+    if not camp:
+        raise HTTPException(status_code=404, detail="Camp not found")
+
+    all_locations = db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
+    campuses_for_loc = (
+        db.query(Campus).filter(Campus.location_id == camp.location_id).all()
+        if camp.location_id else []
+    )
+    return templates.TemplateResponse(
+        "admin/camp_edit.html",
+        {
+            "request": request,
+            "user": user,
+            "camp": camp,
+            "all_locations": all_locations,
+            "campuses_for_loc": campuses_for_loc,
+            "SemesterStatus": SemesterStatus,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@router.post("/admin/camps/{camp_id}/edit", response_class=HTMLResponse)
+async def admin_update_camp(
+    camp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+    name: str = Form(...),
+    code: str = Form(""),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    age_group: str = Form(""),
+    location_id: str = Form(""),
+    campus_id: str = Form(""),
+    enrollment_cost: str = Form(""),
+    status: str = Form(""),
+):
+    """Admin-only: Update a Camp semester."""
+    _admin_guard(user)
+    camp = db.query(Semester).filter(
+        Semester.id == camp_id,
+        Semester.semester_category == SemesterCategory.CAMP,
+    ).first()
+    if not camp:
+        raise HTTPException(status_code=404, detail="Camp not found")
+
+    try:
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+    except ValueError:
+        return RedirectResponse(
+            f"/admin/camps/{camp_id}/edit?error=Invalid+date+format", status_code=303
+        )
+
+    camp.name = name.strip()
+    if code.strip():
+        camp.code = code.strip()
+    camp.start_date = start
+    camp.end_date = end
+    camp.age_group = age_group.strip() or None
+    camp.location_id = int(location_id) if location_id.strip() else None
+    camp.campus_id = int(campus_id) if campus_id.strip() else None
+    if enrollment_cost.strip().isdigit():
+        camp.enrollment_cost = int(enrollment_cost)
+    if status.strip():
+        try:
+            camp.status = SemesterStatus(status)
+        except ValueError:
+            pass
+    db.commit()
+
+    loc_id = camp.location_id
+    if loc_id:
+        return RedirectResponse(
+            f"/admin/events/locations/{loc_id}?flash=Camp+updated", status_code=303
+        )
+    return RedirectResponse(f"/admin/camps/{camp_id}/edit?flash=Camp+updated", status_code=303)
+
+
+@router.get("/admin/events/locations/{location_id}", response_class=HTMLResponse)
+async def admin_location_events_page(
+    location_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin-only: Per-location event management — all event types CRUD in one place."""
+    _admin_guard(user)
+    loc = db.query(Location).filter(Location.id == location_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    campuses = db.query(Campus).filter(Campus.location_id == location_id).order_by(Campus.name).all()
+    campus_ids = [c.id for c in campuses]
+    campus_map = {c.id: c for c in campuses}
+
+    # Tournaments (TOURNAMENT category OR legacy TOURN-/OPS- codes) at this location
+    tournaments = (
+        db.query(Semester)
+        .filter(
+            or_(
+                Semester.semester_category == SemesterCategory.TOURNAMENT,
+                Semester.code.like("TOURN-%"),
+                Semester.code.like("OPS-%"),
+            ),
+            Semester.location_id == location_id,
+            Semester.status != SemesterStatus.CANCELLED,
+        )
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    # Camps at this location
+    camps = (
+        db.query(Semester)
+        .filter(
+            Semester.semester_category == SemesterCategory.CAMP,
+            Semester.location_id == location_id,
+            Semester.status != SemesterStatus.CANCELLED,
+        )
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    # Academy / Mini Seasons at this location
+    seasons = (
+        db.query(Semester)
+        .filter(
+            Semester.semester_category.in_(
+                [SemesterCategory.ACADEMY_SEASON, SemesterCategory.MINI_SEASON]
+            ),
+            Semester.location_id == location_id,
+            Semester.status != SemesterStatus.CANCELLED,
+        )
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    # Upcoming sessions at this location's campuses (next 30 days)
+    in_30d = date.today() + timedelta(days=30)
+    sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.campus_id.in_(campus_ids),
+            sqlfunc.date(SessionModel.date_start) >= date.today(),
+            sqlfunc.date(SessionModel.date_start) <= in_30d,
+            SessionModel.session_status != "cancelled",
+        )
+        .order_by(SessionModel.date_start)
+        .limit(20)
+        .all()
+        if campus_ids
+        else []
+    )
+
+    return templates.TemplateResponse(
+        "admin/events_location.html",
+        {
+            "request": request,
+            "user": user,
+            "loc": loc,
+            "campuses": campuses,
+            "campus_map": campus_map,
+            "tournaments": tournaments,
+            "camps": camps,
+            "seasons": seasons,
+            "sessions": sessions,
+            "SemesterStatus": SemesterStatus,
+            "SemesterCategory": SemesterCategory,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        },
+    )
 
 
 @router.get("/admin/locations", response_class=HTMLResponse)

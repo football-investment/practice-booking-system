@@ -31,32 +31,43 @@
     </div>
 </div>
 
-<!-- Hub cards -->
+<!-- Location cards -->
+<h3 style="font-size:0.88rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem;">📍 Locations</h3>
+{% if all_locations %}
 <div class="hub-grid">
-    <a href="/admin/tournaments" class="hub-card" style="border-top-color:#f6ad55;">
-        <div class="hub-card-icon">🏆</div>
-        <div class="hub-card-title">Tournaments</div>
-        <div class="hub-card-desc">Competitive tournaments — Head-to-Head and Individual Ranking formats with full session generation and enrollment management.</div>
-        <div class="hub-card-count" style="color:#744210;">{{ tournament_count }}</div>
+    {% for loc in all_locations %}
+    <a href="/admin/events/locations/{{ loc.id }}" class="hub-card"
+       style="border-top-color:{% if loc.location_type.value == 'CENTER' %}#4299e1{% else %}#f6ad55{% endif %};">
+        <div class="hub-card-icon">{% if loc.location_type.value == 'CENTER' %}🏫{% else %}🤝{% endif %}</div>
+        <div class="hub-card-title">{{ loc.city }}</div>
+        <div class="hub-card-desc" style="font-size:0.8rem;color:#718096;">
+            {{ loc.location_type.value }} · {{ loc.country }}
+            {% if loc.location_code %} · <code style="font-size:0.75rem;">{{ loc.location_code }}</code>{% endif %}
+        </div>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <span style="font-size:0.8rem;color:#4a5568;font-weight:600;">
+                {{ sem_by_loc.get(loc.id, 0) }} events
+            </span>
+            <span style="font-size:0.8rem;color:#718096;">·</span>
+            <span style="font-size:0.8rem;color:#4a5568;font-weight:600;">
+                {{ sess_by_loc.get(loc.id, 0) }} sessions
+            </span>
+        </div>
     </a>
-    <a href="/admin/camps" class="hub-card" style="border-top-color:#48bb78;">
-        <div class="hub-card-icon">⛺</div>
-        <div class="hub-card-title">Camps</div>
-        <div class="hub-card-desc">Short-term intensive camps by location and age group. Create, schedule and manage camp programs across centers and partners.</div>
-        <div class="hub-card-count" style="color:#276749;">{{ camp_count }}</div>
-    </a>
-    <a href="/admin/sessions?event_category=TRAINING" class="hub-card" style="border-top-color:#667eea;">
-        <div class="hub-card-icon">🏃</div>
-        <div class="hub-card-title">Training Sessions</div>
-        <div class="hub-card-desc">All training sessions — on-site, virtual and hybrid. Individual training, drills, skills sessions and group practices.</div>
-        <div class="hub-card-count" style="color:#553c9a;">{{ training_count }} upcoming</div>
-    </a>
-    <a href="/admin/sessions?event_category=MATCH" class="hub-card" style="border-top-color:#4299e1;">
-        <div class="hub-card-icon">⚽</div>
-        <div class="hub-card-title">Match Sessions</div>
-        <div class="hub-card-desc">Competitive match sessions and tournament games. Track results, participant lists and session outcomes.</div>
-        <div class="hub-card-count" style="color:#2b6cb0;">{{ match_count }} upcoming</div>
-    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div style="background:white;border-radius:12px;padding:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);text-align:center;color:#718096;margin-bottom:1.5rem;">
+    <p style="font-size:1.5rem;margin-bottom:0.5rem;">📍</p>
+    <p style="font-size:0.9rem;">No active locations found. <a href="/admin/locations" style="color:#667eea;">Add a location →</a></p>
+</div>
+{% endif %}
+
+<div style="margin-bottom:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+    <a href="/admin/tournaments" style="padding:0.35rem 0.85rem;background:#fef9c3;color:#744210;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">🏆 All Tournaments</a>
+    <a href="/admin/camps" style="padding:0.35rem 0.85rem;background:#c6f6d5;color:#276749;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">⛺ All Camps</a>
+    <a href="/admin/sessions?event_category=TRAINING" style="padding:0.35rem 0.85rem;background:#e9d8fd;color:#553c9a;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">🏃 Training Sessions</a>
+    <a href="/admin/sessions?event_category=MATCH" style="padding:0.35rem 0.85rem;background:#ebf8ff;color:#2b6cb0;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">⚽ Match Sessions</a>
 </div>
 
 <!-- Upcoming structured events -->
@@ -106,6 +117,8 @@
             <td style="padding:0.5rem 0.75rem;">
                 {% if ev.semester_category and ev.semester_category.value == 'TOURNAMENT' %}
                     <a href="/admin/tournaments/{{ ev.id }}/edit" style="font-size:0.78rem;padding:0.2rem 0.55rem;border-radius:6px;text-decoration:none;font-weight:600;background:#4299e1;color:white;">→</a>
+                {% elif ev.semester_category and ev.semester_category.value == 'CAMP' %}
+                    <a href="/admin/camps/{{ ev.id }}/edit" style="font-size:0.78rem;padding:0.2rem 0.55rem;border-radius:6px;text-decoration:none;font-weight:600;background:#48bb78;color:white;">→</a>
                 {% else %}
                     <a href="/admin/semesters/{{ ev.id }}/edit" style="font-size:0.78rem;padding:0.2rem 0.55rem;border-radius:6px;text-decoration:none;font-weight:600;background:#e2e8f0;color:#4a5568;">→</a>
                 {% endif %}

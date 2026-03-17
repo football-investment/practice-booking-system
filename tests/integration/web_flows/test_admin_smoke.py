@@ -3712,3 +3712,120 @@ class TestSmoke30EventModule:
         resp2 = admin_client.get("/admin/sessions?event_category=TRAINING")
         assert resp2.status_code == 200
         assert "Internal Server Error" not in resp2.text
+
+
+# ============================================================================
+# SMOKE-31: Location-First Events module — per-location events page + camp edit
+# ============================================================================
+
+
+class TestSmoke31LocationFirstEvents:
+    """SMOKE-31: Location-first Events redesign — per-location CRUD page and camp edit."""
+
+    # ── SMOKE-31a ──────────────────────────────────────────────────────────────
+
+    def test_31a_location_events_page_loads(self, admin_client, test_db: Session):
+        """Seeded location → GET /admin/events/locations/{id} → 200, 4 section headers present."""
+        from app.models.semester import SemesterCategory as SC
+
+        loc = Location(
+            name="TestCity31a Location",
+            city="TestCity31a",
+            country="HU",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        camp = Semester(
+            name="SMOKE31a Camp",
+            code="CAMP-SMOKE31A",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=7),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            location_id=loc.id,
+        )
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/events/locations/{loc.id}")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "TestCity31a" in html, "Location city not in page heading"
+        for section in ["Tournaments", "Camps", "Academy / Mini Seasons", "Upcoming Sessions"]:
+            assert section in html, f"Section '{section}' missing from location events page"
+
+    # ── SMOKE-31b ──────────────────────────────────────────────────────────────
+
+    def test_31b_camp_edit_page_loads(self, admin_client, test_db: Session):
+        """Seeded CAMP → GET /admin/camps/{id}/edit → 200, camp name and code in form."""
+        from app.models.semester import SemesterCategory as SC
+
+        camp = Semester(
+            name="SMOKE31b Edit Camp",
+            code="CAMP-SMOKE31B",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=5),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/camps/{camp.id}/edit")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "SMOKE31b Edit Camp" in html, "Camp name not found in edit page"
+        assert "CAMP-SMOKE31B" in html, "Camp code not found in edit page"
+
+    # ── SMOKE-31c ──────────────────────────────────────────────────────────────
+
+    def test_31c_camp_edit_post_updates_camp(self, admin_client, test_db: Session):
+        """POST /admin/camps/{id}/edit updates camp name → 303 redirect."""
+        from app.models.semester import SemesterCategory as SC
+
+        camp = Semester(
+            name="SMOKE31c Original Name",
+            code="CAMP-SMOKE31C",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=5),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.post(
+            f"/admin/camps/{camp.id}/edit",
+            data={
+                "name": "SMOKE31c Updated Name",
+                "code": "CAMP-SMOKE31C",
+                "start_date": date.today().isoformat(),
+                "end_date": (date.today() + timedelta(days=5)).isoformat(),
+                "age_group": "",
+                "location_id": "",
+                "campus_id": "",
+                "enrollment_cost": "0",
+                "status": "DRAFT",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303, (
+            f"Expected 303 redirect after camp update, got {resp.status_code}: {resp.text[:400]}"
+        )
+
+        test_db.refresh(camp)
+        assert camp.name == "SMOKE31c Updated Name", (
+            f"Camp name not updated in DB — got '{camp.name}'"
+        )

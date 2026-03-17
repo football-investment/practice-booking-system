@@ -2520,6 +2520,59 @@
         "title": "Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post",
         "type": "object"
       },
+      "Body_admin_update_camp_admin_camps__camp_id__edit_post": {
+        "properties": {
+          "age_group": {
+            "default": "",
+            "title": "Age Group",
+            "type": "string"
+          },
+          "campus_id": {
+            "default": "",
+            "title": "Campus Id",
+            "type": "string"
+          },
+          "code": {
+            "default": "",
+            "title": "Code",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "enrollment_cost": {
+            "default": "",
+            "title": "Enrollment Cost",
+            "type": "string"
+          },
+          "location_id": {
+            "default": "",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "default": "",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_update_camp_admin_camps__camp_id__edit_post",
+        "type": "object"
+      },
       "Body_admin_update_campus_admin_campuses__campus_id__edit_post": {
         "properties": {
           "address": {
@@ -21950,6 +22003,100 @@
         ]
       }
     },
+    "/admin/camps/{camp_id}/edit": {
+      "get": {
+        "description": "Admin-only: Edit a Camp semester.",
+        "operationId": "admin_camp_edit_page_admin_camps__camp_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camp_id",
+            "required": true,
+            "schema": {
+              "title": "Camp Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Camp Edit Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Update a Camp semester.",
+        "operationId": "admin_update_camp_admin_camps__camp_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camp_id",
+            "required": true,
+            "schema": {
+              "title": "Camp Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_update_camp_admin_camps__camp_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Update Camp",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/campuses/{campus_id}": {
       "get": {
         "description": "Admin-only: Campus detail \u2014 programs, upcoming sessions, location instructors.",
@@ -22363,6 +22510,49 @@
           }
         },
         "summary": "Admin Events Hub Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/events/locations/{location_id}": {
+      "get": {
+        "description": "Admin-only: Per-location event management \u2014 all event types CRUD in one place.",
+        "operationId": "admin_location_events_page_admin_events_locations__location_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Location Events Page",
         "tags": [
           "web"
         ]
@@ -23342,6 +23532,49 @@
           }
         },
         "summary": "Admin Delete Semester",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/semesters/{semester_id}/edit": {
+      "get": {
+        "description": "Dispatch: redirect to the appropriate edit page based on semester category.",
+        "operationId": "admin_semester_edit_dispatch_admin_semesters__semester_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "semester_id",
+            "required": true,
+            "schema": {
+              "title": "Semester Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Semester Edit Dispatch",
         "tags": [
           "web"
         ]
