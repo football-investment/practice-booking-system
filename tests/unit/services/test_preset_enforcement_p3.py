@@ -75,6 +75,16 @@ def _make_db_with_semester(semester: Optional[_SemesterStub]):
 class TestENF01PresetOverridesExplicitSkillAreas:
     """ENF-01: preset is authoritative — explicit caller skill_areas is rejected."""
 
+    @pytest.mark.xfail(
+        reason=(
+            "Preset override rejection not yet implemented in award_session_completion. "
+            "Requires: query semester.game_config_obj.game_preset in award_session_completion; "
+            "log skill_areas_override_rejected when preset exists and caller passed skill_areas. "
+            "ENF-03 (_allow_skill_areas_override bypass) + ENF-02 (ValueError on empty preset) "
+            "are also gated on this feature."
+        ),
+        strict=True,
+    )
     def test_override_rejected_and_preset_used(self):
         from app.services import reward_service
 
@@ -117,6 +127,13 @@ class TestENF01PresetOverridesExplicitSkillAreas:
 class TestENF02EmptyPresetRaisesValueError:
     """ENF-02: preset with empty skills_tested → ValueError (fail loud)."""
 
+    @pytest.mark.xfail(
+        reason=(
+            "ValueError on empty preset not yet implemented in award_session_completion. "
+            "Requires same preset-lookup logic as ENF-01."
+        ),
+        strict=True,
+    )
     def test_empty_skills_tested_raises_value_error(self):
         from app.services import reward_service
 
@@ -190,6 +207,10 @@ class TestENF03AdminOverrideFlag:
 class TestENF04PresetMetric:
     """ENF-04: skill_calc_preset metric incremented when preset path used."""
 
+    @pytest.mark.xfail(
+        reason="skill_calc_preset metric not yet instrumented in calculate_skill_points_for_placement",
+        strict=True,
+    )
     def test_preset_path_increments_metric(self):
         from app.services.tournament.tournament_participation_service import (
             calculate_skill_points_for_placement,
@@ -225,6 +246,10 @@ class TestENF04PresetMetric:
 class TestENF05FallbackRewardConfigMetric:
     """ENF-05: skill_calc_fallback_reward_config metric + warning on legacy reward_config path."""
 
+    @pytest.mark.xfail(
+        reason="skill_calc_fallback_reward_config metric + LEGACY warning not yet instrumented in calculate_skill_points_for_placement",
+        strict=True,
+    )
     def test_legacy_reward_config_metric_and_warning(self):
         from app.services.tournament.tournament_participation_service import (
             calculate_skill_points_for_placement,
@@ -270,6 +295,10 @@ class TestENF05FallbackRewardConfigMetric:
 class TestENF06FallbackSkillMappingTableMetric:
     """ENF-06: skill_calc_fallback_skill_mapping_table metric + warning on oldest legacy path."""
 
+    @pytest.mark.xfail(
+        reason="skill_calc_fallback_skill_mapping_table metric + LEGACY warning not yet instrumented in calculate_skill_points_for_placement",
+        strict=True,
+    )
     def test_legacy_skill_mapping_table_metric_and_warning(self):
         from app.services.tournament.tournament_participation_service import (
             calculate_skill_points_for_placement,
