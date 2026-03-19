@@ -57,8 +57,7 @@ describe('A. Student Core Journey — Skill Progression', {
       url: '/dashboard/LFA_FOOTBALL_PLAYER',
       failOnStatusCode: false,
     }).then((resp) => {
-      expect(resp.status).to.not.equal(500);
-      expect(resp.status).to.not.equal(403);
+      expect(resp.status).to.equal(200);
       expect(resp.body).to.not.include('Internal Server Error');
     });
   });

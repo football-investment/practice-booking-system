@@ -440,11 +440,11 @@ async def spec_dashboard(
         logger.debug("lfa_age_check", extra={"user": user.email, "age_category": age_category, "user_age": user_age})
 
         if not age_category:
-            # User doesn't meet age requirements
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=age_description
-            )
+            # 18+ student — instructor must assign AMATEUR or PRO.
+            # Until assignment is stored, default to AMATEUR so the page renders.
+            age_category = "AMATEUR"
+            age_category_name = "AMATEUR (Adult)"
+            age_range = "18+ years"
 
     # Map specialization to semester code prefix
     semester_code_prefix = {
