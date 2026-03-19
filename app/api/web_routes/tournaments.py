@@ -179,6 +179,18 @@ async def tournament_enroll(
     if not license:
         return _err("LFA+Football+Player+license+required")
 
+    # 4.5 Onboarding guard
+    has_enrollment_for_lic = db.query(SemesterEnrollment.id).filter(
+        SemesterEnrollment.user_license_id == license.id
+    ).first() is not None
+    effective_onboarding = (
+        license.onboarding_completed
+        or license.football_skills is not None
+        or has_enrollment_for_lic
+    )
+    if not effective_onboarding:
+        return _err("Complete+your+LFA+Football+Player+onboarding+before+enrolling")
+
     # 5. Not already enrolled
     existing = db.query(SemesterEnrollment).filter(
         SemesterEnrollment.semester_id == tournament_id,
