@@ -22,6 +22,7 @@ Scenarios:
     business_lifecycle   session_ready + 1 lifecycle session (started 90min ago) + student booking
     tournament_e2e           baseline + student LFA license (1000 cr) + ENROLLMENT_OPEN tournament
     tournament_e2e_enrolled  tournament_e2e + student already enrolled (900 cr, for instructor view tests)
+    student_skill_history    baseline + student LFA license (29 skills) + 2 COMPLETED tournaments + TournamentParticipation (EMA timeline)
 """
 
 import sys
@@ -47,6 +48,8 @@ from app.models.credit_transaction import CreditTransaction
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.invitation_code import InvitationCode
 from app.models.license import UserLicense
+from app.models.tournament_achievement import TournamentParticipation
+from app.models.tournament_reward_config import TournamentRewardConfig
 from app.core.security import get_password_hash
 
 TZ = ZoneInfo("Europe/Budapest")
@@ -547,6 +550,140 @@ def scenario_business_lifecycle(db) -> list[str]:
     return lines
 
 
+# ── student_skill_history scenario ────────────────────────────────────────────
+
+_TOURN_HIST_CODE_1 = "TOURN-E2E-HIST-1"
+_TOURN_HIST_CODE_2 = "TOURN-E2E-HIST-2"
+
+
+def _upsert_hist_tournament(db, code: str, name: str, start_d: date, instructor: User) -> Semester:
+    """Create or update a COMPLETED tournament with passing/ball_control/dribbling skill_mappings."""
+    tourn = db.query(Semester).filter(Semester.code == code).first()
+    if tourn:
+        tourn.tournament_status = "COMPLETED"
+        tourn.master_instructor_id = instructor.id
+        db.flush()
+    else:
+        tourn = Semester(
+            code=code,
+            name=name,
+            start_date=start_d,
+            end_date=start_d + timedelta(days=7),
+            tournament_status="COMPLETED",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            age_group="AMATEUR",
+            master_instructor_id=instructor.id,
+        )
+        db.add(tourn)
+        db.flush()
+
+    _skill_mappings = [
+        {"skill": "passing",     "enabled": True, "weight": 1.0},
+        {"skill": "ball_control","enabled": True, "weight": 0.8},
+        {"skill": "dribbling",   "enabled": True, "weight": 0.7},
+    ]
+    rc = db.query(TournamentRewardConfig).filter(
+        TournamentRewardConfig.semester_id == tourn.id
+    ).first()
+    if rc:
+        rc.reward_config = {"skill_mappings": _skill_mappings}
+    else:
+        rc = TournamentRewardConfig(
+            semester_id=tourn.id,
+            reward_policy_name="E2E Skill History",
+            reward_config={"skill_mappings": _skill_mappings},
+        )
+        db.add(rc)
+    db.flush()
+    return tourn
+
+
+def scenario_student_skill_history(db) -> list[str]:
+    """Student skill history: completed tournaments with EMA timeline data.
+
+    State:
+        - Student rdias@manchestercity.com: 1000 credits, LFA license, onboarding done
+        - LFA license football_skills: all 29 skills at 70.0 (flat format)
+        - TOURN-E2E-HIST-1 (COMPLETED, 2 months ago): student 2nd/2, instructor 1st/2
+        - TOURN-E2E-HIST-2 (COMPLETED, 1 month ago):  student 1st/2, instructor 2nd/2
+        - Both tournaments test passing, ball_control, dribbling skills
+        - Result: /skills/history shows 2-entry upward-trend EMA timeline for 'passing'
+    """
+    lines = scenario_baseline(db)
+
+    student_spec = next(s for s in _BASELINE_USERS if s["role"] == UserRole.STUDENT)
+    student = _upsert_user(db, student_spec, credit_balance=1000, onboarding_completed=True)
+    lines.append(f"  set {student_spec['email']} credit_balance=1000 onboarding_completed=True")
+
+    # LFA license with all 29 football_skills at 70.0 (flat format)
+    from app.skills_config import get_all_skill_keys
+    all_skills = {k: 70.0 for k in get_all_skill_keys()}
+    lic = _upsert_lfa_license(db, student)
+    lic.football_skills = all_skills
+    db.commit()
+    lines.append(f"  set football_skills on LFA license ({len(all_skills)} skills @ 70.0)")
+
+    instructor = db.query(User).filter(User.email == "grandmaster@lfa.com").first()
+    today = date.today()
+    t1_date = today - timedelta(days=60)
+    t2_date = today - timedelta(days=30)
+
+    tourn1 = _upsert_hist_tournament(db, _TOURN_HIST_CODE_1, "E2E History Tournament 1", t1_date, instructor)
+    tourn2 = _upsert_hist_tournament(db, _TOURN_HIST_CODE_2, "E2E History Tournament 2", t2_date, instructor)
+    db.commit()
+    lines.append(f"  upserted 2 COMPLETED tournaments (HIST-1 id={tourn1.id}, HIST-2 id={tourn2.id})")
+
+    # Remove any stale participations for these tournaments (idempotent)
+    for tourn in [tourn1, tourn2]:
+        db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == tourn.id
+        ).delete(synchronize_session=False)
+    db.commit()
+
+    # Tournament 1: student placed 2nd out of 2 → modest skill gain
+    db.add(TournamentParticipation(
+        user_id=student.id,
+        semester_id=tourn1.id,
+        placement=2,
+        skill_points_awarded={"passing": 3.5, "ball_control": 2.8},
+        xp_awarded=50,
+        credits_awarded=0,
+        achieved_at=datetime(t1_date.year, t1_date.month, t1_date.day, 12, 0, 0),
+    ))
+    db.add(TournamentParticipation(
+        user_id=instructor.id,
+        semester_id=tourn1.id,
+        placement=1,
+        skill_points_awarded={},
+        xp_awarded=100,
+        credits_awarded=0,
+        achieved_at=datetime(t1_date.year, t1_date.month, t1_date.day, 12, 0, 0),
+    ))
+
+    # Tournament 2: student placed 1st out of 2 → stronger skill gain
+    db.add(TournamentParticipation(
+        user_id=student.id,
+        semester_id=tourn2.id,
+        placement=1,
+        skill_points_awarded={"passing": 6.2, "ball_control": 5.0, "dribbling": 4.1},
+        xp_awarded=100,
+        credits_awarded=0,
+        achieved_at=datetime(t2_date.year, t2_date.month, t2_date.day, 12, 0, 0),
+    ))
+    db.add(TournamentParticipation(
+        user_id=instructor.id,
+        semester_id=tourn2.id,
+        placement=2,
+        skill_points_awarded={},
+        xp_awarded=50,
+        credits_awarded=0,
+        achieved_at=datetime(t2_date.year, t2_date.month, t2_date.day, 12, 0, 0),
+    ))
+    db.commit()
+    lines.append("  created 4 TournamentParticipation records (student: 2nd→1st arc)")
+    return lines
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 _SCENARIOS = {
@@ -557,6 +694,7 @@ _SCENARIOS = {
     "business_lifecycle":           scenario_business_lifecycle,
     "tournament_e2e":               scenario_tournament_e2e,
     "tournament_e2e_enrolled":      scenario_tournament_e2e_enrolled,
+    "student_skill_history":        scenario_student_skill_history,
 }
 
 
