@@ -266,9 +266,10 @@ class TestSpecDashboard:
         license_obj.id = 1
         db = MagicMock()
         # Sequential .first() calls:
-        # 1. user_license (line 464)
-        # 2. has_active_enrollment check (line 490) → None → False
-        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None]
+        # 1. user_license
+        # 2. onboarding guard (has_enrollment) → None → has_enrollment=False
+        # 3. has_active_enrollment check → None → False
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None, None]
         # track_semesters and pending_enrollments: filter().order_by().all()
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         # existing_enrollments: filter().all()
@@ -296,10 +297,12 @@ class TestSpecDashboard:
         db = MagicMock()
         # Sequential .first() calls:
         # 1. user_license
-        # 2. has_active_enrollment → active_enrollment_check (truthy)
-        # 3. enrollment for current_semester (line 565)
+        # 2. onboarding guard (has_enrollment) → None
+        # 3. has_active_enrollment → active_enrollment_check (truthy)
+        # 4. enrollment for current_semester
         db.query.return_value.filter.return_value.first.side_effect = [
             license_obj,
+            None,
             active_enrollment_check,
             enrollment_obj,
         ]
@@ -320,7 +323,7 @@ class TestSpecDashboard:
         license_obj = MagicMock()
         license_obj.id = 1
         db = MagicMock()
-        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None]
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None, None]
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         db.query.return_value.filter.return_value.all.return_value = []
 
@@ -356,7 +359,7 @@ class TestSpecDashboard:
         license_obj = MagicMock()
         license_obj.id = 1
         db = MagicMock()
-        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None]
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None, None]
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         db.query.return_value.filter.return_value.all.return_value = []
 
@@ -377,8 +380,8 @@ class TestSpecDashboard:
         semester_mock = MagicMock()
         semester_mock.end_date = date_cls(2027, 12, 31)  # far future → passes end_date >= today filter
         db = MagicMock()
-        # user_license, has_active_enrollment → [license_obj, None]
-        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None]
+        # user_license, onboarding guard, has_active_enrollment → [license_obj, None, None]
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None, None]
         # track_semesters: filter().order_by().all() → [semester_mock]
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [semester_mock]
         # existing_enrollments: filter().all() → []
@@ -398,8 +401,8 @@ class TestSpecDashboard:
         license_obj.id = 1
         active_check = MagicMock()  # Truthy → has_active_enrollment=True
         db = MagicMock()
-        # user_license, has_active_enrollment, enrollment re-fetch → None
-        db.query.return_value.filter.return_value.first.side_effect = [license_obj, active_check, None]
+        # user_license, onboarding guard, has_active_enrollment, enrollment re-fetch → None
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None, active_check, None]
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         db.query.return_value.filter.return_value.all.return_value = []
 
