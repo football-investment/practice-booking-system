@@ -2,7 +2,7 @@
 Dashboard routes for student, instructor, and admin dashboards
 """
 from fastapi import APIRouter, Request, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -381,6 +381,23 @@ async def spec_dashboard(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"You don't have access to {spec_type}. Please unlock it first."
         )
+
+    # Onboarding guard: effective_onboarding = flag OR skills OR legacy enrollment
+    has_enrollment = db.query(SemesterEnrollment.id).filter(
+        SemesterEnrollment.user_license_id == user_license.id
+    ).first() is not None
+    effective_onboarding = (
+        user_license.onboarding_completed
+        or user_license.football_skills is not None
+        or has_enrollment
+    )
+    if not effective_onboarding:
+        onboarding_url = (
+            "/specialization/lfa-player/onboarding"
+            if spec_enum == "LFA_FOOTBALL_PLAYER"
+            else f"/specialization/motivation?spec={spec_enum}"
+        )
+        return RedirectResponse(url=onboarding_url, status_code=303)
 
     # Simple spec config (no external config file needed)
     spec_configs = {
