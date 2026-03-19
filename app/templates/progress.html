@@ -574,5 +574,44 @@
     </div>
     {% endif %}
 
+    <!-- Skill Snapshot -->
+    <div class="semester-card" id="skill-snapshot-widget">
+        <h2>⚡ Skill Snapshot</h2>
+        <p style="color:#666; margin-bottom:1rem;">Your top football skills at a glance.</p>
+        <div id="skill-snapshot-bars">
+            <p style="color:#aaa; font-style:italic;">Loading skills…</p>
+        </div>
+        <div style="margin-top:1rem; text-align:right;">
+            <a href="/skills" style="font-size:0.9rem; color:#27ae60;">View all 29 skills →</a>
+        </div>
+    </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    fetch('/skills/data')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || !data.skills) return;
+            var container = document.getElementById('skill-snapshot-bars');
+            var entries = Object.entries(data.skills)
+                .sort(function(a,b) { return b[1] - a[1]; })
+                .slice(0, 5);
+            if (entries.length === 0) { container.innerHTML = '<p style="color:#aaa;">No skill data yet.</p>'; return; }
+            container.innerHTML = entries.map(function(e) {
+                var pct = Math.max(0, Math.min(100, (e[1] - 40) / 59 * 100));
+                return '<div style="margin-bottom:0.6rem;">' +
+                    '<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:2px;">' +
+                    '<span>' + e[0] + '</span><span>' + Math.round(e[1]) + '</span></div>' +
+                    '<div style="background:#e0e0e0;border-radius:6px;height:10px;overflow:hidden;">' +
+                    '<div style="width:' + pct + '%;height:100%;background:#27ae60;border-radius:6px;"></div>' +
+                    '</div></div>';
+            }).join('');
+        })
+        .catch(function() {});
+})();
+</script>
 {% endblock %}

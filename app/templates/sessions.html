@@ -42,22 +42,31 @@
     {% endif %}
 </div>
 
-<!-- Success/Error Messages -->
+<!-- Success/Error Messages (flash banner) -->
+<div id="flash-banner" style="display:none; padding:0.85rem 1.2rem; border-radius:8px; margin-bottom:1rem; font-weight:500;"></div>
 <script>
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('success') === 'booked') {
-    alert('✅ Session booked successfully!');
-    window.history.replaceState({}, document.title, "/sessions");
-} else if (urlParams.get('success') === 'cancelled') {
-    alert('✅ Booking cancelled successfully!');
-    window.history.replaceState({}, document.title, "/sessions");
-} else if (urlParams.get('info') === 'already_booked') {
-    alert('ℹ️ You have already booked this session.');
-    window.history.replaceState({}, document.title, "/sessions");
-} else if (urlParams.get('error')) {
-    alert('❌ Error: ' + urlParams.get('error'));
-    window.history.replaceState({}, document.title, "/sessions");
-}
+(function() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var banner = document.getElementById('flash-banner');
+    var msg = null, bg = null, color = '#fff';
+    if (urlParams.get('success') === 'booked') {
+        msg = '✅ Session booked successfully!'; bg = '#27ae60';
+    } else if (urlParams.get('success') === 'cancelled') {
+        msg = '✅ Booking cancelled successfully!'; bg = '#27ae60';
+    } else if (urlParams.get('info') === 'already_booked') {
+        msg = 'ℹ️ You have already booked this session.'; bg = '#3498db';
+    } else if (urlParams.get('error')) {
+        msg = '❌ Error: ' + urlParams.get('error'); bg = '#e74c3c';
+    }
+    if (msg) {
+        banner.textContent = msg;
+        banner.style.background = bg;
+        banner.style.color = color;
+        banner.style.display = 'block';
+        window.history.replaceState({}, document.title, "/sessions");
+        setTimeout(function() { banner.style.display = 'none'; }, 5000);
+    }
+})();
 </script>
 
 {% if is_instructor %}

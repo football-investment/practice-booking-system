@@ -221,7 +221,7 @@ class TestEnrollInTournament:
         """18+ user in AMATEUR tournament → auto-assigned AMATEUR, proceeds to age validation."""
         t = _tournament(age_group="AMATEUR")
         lic = _license()
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 1
         with patch(f"{_BASE}.get_current_season_year", return_value=2024), \
              patch(f"{_BASE}.calculate_age_at_season_start", return_value=20), \
@@ -255,7 +255,7 @@ class TestEnrollInTournament:
         t = _tournament(max_players=16)
         lic = _license()
         # capacity count = 16 (full)
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=16))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=16))
         with patch(f"{_BASE}.get_current_season_year", return_value=2024), \
              patch(f"{_BASE}.calculate_age_at_season_start", return_value=12), \
              patch(f"{_BASE}.get_automatic_age_category", return_value="PRE"), \
@@ -270,7 +270,7 @@ class TestEnrollInTournament:
         t = _tournament(cost=1000)
         lic = _license()
         user = _student(balance=500)  # not enough
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0))
         with patch(f"{_BASE}.get_current_season_year", return_value=2024), \
              patch(f"{_BASE}.calculate_age_at_season_start", return_value=12), \
              patch(f"{_BASE}.get_automatic_age_category", return_value="PRE"), \
@@ -285,7 +285,7 @@ class TestEnrollInTournament:
         """Atomic UPDATE rowcount=0 → concurrent credit drain detected."""
         t = _tournament()
         lic = _license()
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 0  # atomic update failed
         with patch(f"{_BASE}.get_current_season_year", return_value=2024), \
              patch(f"{_BASE}.calculate_age_at_season_start", return_value=12), \
@@ -302,7 +302,7 @@ class TestEnrollInTournament:
     def test_409_integrity_error_duplicate_constraint(self):
         t = _tournament()
         lic = _license()
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 1
         # Simulate IntegrityError with uq_active_enrollment in orig
         ie = IntegrityError("stmt", {}, Exception("uq_active_enrollment violation"))
@@ -322,7 +322,7 @@ class TestEnrollInTournament:
     def test_409_other_integrity_error(self):
         t = _tournament()
         lic = _license()
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 1
         ie = IntegrityError("stmt", {}, Exception("some_other_constraint"))
         db.commit.side_effect = ie
@@ -341,7 +341,7 @@ class TestEnrollInTournament:
     def test_500_generic_exception_during_commit(self):
         t = _tournament()
         lic = _license()
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 1
         db.commit.side_effect = RuntimeError("DB connection lost")
         with patch(f"{_BASE}.get_current_season_year", return_value=2024), \
@@ -359,7 +359,7 @@ class TestEnrollInTournament:
     def test_200_success_no_sessions(self):
         t = _tournament()
         lic = _license()
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 1
         with patch(f"{_BASE}.get_current_season_year", return_value=2024), \
              patch(f"{_BASE}.calculate_age_at_season_start", return_value=12), \
@@ -378,7 +378,7 @@ class TestEnrollInTournament:
         session_mock = MagicMock()
         session_mock.id = 7
         db = _seq_db(
-            _q(first=t), _q(first=None), _q(first=lic), _q(first=t),
+            _q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t),
             _q(count=0), _q(all_=[session_mock])  # sessions for auto-booking
         )
         db.execute.return_value.rowcount = 1
@@ -397,7 +397,7 @@ class TestEnrollInTournament:
     def test_200_success_with_conflicts_and_warnings(self):
         t = _tournament()
         lic = _license()
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 1
         conflict_data = {
             "has_conflict": True,
@@ -423,7 +423,7 @@ class TestEnrollInTournament:
         t.enrollment_cost = None
         lic = _license()
         user = _student(balance=600)
-        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=t), _q(count=0), _q(all_=[]))
+        db = _seq_db(_q(first=t), _q(first=None), _q(first=lic), _q(first=None), _q(first=t), _q(count=0), _q(all_=[]))
         db.execute.return_value.rowcount = 1
         with patch(f"{_BASE}.get_current_season_year", return_value=2024), \
              patch(f"{_BASE}.calculate_age_at_season_start", return_value=12), \

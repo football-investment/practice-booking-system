@@ -58,7 +58,8 @@ def student_with_license(test_db: Session) -> User:
         current_level=1,
         max_achieved_level=1,
         started_at=datetime.utcnow(),
-        is_active=True
+        is_active=True,
+        onboarding_completed=True
     )
     test_db.add(license)
     test_db.commit()
@@ -109,7 +110,8 @@ def student_no_credits(test_db: Session) -> User:
         current_level=1,
         max_achieved_level=1,
         started_at=datetime.utcnow(),
-        is_active=True
+        is_active=True,
+        onboarding_completed=True
     )
     test_db.add(license)
     test_db.commit()
