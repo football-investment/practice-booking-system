@@ -1,0 +1,25 @@
+{
+  "code": "score_based",
+  "display_name": "Score-Based Ranking",
+  "description": "Players ranked by accumulated score (goals, points, repetitions). Highest total wins (DESC). Scores summed across all rounds.",
+  "format": "INDIVIDUAL_RANKING",
+  "min_players": 2,
+  "max_players": null,
+  "requires_power_of_two": false,
+  "session_duration_minutes": 60,
+  "break_between_sessions_minutes": 10,
+  "scoring_config": {
+    "scoring_type": "SCORE_BASED",
+    "measurement_unit": "points",
+    "ranking_direction": "DESC",
+    "aggregation": "SUM",
+    "notes": "Higher total score = better rank. Aggregation: SUM across all rounds."
+  },
+  "config_notes": [
+    "No 1v1 matches — all players compete simultaneously in each round",
+    "Ranking direction: DESC (higher score = better)",
+    "Measurement units: points, goals, repetitions",
+    "Suitable for: penalty shootouts, dribbling challenges, free kick accuracy, skill drills",
+    "Core format for LFA Football Player skill progression — drives XP and skill area updates"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "code": "distance_based",
+  "display_name": "Distance-Based Ranking",
+  "description": "Players ranked by distance covered or thrown. Farthest distance wins (DESC). Distances summed or best attempt used across rounds.",
+  "format": "INDIVIDUAL_RANKING",
+  "min_players": 2,
+  "max_players": null,
+  "requires_power_of_two": false,
+  "session_duration_minutes": 60,
+  "break_between_sessions_minutes": 10,
+  "scoring_config": {
+    "scoring_type": "DISTANCE_BASED",
+    "measurement_unit": "meters",
+    "ranking_direction": "DESC",
+    "aggregation": "SUM",
+    "notes": "Higher distance = better rank. Uses ScoreBasedStrategy (SUM, DESC). Units: meters or centimeters."
+  },
+  "config_notes": [
+    "No 1v1 matches — all players compete simultaneously in each round",
+    "Ranking direction: DESC (farther = better)",
+    "Measurement units: meters (default), centimeters also supported",
+    "Shares aggregation logic with score_based (SUM, DESC)",
+    "Suitable for: long throw competitions, kick distance, jump distance"
+  ]
+}

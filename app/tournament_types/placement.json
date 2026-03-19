@@ -1,0 +1,24 @@
+{
+  "code": "placement",
+  "display_name": "Placement Ranking",
+  "description": "Players ranked by finishing order (1st, 2nd, 3rd...). Sum of placements across rounds — lower total placement = better overall rank.",
+  "format": "INDIVIDUAL_RANKING",
+  "min_players": 2,
+  "max_players": null,
+  "requires_power_of_two": false,
+  "session_duration_minutes": 60,
+  "break_between_sessions_minutes": 10,
+  "scoring_config": {
+    "scoring_type": "PLACEMENT",
+    "measurement_unit": null,
+    "ranking_direction": "ASC",
+    "aggregation": "SUM_PLACEMENT",
+    "notes": "Lower placement number = better. Tie-break: sum of placements across all rounds."
+  },
+  "config_notes": [
+    "No 1v1 matches — all players compete simultaneously in each round",
+    "Ranking direction: ASC (lower total placement = better)",
+    "Example: race where finishing positions are summed across heats",
+    "Suitable for: athletics, swimming heats, race formats"
+  ]
+}

@@ -1,0 +1,488 @@
+{% extends "student_base.html" %}
+
+{% block title %}Skill History - LFA{% endblock %}
+{% block active_page %}skills{% endblock %}
+
+{% block extra_styles %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+    .sh-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    /* Selector row */
+    .sh-selector-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+    }
+
+    .sh-selector-row label {
+        font-weight: 600;
+        color: #374151;
+        white-space: nowrap;
+    }
+
+    #skill-select {
+        flex: 1;
+        min-width: 200px;
+        max-width: 360px;
+        padding: 10px 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 1rem;
+        background: white;
+        color: #111827;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    #skill-select:focus { border-color: #40916c; box-shadow: 0 0 0 2px rgba(64,145,108,0.15); }
+
+    /* Stat cards */
+    .sh-stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+
+    .sh-stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        text-align: center;
+        border-top: 4px solid #40916c;
+    }
+
+    .sh-stat-card.delta-pos { border-top-color: #27ae60; }
+    .sh-stat-card.delta-neg { border-top-color: #e74c3c; }
+    .sh-stat-card.delta-zero { border-top-color: #9ca3af; }
+
+    .sh-stat-label { font-size: 0.82rem; color: #6b7280; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .sh-stat-value { font-size: 2rem; font-weight: 700; color: #1b4332; }
+    .sh-stat-sub   { font-size: 0.8rem; color: #9ca3af; margin-top: 4px; }
+
+    /* Chart card */
+    .sh-chart-card {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 24px;
+    }
+
+    .sh-chart-card h3 {
+        margin: 0 0 16px;
+        color: #1b4332;
+        font-size: 1.05rem;
+    }
+
+    .sh-chart-wrap { position: relative; height: 300px; }
+
+    /* Empty state */
+    .sh-empty {
+        text-align: center;
+        padding: 48px 20px;
+        color: #9ca3af;
+    }
+    .sh-empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .sh-empty p { margin: 0; font-size: 1rem; }
+
+    /* Audit table */
+    .sh-table-card {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        overflow-x: auto;
+    }
+
+    .sh-table-card h3 {
+        margin: 0 0 16px;
+        color: #1b4332;
+        font-size: 1.05rem;
+    }
+
+    .sh-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+    }
+
+    .sh-table th {
+        background: #f0fdf4;
+        color: #374151;
+        font-weight: 600;
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 2px solid #d1fae5;
+        white-space: nowrap;
+    }
+
+    .sh-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+    }
+
+    .sh-table tr:hover td { background: #f9fafb; }
+
+    .sh-delta-pos { color: #27ae60; font-weight: 600; }
+    .sh-delta-neg { color: #e74c3c; font-weight: 600; }
+    .sh-delta-zero { color: #9ca3af; }
+
+    .sh-placement-badge {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .sh-p1 { background: #fef3c7; color: #92400e; }
+    .sh-p2 { background: #f3f4f6; color: #374151; }
+    .sh-p3 { background: #fde8d8; color: #7c2d12; }
+    .sh-pn { background: #f3f4f6; color: #6b7280; }
+
+    /* Spinner */
+    .s-spinner {
+        display: inline-block;
+        width: 28px; height: 28px;
+        border: 3px solid #d1fae5;
+        border-top-color: #40916c;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 32px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error banner */
+    .sh-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 14px 18px;
+        color: #991b1b;
+        margin-bottom: 20px;
+        display: none;
+    }
+
+    @media (max-width: 640px) {
+        .sh-stats-row { grid-template-columns: 1fr 1fr; }
+        .sh-chart-wrap { height: 220px; }
+        .sh-table th, .sh-table td { padding: 8px; font-size: 0.8rem; }
+    }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="sh-container">
+
+    {# Breadcrumb #}
+    <nav class="s-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
+        <span class="s-breadcrumb-sep">›</span>
+        <a href="/dashboard/lfa-football-player" class="s-breadcrumb-item">⚽ LFA Football Player</a>
+        <span class="s-breadcrumb-sep">›</span>
+        <a href="/skills" class="s-breadcrumb-item">⚡ Skills</a>
+        <span class="s-breadcrumb-sep">›</span>
+        <span class="s-breadcrumb-item active">📈 Skill History</span>
+    </nav>
+
+    <h2 style="margin:0 0 20px;color:#1b4332;">📈 Skill History</h2>
+    <p style="color:#6b7280;margin:-10px 0 22px;font-size:0.92rem;">
+        Tornánként visszakövethető EMA-alapú skill fejlődés — melyik torna milyen változást okozott.
+    </p>
+
+    {# Skill selector #}
+    <div class="sh-selector-row">
+        <label for="skill-select">Skill:</label>
+        <select id="skill-select">
+            {% for s in all_skills %}
+            <option value="{{ s.key }}" {% if s.key == selected_skill %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+        <a href="/skills" style="font-size:0.88rem;color:#40916c;text-decoration:none;">← Vissza a skill áttekintőhöz</a>
+    </div>
+
+    {# Error banner #}
+    <div class="sh-error" id="sh-error"></div>
+
+    {# Loading spinner #}
+    <div id="sh-loading" style="text-align:center;">
+        <div class="s-spinner"></div>
+    </div>
+
+    {# Main content — hidden until data loads #}
+    <div id="sh-content" style="display:none;">
+
+        {# Stat cards #}
+        <div class="sh-stats-row">
+            <div class="sh-stat-card">
+                <div class="sh-stat-label">Baseline</div>
+                <div class="sh-stat-value" id="sh-baseline">—</div>
+                <div class="sh-stat-sub">Kiindulási szint</div>
+            </div>
+            <div class="sh-stat-card">
+                <div class="sh-stat-label">Jelenlegi szint</div>
+                <div class="sh-stat-value" id="sh-current">—</div>
+                <div class="sh-stat-sub">Aktuális érték</div>
+            </div>
+            <div class="sh-stat-card" id="sh-delta-card">
+                <div class="sh-stat-label">Változás</div>
+                <div class="sh-stat-value" id="sh-delta">—</div>
+                <div class="sh-stat-sub">Total delta</div>
+            </div>
+            <div class="sh-stat-card">
+                <div class="sh-stat-label">Tornák száma</div>
+                <div class="sh-stat-value" id="sh-count">—</div>
+                <div class="sh-stat-sub">Ahol ez a skill mért</div>
+            </div>
+        </div>
+
+        {# Chart #}
+        <div class="sh-chart-card">
+            <h3 id="sh-chart-title">Skill fejlődési görbe</h3>
+            <div id="sh-empty" class="sh-empty" style="display:none;">
+                <div class="sh-empty-icon">📊</div>
+                <p>Még nincsenek tornaadatok ehhez a skillhez.</p>
+                <p style="font-size:0.85rem;margin-top:8px;">Vegyél részt egy tornán, hogy megjelenjen a fejlődési görbe!</p>
+            </div>
+            <div class="sh-chart-wrap" id="sh-chart-wrap">
+                <canvas id="skill-chart"></canvas>
+            </div>
+        </div>
+
+        {# Audit table #}
+        <div class="sh-table-card" id="sh-table-card" style="display:none;">
+            <h3>EMA nyomkövetés tornánként</h3>
+            <table class="sh-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Torna</th>
+                        <th>Dátum</th>
+                        <th>Helyezés</th>
+                        <th>Játékosok</th>
+                        <th>EMA cél</th>
+                        <th>Skill szint</th>
+                        <th>Delta</th>
+                    </tr>
+                </thead>
+                <tbody id="sh-table-body"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    var skillSelect  = document.getElementById('skill-select');
+    var loadingEl    = document.getElementById('sh-loading');
+    var contentEl    = document.getElementById('sh-content');
+    var errorEl      = document.getElementById('sh-error');
+    var emptyEl      = document.getElementById('sh-empty');
+    var chartWrapEl  = document.getElementById('sh-chart-wrap');
+    var tableCardEl  = document.getElementById('sh-table-card');
+    var chartInst    = null;
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'none';
+    }
+
+    function fmtDate(isoStr) {
+        if (!isoStr) return '—';
+        try { return new Date(isoStr).toLocaleDateString('hu-HU', {year:'numeric',month:'short',day:'numeric'}); }
+        catch (e) { return isoStr.slice(0, 10); }
+    }
+
+    function deltaClass(d) {
+        if (d > 0) return 'sh-delta-pos';
+        if (d < 0) return 'sh-delta-neg';
+        return 'sh-delta-zero';
+    }
+
+    function placementBadge(p) {
+        if (p === 1) return '<span class="sh-placement-badge sh-p1">🥇 1.</span>';
+        if (p === 2) return '<span class="sh-placement-badge sh-p2">🥈 2.</span>';
+        if (p === 3) return '<span class="sh-placement-badge sh-p3">🥉 3.</span>';
+        return '<span class="sh-placement-badge sh-pn">' + p + '.</span>';
+    }
+
+    function renderStats(data) {
+        document.getElementById('sh-baseline').textContent = data.baseline.toFixed(1);
+        document.getElementById('sh-current').textContent  = data.current_level.toFixed(1);
+        var d = data.total_delta;
+        var dEl = document.getElementById('sh-delta');
+        dEl.textContent = (d >= 0 ? '+' : '') + d.toFixed(1);
+        dEl.className = 'sh-stat-value ' + (d > 0 ? 'sh-delta-pos' : d < 0 ? 'sh-delta-neg' : 'sh-delta-zero');
+        var deltaCard = document.getElementById('sh-delta-card');
+        deltaCard.classList.remove('delta-pos','delta-neg','delta-zero');
+        deltaCard.classList.add(d > 0 ? 'delta-pos' : d < 0 ? 'delta-neg' : 'delta-zero');
+        document.getElementById('sh-count').textContent = data.timeline.length;
+        document.getElementById('sh-chart-title').textContent = (data.skill_display_name || data.skill) + ' — Fejlődési görbe';
+    }
+
+    function renderChart(data) {
+        var tl = data.timeline;
+        if (tl.length === 0) {
+            emptyEl.style.display   = 'block';
+            chartWrapEl.style.display = 'none';
+            return;
+        }
+        emptyEl.style.display    = 'none';
+        chartWrapEl.style.display = 'block';
+
+        var labels       = tl.map(function (_, i) { return 'T' + (i + 1); });
+        var skillLine    = tl.map(function (t) { return t.skill_value_after; });
+        var targetLine   = tl.map(function (t) { return t.placement_skill; });
+        var baselineData = tl.map(function () { return data.baseline; });
+
+        if (chartInst) { chartInst.destroy(); chartInst = null; }
+
+        chartInst = new Chart(document.getElementById('skill-chart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: (data.skill_display_name || data.skill) + ' (szint)',
+                        data: skillLine,
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39,174,96,0.10)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        borderWidth: 2.5,
+                    },
+                    {
+                        label: 'EMA cél (elhelyezés alapján)',
+                        data: targetLine,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.2,
+                        pointRadius: 4,
+                        borderDash: [6, 4],
+                        borderWidth: 2,
+                    },
+                    {
+                        label: 'Baseline',
+                        data: baselineData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                        borderDash: [3, 5],
+                        borderWidth: 1.5,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        min: 40,
+                        max: 99,
+                        title: { display: true, text: 'Skill szint', color: '#6b7280', font: { size: 12 } },
+                        ticks: { color: '#6b7280' },
+                        grid: { color: '#f3f4f6' },
+                    },
+                    x: {
+                        title: { display: true, text: 'Torna szekvencia', color: '#6b7280', font: { size: 12 } },
+                        ticks: { color: '#6b7280' },
+                        grid: { display: false },
+                    },
+                },
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            title: function (ctx) {
+                                var idx = ctx[0].dataIndex;
+                                var entry = tl[idx];
+                                return entry ? entry.tournament_name + ' (' + fmtDate(entry.achieved_at) + ')' : ctx[0].label;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    function renderTable(data) {
+        var tl = data.timeline;
+        if (tl.length === 0) { tableCardEl.style.display = 'none'; return; }
+        tableCardEl.style.display = 'block';
+
+        var rows = tl.map(function (t, i) {
+            var d = t.delta_from_previous;
+            return '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + t.tournament_name + '">' + t.tournament_name + '</td>' +
+                '<td>' + fmtDate(t.achieved_at) + '</td>' +
+                '<td>' + placementBadge(t.placement) + ' / ' + t.total_players + '</td>' +
+                '<td>' + t.total_players + '</td>' +
+                '<td style="font-weight:600;color:#3b82f6;">' + t.placement_skill.toFixed(1) + '</td>' +
+                '<td style="font-weight:700;color:#1b4332;">' + t.skill_value_after.toFixed(1) + '</td>' +
+                '<td class="' + deltaClass(d) + '">' + (d >= 0 ? '+' : '') + d.toFixed(1) + '</td>' +
+            '</tr>';
+        });
+        document.getElementById('sh-table-body').innerHTML = rows.join('');
+    }
+
+    function loadSkill(skillKey) {
+        errorEl.style.display  = 'none';
+        contentEl.style.display = 'none';
+        loadingEl.style.display = 'block';
+
+        fetch('/skills/history/data?skill=' + encodeURIComponent(skillKey))
+            .then(function (r) {
+                if (!r.ok) {
+                    return r.json().then(function (e) {
+                        throw new Error(e.detail || ('HTTP ' + r.status));
+                    });
+                }
+                return r.json();
+            })
+            .then(function (data) {
+                loadingEl.style.display  = 'none';
+                contentEl.style.display  = 'block';
+                renderStats(data);
+                renderChart(data);
+                renderTable(data);
+            })
+            .catch(function (err) {
+                showError('Nem sikerült betölteni az adatokat: ' + err.message);
+            });
+    }
+
+    skillSelect.addEventListener('change', function () {
+        var url = new URL(window.location.href);
+        url.searchParams.set('skill', skillSelect.value);
+        window.history.pushState({}, '', url.toString());
+        loadSkill(skillSelect.value);
+    });
+
+    loadSkill(skillSelect.value);
+})();
+</script>
+{% endblock %}
