@@ -53,7 +53,19 @@ async def dashboard(
 
         # Get user's existing licenses (unlocked specializations)
         user_licenses = db.query(UserLicense).filter(UserLicense.user_id == user.id).all()
-        unlocked_specs = {lic.specialization_type for lic in user_licenses}
+        license_map = {lic.specialization_type: lic for lic in user_licenses}
+
+        # Pre-fetch which license IDs have at least one SemesterEnrollment (legacy compat)
+        license_ids = [lic.id for lic in user_licenses]
+        enrolled_license_ids: set = set()
+        if license_ids:
+            enrolled_license_ids = {
+                row[0] for row in
+                db.query(SemesterEnrollment.user_license_id)
+                .filter(SemesterEnrollment.user_license_id.in_(license_ids))
+                .distinct()
+                .all()
+            }
 
         # Get age-appropriate specializations
         available_specs_list = get_available_specializations(user_age)
@@ -61,7 +73,16 @@ async def dashboard(
         # Build specialization data with unlock status (ALWAYS SHOW ALL)
         specializations_data = []
         for spec_item in available_specs_list:
-            is_unlocked = spec_item["type"] in unlocked_specs
+            is_unlocked = spec_item["type"] in license_map
+            lic = license_map.get(spec_item["type"])
+            # Effective onboarding: explicit flag OR skills data present OR legacy enrollment
+            effective_onboarding = bool(
+                lic and (
+                    lic.onboarding_completed
+                    or lic.football_skills is not None
+                    or lic.id in enrolled_license_ids
+                )
+            )
             specializations_data.append({
                 "type": spec_item["type"],
                 "name": spec_item["name"],
@@ -69,11 +90,12 @@ async def dashboard(
                 "color": spec_item["color"],
                 "description": spec_item["description"],
                 "age_requirement": spec_item["age_requirement"],
-                "is_unlocked": is_unlocked,  # ✅ NEW: Mark as unlocked if user has license
+                "is_unlocked": is_unlocked,
+                "onboarding_completed": effective_onboarding,
                 "is_available": True
             })
 
-        logger.info("dashboard_loaded", extra={"user": user.email, "unlocked_specs": len(unlocked_specs), "total_specs": len(specializations_data)})
+        logger.info("dashboard_loaded", extra={"user": user.email, "unlocked_specs": len(license_map), "total_specs": len(specializations_data)})
 
         # ALWAYS show specialization hub (no auto-redirect)
         return templates.TemplateResponse(
@@ -83,7 +105,7 @@ async def dashboard(
                 "user": user,
                 "user_age": user_age or "N/A",
                 "available_specializations": specializations_data,
-                "unlocked_count": len(unlocked_specs)  # For displaying stats
+                "unlocked_count": len(license_map)  # For displaying stats
             }
         )
     else:

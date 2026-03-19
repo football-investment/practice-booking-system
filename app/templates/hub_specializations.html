@@ -328,11 +328,22 @@
                 <p class="spec-description">{{ spec.description }}</p>
 
                 <div class="spec-action">
-                    {% if spec.is_unlocked %}
+                    {% if spec.onboarding_completed %}
                         <div class="unlocked-badge">✅ UNLOCKED</div>
                         <a href="/dashboard/{{ spec.type.lower().replace('_', '-') }}" class="unlock-btn">
                             🚀 ENTER {{ spec.name }}
                         </a>
+                    {% elif spec.is_unlocked %}
+                        <div class="unlocked-badge" style="background:#ed8936;">⚙️ Setup Pending</div>
+                        {% if spec.type == 'LFA_FOOTBALL_PLAYER' %}
+                        <a href="/specialization/lfa-player/onboarding" class="unlock-btn" style="background:linear-gradient(135deg,#ed8936 0%,#dd6b20 100%);">
+                            ⚙️ Continue Setup
+                        </a>
+                        {% else %}
+                        <a href="/specialization/motivation?spec={{ spec.type }}" class="unlock-btn" style="background:linear-gradient(135deg,#ed8936 0%,#dd6b20 100%);">
+                            ⚙️ Continue Setup
+                        </a>
+                        {% endif %}
                     {% elif not spec.is_available %}
                         <div class="age-locked-badge">🔒 Age Requirement Not Met</div>
                         <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #718096;">
