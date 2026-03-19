@@ -113,13 +113,14 @@ async def verify_student_payment(
         ).first()
 
         if not existing_license:
-            # Create new license
+            # Create new license — payment verification counts as onboarded
             new_license = UserLicense(
                 user_id=student.id,
                 specialization_type=spec.value,
                 current_level=1,
                 max_achieved_level=1,
-                started_at=datetime.now(timezone.utc)
+                started_at=datetime.now(timezone.utc),
+                onboarding_completed=True,
             )
             db.add(new_license)
             created_licenses.append(spec.value)
@@ -262,13 +263,14 @@ async def add_student_specialization(
             detail=f"Student already has {spec.value} specialization"
         )
 
-    # Create new license
+    # Create new license — admin-added specializations count as onboarded
     new_license = UserLicense(
         user_id=student.id,
         specialization_type=spec.value,
         current_level=1,
         max_achieved_level=1,
-        started_at=datetime.now(timezone.utc)
+        started_at=datetime.now(timezone.utc),
+        onboarding_completed=True,
     )
     db.add(new_license)
 
