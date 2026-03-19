@@ -96,7 +96,7 @@ class TestENF01PresetOverridesExplicitSkillAreas:
                         try:
                             reward_service.award_session_completion(
                                 db=db,
-                                user_id=1,
+                                user_id=999,
                                 session=session,
                                 skill_areas=["shooting", "long_shots"],  # ← override attempt
                             )

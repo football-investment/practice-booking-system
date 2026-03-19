@@ -52368,6 +52368,138 @@
         ]
       }
     },
+    "/skills": {
+      "get": {
+        "description": "Student skill progression page \u2014 all 29 skills, lazy-loaded.",
+        "operationId": "skills_page_skills_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Skills Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/skills/data": {
+      "get": {
+        "description": "JSON endpoint \u2014 returns full skill profile for lazy-load widgets.",
+        "operationId": "skills_data_endpoint_skills_data_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Skills Data Endpoint",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/skills/history": {
+      "get": {
+        "description": "Student skill history page \u2014 per-skill EMA timeline chart.",
+        "operationId": "skills_history_page_skills_history_get",
+        "parameters": [
+          {
+            "description": "Skill key to pre-select",
+            "in": "query",
+            "name": "skill",
+            "required": false,
+            "schema": {
+              "default": "passing",
+              "description": "Skill key to pre-select",
+              "title": "Skill",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skills History Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/skills/history/data": {
+      "get": {
+        "description": "JSON endpoint \u2014 EMA timeline for a single skill, used by the skill history chart.",
+        "operationId": "skills_history_data_endpoint_skills_history_data_get",
+        "parameters": [
+          {
+            "description": "Skill key, e.g. 'passing', 'finishing'",
+            "in": "query",
+            "name": "skill",
+            "required": false,
+            "schema": {
+              "default": "passing",
+              "description": "Skill key, e.g. 'passing', 'finishing'",
+              "title": "Skill",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skills History Data Endpoint",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/specialization/lfa-player/onboarding": {
       "get": {
         "description": "LFA Player specialized onboarding questionnaire\nMulti-step: Position -> Self-Assessment -> Motivation",
