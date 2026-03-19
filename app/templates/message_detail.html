@@ -1,10 +1,9 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Message — LFA Education Center{% endblock %}
+{% block active_page %}messages{% endblock %}
 
-{% block content %}
-{% include "includes/unified_header.html" %}
-
+{% block extra_styles %}
 <style>
     .page-content { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
     .back-link {
@@ -94,7 +93,9 @@
         padding: 0 1.8rem 1rem;
     }
 </style>
+{% endblock %}
 
+{% block student_content %}
 <div class="page-content">
     <a href="/messages" class="back-link">← Back to Messages</a>
 

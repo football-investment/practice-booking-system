@@ -1,10 +1,9 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Messages — LFA Education Center{% endblock %}
+{% block active_page %}messages{% endblock %}
 
-{% block content %}
-{% include "includes/unified_header.html" %}
-
+{% block extra_styles %}
 <style>
     .page-content { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
     .page-header {
@@ -137,7 +136,9 @@
     .flash-success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
     .flash-error   { background: #fff5f5; color: #c53030;  border: 1px solid #fc8181; }
 </style>
+{% endblock %}
 
+{% block student_content %}
 <div class="page-content">
     <div class="page-header">
         <h2>
