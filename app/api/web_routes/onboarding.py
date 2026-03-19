@@ -276,10 +276,9 @@ async def lfa_player_onboarding_web_submit(
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
         license.motivation_assessed_by    = user.id
 
-        # Mark onboarding complete on both user and license
-        user.onboarding_completed       = True
-        license.onboarding_completed    = True
-        license.onboarding_completed_at = datetime.now(timezone.utc)
+        # Mark onboarding complete via unified service
+        from ...services.onboarding_service import complete_lfa_player_onboarding
+        complete_lfa_player_onboarding(db, user, license, football_skills)
 
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(license, "football_skills")
@@ -423,10 +422,9 @@ async def lfa_player_onboarding_submit(
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
         license.motivation_assessed_by = user.id
 
-        # Mark onboarding as completed
-        user.onboarding_completed = True
-        license.onboarding_completed = True
-        license.onboarding_completed_at = datetime.now(timezone.utc)
+        # Mark onboarding as completed via unified service
+        from ...services.onboarding_service import complete_lfa_player_onboarding
+        complete_lfa_player_onboarding(db, user, license, football_skills)
 
         # Flag JSONB field as modified
         from sqlalchemy.orm.attributes import flag_modified

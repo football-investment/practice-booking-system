@@ -31,39 +31,33 @@ describe('Admin Dashboard — Unified Layout', {
     cy.webLoginAs('admin');
     cy.visit('/dashboard');
 
-    // Admin nav (from admin_base.html — 14 items)
+    // Admin nav (from admin_base.html — 9 items after nav restructure commit 3aa0414)
     cy.get('.admin-nav').should('be.visible');
     cy.get('.admin-nav a[href="/admin/users"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/programs"]').should('exist');
     cy.get('.admin-nav a[href="/admin/sessions"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/bookings"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/enrollments"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/semesters"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/analytics"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/tournaments"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/locations"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/game-presets"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/system-events"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/events"]').should('exist');
     cy.get('.admin-nav a[href="/admin/payments"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/coupons"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/invitation-codes"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/locations"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/config"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/analytics"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/system-events"]').should('exist');
   });
 
   // ── ADM-DASH-03 ────────────────────────────────────────────────────────────
-  it('ADM-DASH-03: admin /dashboard → action cards grid and admin-container present', () => {
+  it('ADM-DASH-03: admin /dashboard → KPI cards and admin-container present', () => {
     cy.webLoginAs('admin');
     cy.visit('/dashboard');
 
     // admin-container wrapper (from admin_base.html)
     cy.get('.admin-container').should('exist');
 
-    // Admin action cards grid
-    cy.get('[data-testid="admin-dashboard-grid"]').should('be.visible');
-    cy.get('[data-testid="admin-dashboard-grid"] .admin-action-card').should('have.length.at.least', 5);
+    // 4-layer operational dashboard: KPI row with metric cards (replaces old action-card grid)
+    cy.get('.kpi-row').should('exist');
+    cy.get('.kpi-card').should('have.length.at.least', 3);
 
-    // Spot-check key action cards
-    cy.get('[data-testid="admin-dashboard-grid"]').should('contain.text', 'User Management');
-    cy.get('[data-testid="admin-dashboard-grid"]').should('contain.text', 'Enrollment Management');
-    cy.get('[data-testid="admin-dashboard-grid"]').should('contain.text', 'Payment Management');
+    // KPI cards link to key admin sections
+    cy.get('.kpi-card[href="/admin/users"]').should('exist');
   });
 
 });

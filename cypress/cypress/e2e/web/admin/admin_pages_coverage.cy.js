@@ -63,8 +63,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/enrollments');
       verifyAdminLayout();
-      // Nav active item
-      cy.get('.admin-nav a[href="/admin/enrollments"]').should('have.class', 'active');
+      // Note: /admin/enrollments is no longer in the nav bar (nav restructure 3aa0414)
       // Payment management shortcut link
       cy.get('a[href="/admin/payments"]').should('exist');
     });
@@ -101,7 +100,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/coupons');
       verifyAdminLayout();
-      cy.get('.admin-nav a[href="/admin/coupons"]').should('have.class', 'active');
+      // Note: /admin/coupons is no longer in the nav bar (nav restructure 3aa0414)
       // Create coupon form or coupon list must be rendered
       cy.get('.admin-container h2, .admin-container .card').should('exist');
     });
@@ -137,7 +136,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/bookings');
       verifyAdminLayout();
-      cy.get('.admin-nav a[href="/admin/bookings"]').should('have.class', 'active');
+      // Note: /admin/bookings is no longer in the nav bar (nav restructure 3aa0414)
       // Status filter select must be rendered
       cy.get('select[name="status_filter"], form[method="get"]').should('exist');
     });
@@ -187,7 +186,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/game-presets');
       verifyAdminLayout();
-      cy.get('.admin-nav a[href="/admin/game-presets"]').should('have.class', 'active');
+      // Note: /admin/game-presets is no longer in the nav bar (now under /admin/config hub)
       // Stats row shows preset counts
       cy.get('.stats-row').should('exist');
     });
@@ -224,7 +223,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/tournaments');
       verifyAdminLayout();
-      cy.get('.admin-nav a[href="/admin/tournaments"]').should('have.class', 'active');
+      // Note: /admin/tournaments is no longer in the nav bar (now /admin/events)
       // Tab buttons (View Tournaments / Create Tournament)
       cy.get('body').then(($body) => {
         // Either tab buttons or tournament list container should exist
@@ -267,7 +266,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/semesters');
       verifyAdminLayout();
-      cy.get('.admin-nav a[href="/admin/semesters"]').should('have.class', 'active');
+      // Note: /admin/semesters is no longer in the nav bar (nav restructure 3aa0414)
       cy.get('a[href="/admin/semesters/new"]').should('exist');
     });
   });
@@ -319,25 +318,26 @@ describe('Admin Pages — Full Coverage', {
 
   // ── ADM-NAV-01 ── Navigation completeness ─────────────────────────────────
   describe('ADM-NAV-01: unified nav completeness on every page', () => {
+    // After nav restructure (commit 3aa0414): 14 items → 9 items
+    // Current nav: users, programs, sessions, events, payments, locations, config, analytics, system-events
     const NAV_SPOT_CHECK = [
       '/admin/users',
-      '/admin/enrollments',
       '/admin/payments',
       '/admin/analytics',
-      '/admin/tournaments',
+      '/admin/events',
     ];
 
     NAV_SPOT_CHECK.forEach((path) => {
-      it(`ADM-NAV-01: ${path} → all 13+ nav links present`, () => {
+      it(`ADM-NAV-01: ${path} → all 9 nav links present`, () => {
         cy.webLoginAs('admin');
         cy.visit(path);
-        cy.get('.admin-nav a').should('have.length.at.least', 13);
-        // Every key section link must exist
+        cy.get('.admin-nav a').should('have.length.at.least', 9);
+        // Every key section link must exist (current 9-item nav)
         cy.get('.admin-nav a[href="/admin/users"]').should('exist');
         cy.get('.admin-nav a[href="/admin/sessions"]').should('exist');
         cy.get('.admin-nav a[href="/admin/payments"]').should('exist');
-        cy.get('.admin-nav a[href="/admin/coupons"]').should('exist');
-        cy.get('.admin-nav a[href="/admin/tournaments"]').should('exist');
+        cy.get('.admin-nav a[href="/admin/events"]').should('exist');
+        cy.get('.admin-nav a[href="/admin/analytics"]').should('exist');
       });
     });
   });
