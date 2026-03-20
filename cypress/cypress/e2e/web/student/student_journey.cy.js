@@ -199,8 +199,8 @@ describe('A. Student Core Journey — Skill Progression', {
     });
   });
 
-  // ── STU-JOURNEY-08 — Spec dashboard structure: student nav + breadcrumb + Skill section ──
-  it('STU-JOURNEY-08: /dashboard/LFA_FOOTBALL_PLAYER — student nav present, breadcrumb correct, Skill Development visible', () => {
+  // ── STU-JOURNEY-08 — Spec dashboard structure: student nav + breadcrumb + sections present ──
+  it('STU-JOURNEY-08: /dashboard/LFA_FOOTBALL_PLAYER — student nav present, breadcrumb correct, dashboard sections visible', () => {
     cy.visit('/dashboard/LFA_FOOTBALL_PLAYER');
 
     // Student nav must be rendered by student_base.html (not the old base.html header)
@@ -211,14 +211,38 @@ describe('A. Student Core Journey — Skill Progression', {
     cy.get('.s-breadcrumb').should('contain.text', 'LFA Football Player');
     cy.get('.s-breadcrumb').should('contain.text', 'Hub');
 
-    // Skill Development section must be visible — key entry point to skill history
-    cy.contains('h2', 'Skill Development').should('be.visible');
-    cy.contains('a', 'Skill History').should('be.visible');
+    // KPI row must be present with 4 cards
+    cy.get('.s-kpi-row').should('exist');
+    cy.get('.s-kpi-card').should('have.length', 4);
+
+    // Skill Snapshot + Last Result sections visible
+    cy.contains('h2', 'Skill Snapshot').should('be.visible');
+    cy.contains('h2', 'Last Result').should('be.visible');
+    cy.contains('h2', 'Available Events').should('be.visible');
+
+    // Quick links in footer
     cy.get('a[href="/skills/history?skill=passing"]').should('exist');
 
     // Page must not show any server error
     cy.get('body').should('not.contain.text', 'Internal Server Error');
     cy.get('body').should('not.contain.text', '400');
+  });
+
+  // ── STU-JOURNEY-09 — Dashboard KPI lazy-loads + snapshot bars + last result ──
+  it('STU-JOURNEY-09: spec dashboard KPI row + skill snapshot + last result load', () => {
+    cy.visit('/dashboard/LFA_FOOTBALL_PLAYER');
+
+    // KPI avg should fill in from /skills/data (not stay as —)
+    cy.get('#kpi-avg', { timeout: 10000 }).should('not.contain.text', '—');
+    cy.get('#kpi-tournaments').should('contain.text', '2');
+
+    // Skill snapshot renders at least 1 bar
+    cy.get('#s-snapshot .s-snapshot-row', { timeout: 8000 }).should('have.length.gte', 1);
+
+    // Last result shows the most recent tournament (T2: placed 1st, passing positive delta)
+    cy.get('#s-last-result', { timeout: 8000 }).should('not.contain.text', 'No tournaments yet');
+    cy.get('#s-last-result').should('contain.text', 'E2E History Tournament 2');
+    cy.get('#s-last-result .s-delta-pos').should('exist');
   });
 
 });
