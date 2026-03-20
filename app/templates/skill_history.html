@@ -60,8 +60,8 @@
         border-top: 4px solid #40916c;
     }
 
-    .sh-stat-card.delta-pos { border-top-color: #27ae60; }
-    .sh-stat-card.delta-neg { border-top-color: #e74c3c; }
+    .sh-stat-card.delta-pos  { border-top-color: #27ae60; }
+    .sh-stat-card.delta-neg  { border-top-color: #e74c3c; }
     .sh-stat-card.delta-zero { border-top-color: #9ca3af; }
 
     .sh-stat-label { font-size: 0.82rem; color: #6b7280; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -133,8 +133,8 @@
 
     .sh-table tr:hover td { background: #f9fafb; }
 
-    .sh-delta-pos { color: #27ae60; font-weight: 600; }
-    .sh-delta-neg { color: #e74c3c; font-weight: 600; }
+    .sh-delta-pos  { color: #27ae60; font-weight: 600; }
+    .sh-delta-neg  { color: #e74c3c; font-weight: 600; }
     .sh-delta-zero { color: #9ca3af; }
 
     .sh-placement-badge {
@@ -148,18 +148,6 @@
     .sh-p2 { background: #f3f4f6; color: #374151; }
     .sh-p3 { background: #fde8d8; color: #7c2d12; }
     .sh-pn { background: #f3f4f6; color: #6b7280; }
-
-    /* Spinner */
-    .s-spinner {
-        display: inline-block;
-        width: 28px; height: 28px;
-        border: 3px solid #d1fae5;
-        border-top-color: #40916c;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin: 32px auto;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Error banner */
     .sh-error {
@@ -183,7 +171,7 @@
 {% block student_content %}
 <div class="sh-container">
 
-    {# Breadcrumb #}
+    <!-- Breadcrumb -->
     <nav class="s-breadcrumb" aria-label="Breadcrumb">
         <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
         <span class="s-breadcrumb-sep">›</span>
@@ -194,12 +182,12 @@
         <span class="s-breadcrumb-item active">📈 Skill History</span>
     </nav>
 
-    <h2 style="margin:0 0 20px;color:#1b4332;">📈 Skill History</h2>
-    <p style="color:#6b7280;margin:-10px 0 22px;font-size:0.92rem;">
-        Tornánként visszakövethető EMA-alapú skill fejlődés — melyik torna milyen változást okozott.
+    <h2 style="margin:0 0 8px;color:#1b4332;">📈 Skill History</h2>
+    <p style="color:#6b7280;margin:0 0 22px;font-size:0.92rem;">
+        Tournament-by-tournament EMA skill progression — see exactly which event changed each skill and by how much.
     </p>
 
-    {# Skill selector #}
+    <!-- Skill selector -->
     <div class="sh-selector-row">
         <label for="skill-select">Skill:</label>
         <select id="skill-select">
@@ -207,70 +195,70 @@
             <option value="{{ s.key }}" {% if s.key == selected_skill %}selected{% endif %}>{{ s.name }}</option>
             {% endfor %}
         </select>
-        <a href="/skills" style="font-size:0.88rem;color:#40916c;text-decoration:none;">← Vissza a skill áttekintőhöz</a>
+        <a href="/skills" style="font-size:0.88rem;color:#40916c;text-decoration:none;">← Back to Skills</a>
     </div>
 
-    {# Error banner #}
+    <!-- Error banner -->
     <div class="sh-error" id="sh-error"></div>
 
-    {# Loading spinner #}
+    <!-- Loading spinner -->
     <div id="sh-loading" style="text-align:center;">
         <div class="s-spinner"></div>
     </div>
 
-    {# Main content — hidden until data loads #}
+    <!-- Main content — hidden until data loads -->
     <div id="sh-content" style="display:none;">
 
-        {# Stat cards #}
+        <!-- Stat cards -->
         <div class="sh-stats-row">
             <div class="sh-stat-card">
                 <div class="sh-stat-label">Baseline</div>
                 <div class="sh-stat-value" id="sh-baseline">—</div>
-                <div class="sh-stat-sub">Kiindulási szint</div>
+                <div class="sh-stat-sub">Starting level</div>
             </div>
             <div class="sh-stat-card">
-                <div class="sh-stat-label">Jelenlegi szint</div>
+                <div class="sh-stat-label">Current Level</div>
                 <div class="sh-stat-value" id="sh-current">—</div>
-                <div class="sh-stat-sub">Aktuális érték</div>
+                <div class="sh-stat-sub">After all tournaments</div>
             </div>
             <div class="sh-stat-card" id="sh-delta-card">
-                <div class="sh-stat-label">Változás</div>
+                <div class="sh-stat-label">Total Change</div>
                 <div class="sh-stat-value" id="sh-delta">—</div>
-                <div class="sh-stat-sub">Total delta</div>
+                <div class="sh-stat-sub">vs. baseline</div>
             </div>
             <div class="sh-stat-card">
-                <div class="sh-stat-label">Tornák száma</div>
+                <div class="sh-stat-label">Tournaments</div>
                 <div class="sh-stat-value" id="sh-count">—</div>
-                <div class="sh-stat-sub">Ahol ez a skill mért</div>
+                <div class="sh-stat-sub">skill assessed</div>
             </div>
         </div>
 
-        {# Chart #}
+        <!-- Chart -->
         <div class="sh-chart-card">
-            <h3 id="sh-chart-title">Skill fejlődési görbe</h3>
+            <h3 id="sh-chart-title">Skill Progression</h3>
             <div id="sh-empty" class="sh-empty" style="display:none;">
                 <div class="sh-empty-icon">📊</div>
-                <p>Még nincsenek tornaadatok ehhez a skillhez.</p>
-                <p style="font-size:0.85rem;margin-top:8px;">Vegyél részt egy tornán, hogy megjelenjen a fejlődési görbe!</p>
+                <p>No tournament data yet for this skill.</p>
+                <p style="font-size:0.85rem;margin-top:8px;">Play your first tournament to start tracking your progression.</p>
             </div>
             <div class="sh-chart-wrap" id="sh-chart-wrap">
                 <canvas id="skill-chart"></canvas>
             </div>
         </div>
 
-        {# Audit table #}
+        <!-- Audit table -->
         <div class="sh-table-card" id="sh-table-card" style="display:none;">
-            <h3>EMA nyomkövetés tornánként</h3>
+            <h3>EMA Tracking by Tournament</h3>
             <table class="sh-table">
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Torna</th>
-                        <th>Dátum</th>
-                        <th>Helyezés</th>
-                        <th>Játékosok</th>
-                        <th>EMA cél</th>
-                        <th>Skill szint</th>
+                        <th>Tournament</th>
+                        <th>Date</th>
+                        <th>Placement</th>
+                        <th>Players</th>
+                        <th>EMA Target</th>
+                        <th>Skill Level</th>
                         <th>Delta</th>
                     </tr>
                 </thead>
@@ -306,21 +294,26 @@
 
     function fmtDate(isoStr) {
         if (!isoStr) return '—';
-        try { return new Date(isoStr).toLocaleDateString('hu-HU', {year:'numeric',month:'short',day:'numeric'}); }
+        try { return new Date(isoStr).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'}); }
         catch (e) { return isoStr.slice(0, 10); }
     }
 
     function deltaClass(d) {
-        if (d > 0) return 'sh-delta-pos';
-        if (d < 0) return 'sh-delta-neg';
+        if (d > 0.05) return 'sh-delta-pos';
+        if (d < -0.05) return 'sh-delta-neg';
         return 'sh-delta-zero';
     }
 
+    function ordinal(p) {
+        if (p === 1) return '🥇 1st';
+        if (p === 2) return '🥈 2nd';
+        if (p === 3) return '🥉 3rd';
+        return p + 'th';
+    }
+
     function placementBadge(p) {
-        if (p === 1) return '<span class="sh-placement-badge sh-p1">🥇 1.</span>';
-        if (p === 2) return '<span class="sh-placement-badge sh-p2">🥈 2.</span>';
-        if (p === 3) return '<span class="sh-placement-badge sh-p3">🥉 3.</span>';
-        return '<span class="sh-placement-badge sh-pn">' + p + '.</span>';
+        var cls = p === 1 ? 'sh-p1' : p === 2 ? 'sh-p2' : p === 3 ? 'sh-p3' : 'sh-pn';
+        return '<span class="sh-placement-badge ' + cls + '">' + ordinal(p) + '</span>';
     }
 
     function renderStats(data) {
@@ -329,18 +322,19 @@
         var d = data.total_delta;
         var dEl = document.getElementById('sh-delta');
         dEl.textContent = (d >= 0 ? '+' : '') + d.toFixed(1);
-        dEl.className = 'sh-stat-value ' + (d > 0 ? 'sh-delta-pos' : d < 0 ? 'sh-delta-neg' : 'sh-delta-zero');
+        dEl.className = 'sh-stat-value ' + (d > 0.05 ? 'sh-delta-pos' : d < -0.05 ? 'sh-delta-neg' : 'sh-delta-zero');
         var deltaCard = document.getElementById('sh-delta-card');
-        deltaCard.classList.remove('delta-pos','delta-neg','delta-zero');
-        deltaCard.classList.add(d > 0 ? 'delta-pos' : d < 0 ? 'delta-neg' : 'delta-zero');
+        deltaCard.classList.remove('delta-pos', 'delta-neg', 'delta-zero');
+        deltaCard.classList.add(d > 0.05 ? 'delta-pos' : d < -0.05 ? 'delta-neg' : 'delta-zero');
         document.getElementById('sh-count').textContent = data.timeline.length;
-        document.getElementById('sh-chart-title').textContent = (data.skill_display_name || data.skill) + ' — Fejlődési görbe';
+        document.getElementById('sh-chart-title').textContent =
+            (data.skill_display_name || data.skill) + ' — Progression';
     }
 
     function renderChart(data) {
         var tl = data.timeline;
         if (tl.length === 0) {
-            emptyEl.style.display   = 'block';
+            emptyEl.style.display    = 'block';
             chartWrapEl.style.display = 'none';
             return;
         }
@@ -360,24 +354,25 @@
                 labels: labels,
                 datasets: [
                     {
-                        label: (data.skill_display_name || data.skill) + ' (szint)',
+                        label: (data.skill_display_name || data.skill) + ' (level)',
                         data: skillLine,
                         borderColor: '#27ae60',
                         backgroundColor: 'rgba(39,174,96,0.10)',
                         fill: true,
                         tension: 0.35,
                         pointRadius: 6,
-                        pointHoverRadius: 8,
+                        pointHoverRadius: 9,
                         borderWidth: 2.5,
                     },
                     {
-                        label: 'EMA cél (elhelyezés alapján)',
+                        label: 'EMA Target (placement-based)',
                         data: targetLine,
                         borderColor: '#3b82f6',
                         backgroundColor: 'transparent',
                         fill: false,
                         tension: 0.2,
                         pointRadius: 4,
+                        pointHoverRadius: 6,
                         borderDash: [6, 4],
                         borderWidth: 2,
                     },
@@ -402,12 +397,12 @@
                     y: {
                         min: 40,
                         max: 99,
-                        title: { display: true, text: 'Skill szint', color: '#6b7280', font: { size: 12 } },
+                        title: { display: true, text: 'Skill Level', color: '#6b7280', font: { size: 12 } },
                         ticks: { color: '#6b7280' },
                         grid: { color: '#f3f4f6' },
                     },
                     x: {
-                        title: { display: true, text: 'Torna szekvencia', color: '#6b7280', font: { size: 12 } },
+                        title: { display: true, text: 'Tournament Sequence', color: '#6b7280', font: { size: 12 } },
                         ticks: { color: '#6b7280' },
                         grid: { display: false },
                     },
@@ -419,7 +414,22 @@
                             title: function (ctx) {
                                 var idx = ctx[0].dataIndex;
                                 var entry = tl[idx];
-                                return entry ? entry.tournament_name + ' (' + fmtDate(entry.achieved_at) + ')' : ctx[0].label;
+                                return entry
+                                    ? entry.tournament_name + '  (' + fmtDate(entry.achieved_at) + ')'
+                                    : ctx[0].label;
+                            },
+                            afterTitle: function (ctx) {
+                                var idx = ctx[0].dataIndex;
+                                var entry = tl[idx];
+                                if (!entry || !entry.placement) return '';
+                                return ordinal(entry.placement) + ' of ' + entry.total_players + ' players';
+                            },
+                            footer: function (ctx) {
+                                var idx = ctx[0].dataIndex;
+                                var entry = tl[idx];
+                                if (!entry) return '';
+                                var d = entry.delta_from_previous;
+                                return 'Delta: ' + (d >= 0 ? '+' : '') + d.toFixed(1);
                             },
                         },
                     },
@@ -439,8 +449,8 @@
                 '<td>' + (i + 1) + '</td>' +
                 '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + t.tournament_name + '">' + t.tournament_name + '</td>' +
                 '<td>' + fmtDate(t.achieved_at) + '</td>' +
-                '<td>' + placementBadge(t.placement) + ' / ' + t.total_players + '</td>' +
-                '<td>' + t.total_players + '</td>' +
+                '<td>' + placementBadge(t.placement) + '</td>' +
+                '<td style="text-align:center;">' + t.total_players + '</td>' +
                 '<td style="font-weight:600;color:#3b82f6;">' + t.placement_skill.toFixed(1) + '</td>' +
                 '<td style="font-weight:700;color:#1b4332;">' + t.skill_value_after.toFixed(1) + '</td>' +
                 '<td class="' + deltaClass(d) + '">' + (d >= 0 ? '+' : '') + d.toFixed(1) + '</td>' +
@@ -450,7 +460,7 @@
     }
 
     function loadSkill(skillKey) {
-        errorEl.style.display  = 'none';
+        errorEl.style.display   = 'none';
         contentEl.style.display = 'none';
         loadingEl.style.display = 'block';
 
@@ -471,7 +481,7 @@
                 renderTable(data);
             })
             .catch(function (err) {
-                showError('Nem sikerült betölteni az adatokat: ' + err.message);
+                showError('Failed to load skill data: ' + err.message);
             });
     }
 

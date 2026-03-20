@@ -575,7 +575,7 @@ async def skills_history_data_endpoint(
         raise HTTPException(status_code=404, detail=f"Unknown skill key: {skill!r}")
 
     result = get_skill_timeline(db, user.id, skill)
-    result["skill_display_name"] = get_skill_display_name(skill, lang="hu")
+    result["skill_display_name"] = get_skill_display_name(skill, lang="en")
     return JSONResponse(result)
 
 
@@ -593,7 +593,7 @@ async def skills_history_page(
     from ...skills_config import get_all_skill_keys, get_skill_display_name, SKILL_CATEGORIES
 
     all_skills = [
-        {"key": k, "name": get_skill_display_name(k, "hu")}
+        {"key": k, "name": get_skill_display_name(k, "en")}
         for k in get_all_skill_keys()
     ]
     valid_skill = skill if skill in get_all_skill_keys() else "passing"
