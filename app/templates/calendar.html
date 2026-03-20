@@ -1,9 +1,11 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Session Calendar - LFA Education Center{% endblock %}
 <!-- Version: 1.1 - Instructor filter support -->
 
-{% block extra_head %}
+{% block active_page %}calendar{% endblock %}
+
+{% block extra_styles %}
 <!-- FullCalendar CSS -->
 <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
 <style>
@@ -282,7 +284,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block student_content %}
 <div class="calendar-container">
     <div class="calendar-header">
         <h2>📅 Session Calendar</h2>

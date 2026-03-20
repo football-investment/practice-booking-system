@@ -1,9 +1,10 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Sessions - LFA Education Center{% endblock %}
 
-{% block content %}
+{% block active_page %}sessions{% endblock %}
 
+{% block extra_styles %}
 <style>
 /* Specialization colors */
 .spec-badge-GANCUJU_PLAYER { background-color: #e74c3c; color: white; }
@@ -32,15 +33,9 @@
     50% { opacity: 0.6; }
 }
 </style>
+{% endblock %}
 
-<div class="welcome-section">
-    <h1>📅 Training Sessions</h1>
-    {% if is_instructor %}
-        <p>Manage your teaching sessions</p>
-    {% else %}
-        <p>Browse and book your training sessions</p>
-    {% endif %}
-</div>
+{% block student_content %}
 
 <!-- Success/Error Messages (flash banner) -->
 <div id="flash-banner" style="display:none; padding:0.85rem 1.2rem; border-radius:8px; margin-bottom:1rem; font-weight:500;"></div>
@@ -502,6 +497,9 @@
 
 {% endif %}  <!-- End STUDENT VIEW -->
 
+{% endblock %}
+
+{% block scripts %}
 <script>
 // Filter by specialization
 let currentSpecFilter = 'ALL';

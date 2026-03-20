@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Academic Progress - LFA{% endblock %}
 
-{% block extra_head %}
+{% block extra_styles %}
 <style>
     .progress-container {
         max-width: 1200px;
@@ -315,7 +315,9 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block active_page %}progress{% endblock %}
+
+{% block student_content %}
 <div class="progress-container">
     <!-- COLORED SPECIALIZATION SWITCHER CARD (same as dashboard) -->
     {% if user.role.value == 'student' and specialization_progress and user.specialization %}
