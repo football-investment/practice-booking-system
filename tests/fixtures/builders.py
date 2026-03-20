@@ -144,10 +144,24 @@ def build_user_license(
     """
     Create a UserLicense and flush to assign an ID.
 
+    Idempotent: if a license already exists for (user_id, specialization_type),
+    returns the existing one to respect the uq_user_license_spec UniqueConstraint.
+
     UserLicense is a prerequisite for SemesterEnrollment.
     `started_at` has no DB default — always supplied here.
     Override any column via kwargs.
     """
+    existing = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id == user_id,
+            UserLicense.specialization_type == specialization_type,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
     obj = UserLicense(
         **{
             "user_id":             user_id,

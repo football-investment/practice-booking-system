@@ -47,25 +47,40 @@
 
     .s-kpi-card {
         background: white;
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 1.25rem 1.5rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
         border-top: 3px solid #2ecc71;
+        transition: box-shadow 0.2s, transform 0.2s;
     }
 
+    .s-kpi-card:hover {
+        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        transform: translateY(-2px);
+    }
+
+    /* Per-card accent colours (admin pattern) */
+    .s-kpi-row .s-kpi-card:nth-child(1) { border-top-color: #48bb78; }
+    .s-kpi-row .s-kpi-card:nth-child(2) { border-top-color: #9b59b6; }
+    .s-kpi-row .s-kpi-card:nth-child(3) { border-top-color: #f59e0b; }
+    .s-kpi-row .s-kpi-card:nth-child(4) { border-top-color: #4299e1; }
+
     .s-kpi-val {
-        font-size: 1.8rem;
+        font-size: 2rem;
         font-weight: 700;
         color: #2d3748;
         line-height: 1.1;
     }
 
+    .s-kpi-row .s-kpi-card:nth-child(1) .s-kpi-val { color: #276749; }
+    .s-kpi-row .s-kpi-card:nth-child(2) .s-kpi-val { color: #553c9a; }
+    .s-kpi-row .s-kpi-card:nth-child(3) .s-kpi-val { color: #92400e; }
+    .s-kpi-row .s-kpi-card:nth-child(4) .s-kpi-val { color: #2b6cb0; }
+
     .s-kpi-lbl {
-        font-size: 0.75rem;
+        font-size: 0.82rem;
         color: #718096;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-top: 0.3rem;
+        margin-top: 0.25rem;
     }
 
     /* ── Section block ──────────────────────────────── */

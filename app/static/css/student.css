@@ -13,9 +13,13 @@ body {
 }
 
 /* ── Design Tokens ────────────────────────────────────────────────────────── */
-/* Spec color overridden per-page: <style>:root{--spec-color:#40916c;}</style> */
 :root {
-    /* Brand / spec colors */
+    /* Header gradient — overridden by .hdr-* preset classes per spec */
+    --spec-hdr-from:   #1a3c2e;
+    --spec-hdr-to:     #2d6a4f;
+    --spec-hdr-accent: #74c69d;
+
+    /* Legacy spec color tokens (kept for compatibility) */
     --spec-color: #40916c;
     --spec-color-dark: #2d6a4f;
 
@@ -34,9 +38,16 @@ body {
     --s-xl:  2rem;
 }
 
+/* ── Per-Spec Header Gradient Presets ────────────────────────────────────── */
+.hdr-football { --spec-hdr-from:#1a3c2e; --spec-hdr-to:#2d6a4f; --spec-hdr-accent:#74c69d; }
+.hdr-coach    { --spec-hdr-from:#1e3a5f; --spec-hdr-to:#2a5298; --spec-hdr-accent:#90cdf4; }
+.hdr-intern   { --spec-hdr-from:#2d3748; --spec-hdr-to:#4a5568; --spec-hdr-accent:#a0aec0; }
+.hdr-gancuju  { --spec-hdr-from:#2d1b69; --spec-hdr-to:#553c9a; --spec-hdr-accent:#b794f4; }
+.hdr-hub      { --spec-hdr-from:#1a202c; --spec-hdr-to:#2d3748; --spec-hdr-accent:#90cdf4; }
+
 /* ── Student Header ───────────────────────────────────────────────────────── */
 .student-header {
-    background: linear-gradient(135deg, #1b4332 0%, #40916c 100%);
+    background: linear-gradient(135deg, var(--spec-hdr-from, #1a3c2e) 0%, var(--spec-hdr-to, #2d6a4f) 100%);
     color: white;
     padding: 0.85rem 1.5rem 0;
     box-shadow: 0 4px 12px rgba(0,0,0,0.18);
@@ -75,24 +86,23 @@ body {
 .student-nav::-webkit-scrollbar { display: none; }
 
 .student-nav .nav-item {
-    padding: 0.45rem 0.75rem;
-    border-radius: 6px 6px 0 0;
-    color: rgba(255,255,255,0.8);
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    color: rgba(255,255,255,0.78);
     text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.82rem;
+    font-weight: 600;
     white-space: nowrap;
     transition: background 0.15s, color 0.15s;
-    border-bottom: 2px solid transparent;
 }
 .student-nav .nav-item:hover {
-    background: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.18);
     color: white;
 }
 .student-nav .nav-item.active {
-    background: rgba(255,255,255,0.15);
-    color: white;
-    border-bottom-color: #74c69d;
+    background: rgba(255,255,255,0.92);
+    color: var(--spec-hdr-from, #1a3c2e);
+    font-weight: 700;
 }
 
 /* ── Header Actions ───────────────────────────────────────────────────────── */
@@ -123,9 +133,9 @@ body {
 .s-hdr-btn:hover { background: rgba(255,255,255,0.22); }
 
 .credit-pill {
-    background: rgba(116,198,157,0.3);
-    border: 1px solid rgba(116,198,157,0.6);
-    padding: 0.3rem 0.7rem;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.5);
+    padding: 0.3rem 0.75rem;
     border-radius: 20px;
     font-size: 0.82rem;
     font-weight: 700;
@@ -748,4 +758,32 @@ body {
     .last-result-card { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
     .last-result-right { text-align: left; min-width: unset; }
     .last-result-improvement { justify-content: flex-start; }
+}
+
+/* ── Dark Mode ────────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+    body { background: #1a202c; color: #e2e8f0; }
+
+    /* Cards & containers */
+    .section-block,
+    .s-kpi-card,
+    .spec-card,
+    .event-card { background: #2d3748; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+
+    /* Typography */
+    .page-title  { color: #f7fafc; }
+    .s-kpi-lbl   { color: #a0aec0; }
+    .s-kpi-val   { color: #e2e8f0; }
+    .s-snap-label { color: #a0aec0; }
+    .section-link { color: var(--spec-hdr-accent, #90cdf4); }
+    .page-subtitle { color: #a0aec0; }
+
+    /* Snapshot bar track */
+    .s-snap-bar-wrap { background: #4a5568; }
+
+    /* Info banners */
+    .info-banner { background: #2d3748; border-color: #4a5568; }
+    .info-banner p { color: #e2e8f0; }
+
+    /* Header stays dark (already dark gradient — no change needed) */
 }

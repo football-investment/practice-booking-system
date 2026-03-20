@@ -196,7 +196,7 @@ class TestHubOnboardingNotComplete:
             html = hub.text
             assert "Continue Setup" in html
             assert 'href="/specialization/lfa-player/onboarding"' in html
-            assert 'href="/dashboard/lfa-football-player"' not in html
+            assert '🚀 ENTER' not in html  # No Enter CTA shown when onboarding incomplete
 
 
 class TestHubOnboardingComplete:

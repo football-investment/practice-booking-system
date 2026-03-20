@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
@@ -9,6 +10,7 @@ from ....database import get_db
 from ....dependencies import get_current_user_web, get_current_admin_user, get_current_admin_user_hybrid
 from ....models.user import User
 from ....models.invitation_code import InvitationCode
+from ....models.credit_transaction import CreditTransaction, TransactionType
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +307,16 @@ async def redeem_invitation_code(
     code.is_used = True
     code.used_by_user_id = current_user.id
     code.used_at = now
+
+    ct = CreditTransaction(
+        user_id=current_user.id,
+        transaction_type=TransactionType.ADMIN_ADJUSTMENT.value,
+        amount=code.bonus_credits,
+        balance_after=new_balance,
+        description=f"Invitation code '{code.code}' redeemed — {code.bonus_credits} bonus credits",
+        idempotency_key=f"invitation-code-{code.id}-user-{current_user.id}",
+    )
+    db.add(ct)
 
     db.commit()
     db.refresh(current_user)

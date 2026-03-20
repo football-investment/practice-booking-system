@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pathlib import Path
 from datetime import datetime, timezone, date
 import traceback
@@ -77,7 +78,10 @@ async def specialization_select_submit(
                 {"request": request, "user": user, "error": f"Invalid specialization: {specialization}"}
             )
 
-        # NEW LOGIC: Check if user already has a license (already unlocked)
+        # Lock user row to prevent concurrent unlock race conditions
+        user = db.query(User).with_for_update().filter(User.id == user.id).first()
+
+        # Check if user already has a license (AFTER acquiring the lock)
         user_license = db.query(UserLicense).filter(
             UserLicense.user_id == user.id,
             UserLicense.specialization_type == spec_type.value
@@ -146,10 +150,13 @@ async def specialization_select_submit(
             # Other specializations get standard motivation questionnaire
             return RedirectResponse(url=f"/specialization/motivation?spec={spec_type.value}", status_code=303)
 
+    except IntegrityError:
+        db.rollback()
+        logger.warning("onboarding_duplicate_license_attempt", extra={"user": user.email})
+        return RedirectResponse(url="/dashboard", status_code=303)
     except Exception as e:
         db.rollback()
         logger.error("onboarding_spec_selection_error", extra={"user": user.email}, exc_info=True)
-        # Redirect back to dashboard with error message (instead of showing old 4-card page)
         return RedirectResponse(url=f"/dashboard?error={str(e)}", status_code=303)
 
 

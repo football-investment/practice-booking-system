@@ -50,6 +50,21 @@
 {% endblock %}
 
 {% block student_content %}
+{% if user and user.specialization %}
+{% set _sv = user.specialization.value %}
+{% if _sv == 'LFA_FOOTBALL_PLAYER' %}{% set _surl = '/dashboard/lfa-football-player' %}{% set _slbl = '⚽ LFA Football Player' %}
+{% elif _sv == 'LFA_COACH' %}{% set _surl = '/dashboard/lfa-coach' %}{% set _slbl = '👨‍🏫 LFA Coach' %}
+{% elif _sv == 'INTERNSHIP' %}{% set _surl = '/dashboard/intern' %}{% set _slbl = '💼 Internship' %}
+{% elif _sv == 'GANCUJU_PLAYER' %}{% set _surl = '/dashboard/gancuju-player' %}{% set _slbl = '🥋 GānCuju Player' %}
+{% else %}{% set _surl = '/dashboard' %}{% set _slbl = 'Dashboard' %}{% endif %}
+<nav class="s-breadcrumb" aria-label="Breadcrumb">
+    <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
+    <span class="s-breadcrumb-sep">›</span>
+    <a href="{{ _surl }}" class="s-breadcrumb-item">{{ _slbl }}</a>
+    <span class="s-breadcrumb-sep">›</span>
+    <span class="s-breadcrumb-item active">🏆 Achievements</span>
+</nav>
+{% endif %}
 <div class="welcome-section">
     <h1>🏆 Achievements</h1>
     <p>Track your progress and unlock rewards</p>

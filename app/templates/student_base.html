@@ -18,7 +18,7 @@
    ───────────────────────────────────────────────────────────────────────────── #}
 
 {% block extra_head %}
-<link rel="stylesheet" href="/static/css/student.css">
+<link rel="stylesheet" href="/static/css/student.css?v=3">
 {% block extra_styles %}{% endblock %}
 {% endblock %}
 
@@ -27,12 +27,11 @@
 {# ── Student Header ────────────────────────────────────────────────────────── #}
 {% set p = request.url.path %}
 {% set _active = self.active_page() | trim %}
-
-<div class="student-header">
+<div class="student-header {{ spec_header_class | default('') }}">
     <div class="student-header-inner">
 
         {# Brand #}
-        <div class="student-brand">⚽ LFA Student</div>
+        <div class="student-brand">🏫 LFA Education Center</div>
 
         {# Hamburger — toggled by JS on mobile #}
         <button class="student-hamburger" id="student-hamburger-btn"

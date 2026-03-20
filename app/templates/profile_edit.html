@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Edit Profile - LFA Education Center{% endblock %}
 
-{% block content %}
+{% block active_page %}profile{% endblock %}
+
+{% block extra_styles %}
 <style>
     .edit-profile-container {
         max-width: 800px;
@@ -184,16 +186,13 @@
     }
 
     @media (max-width: 768px) {
-        .button-group {
-            flex-direction: column;
-        }
-
-        .profile-header h1 {
-            font-size: 1.5rem;
-        }
+        .button-group { flex-direction: column; }
+        .profile-header h1 { font-size: 1.5rem; }
     }
 </style>
+{% endblock %}
 
+{% block student_content %}
 <div class="edit-profile-container">
     <div class="profile-header">
         <h1>✏️ Edit Profile</h1>
@@ -307,21 +306,20 @@
         </div>
     </form>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const dobInput = document.getElementById('date_of_birth');
 
-    // Set max date to today (can't be born in the future)
     const today = new Date().toISOString().split('T')[0];
     dobInput.setAttribute('max', today);
 
-    // Set min date to 120 years ago
     const minDate = new Date();
     minDate.setFullYear(minDate.getFullYear() - 120);
     dobInput.setAttribute('min', minDate.toISOString().split('T')[0]);
 
-    // Show age warning if date changes
     dobInput.addEventListener('change', function() {
         const currentValue = "{{ user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else '' }}";
         if (this.value !== currentValue) {

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Form, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pathlib import Path
 from datetime import datetime, timezone
 import logging
@@ -79,6 +80,20 @@ async def specialization_unlock(
             detail=f"Age requirement not met. This specialization requires age {required_age}. Your current age: {current_user.age or 'not set'}."
         )
 
+    # Lock user row to prevent concurrent unlock race conditions
+    current_user = db.query(User).with_for_update().filter(User.id == current_user.id).first()
+
+    # Check for existing license (re-check AFTER acquiring the lock)
+    existing_license = db.query(UserLicense).filter(
+        UserLicense.user_id == current_user.id,
+        UserLicense.specialization_type == spec_type.value
+    ).first()
+    if existing_license:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"You already have a license for {spec_type.value}"
+        )
+
     # Deduct credits (only after all validations pass)
     current_user.credit_balance -= 100
 
@@ -116,7 +131,14 @@ async def specialization_unlock(
     # Update user specialization
     current_user.specialization = spec_type.value
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"License for {spec_type.value} already exists (concurrent request)"
+        )
 
     return {
         "success": True,

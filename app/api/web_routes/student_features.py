@@ -182,7 +182,8 @@ async def credits_page(
             "transactions": transactions,
             "invoice_requests": invoice_requests,
             "specialization_color": specialization_color or '#667eea',
-            "today": datetime.now(timezone.utc).date()
+            "today": datetime.now(timezone.utc).date(),
+            "spec_header_class": "hdr-hub"
         }
     )
 

@@ -105,7 +105,7 @@ async def dashboard(
                 "user": user,
                 "user_age": user_age or "N/A",
                 "available_specializations": specializations_data,
-                "unlocked_count": len(license_map)  # For displaying stats
+                "unlocked_count": len(license_map)
             }
         )
     else:
@@ -481,6 +481,17 @@ async def spec_dashboard(
     # Get user credit balance
     credit_balance = user.credit_balance if hasattr(user, 'credit_balance') else 0
 
+    # Map spec type to header gradient class
+    _spec_header_map = {
+        "LFA_FOOTBALL_PLAYER": "hdr-football",
+        "LFA_COACH": "hdr-coach",
+        "INTERNSHIP": "hdr-intern",
+        "JUNIOR_INTERNSHIP": "hdr-intern",
+        "SENIOR_INTERNSHIP": "hdr-intern",
+        "GANCUJU_PLAYER": "hdr-gancuju",
+    }
+    spec_header_class = _spec_header_map.get(spec_enum, "hdr-football")
+
     return templates.TemplateResponse(
         "dashboard_student_new.html",
         {
@@ -502,6 +513,7 @@ async def spec_dashboard(
             "age_category_name": age_category_name,
             "age_range": age_range,
             "age_description": age_description,
-            "user_age": user_age
+            "user_age": user_age,
+            "spec_header_class": spec_header_class
         }
     )
