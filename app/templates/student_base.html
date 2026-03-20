@@ -41,7 +41,9 @@
         {# Nav links #}
         <nav class="student-nav" id="student-nav" aria-label="Student navigation">
             <a href="/dashboard"
-               class="nav-item{% if _active == 'hub' or p == '/dashboard' %} active{% endif %}">🏠 Hub</a>
+               class="nav-item{% if _active == 'hub' and not p.startswith('/dashboard/') %} active{% endif %}">🏠 Hub</a>
+            <a href="/dashboard/lfa-football-player"
+               class="nav-item{% if _active == 'lfa-player' or p.startswith('/dashboard/lfa') %} active{% endif %}">⚽ LFA Player</a>
             <a href="/sessions"
                class="nav-item{% if _active == 'sessions' or p.startswith('/sessions') %} active{% endif %}">📅 Sessions</a>
             <a href="/progress"
