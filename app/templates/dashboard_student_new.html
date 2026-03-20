@@ -1,316 +1,219 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
-{% block title %}Available Semesters - LFA Education Center{% endblock %}
+{% block title %}{{ spec_config.name }} Dashboard - LFA{% endblock %}
 
-{% block content %}
+{% block active_page %}hub{% endblock %}
 
+{% block extra_styles %}
 <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f7fa;
-            min-height: 100vh;
-        }
+    .page-title {
+        font-size: 1.8rem;
+        color: #2d3748;
+        margin-bottom: 0.75rem;
+    }
 
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+    .page-subtitle {
+        color: #718096;
+        font-size: 1.05rem;
+        margin-bottom: 2rem;
+    }
 
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
+    .info-banner {
+        background: #e6f7ff;
+        border-left: 4px solid #1890ff;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
 
-        .user-info h1 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
+    .info-banner p {
+        color: #0050b3;
+        margin: 0;
+    }
 
-        .user-info p {
-            opacity: 0.9;
-            font-size: 1rem;
-        }
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
 
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
+    .spec-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.75rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transition: transform 0.3s, box-shadow 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
 
-        .credit-badge {
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            padding: 0.8rem 1.5rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
+    .spec-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
 
-        .btn {
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+    .spec-icon {
+        font-size: 3rem;
+        text-align: center;
+        margin-bottom: 0.75rem;
+    }
 
-        .btn-primary {
-            background: white;
-            color: #667eea;
-        }
+    .spec-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2d3748;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
 
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-        }
+    .spec-age {
+        text-align: center;
+        color: #718096;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
+    .spec-description {
+        color: #4a5568;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 1.25rem;
+        text-align: center;
+    }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
+    .spec-action { text-align: center; }
 
-        .page-title {
-            font-size: 2rem;
-            color: #2d3748;
-            margin-bottom: 1rem;
-        }
+    .unlock-btn {
+        width: 100%;
+        padding: 0.9rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
 
-        .page-subtitle {
-            color: #718096;
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
-        }
+    .unlock-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+    }
 
-        .info-banner {
-            background: #e6f7ff;
-            border-left: 4px solid #1890ff;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-        }
+    .unlock-btn:disabled {
+        background: #cbd5e0;
+        cursor: not-allowed;
+    }
 
-        .info-banner p {
-            color: #0050b3;
-            margin: 0;
-        }
+    .unlock-btn:disabled:hover {
+        transform: none;
+        box-shadow: none;
+    }
 
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
+    .cost-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: #ffd700;
+        color: #2d3748;
+        padding: 0.4rem 0.9rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
 
-        .spec-card {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            transition: transform 0.3s, box-shadow 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
+    .section-block {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin-bottom: 2rem;
+    }
 
-        .spec-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-        }
+    .footer-links {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
 
-        .spec-card.locked {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+    .footer-links a {
+        color: #667eea;
+        text-decoration: none;
+        margin: 0 1rem;
+        font-weight: 600;
+    }
 
-        .spec-card.locked:hover {
-            transform: none;
-        }
+    .footer-links a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
 
-        .spec-card.unlocked {
-            border: 3px solid #52c41a;
-        }
+{% block student_content %}
 
-        .spec-icon {
-            font-size: 4rem;
-            text-align: center;
-            margin-bottom: 1rem;
-        }
+<!-- Breadcrumb -->
+<nav class="s-breadcrumb" aria-label="breadcrumb">
+    <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
+    <span class="s-breadcrumb-sep">›</span>
+    <span class="s-breadcrumb-item active">{{ spec_config.icon }} {{ spec_config.name }}</span>
+</nav>
 
-        .spec-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #2d3748;
-            text-align: center;
-            margin-bottom: 0.5rem;
-        }
-
-        .spec-age {
-            text-align: center;
-            color: #718096;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-
-        .spec-description {
-            color: #4a5568;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-
-        .spec-action {
-            text-align: center;
-        }
-
-        .unlock-btn {
-            width: 100%;
-            padding: 1rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .unlock-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .unlock-btn:disabled {
-            background: #cbd5e0;
-            cursor: not-allowed;
-        }
-
-        .unlock-btn:disabled:hover {
-            transform: none;
-            box-shadow: none;
-        }
-
-        .unlocked-badge {
-            background: #52c41a;
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 600;
-            display: inline-block;
-        }
-
-        .locked-badge {
-            background: #ff4d4f;
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 600;
-            display: inline-block;
-            font-size: 0.9rem;
-        }
-
-        .age-locked-badge {
-            background: #faad14;
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 600;
-            display: inline-block;
-            font-size: 0.9rem;
-        }
-
-        .cost-badge {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: #ffd700;
-            color: #2d3748;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        }
-
-        .footer-links {
-            text-align: center;
-            margin-top: 3rem;
-            padding-top: 2rem;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .footer-links a {
-            color: #667eea;
-            text-decoration: none;
-            margin: 0 1rem;
-            font-weight: 600;
-        }
-
-        .footer-links a:hover {
-            text-decoration: underline;
-        }
-    </style>
-
-<!-- Header (SAME AS ABOUT-SPECIALIZATIONS) -->
-<div class="header">
-    <div class="header-content">
-        <div class="user-info">
-            <h1>Welcome, {{ user.name }}! 👋</h1>
-            <p>{{ user.email }} · Age: {{ user_age }} years</p>
-        </div>
-        <div class="header-actions">
-            {% if user.role.value == 'student' %}
-            <div class="credit-badge">
-                💰 {{ user.credit_balance }} credits
-            </div>
-            <a href="/credits" class="btn btn-primary">💳 Purchase Credits</a>
-            {% endif %}
-            <a href="/dashboard" class="btn btn-secondary">🏠 Dashboard</a>
-            <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
-            <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
-        </div>
-    </div>
-</div>
-
-<!-- Main Content -->
 <div class="container">
-<div class="credits-container">
+
+    <!-- ── Skill Development Quick Links ──────────────────────────────────────── -->
+    <section class="section-block">
+        <h2 class="page-title">📊 Skill Development</h2>
+        <p class="page-subtitle">Track how tournaments and training affect your skill levels.</p>
+        <div class="cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+            <a href="/skills" style="text-decoration:none;">
+                <div class="spec-card" style="border-left: 4px solid #2ecc71;">
+                    <div class="spec-icon">⚡</div>
+                    <h3 class="spec-title">Skill Overview</h3>
+                    <p class="spec-description">All 29 skills and your current levels.</p>
+                    <div class="spec-action"><span style="color:#2ecc71; font-weight:600;">View Skills →</span></div>
+                </div>
+            </a>
+            <a href="/skills/history?skill=passing" style="text-decoration:none;">
+                <div class="spec-card" style="border-left: 4px solid #667eea;">
+                    <div class="spec-icon">📈</div>
+                    <h3 class="spec-title">Skill History</h3>
+                    <p class="spec-description">EMA progression — how each tournament changed your skills.</p>
+                    <div class="spec-action"><span style="color:#667eea; font-weight:600;">View History →</span></div>
+                </div>
+            </a>
+            <a href="/sessions" style="text-decoration:none;">
+                <div class="spec-card" style="border-left: 4px solid #e67e22;">
+                    <div class="spec-icon">📅</div>
+                    <h3 class="spec-title">Sessions</h3>
+                    <p class="spec-description">Upcoming training sessions and check-in history.</p>
+                    <div class="spec-action"><span style="color:#e67e22; font-weight:600;">View Sessions →</span></div>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <!-- ── Available Events (Track Semesters) ─────────────────────────────────── -->
+    <section class="section-block">
         <h2 class="page-title">⚽ Available Events</h2>
         <p class="page-subtitle">Enroll in semesters to access training sessions and progress through your football development path.</p>
 
         {% if available_semesters|length == 0 %}
         <div class="info-banner" style="background: #fff7e6; border-color: #faad14;">
-            <p style="color: #ad6800;">⚠️ <strong>No semesters available for your age group yet.</strong><br>
-            You can update your age in your <a href="/profile" style="color: #ad6800; text-decoration: underline;">profile settings</a> if needed.</p>
+            <p style="color: #ad6800;">⚠️ <strong>No track semesters available for your age group yet.</strong><br>
+            Check back later, or <a href="/profile" style="color: #ad6800; text-decoration: underline;">update your profile</a> if your age group is incorrect.</p>
         </div>
         {% else %}
         <div class="info-banner">
             <p><strong>💡 Available Semesters for {{ age_category_name }} ({{ age_range }})</strong><br>
-            {{ age_description }} - {{ available_semesters|length }} semesters available</p>
+            {{ age_description }} — {{ available_semesters|length }} semester(s) available</p>
         </div>
         {% endif %}
 
@@ -319,44 +222,37 @@
             {% for semester in available_semesters %}
             <div class="spec-card">
                 <div class="cost-badge">💰 {{ semester.enrollment_cost }} Credits</div>
-
                 <div class="spec-icon">⚽</div>
                 <h3 class="spec-title">{{ semester.name }}</h3>
-                <p class="spec-age">📅 {{ semester.start_date.strftime('%Y-%m-%d') }} - {{ semester.end_date.strftime('%Y-%m-%d') }}</p>
+                <p class="spec-age">📅 {{ semester.start_date.strftime('%Y-%m-%d') }} — {{ semester.end_date.strftime('%Y-%m-%d') }}</p>
                 <p class="spec-description">
                     <strong>Code:</strong> {{ semester.code }}<br>
-                    <strong>Location:</strong> {{ 'BUDA' if 'BUDA' in semester.code else 'PEST' if 'PEST' in semester.code else 'N/A' }}<br>
                     <strong>Status:</strong> {{ semester.status.value if semester.status else 'Unknown' }}
                 </p>
-
                 <div class="spec-action">
                     {% if user.credit_balance < semester.enrollment_cost %}
-                        <button class="unlock-btn" disabled>
-                            ❌ Insufficient Credits (Need {{ semester.enrollment_cost }})
-                        </button>
-                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #718096;">
+                        <button class="unlock-btn" disabled>❌ Insufficient Credits (Need {{ semester.enrollment_cost }})</button>
+                        <p style="margin-top: 0.5rem; font-size: 0.85rem;">
                             <a href="/credits" style="color: #667eea; font-weight: 600;">Purchase credits →</a>
                         </p>
                     {% else %}
                         <form method="POST" action="/semester/enroll">
                             <input type="hidden" name="semester_id" value="{{ semester.id }}">
-                            <button type="submit" class="unlock-btn">
-                                🎓 Enroll Now ({{ semester.enrollment_cost }} credits)
-                            </button>
+                            <button type="submit" class="unlock-btn">🎓 Enroll Now ({{ semester.enrollment_cost }} credits)</button>
                         </form>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
+    </section>
 
-        <!-- Footer -->
-        <div class="footer-links">
-            <a href="/dashboard">🏠 Back to Dashboard</a>
-            <a href="/credits">💳 Manage Credits</a>
-            <a href="/profile">👤 Edit Profile</a>
-        </div>
-</div>
-</div>
+    <div class="footer-links">
+        <a href="/dashboard">🏠 Hub</a>
+        <a href="/skills">⚡ Skills</a>
+        <a href="/credits">💳 Credits</a>
+        <a href="/profile">👤 Profile</a>
+    </div>
 
+</div>
 {% endblock %}
