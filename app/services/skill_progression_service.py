@@ -863,6 +863,10 @@ def get_skill_timeline(
         )
 
         timeline.append({
+            # Event-model fields (canonical)
+            "event_type":           "tournament",
+            "event_name":           tournament.name,
+            # Legacy fields kept for backwards compatibility
             "tournament_id":        tournament.id,
             "tournament_name":      tournament.name,
             "achieved_at":          participation.achieved_at.isoformat() if participation.achieved_at else None,

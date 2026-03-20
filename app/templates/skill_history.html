@@ -1,6 +1,6 @@
 {% extends "student_base.html" %}
 
-{% block title %}Skill History - LFA{% endblock %}
+{% block title %}Skill Event History - LFA{% endblock %}
 {% block active_page %}skills{% endblock %}
 
 {% block extra_styles %}
@@ -149,6 +149,17 @@
     .sh-p3 { background: #fde8d8; color: #7c2d12; }
     .sh-pn { background: #f3f4f6; color: #6b7280; }
 
+    .sh-event-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: #e0f2fe;
+        color: #0369a1;
+        white-space: nowrap;
+    }
+
     /* Error banner */
     .sh-error {
         background: #fef2f2;
@@ -179,12 +190,12 @@
         <span class="s-breadcrumb-sep">›</span>
         <a href="/skills" class="s-breadcrumb-item">⚡ Skills</a>
         <span class="s-breadcrumb-sep">›</span>
-        <span class="s-breadcrumb-item active">📈 Skill History</span>
+        <span class="s-breadcrumb-item active">📈 Skill Event History</span>
     </nav>
 
-    <h2 style="margin:0 0 8px;color:#1b4332;">📈 Skill History</h2>
+    <h2 style="margin:0 0 8px;color:#1b4332;">📈 Skill Event History</h2>
     <p style="color:#6b7280;margin:0 0 22px;font-size:0.92rem;">
-        Tournament-by-tournament EMA skill progression — see exactly which event changed each skill and by how much.
+        Event-by-event EMA skill progression — see exactly which event changed each skill and by how much.
     </p>
 
     <!-- Skill selector -->
@@ -219,7 +230,7 @@
             <div class="sh-stat-card">
                 <div class="sh-stat-label">Current Level</div>
                 <div class="sh-stat-value" id="sh-current">—</div>
-                <div class="sh-stat-sub">After all tournaments</div>
+                <div class="sh-stat-sub">After all events</div>
             </div>
             <div class="sh-stat-card" id="sh-delta-card">
                 <div class="sh-stat-label">Total Change</div>
@@ -227,9 +238,9 @@
                 <div class="sh-stat-sub">vs. baseline</div>
             </div>
             <div class="sh-stat-card">
-                <div class="sh-stat-label">Tournaments</div>
+                <div class="sh-stat-label">Skill Events</div>
                 <div class="sh-stat-value" id="sh-count">—</div>
-                <div class="sh-stat-sub">skill assessed</div>
+                <div class="sh-stat-sub">assessed in events</div>
             </div>
         </div>
 
@@ -238,8 +249,8 @@
             <h3 id="sh-chart-title">Skill Progression</h3>
             <div id="sh-empty" class="sh-empty" style="display:none;">
                 <div class="sh-empty-icon">📊</div>
-                <p>No tournament data yet for this skill.</p>
-                <p style="font-size:0.85rem;margin-top:8px;">Play your first tournament to start tracking your progression.</p>
+                <p>No event data yet for this skill.</p>
+                <p style="font-size:0.85rem;margin-top:8px;">Participate in your first event to start tracking progression.</p>
             </div>
             <div class="sh-chart-wrap" id="sh-chart-wrap">
                 <canvas id="skill-chart"></canvas>
@@ -248,12 +259,13 @@
 
         <!-- Audit table -->
         <div class="sh-table-card" id="sh-table-card" style="display:none;">
-            <h3>EMA Tracking by Tournament</h3>
+            <h3>EMA Tracking by Event</h3>
             <table class="sh-table">
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Tournament</th>
+                        <th>Event</th>
+                        <th>Type</th>
                         <th>Date</th>
                         <th>Placement</th>
                         <th>Players</th>
@@ -283,7 +295,27 @@
     var emptyEl      = document.getElementById('sh-empty');
     var chartWrapEl  = document.getElementById('sh-chart-wrap');
     var tableCardEl  = document.getElementById('sh-table-card');
-    var chartInst    = null;
+
+    // ── Event type helpers ──────────────────────────────────────────────────
+    var EVENT_ICONS = {
+        tournament: '🏆',
+        session:    '🎯',
+        assessment: '📋',
+    };
+
+    var EVENT_LABELS = {
+        tournament: 'Tournament',
+        session:    'Session',
+        assessment: 'Assessment',
+    };
+
+    function eventLabel(type) {
+        return EVENT_LABELS[type] || (type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Event');
+    }
+
+    function eventIcon(type) {
+        return EVENT_ICONS[type] || '📌';
+    }
 
     function showError(msg) {
         errorEl.textContent = msg;
@@ -299,7 +331,7 @@
     }
 
     function deltaClass(d) {
-        if (d > 0.05) return 'sh-delta-pos';
+        if (d > 0.05)  return 'sh-delta-pos';
         if (d < -0.05) return 'sh-delta-neg';
         return 'sh-delta-zero';
     }
@@ -312,10 +344,12 @@
     }
 
     function placementBadge(p) {
+        if (!p) return '<span class="sh-placement-badge sh-pn">—</span>';
         var cls = p === 1 ? 'sh-p1' : p === 2 ? 'sh-p2' : p === 3 ? 'sh-p3' : 'sh-pn';
         return '<span class="sh-placement-badge ' + cls + '">' + ordinal(p) + '</span>';
     }
 
+    // ── Stat cards ───────────────────────────────────────────────────────────
     function renderStats(data) {
         document.getElementById('sh-baseline').textContent = data.baseline.toFixed(1);
         document.getElementById('sh-current').textContent  = data.current_level.toFixed(1);
@@ -331,6 +365,7 @@
             (data.skill_display_name || data.skill) + ' — Progression';
     }
 
+    // ── Chart ────────────────────────────────────────────────────────────────
     function renderChart(data) {
         var tl = data.timeline;
         if (tl.length === 0) {
@@ -341,14 +376,18 @@
         emptyEl.style.display    = 'none';
         chartWrapEl.style.display = 'block';
 
-        var labels       = tl.map(function (_, i) { return 'T' + (i + 1); });
+        var labels       = tl.map(function (_, i) { return 'E' + (i + 1); });
         var skillLine    = tl.map(function (t) { return t.skill_value_after; });
         var targetLine   = tl.map(function (t) { return t.placement_skill; });
         var baselineData = tl.map(function () { return data.baseline; });
 
-        if (chartInst) { chartInst.destroy(); chartInst = null; }
+        // ── Chart.js lifecycle: destroy previous instance before recreating ──
+        if (window.skillChart) {
+            window.skillChart.destroy();
+            window.skillChart = null;
+        }
 
-        chartInst = new Chart(document.getElementById('skill-chart'), {
+        window.skillChart = new Chart(document.getElementById('skill-chart'), {
             type: 'line',
             data: {
                 labels: labels,
@@ -402,7 +441,7 @@
                         grid: { color: '#f3f4f6' },
                     },
                     x: {
-                        title: { display: true, text: 'Tournament Sequence', color: '#6b7280', font: { size: 12 } },
+                        title: { display: true, text: 'Event Sequence', color: '#6b7280', font: { size: 12 } },
                         ticks: { color: '#6b7280' },
                         grid: { display: false },
                     },
@@ -414,30 +453,40 @@
                             title: function (ctx) {
                                 var idx = ctx[0].dataIndex;
                                 var entry = tl[idx];
-                                return entry
-                                    ? entry.tournament_name + '  (' + fmtDate(entry.achieved_at) + ')'
-                                    : ctx[0].label;
+                                if (!entry) return ctx[0].label;
+                                var name = entry.event_name || entry.tournament_name || 'Event';
+                                return eventIcon(entry.event_type) + ' ' + name;
                             },
                             afterTitle: function (ctx) {
                                 var idx = ctx[0].dataIndex;
                                 var entry = tl[idx];
-                                if (!entry || !entry.placement) return '';
-                                return ordinal(entry.placement) + ' of ' + entry.total_players + ' players';
+                                if (!entry) return '';
+                                var lines = [];
+                                lines.push('Type: ' + eventLabel(entry.event_type || 'tournament'));
+                                lines.push('Date: ' + fmtDate(entry.achieved_at));
+                                if (entry.placement) {
+                                    lines.push(ordinal(entry.placement) + ' of ' + entry.total_players + ' players');
+                                }
+                                return lines;
                             },
                             footer: function (ctx) {
                                 var idx = ctx[0].dataIndex;
                                 var entry = tl[idx];
                                 if (!entry) return '';
                                 var d = entry.delta_from_previous;
-                                return 'Delta: ' + (d >= 0 ? '+' : '') + d.toFixed(1);
+                                return 'Delta: ' + (d >= 0 ? '+' : '') + d.toFixed(1) +
+                                    '  →  Level: ' + entry.skill_value_after.toFixed(1);
                             },
                         },
+                        footerColor: '#27ae60',
+                        footerFont: { weight: 'bold' },
                     },
                 },
             },
         });
     }
 
+    // ── Table ────────────────────────────────────────────────────────────────
     function renderTable(data) {
         var tl = data.timeline;
         if (tl.length === 0) { tableCardEl.style.display = 'none'; return; }
@@ -445,12 +494,15 @@
 
         var rows = tl.map(function (t, i) {
             var d = t.delta_from_previous;
+            var evType = t.event_type || 'tournament';
+            var evName = t.event_name || t.tournament_name || 'Event';
             return '<tr>' +
                 '<td>' + (i + 1) + '</td>' +
-                '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + t.tournament_name + '">' + t.tournament_name + '</td>' +
+                '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + evName + '">' + evName + '</td>' +
+                '<td><span class="sh-event-badge">' + eventIcon(evType) + ' ' + eventLabel(evType) + '</span></td>' +
                 '<td>' + fmtDate(t.achieved_at) + '</td>' +
                 '<td>' + placementBadge(t.placement) + '</td>' +
-                '<td style="text-align:center;">' + t.total_players + '</td>' +
+                '<td style="text-align:center;">' + (t.total_players || '—') + '</td>' +
                 '<td style="font-weight:600;color:#3b82f6;">' + t.placement_skill.toFixed(1) + '</td>' +
                 '<td style="font-weight:700;color:#1b4332;">' + t.skill_value_after.toFixed(1) + '</td>' +
                 '<td class="' + deltaClass(d) + '">' + (d >= 0 ? '+' : '') + d.toFixed(1) + '</td>' +
@@ -459,6 +511,7 @@
         document.getElementById('sh-table-body').innerHTML = rows.join('');
     }
 
+    // ── Load ─────────────────────────────────────────────────────────────────
     function loadSkill(skillKey) {
         errorEl.style.display   = 'none';
         contentEl.style.display = 'none';
@@ -481,7 +534,7 @@
                 renderTable(data);
             })
             .catch(function (err) {
-                showError('Failed to load skill data: ' + err.message);
+                showError('Failed to load event data: ' + err.message);
             });
     }
 

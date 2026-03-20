@@ -179,7 +179,7 @@ class TestSkillHistoryPage:
         """SMOKE-38a: GET /skills/history returns 200 with chart canvas."""
         resp = student_client.get("/skills/history")
         assert resp.status_code == 200
-        assert "Skill History" in resp.text
+        assert "Skill Event History" in resp.text
         assert "skill-chart" in resp.text
 
     def test_smoke38b_history_data_student_json(self, student_client: TestClient):

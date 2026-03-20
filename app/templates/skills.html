@@ -213,15 +213,15 @@
         </div>
     </div>
 
-    <!-- Tournament History (server-side) -->
+    <!-- Skill Events (server-side) -->
     <div class="history-card">
-        <h2>🏆 Tournament History &nbsp;<a href="/skills/history" style="font-size:0.75rem;font-weight:500;color:#667eea;text-decoration:none;">📈 Skill History Chart →</a></h2>
+        <h2>📈 Skill Events &nbsp;<a href="/skills/history" style="font-size:0.75rem;font-weight:500;color:#667eea;text-decoration:none;">📊 Event History Chart →</a></h2>
 
         {% if tournament_history %}
         <table class="history-table">
             <thead>
                 <tr>
-                    <th>Tournament</th>
+                    <th>Event</th>
                     <th>Date</th>
                     <th>Placement</th>
                     <th>Skill Pts</th>
@@ -256,8 +256,8 @@
         </table>
         {% else %}
         <div class="empty-state">
-            <div class="empty-icon">🏆</div>
-            <p>No tournament history yet. Play your first tournament to see your results here!</p>
+            <div class="empty-icon">📈</div>
+            <p>No skill events yet. Participate in your first event to see results here!</p>
         </div>
         {% endif %}
     </div>

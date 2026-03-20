@@ -325,11 +325,11 @@
         </div>
     </section>
 
-    <!-- ── Last Tournament Result ──────────────────────────────────────────────── -->
+    <!-- ── Last Skill Event ──────────────────────────────────────────────────── -->
     <section class="section-block">
         <div class="section-header">
-            <h2 class="page-title">🏆 Last Result</h2>
-            <a href="/skills/history?skill=passing" class="section-link">Full history →</a>
+            <h2 class="page-title">📈 Last Skill Event</h2>
+            <a href="/skills/history?skill=passing" class="section-link">Full event history →</a>
         </div>
         <div id="s-last-result">
             <div class="s-loading"><span class="s-spinner"></span> Loading…</div>
@@ -468,7 +468,7 @@
             const timeline = data.timeline || [];
             if (timeline.length === 0) {
                 el.innerHTML = `<p style="color:#718096;font-size:0.9rem;">
-                    No tournaments yet — enroll in an event to start your journey.</p>`;
+                    No skill events yet — enroll in an event to start your journey.</p>`;
                 return;
             }
 
@@ -493,11 +493,11 @@
             let deltaHtml = '';
             if (delta !== null && delta !== undefined) {
                 if (delta > 0.05) {
-                    deltaHtml = `<span class="s-delta-pos">passing +${delta.toFixed(1)} ↑</span>`;
+                    deltaHtml = `<span class="s-delta-pos">+${delta.toFixed(1)} ↑</span>`;
                 } else if (delta < -0.05) {
-                    deltaHtml = `<span class="s-delta-neg">passing ${delta.toFixed(1)} ↓</span>`;
+                    deltaHtml = `<span class="s-delta-neg">${delta.toFixed(1)} ↓</span>`;
                 } else {
-                    deltaHtml = `<span class="s-delta-zero">passing ±0</span>`;
+                    deltaHtml = `<span class="s-delta-zero">±0</span>`;
                 }
             }
 
@@ -505,7 +505,7 @@
                 ? `<span class="s-result-meta">of ${last.total_players} players</span>` : '';
 
             el.innerHTML = `<div class="s-last-result-card">
-                <span class="s-result-name">${last.tournament_name || 'Tournament'}</span>
+                <span class="s-result-name">${last.event_name || last.tournament_name || 'Event'}</span>
                 ${badgeHtml}
                 ${playersInfo}
                 ${deltaHtml}

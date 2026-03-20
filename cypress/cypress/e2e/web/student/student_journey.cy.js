@@ -239,8 +239,8 @@ describe('A. Student Core Journey — Skill Progression', {
     // Skill snapshot renders at least 1 bar
     cy.get('#s-snapshot .s-snapshot-row', { timeout: 8000 }).should('have.length.gte', 1);
 
-    // Last result shows the most recent tournament (T2: placed 1st, passing positive delta)
-    cy.get('#s-last-result', { timeout: 8000 }).should('not.contain.text', 'No tournaments yet');
+    // Last skill event shows the most recent event (T2: placed 1st, positive delta)
+    cy.get('#s-last-result', { timeout: 8000 }).should('not.contain.text', 'No skill events yet');
     cy.get('#s-last-result').should('contain.text', 'E2E History Tournament 2');
     cy.get('#s-last-result .s-delta-pos').should('exist');
   });
