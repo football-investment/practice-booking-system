@@ -206,13 +206,12 @@ describe('A. Student Core Journey — Skill Progression', {
     // Student nav must be rendered by student_base.html (not the old base.html header)
     cy.get('.student-header').should('exist');
 
-    // Nav has separate Hub and LFA Player links
-    cy.get('.student-nav a[href="/dashboard"]').should('contain.text', 'Hub');
+    // Nav has LFA Player link — Hub is in footer, not header nav
     cy.get('.student-nav a[href="/dashboard/lfa-football-player"]').should('contain.text', 'LFA Player');
-    // LFA Player link is active on the spec dashboard
     cy.get('.student-nav a[href="/dashboard/lfa-football-player"]').should('have.class', 'active');
-    // Hub link is NOT active on the spec dashboard
-    cy.get('.student-nav a[href="/dashboard"]').should('not.have.class', 'active');
+    cy.get('.student-nav a[href="/dashboard"]').should('not.exist');
+    // Hub link is in footer
+    cy.get('.footer-links a[href="/dashboard"]').should('exist');
 
     // Breadcrumb must contain the spec name — proves student is on spec dashboard, not hub
     cy.get('.s-breadcrumb').should('exist');
