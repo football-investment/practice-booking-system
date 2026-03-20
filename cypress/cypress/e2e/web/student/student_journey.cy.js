@@ -199,6 +199,28 @@ describe('A. Student Core Journey — Skill Progression', {
     });
   });
 
+  // ── STU-JOURNEY-08 — Spec dashboard structure: student nav + breadcrumb + Skill section ──
+  it('STU-JOURNEY-08: /dashboard/LFA_FOOTBALL_PLAYER — student nav present, breadcrumb correct, Skill Development visible', () => {
+    cy.visit('/dashboard/LFA_FOOTBALL_PLAYER');
+
+    // Student nav must be rendered by student_base.html (not the old base.html header)
+    cy.get('.student-header').should('exist');
+
+    // Breadcrumb must contain the spec name — proves student is on spec dashboard, not hub
+    cy.get('.s-breadcrumb').should('exist');
+    cy.get('.s-breadcrumb').should('contain.text', 'LFA Football Player');
+    cy.get('.s-breadcrumb').should('contain.text', 'Hub');
+
+    // Skill Development section must be visible — key entry point to skill history
+    cy.contains('h2', 'Skill Development').should('be.visible');
+    cy.contains('a', 'Skill History').should('be.visible');
+    cy.get('a[href="/skills/history?skill=passing"]').should('exist');
+
+    // Page must not show any server error
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
+    cy.get('body').should('not.contain.text', '400');
+  });
+
 });
 
 

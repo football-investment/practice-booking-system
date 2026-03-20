@@ -300,30 +300,9 @@ async def dashboard(
             }
         )
     else:  # pragma: no cover
-        # Fallback dashboard (unreachable with current 3-role enum: student early-returns above)
-        logger.debug("dashboard_routing", extra={"user": user.email, "template": "dashboard_student_new.html"})
-        response = templates.TemplateResponse(
-            "dashboard_student_new.html",
-            {
-                "request": request,
-                "user": user,
-                "specialization": specialization,
-                "xp_data": xp_data,
-                "user_licenses": user_licenses,
-                "specialization_color": specialization_color,
-                "pending_enrollments": pending_enrollments,
-                "has_active_enrollment": has_active_enrollment,
-                "current_license": current_license,
-                "available_semesters": available_semesters,
-                "current_semester": current_semester,
-                "next_semester": next_semester,
-                "football_skills": football_skills,
-                "skills_updated_by_name": skills_updated_by_name,
-                "upcoming_sessions": upcoming_sessions,
-                "credit_balance": credit_balance,
-                "credit_purchased": credit_purchased
-            }
-        )
+        # Unreachable: UserRole enum has exactly 3 values (STUDENT/INSTRUCTOR/ADMIN).
+        # Student early-returns above; INSTRUCTOR and ADMIN are handled above.
+        raise HTTPException(status_code=403, detail="Unknown role")
     # Disable caching to ensure fresh data
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"

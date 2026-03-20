@@ -290,7 +290,7 @@ async def lfa_player_onboarding_web_submit(
 
         logger.info("onboarding_complete", extra={"user": user.email, "position": position, "skill_count": len(skills), "avg_skill": round(average_skill, 1)})
 
-        return {"success": True, "redirect": "/dashboard"}
+        return {"success": True, "redirect": "/dashboard/lfa-football-player"}
 
     except Exception as e:
         db.rollback()

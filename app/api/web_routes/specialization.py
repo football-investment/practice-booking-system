@@ -252,8 +252,9 @@ async def student_motivation_questionnaire_submit(
 
         logger.info("motivation_questionnaire_complete", extra={"user": user.email, "spec": spec_type.value, "avg_score": round(average_score, 2)})
 
-        # Redirect to dashboard - onboarding complete!
-        return RedirectResponse(url="/dashboard", status_code=303)
+        # Redirect directly to the spec dashboard — onboarding complete
+        spec_slug = spec_type.value.lower().replace("_", "-")
+        return RedirectResponse(url=f"/dashboard/{spec_slug}", status_code=303)
 
     except Exception as e:
         db.rollback()
