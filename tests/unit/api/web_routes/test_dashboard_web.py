@@ -337,19 +337,23 @@ class TestSpecDashboard:
         ctx = mock_tmpl.TemplateResponse.call_args.args[1]
         assert ctx["age_category"] == "PRE"
 
-    def test_lfa_football_player_invalid_age_raises_400(self):
-        """LFA_FOOTBALL_PLAYER spec with invalid age → 400 (age_category=None)."""
+    def test_lfa_football_player_no_dob_defaults_to_amateur(self):
+        """LFA_FOOTBALL_PLAYER spec with no valid age → defaults to AMATEUR (no exception)."""
         user = _student()
         license_obj = MagicMock()
         license_obj.id = 1
         db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = license_obj
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None, None]
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.all.return_value = []
 
         with patch(f"{_BASE}.get_lfa_age_category", return_value=(None, None, None, "Below minimum age")), \
-             pytest.raises(HTTPException) as exc_info:
+             patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(spec_dashboard(request=_req(), spec_type="lfa-football-player", db=db, user=user))
 
-        assert exc_info.value.status_code == 400
+        ctx = mock_tmpl.TemplateResponse.call_args.args[1]
+        assert ctx["age_category"] == "AMATEUR"
 
     def test_lfa_football_player_with_dob_sets_user_age(self):
         """LFA_FOOTBALL_PLAYER with user.date_of_birth → user_age is int in context."""
