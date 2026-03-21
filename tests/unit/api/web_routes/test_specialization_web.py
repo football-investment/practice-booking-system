@@ -103,6 +103,10 @@ class TestSpecializationUnlock:
     def test_success_creates_license_and_deducts_credits(self):
         user = _user(credit_balance=200)
         db = MagicMock()
+        # SELECT FOR UPDATE re-query returns the user mock
+        db.query.return_value.with_for_update.return_value.filter.return_value.first.return_value = user
+        # License check (no with_for_update) returns None → no existing license
+        db.query.return_value.filter.return_value.first.return_value = None
         license_mock = MagicMock()
         license_mock.id = 1
 
