@@ -126,7 +126,9 @@ async def profile_page(
             "enrollment_map": enrollment_map,
             "credit_balance": credit_balance,
             "credit_purchased": credit_purchased,
-            "today": datetime.now(timezone.utc).date()
+            "today": datetime.now(timezone.utc).date(),
+            "spec_header_class": "hdr-hub",
+            "show_spec_nav": False,
         }
     )
 
@@ -149,7 +151,9 @@ async def profile_edit_page(
         {
             "request": request,
             "user": user,
-            "user_age": user_age
+            "user_age": user_age,
+            "spec_header_class": "hdr-hub",
+            "show_spec_nav": False,
         }
     )
 
@@ -182,7 +186,9 @@ async def profile_edit_submit(
                 {
                     "request": request,
                     "user": user,
-                    "error": "Invalid date format. Please use YYYY-MM-DD format."
+                    "error": "Invalid date format. Please use YYYY-MM-DD format.",
+                    "spec_header_class": "hdr-hub",
+                    "show_spec_nav": False,
                 }
             )
 
@@ -196,7 +202,9 @@ async def profile_edit_submit(
                 {
                     "request": request,
                     "user": user,
-                    "error": "Warning: You must be at least 5 years old to use this platform."
+                    "error": "Warning: You must be at least 5 years old to use this platform.",
+                    "spec_header_class": "hdr-hub",
+                    "show_spec_nav": False,
                 }
             )
 
@@ -206,7 +214,9 @@ async def profile_edit_submit(
                 {
                     "request": request,
                     "user": user,
-                    "error": "Warning: Please enter a valid date of birth."
+                    "error": "Warning: Please enter a valid date of birth.",
+                    "spec_header_class": "hdr-hub",
+                    "show_spec_nav": False,
                 }
             )
 
@@ -243,7 +253,9 @@ async def profile_edit_submit(
                         "request": request,
                         "user": user,
                         "user_age": age,
-                        "error": f"Warning: Cannot change age: You currently have specializations that require a different age. Affected: {', '.join(spec_names)}. Please contact support if you need to update your age."
+                        "error": f"Warning: Cannot change age: You currently have specializations that require a different age. Affected: {', '.join(spec_names)}. Please contact support if you need to update your age.",
+                        "spec_header_class": "hdr-hub",
+                        "show_spec_nav": False,
                     }
                 )
 
@@ -277,6 +289,8 @@ async def profile_edit_submit(
             {
                 "request": request,
                 "user": user,
-                "error": f"Failed to update profile: {str(e)}"
+                "error": f"Failed to update profile: {str(e)}",
+                "spec_header_class": "hdr-hub",
+                "show_spec_nav": False,
             }
         )

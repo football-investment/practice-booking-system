@@ -51,6 +51,8 @@ async def notifications_page(
         "user": user,
         "notifications": notifications,
         "unread_count": unread_count,
+        "spec_header_class": "hdr-hub",
+        "show_spec_nav": False,
     })
 
 
@@ -134,6 +136,8 @@ async def messages_page(
         "recipients": recipients,
         "priorities": priorities,
         "active_tab": tab,
+        "spec_header_class": "hdr-hub",
+        "show_spec_nav": False,
     })
 
 
