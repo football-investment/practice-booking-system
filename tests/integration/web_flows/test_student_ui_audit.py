@@ -179,11 +179,11 @@ class TestStudentNavLinks:
     """SMOKE-33f — student nav links present on pages that include unified_header.html."""
 
     def test_smoke33f_nav_links_on_achievements_page(self, student_client: TestClient):
-        """SMOKE-33f: GET /achievements (student) → unified_header injects nav links."""
+        """SMOKE-33f: GET /achievements (student) → module nav cards inject peer links."""
         resp = student_client.get("/achievements")
         assert resp.status_code == 200
-        # unified_header.html injects these student-only links
+        # Module nav cards — current page (/achievements) excluded, peers present
         assert 'href="/skills"' in resp.text
-        assert 'href="/achievements"' in resp.text
         assert 'href="/sessions"' in resp.text
         assert 'href="/progress"' in resp.text
+        assert 'href="/calendar"' in resp.text

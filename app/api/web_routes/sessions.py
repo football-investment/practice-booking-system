@@ -22,6 +22,7 @@ from ...models.attendance import Attendance, AttendanceHistory
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.quiz import Quiz, QuizQuestion, QuizAttempt, SessionQuiz
 from ...models.performance_review import InstructorSessionReview, StudentPerformanceReview
+from .student_features import _spec_ctx
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -46,7 +47,9 @@ async def calendar_page(
         "calendar.html",
         {
             "request": request,
-            "user": user
+            "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
         }
     )
 
@@ -91,6 +94,8 @@ async def sessions_page(
                 "is_instructor": True,
                 "my_teaching_sessions": my_sessions,
                 "upcoming_sessions": [],
+                "spec_header_class": "hdr-hub",
+                **_spec_ctx(user, db),
             }
         )
     else:
@@ -202,6 +207,8 @@ async def sessions_page(
                 "is_instructor": False,
                 "upcoming_sessions": upcoming_sessions,
                 "my_teaching_sessions": [],
+                "spec_header_class": "hdr-hub",
+                **_spec_ctx(user, db),
             }
         )
 
@@ -543,6 +550,7 @@ async def session_details(
         {
             "request": request,
             "user": user,
+            "spec_header_class": "hdr-hub",
             "session": session,
             "enrolled_students": enrolled_students,
             "is_enrolled": is_enrolled,

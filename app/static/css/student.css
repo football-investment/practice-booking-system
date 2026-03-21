@@ -43,7 +43,7 @@ body {
 .hdr-coach    { --spec-hdr-from:#1e3a5f; --spec-hdr-to:#2a5298; --spec-hdr-accent:#90cdf4; }
 .hdr-intern   { --spec-hdr-from:#2d3748; --spec-hdr-to:#4a5568; --spec-hdr-accent:#a0aec0; }
 .hdr-gancuju  { --spec-hdr-from:#2d1b69; --spec-hdr-to:#553c9a; --spec-hdr-accent:#b794f4; }
-.hdr-hub      { --spec-hdr-from:#1a202c; --spec-hdr-to:#2d3748; --spec-hdr-accent:#90cdf4; }
+.hdr-hub      { --spec-hdr-from:#553c9a; --spec-hdr-to:#764ba2; --spec-hdr-accent:#e9d8fd; }
 
 /* ── Student Header ───────────────────────────────────────────────────────── */
 .student-header {
@@ -131,6 +131,11 @@ body {
     border: 1px solid rgba(255,255,255,0.35);
 }
 .s-hdr-btn:hover { background: rgba(255,255,255,0.22); }
+.s-hdr-btn.active {
+    background: rgba(255,255,255,0.92);
+    color: var(--spec-hdr-from, #1a3c2e);
+    font-weight: 700;
+}
 
 .credit-pill {
     background: rgba(255,255,255,0.15);
@@ -786,4 +791,67 @@ body {
     .info-banner p { color: #e2e8f0; }
 
     /* Header stays dark (already dark gradient — no change needed) */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Spec sub-page shared components  (v5)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Floating spec-page card header ───────────────────────────────────────── */
+.spec-pg-hdr {
+    --spec-hdr-from:   #1a2332;
+    --spec-hdr-to:     #2c3e50;
+    --spec-hdr-accent: #90afc5;
+    margin: 0.75rem 1rem 0;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.12);
+}
+.spec-pg-hdr .student-header-inner { padding: 0.6rem 1.25rem; }
+
+@media (max-width: 640px) {
+    .spec-pg-hdr { margin: 0.5rem 0.5rem 0; border-radius: 10px; }
+}
+
+/* ── Module navigation cards ─────────────────────────────────────────────── */
+.mod-nav-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.25rem 2rem 0.25rem;
+}
+.mod-nav-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);  /* sub-pages: 4 cards */
+    gap: 0.75rem;
+}
+.mod-nav-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 1.1rem 0.75rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    text-decoration: none;
+    border: 2px solid transparent;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.mod-nav-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.13);
+    border-color: rgba(0,0,0,0.14);
+    text-decoration: none;
+}
+.mod-nav-icon  { font-size: 1.75rem; line-height: 1; }
+.mod-nav-title { font-size: 0.82rem; font-weight: 600; color: #4a5568; white-space: nowrap; }
+
+@media (max-width: 768px) {
+    .mod-nav-grid    { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .mod-nav-section { padding: 1rem 1rem 0.25rem; }
+}
+@media (max-width: 480px) {
+    .mod-nav-grid  { gap: 0.5rem; }
+    .mod-nav-card  { padding: 0.85rem 0.5rem; }
+    .mod-nav-icon  { font-size: 1.4rem; }
+    .mod-nav-title { font-size: 0.76rem; }
 }

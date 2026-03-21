@@ -19,30 +19,23 @@
 
         /* ── Hub Header ─────────────────────────────────────────────── */
         .hub-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #553c9a 0%, #764ba2 100%);
             color: white;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             position: sticky;
             top: 0;
             z-index: 100;
         }
-
-        .hub-header-top {
+        .hub-header-inner {
             max-width: 1200px;
             margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 1.5rem 0.6rem;
-            border-bottom: 1px solid rgba(255,255,255,0.15);
+            padding: 0.85rem 1.5rem;
         }
-
-        .hub-brand { display: flex; flex-direction: column; gap: 0.1rem; }
-        .hub-brand-name { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em; }
-        .hub-brand-sub { font-size: 0.72rem; opacity: 0.7; letter-spacing: 0.06em; text-transform: uppercase; }
-
-        .hub-top-actions { display: flex; align-items: center; gap: 0.6rem; }
-
+        .hub-brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; }
+        .hub-top-actions { display: flex; align-items: center; gap: 0.5rem; }
         .hub-credit-pill {
             background: rgba(255,255,255,0.2);
             border: 1.5px solid rgba(255,255,255,0.55);
@@ -51,9 +44,6 @@
             font-weight: 700;
             font-size: 0.88rem;
         }
-
-        .hub-user-name { font-weight: 600; opacity: 0.85; font-size: 0.88rem; }
-
         .hub-action-btn {
             padding: 0.32rem 0.85rem;
             border-radius: 6px;
@@ -68,39 +58,13 @@
         .hub-action-logout { background: rgba(231,76,60,0.45); }
         .hub-action-logout:hover { background: rgba(231,76,60,0.75); }
 
-        .hub-header-nav {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.45rem 1.5rem;
-        }
-
-        .hub-welcome { font-size: 0.88rem; opacity: 0.82; font-weight: 500; }
-
-        .hub-utility-links { display: flex; gap: 0.4rem; }
-
-        .hub-util-link {
-            padding: 0.28rem 0.72rem;
-            border-radius: 6px;
-            color: rgba(255,255,255,0.82);
-            text-decoration: none;
-            font-size: 0.8rem;
-            font-weight: 600;
-            transition: background 0.15s, color 0.15s;
-        }
-        .hub-util-link:hover { background: rgba(255,255,255,0.18); color: white; }
-
         @media (max-width: 768px) {
-            .hub-header-top { flex-wrap: wrap; gap: 0.5rem; padding-bottom: 0.5rem; }
-            .hub-header-nav { flex-wrap: wrap; gap: 0.4rem; }
-            .hub-utility-links { flex-wrap: wrap; }
-            .hub-brand-sub, .hub-user-name { display: none; }
+            .hub-header-inner { flex-wrap: wrap; gap: 0.5rem; }
+            .hub-top-actions { flex-wrap: wrap; }
         }
         @media (max-width: 480px) {
-            .hub-util-link { font-size: 0.74rem; padding: 0.22rem 0.5rem; }
             .hub-action-btn { font-size: 0.76rem; padding: 0.28rem 0.6rem; }
+            .hub-credit-pill { font-size: 0.8rem; }
         }
 
         .container {
@@ -294,33 +258,17 @@
         }
     </style>
 
-<!-- Hub Header — 2-row admin-style -->
+<!-- Hub Header -->
 <div class="hub-header">
-    <!-- Row 1: Brand + Account -->
-    <div class="hub-header-top">
-        <div class="hub-brand">
-            <span class="hub-brand-name">🏫 LFA Education Center</span>
-            <span class="hub-brand-sub">Student Portal</span>
-        </div>
+    <div class="hub-header-inner">
+        <span class="hub-brand-name">🏫 LFA Education Center</span>
         <div class="hub-top-actions">
             {% if user.role.value == 'student' %}
             <span class="hub-credit-pill">💰 {{ user.credit_balance }}</span>
+            <a href="/credits" class="hub-action-btn">💳 Credits</a>
             {% endif %}
-            <span class="hub-user-name">{{ user.name }}</span>
             <a href="/profile" class="hub-action-btn">👤 Profile</a>
             <a href="/logout" class="hub-action-btn hub-action-logout">🚪 Logout</a>
-        </div>
-    </div>
-    <!-- Row 2: Welcome + Utility nav -->
-    <div class="hub-header-nav">
-        <span class="hub-welcome">Welcome back, {{ user.name.split()[0] }}! 👋</span>
-        <div class="hub-utility-links">
-            {% if user.role.value == 'student' %}
-            <a href="/credits" class="hub-util-link">💳 Credits</a>
-            {% endif %}
-            <a href="/notifications" class="hub-util-link">🔔 Notifications</a>
-            <a href="/messages" class="hub-util-link">✉️ Messages</a>
-            <a href="/about-specializations" class="hub-util-link">ℹ️ About</a>
         </div>
     </div>
 </div>
@@ -346,7 +294,9 @@
         <div class="cards-grid">
             {% for spec in available_specializations %}
             <div class="spec-card {% if spec.is_unlocked %}unlocked{% elif not spec.is_available %}locked{% endif %}">
+                {% if not spec.is_unlocked and spec.is_available %}
                 <div class="cost-badge">💰 100 Credits</div>
+                {% endif %}
 
                 <div class="spec-icon">{{ spec.icon }}</div>
                 <h3 class="spec-title">{{ spec.name }}</h3>
@@ -355,21 +305,15 @@
 
                 <div class="spec-action">
                     {% if spec.onboarding_completed %}
-                        <div class="unlocked-badge">✅ UNLOCKED</div>
-                        <a href="/dashboard/{{ spec.type.lower().replace('_', '-') }}" class="unlock-btn">
-                            🚀 ENTER {{ spec.name }}
+                        <div class="unlocked-badge">✅ Active</div>
+                        <a href="/dashboard/{{ spec.type | lower | replace('_', '-') }}" class="unlock-btn" style="margin-top:0.75rem;">
+                            🚀 Enter
                         </a>
                     {% elif spec.is_unlocked %}
                         <div class="unlocked-badge" style="background:#ed8936;">⚙️ Setup Pending</div>
-                        {% if spec.type == 'LFA_FOOTBALL_PLAYER' %}
-                        <a href="/specialization/lfa-player/onboarding" class="unlock-btn" style="background:linear-gradient(135deg,#ed8936 0%,#dd6b20 100%);">
+                        <a href="/dashboard/{{ spec.type | lower | replace('_', '-') }}" class="unlock-btn" style="background:linear-gradient(135deg,#ed8936 0%,#dd6b20 100%);margin-top:0.75rem;">
                             ⚙️ Continue Setup
                         </a>
-                        {% else %}
-                        <a href="/specialization/motivation?spec={{ spec.type }}" class="unlock-btn" style="background:linear-gradient(135deg,#ed8936 0%,#dd6b20 100%);">
-                            ⚙️ Continue Setup
-                        </a>
-                        {% endif %}
                     {% elif not spec.is_available %}
                         <div class="age-locked-badge">🔒 Age Requirement Not Met</div>
                         <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #718096;">

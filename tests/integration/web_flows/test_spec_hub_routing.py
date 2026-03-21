@@ -195,7 +195,7 @@ class TestHubOnboardingNotComplete:
             assert hub.status_code == 200
             html = hub.text
             assert "Continue Setup" in html
-            assert 'href="/specialization/lfa-player/onboarding"' in html
+            assert 'href="/dashboard/lfa-football-player"' in html  # routes through spec_dashboard() guard
             assert '🚀 ENTER' not in html  # No Enter CTA shown when onboarding incomplete
 
 

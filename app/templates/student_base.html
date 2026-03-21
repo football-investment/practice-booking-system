@@ -10,7 +10,8 @@
            <h1>Page content here</h1>
        {% endblock %}
 
-   Active page values: hub | sessions | progress | skills | achievements | calendar
+   Active page values: hub | lfa-player | sessions | progress | skills |
+                       achievements | calendar | credits
 
    Context expected from route handler (at minimum):
        user       — User ORM object (for credit_balance, name, email, role)
@@ -18,13 +19,14 @@
    ───────────────────────────────────────────────────────────────────────────── #}
 
 {% block extra_head %}
-<link rel="stylesheet" href="/static/css/student.css?v=3">
+<link rel="stylesheet" href="/static/css/student.css?v=5">
 {% block extra_styles %}{% endblock %}
 {% endblock %}
 
 {% block content %}
 
 {# ── Student Header ────────────────────────────────────────────────────────── #}
+{% block student_header %}
 {% set p = request.url.path %}
 {% set _active = self.active_page() | trim %}
 <div class="student-header {{ spec_header_class | default('') }}">
@@ -37,8 +39,11 @@
         <button class="student-hamburger" id="student-hamburger-btn"
                 onclick="toggleStudentNav()" aria-label="Toggle navigation" aria-expanded="false">☰</button>
 
-        {# Nav links #}
+        {# Nav links — show_spec_nav=False on hub-level pages (credits, profile, etc.) #}
         <nav class="student-nav" id="student-nav" aria-label="Student navigation">
+            <a href="/dashboard"
+               class="nav-item{% if _active == 'hub' or p == '/dashboard' %} active{% endif %}">🏠 Hub</a>
+            {% if show_spec_nav | default(true) %}
             <a href="/dashboard/lfa-football-player"
                class="nav-item{% if _active == 'lfa-player' or p.startswith('/dashboard/lfa') %} active{% endif %}">⚽ LFA Player</a>
             <a href="/sessions"
@@ -51,13 +56,14 @@
                class="nav-item{% if _active == 'achievements' or p == '/achievements' %} active{% endif %}">🏆 Achievements</a>
             <a href="/calendar"
                class="nav-item{% if _active == 'calendar' or p == '/calendar' %} active{% endif %}">📆 Calendar</a>
+            {% endif %}
         </nav>
 
         {# Right-side actions #}
         <div class="student-header-actions">
             {# Credit balance + Credits page link #}
             <span class="credit-pill">💰 {{ user.credit_balance if user else 0 }}</span>
-            <a href="/credits" class="s-hdr-btn" title="Credits & transactions">💳</a>
+            <a href="/credits" class="s-hdr-btn{% if _active == 'credits' or p == '/credits' %} active{% endif %}" title="Credits & transactions">💳</a>
 
             {# Messages badge #}
             <div class="badge-wrap">
@@ -77,6 +83,7 @@
 
     </div>
 </div>
+{% endblock %}
 
 {# ── Page Content ──────────────────────────────────────────────────────────── #}
 <main class="student-main">

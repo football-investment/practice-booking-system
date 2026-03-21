@@ -62,6 +62,7 @@ def student_user(test_db: Session) -> User:
         password_hash=get_password_hash("student123"),
         role=UserRole.STUDENT,
         is_active=True,
+        onboarding_completed=True,  # required by require_student_onboarding guard
     )
     test_db.add(u)
     test_db.commit()

@@ -2,42 +2,45 @@
 
 {% block title %}{{ spec_config.name }} Dashboard - LFA{% endblock %}
 
-{% block active_page %}lfa-player{% endblock %}
+{# ── Custom spec header: floating slate card, no spec nav ───────────────────── #}
+{% block student_header %}
+<div class="student-header spec-pg-hdr">
+    <div class="student-header-inner">
+        <a href="/dashboard" class="s-hdr-btn" title="Back to Hub">🏠</a>
+        <div class="student-brand">{{ spec_config.icon }} {{ spec_config.name }}</div>
+        <div class="student-header-actions">
+            <span class="credit-pill">💰 {{ user.credit_balance if user else 0 }}</span>
+            <a href="/credits" class="s-hdr-btn" title="Credits">💳</a>
+            <a href="/profile" class="s-hdr-btn" title="Profile">👤</a>
+            <a href="/logout"  class="s-hdr-btn" title="Logout">🚪</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
 {% block extra_styles %}
 <style>
+    /* spec-pg-hdr + mod-nav-* → student.css v5 */
+
+    /* ── Spec dashboard: 5-column override (sub-pages use 4-col from student.css) */
+    .mod-nav-grid { grid-template-columns: repeat(5, 1fr); }
+    @media (max-width: 768px) { .mod-nav-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 480px) { .mod-nav-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    /* ── Container ────────────────────────────────────────────────────────────── */
     .container {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 2rem;
+        padding: 1.25rem 2rem 2rem;
     }
 
-    .page-title {
-        font-size: 1.4rem;
-        color: #2d3748;
-        margin: 0;
-    }
+    .page-title    { font-size: 1.4rem; color: #2d3748; margin: 0; }
+    .page-subtitle { color: #718096; font-size: 0.95rem; margin-bottom: 1.5rem; }
 
-    .page-subtitle {
-        color: #718096;
-        font-size: 0.95rem;
-        margin-bottom: 1.5rem;
-    }
+    .info-banner { background: #e6f7ff; border-left: 4px solid #1890ff; padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+    .info-banner p { color: #0050b3; margin: 0; }
 
-    .info-banner {
-        background: #e6f7ff;
-        border-left: 4px solid #1890ff;
-        padding: 1rem 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-    }
-
-    .info-banner p {
-        color: #0050b3;
-        margin: 0;
-    }
-
-    /* ── KPI Row ────────────────────────────────────── */
+    /* ── KPI Row ─────────────────────────────────────────────────────────────── */
     .s-kpi-row {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -53,37 +56,21 @@
         border-top: 3px solid #2ecc71;
         transition: box-shadow 0.2s, transform 0.2s;
     }
+    .s-kpi-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12); transform: translateY(-2px); }
 
-    .s-kpi-card:hover {
-        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-        transform: translateY(-2px);
-    }
-
-    /* Per-card accent colours (admin pattern) */
     .s-kpi-row .s-kpi-card:nth-child(1) { border-top-color: #48bb78; }
     .s-kpi-row .s-kpi-card:nth-child(2) { border-top-color: #9b59b6; }
     .s-kpi-row .s-kpi-card:nth-child(3) { border-top-color: #f59e0b; }
     .s-kpi-row .s-kpi-card:nth-child(4) { border-top-color: #4299e1; }
 
-    .s-kpi-val {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #2d3748;
-        line-height: 1.1;
-    }
-
+    .s-kpi-val { font-size: 2rem; font-weight: 700; color: #2d3748; line-height: 1.1; }
     .s-kpi-row .s-kpi-card:nth-child(1) .s-kpi-val { color: #276749; }
     .s-kpi-row .s-kpi-card:nth-child(2) .s-kpi-val { color: #553c9a; }
     .s-kpi-row .s-kpi-card:nth-child(3) .s-kpi-val { color: #92400e; }
     .s-kpi-row .s-kpi-card:nth-child(4) .s-kpi-val { color: #2b6cb0; }
+    .s-kpi-lbl { font-size: 0.82rem; color: #718096; margin-top: 0.25rem; }
 
-    .s-kpi-lbl {
-        font-size: 0.82rem;
-        color: #718096;
-        margin-top: 0.25rem;
-    }
-
-    /* ── Section block ──────────────────────────────── */
+    /* ── Section block ───────────────────────────────────────────────────────── */
     .section-block {
         background: white;
         border-radius: 16px;
@@ -91,225 +78,107 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         margin-bottom: 1.5rem;
     }
-
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.25rem;
-    }
-
-    .section-link {
-        color: #667eea;
-        font-size: 0.88rem;
-        text-decoration: none;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .section-link { color: #667eea; font-size: 0.88rem; text-decoration: none; font-weight: 600; white-space: nowrap; }
     .section-link:hover { text-decoration: underline; }
 
-    /* ── Skill Snapshot ─────────────────────────────── */
-    .s-snapshot-row {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 0.65rem;
-    }
+    /* ── Skill Snapshot ──────────────────────────────────────────────────────── */
+    .s-snapshot-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.65rem; }
+    .s-snap-label   { width: 130px; font-size: 0.85rem; color: #4a5568; text-transform: capitalize; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .s-snap-bar-wrap { flex: 1; height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+    .s-snap-bar     { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
+    .s-snap-val     { width: 38px; text-align: right; font-size: 0.82rem; font-weight: 600; color: #2d3748; flex-shrink: 0; }
 
-    .s-snap-label {
-        width: 130px;
-        font-size: 0.85rem;
-        color: #4a5568;
-        text-transform: capitalize;
-        flex-shrink: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .s-snap-bar-wrap {
-        flex: 1;
-        height: 10px;
-        background: #e2e8f0;
-        border-radius: 5px;
-        overflow: hidden;
-    }
-
-    .s-snap-bar {
-        height: 100%;
-        border-radius: 5px;
-        transition: width 0.4s ease;
-    }
-
-    .s-snap-val {
-        width: 38px;
-        text-align: right;
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: #2d3748;
-        flex-shrink: 0;
-    }
-
-    /* ── Last Result ────────────────────────────────── */
-    .s-last-result-card {
-        background: #f8faff;
-        border-left: 4px solid #667eea;
-        border-radius: 0 10px 10px 0;
-        padding: 1rem 1.25rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .s-result-name {
-        font-weight: 700;
-        color: #2d3748;
-        font-size: 1rem;
-        flex: 1;
-        min-width: 140px;
-    }
-
-    .s-placement-badge {
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.85rem;
-        white-space: nowrap;
-    }
-
-    .s-place-1 { background: #fff3cd; color: #856404; }
-    .s-place-2 { background: #e2e3e5; color: #383d41; }
-    .s-place-3 { background: #fde7c7; color: #7a4200; }
+    /* ── Last Result ─────────────────────────────────────────────────────────── */
+    .s-last-result-card { background: #f8faff; border-left: 4px solid #667eea; border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .s-result-name     { font-weight: 700; color: #2d3748; font-size: 1rem; flex: 1; min-width: 140px; }
+    .s-placement-badge { padding: 0.3rem 0.8rem; border-radius: 20px; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+    .s-place-1     { background: #fff3cd; color: #856404; }
+    .s-place-2     { background: #e2e3e5; color: #383d41; }
+    .s-place-3     { background: #fde7c7; color: #7a4200; }
     .s-place-other { background: #f8f9fa; color: #6c757d; }
+    .s-delta-pos   { color: #2ecc71; font-weight: 700; font-size: 0.95rem; }
+    .s-delta-neg   { color: #e74c3c; font-weight: 700; font-size: 0.95rem; }
+    .s-delta-zero  { color: #718096; font-size: 0.95rem; }
+    .s-result-meta { color: #718096; font-size: 0.82rem; }
 
-    .s-delta-pos { color: #2ecc71; font-weight: 700; font-size: 0.95rem; }
-    .s-delta-neg { color: #e74c3c; font-weight: 700; font-size: 0.95rem; }
-    .s-delta-zero { color: #718096; font-size: 0.95rem; }
-
-    .s-result-meta {
-        color: #718096;
-        font-size: 0.82rem;
-    }
-
-    /* ── Events (semester cards) ────────────────────── */
-    .cards-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .spec-card {
-        background: white;
-        border-radius: 16px;
-        padding: 1.75rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        transition: transform 0.3s, box-shadow 0.3s;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .spec-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    }
-
-    .spec-icon { font-size: 2.5rem; text-align: center; margin-bottom: 0.75rem; }
-    .spec-title { font-size: 1.2rem; font-weight: 700; color: #2d3748; text-align: center; margin-bottom: 0.4rem; }
-    .spec-age   { text-align: center; color: #718096; font-size: 0.88rem; margin-bottom: 0.9rem; }
+    /* ── Events (semester cards) ─────────────────────────────────────────────── */
+    .cards-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .spec-card   { background: white; border-radius: 16px; padding: 1.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.3s, box-shadow 0.3s; position: relative; overflow: hidden; }
+    .spec-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .spec-icon   { font-size: 2.5rem; text-align: center; margin-bottom: 0.75rem; }
+    .spec-title  { font-size: 1.2rem; font-weight: 700; color: #2d3748; text-align: center; margin-bottom: 0.4rem; }
+    .spec-age    { text-align: center; color: #718096; font-size: 0.88rem; margin-bottom: 0.9rem; }
     .spec-description { color: #4a5568; font-size: 0.93rem; line-height: 1.55; margin-bottom: 1.2rem; text-align: center; }
     .spec-action { text-align: center; }
-
-    .unlock-btn {
-        width: 100%;
-        padding: 0.85rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 0.97rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .unlock-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102,126,234,0.4);
-    }
-
-    .unlock-btn:disabled {
-        background: #cbd5e0;
-        cursor: not-allowed;
-    }
-
+    .unlock-btn  { width: 100%; padding: 0.85rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 0.97rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+    .unlock-btn:hover    { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+    .unlock-btn:disabled { background: #cbd5e0; cursor: not-allowed; }
     .unlock-btn:disabled:hover { transform: none; box-shadow: none; }
+    .cost-badge  { position: absolute; top: 1rem; right: 1rem; background: #ffd700; color: #2d3748; padding: 0.35rem 0.8rem; border-radius: 8px; font-weight: 700; font-size: 0.82rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 
-    .cost-badge {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: #ffd700;
-        color: #2d3748;
-        padding: 0.35rem 0.8rem;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 0.82rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-
-    /* ── Footer ─────────────────────────────────────── */
-    .footer-links {
-        text-align: center;
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .footer-links a {
-        color: #667eea;
-        text-decoration: none;
-        margin: 0 1rem;
-        font-weight: 600;
-    }
-
+    /* ── Footer ──────────────────────────────────────────────────────────────── */
+    .footer-links { text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
+    .footer-links a { color: #667eea; text-decoration: none; margin: 0 1rem; font-weight: 600; }
     .footer-links a:hover { text-decoration: underline; }
 
-    /* ── Loading spinner ─────────────────────────────── */
-    .s-loading {
-        color: #a0aec0;
-        font-size: 0.9rem;
-        padding: 0.5rem 0;
-    }
+    /* ── Loading ─────────────────────────────────────────────────────────────── */
+    .s-loading { color: #a0aec0; font-size: 0.9rem; padding: 0.5rem 0; }
 
-    /* ── Responsive ──────────────────────────────────── */
+    /* ── Responsive ──────────────────────────────────────────────────────────── */
     @media (max-width: 768px) {
-        .s-kpi-row { grid-template-columns: repeat(2, 1fr); }
-        .container { padding: 1rem; }
+        .s-kpi-row      { grid-template-columns: repeat(2, 1fr); }
+        .container      { padding: 1rem; }
+        .mod-nav-section { padding: 1rem 1rem 0.25rem; }
+        .mod-nav-grid   { grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
     }
 
     @media (max-width: 480px) {
-        .s-kpi-row { grid-template-columns: 1fr 1fr; }
-        .s-snap-label { width: 85px; }
+        .s-kpi-row      { grid-template-columns: 1fr 1fr; }
+        .s-snap-label   { width: 85px; }
+        .mod-nav-grid   { gap: 0.5rem; }
+        .mod-nav-card   { padding: 0.85rem 0.5rem; }
+        .mod-nav-icon   { font-size: 1.4rem; }
+        .mod-nav-title  { font-size: 0.76rem; }
     }
 </style>
 {% endblock %}
 
 {% block student_content %}
 
-<!-- Breadcrumb -->
-<nav class="s-breadcrumb" aria-label="breadcrumb">
-    <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
-    <span class="s-breadcrumb-sep">›</span>
-    <span class="s-breadcrumb-item active">{{ spec_config.icon }} {{ spec_config.name }}</span>
-</nav>
+{# ── Module Navigation Cards ───────────────────────────────────────────────── #}
+{# All 5 targets have require_student_onboarding guard → redirect /dashboard    #}
+{# if user.onboarding_completed is False. (/sessions & /calendar use inline     #}
+{# equivalent check in sessions.py.)                                            #}
+<section class="mod-nav-section">
+    <div class="mod-nav-grid">
+        <a href="/sessions" class="mod-nav-card">
+            <span class="mod-nav-icon">📅</span>
+            <span class="mod-nav-title">Sessions</span>
+        </a>
+        <a href="/progress" class="mod-nav-card">
+            <span class="mod-nav-icon">📊</span>
+            <span class="mod-nav-title">Progress</span>
+        </a>
+        <a href="/skills" class="mod-nav-card">
+            <span class="mod-nav-icon">⚡</span>
+            <span class="mod-nav-title">Skills</span>
+        </a>
+        <a href="/achievements" class="mod-nav-card">
+            <span class="mod-nav-icon">🏆</span>
+            <span class="mod-nav-title">Achievements</span>
+        </a>
+        <a href="/calendar" class="mod-nav-card">
+            <span class="mod-nav-icon">📆</span>
+            <span class="mod-nav-title">Calendar</span>
+        </a>
+    </div>
+</section>
 
 <div class="container">
 
-    <!-- ── KPI Row ─────────────────────────────────────────────────────────────── -->
+    {# ── KPI Row ──────────────────────────────────────────────────────────────── #}
     <div class="s-kpi-row">
-        <!-- Lazy-loaded -->
         <div class="s-kpi-card">
             <div class="s-kpi-val" id="kpi-avg">—</div>
             <div class="s-kpi-lbl">Avg Skill Level</div>
@@ -318,7 +187,6 @@
             <div class="s-kpi-val" id="kpi-tournaments">—</div>
             <div class="s-kpi-lbl">Tournaments</div>
         </div>
-        <!-- Server-side -->
         <div class="s-kpi-card">
             <div class="s-kpi-val">{{ credit_balance }}</div>
             <div class="s-kpi-lbl">Credits</div>
@@ -329,7 +197,7 @@
         </div>
     </div>
 
-    <!-- ── Skill Snapshot ──────────────────────────────────────────────────────── -->
+    {# ── Skill Snapshot ───────────────────────────────────────────────────────── #}
     <section class="section-block">
         <div class="section-header">
             <h2 class="page-title">📊 Skill Snapshot</h2>
@@ -340,7 +208,7 @@
         </div>
     </section>
 
-    <!-- ── Last Skill Event ──────────────────────────────────────────────────── -->
+    {# ── Last Skill Event ─────────────────────────────────────────────────────── #}
     <section class="section-block">
         <div class="section-header">
             <h2 class="page-title">📈 Last Skill Event</h2>
@@ -351,7 +219,7 @@
         </div>
     </section>
 
-    <!-- ── Available Events (server-rendered) ─────────────────────────────────── -->
+    {# ── Available Events ─────────────────────────────────────────────────────── #}
     <section class="section-block">
         <div class="section-header">
             <h2 class="page-title">⚽ Available Events</h2>
@@ -409,7 +277,9 @@
     </div>
 
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 (function () {
     'use strict';
@@ -426,20 +296,17 @@
         return Math.max(0, Math.min(100, ((level - 40) / 59) * 100)).toFixed(1);
     }
 
-    // ── Fetch 1: /skills/data → KPI avg, KPI tournaments, Snapshot ───────────
     async function loadSkillsData() {
         try {
             const resp = await fetch('/skills/data');
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const data = await resp.json();
 
-            // KPI
             document.getElementById('kpi-avg').textContent =
                 data.average_level !== undefined ? data.average_level.toFixed(1) : '—';
             document.getElementById('kpi-tournaments').textContent =
                 data.total_tournaments !== undefined ? data.total_tournaments : '—';
 
-            // Snapshot — top 5 skills by current_level
             const sorted = Object.entries(data.skills || {})
                 .sort((a, b) => b[1].current_level - a[1].current_level)
                 .slice(0, 5);
@@ -472,7 +339,6 @@
         }
     }
 
-    // ── Fetch 2: /skills/history/data → Last Result ───────────────────────────
     async function loadLastResult() {
         const el = document.getElementById('s-last-result');
         try {
@@ -489,31 +355,19 @@
 
             const last = timeline[timeline.length - 1];
 
-            // Placement badge
             let badgeHtml = '';
-            if (last.placement === 1) {
-                badgeHtml = '<span class="s-placement-badge s-place-1">🥇 1st</span>';
-            } else if (last.placement === 2) {
-                badgeHtml = '<span class="s-placement-badge s-place-2">🥈 2nd</span>';
-            } else if (last.placement === 3) {
-                badgeHtml = '<span class="s-placement-badge s-place-3">🥉 3rd</span>';
-            } else if (last.placement) {
-                badgeHtml = `<span class="s-placement-badge s-place-other">${last.placement}th</span>`;
-            } else {
-                badgeHtml = '<span class="s-placement-badge s-place-other">● Participant</span>';
-            }
+            if      (last.placement === 1) badgeHtml = '<span class="s-placement-badge s-place-1">🥇 1st</span>';
+            else if (last.placement === 2) badgeHtml = '<span class="s-placement-badge s-place-2">🥈 2nd</span>';
+            else if (last.placement === 3) badgeHtml = '<span class="s-placement-badge s-place-3">🥉 3rd</span>';
+            else if (last.placement)       badgeHtml = `<span class="s-placement-badge s-place-other">${last.placement}th</span>`;
+            else                           badgeHtml = '<span class="s-placement-badge s-place-other">● Participant</span>';
 
-            // Delta pill
             const delta = last.delta_from_previous;
             let deltaHtml = '';
             if (delta !== null && delta !== undefined) {
-                if (delta > 0.05) {
-                    deltaHtml = `<span class="s-delta-pos">+${delta.toFixed(1)} ↑</span>`;
-                } else if (delta < -0.05) {
-                    deltaHtml = `<span class="s-delta-neg">${delta.toFixed(1)} ↓</span>`;
-                } else {
-                    deltaHtml = `<span class="s-delta-zero">±0</span>`;
-                }
+                if      (delta >  0.05) deltaHtml = `<span class="s-delta-pos">+${delta.toFixed(1)} ↑</span>`;
+                else if (delta < -0.05) deltaHtml = `<span class="s-delta-neg">${delta.toFixed(1)} ↓</span>`;
+                else                    deltaHtml = `<span class="s-delta-zero">±0</span>`;
             }
 
             const playersInfo = last.total_players
@@ -527,8 +381,7 @@
             </div>`;
 
         } catch (err) {
-            el.innerHTML =
-                '<p style="color:#e74c3c;font-size:0.85rem;">Could not load last result.</p>';
+            el.innerHTML = '<p style="color:#e74c3c;font-size:0.85rem;">Could not load last result.</p>';
         }
     }
 

@@ -4,6 +4,12 @@
 
 {% block active_page %}sessions{% endblock %}
 
+{% block student_header %}
+{% set _page_icon = '📅' %}
+{% set _page_name = 'Sessions' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
 {% block extra_styles %}
 <style>
 /* Specialization colors */
@@ -36,21 +42,26 @@
 {% endblock %}
 
 {% block student_content %}
-{% if user and user.specialization %}
-{% set _sv = user.specialization.value %}
-{% if _sv == 'LFA_FOOTBALL_PLAYER' %}{% set _surl = '/dashboard/lfa-football-player' %}{% set _slbl = '⚽ LFA Football Player' %}
-{% elif _sv == 'LFA_COACH' %}{% set _surl = '/dashboard/lfa-coach' %}{% set _slbl = '👨‍🏫 LFA Coach' %}
-{% elif _sv == 'INTERNSHIP' %}{% set _surl = '/dashboard/intern' %}{% set _slbl = '💼 Internship' %}
-{% elif _sv == 'GANCUJU_PLAYER' %}{% set _surl = '/dashboard/gancuju-player' %}{% set _slbl = '🥋 GānCuju Player' %}
-{% else %}{% set _surl = '/dashboard' %}{% set _slbl = 'Dashboard' %}{% endif %}
-<nav class="s-breadcrumb" aria-label="Breadcrumb">
-    <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
-    <span class="s-breadcrumb-sep">›</span>
-    <a href="{{ _surl }}" class="s-breadcrumb-item">{{ _slbl }}</a>
-    <span class="s-breadcrumb-sep">›</span>
-    <span class="s-breadcrumb-item active">📅 Sessions</span>
-</nav>
-{% endif %}
+<section class="mod-nav-section">
+    <div class="mod-nav-grid">
+        <a href="/progress" class="mod-nav-card">
+            <span class="mod-nav-icon">📊</span>
+            <span class="mod-nav-title">Progress</span>
+        </a>
+        <a href="/skills" class="mod-nav-card">
+            <span class="mod-nav-icon">⚡</span>
+            <span class="mod-nav-title">Skills</span>
+        </a>
+        <a href="/achievements" class="mod-nav-card">
+            <span class="mod-nav-icon">🏆</span>
+            <span class="mod-nav-title">Achievements</span>
+        </a>
+        <a href="/calendar" class="mod-nav-card">
+            <span class="mod-nav-icon">📆</span>
+            <span class="mod-nav-title">Calendar</span>
+        </a>
+    </div>
+</section>
 
 <!-- Success/Error Messages (flash banner) -->
 <div id="flash-banner" style="display:none; padding:0.85rem 1.2rem; border-radius:8px; margin-bottom:1rem; font-weight:500;"></div>

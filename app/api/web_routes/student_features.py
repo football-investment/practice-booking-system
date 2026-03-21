@@ -25,12 +25,34 @@ from ...models.invoice_request import InvoiceRequest
 from ...models.quiz import AdaptiveLearningSession
 from ...models.session import Session as SessionModel
 from ...services.gamification import GamificationService
+from .helpers import require_student_onboarding
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter()
+
+_SPEC_DASHBOARD_MAP = {
+    "LFA_FOOTBALL_PLAYER": ("/dashboard/lfa-football-player", "⚽"),
+    "LFA_COACH":            ("/dashboard/lfa-coach",           "👨‍🏫"),
+    "INTERNSHIP":           ("/dashboard/internship",           "💼"),
+    "GANCUJU_PLAYER":       ("/dashboard/gancuju-player",      "🥋"),
+}
+
+def _spec_ctx(user: User, db: Session = None) -> dict:
+    """Return spec_dashboard_url + spec_dashboard_icon for sub-page headers.
+    Falls back to UserLicense query if user.specialization is not set."""
+    sv = user.specialization.value if user and user.specialization else ""
+    if not sv and db and user:
+        lic = db.query(UserLicense).filter(
+            UserLicense.user_id == user.id,
+            UserLicense.is_active == True,
+        ).first()
+        if lic and lic.specialization_type:
+            sv = lic.specialization_type.value if hasattr(lic.specialization_type, "value") else str(lic.specialization_type)
+    url, icon = _SPEC_DASHBOARD_MAP.get(sv, ("", ""))
+    return {"spec_dashboard_url": url, "spec_dashboard_icon": icon}
 
 
 @router.get("/about-specializations", response_class=HTMLResponse)
@@ -50,7 +72,9 @@ async def about_specializations_page(
         {
             "request": request,
             "user": user,
-            "user_age": user_age
+            "user_age": user_age,
+            "spec_header_class": "hdr-hub",
+            "show_spec_nav": False,
         }
     )
 
@@ -183,7 +207,8 @@ async def credits_page(
             "invoice_requests": invoice_requests,
             "specialization_color": specialization_color or '#667eea',
             "today": datetime.now(timezone.utc).date(),
-            "spec_header_class": "hdr-hub"
+            "spec_header_class": "hdr-hub",
+            "show_spec_nav": False
         }
     )
 
@@ -195,8 +220,9 @@ async def progress_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display student academic progress page with XP, level, and semester completion"""
-    if user.role != UserRole.STUDENT:
-        return RedirectResponse(url="/dashboard", status_code=303)
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
 
     gamification = GamificationService(db)
 
@@ -361,6 +387,8 @@ async def progress_page(
         {
             "request": request,
             "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
             "stats": stats,
             "semester": semester_data,
             "level_progress": {
@@ -383,8 +411,9 @@ async def achievements_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display achievements page - using REAL database data"""
-    if user.role != UserRole.STUDENT:
-        return RedirectResponse(url="/dashboard", status_code=303)
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
 
     all_achievements_query = db.query(Achievement).filter(
         Achievement.is_active == True
@@ -429,6 +458,8 @@ async def achievements_page(
         {
             "request": request,
             "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
             "all_achievements": all_achievements_list,
             "recent_achievements": recent_achievements,
             "unlocked_count": unlocked_count,
@@ -531,8 +562,9 @@ async def skills_page(
     user: User = Depends(get_current_user_web),
 ):
     """Student skill progression page — all 29 skills, lazy-loaded."""
-    if user.role != UserRole.STUDENT:
-        return RedirectResponse(url="/dashboard", status_code=303)
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
 
     tournament_history = _get_tournament_history(db, user.id)
     has_lfa_license = (
@@ -550,6 +582,8 @@ async def skills_page(
         {
             "request": request,
             "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
             "tournament_history": tournament_history,
             "has_lfa_license": has_lfa_license,
         },
@@ -588,8 +622,9 @@ async def skills_history_page(
     user: User = Depends(get_current_user_web),
 ):
     """Student skill history page — per-skill EMA timeline chart."""
-    if user.role != UserRole.STUDENT:
-        return RedirectResponse(url="/dashboard", status_code=303)
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
 
     from ...skills_config import get_all_skill_keys, get_skill_display_name, SKILL_CATEGORIES
 
@@ -604,6 +639,8 @@ async def skills_history_page(
         {
             "request": request,
             "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
             "all_skills": all_skills,
             "selected_skill": valid_skill,
             "skill_categories": SKILL_CATEGORIES,
