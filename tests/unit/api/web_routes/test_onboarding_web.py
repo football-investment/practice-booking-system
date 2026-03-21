@@ -150,6 +150,8 @@ class TestSpecializationSelectSubmit:
         result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
         assert isinstance(result, RedirectResponse)
         assert user.credit_balance == 200  # Credits NOT deducted (license already exists)
+        # Guard: existing license path still redirects to the correct onboarding URL
+        assert "lfa-player/onboarding" in result.headers["location"]
 
     def test_lfa_player_redirects_to_lfa_onboarding(self):
         user = _user(credit_balance=200)
@@ -166,6 +168,35 @@ class TestSpecializationSelectSubmit:
         result, _ = self._run_submit(user, "GANCUJU_PLAYER", db=db)
         assert isinstance(result, RedirectResponse)
         assert "motivation" in result.headers["location"]
+
+    def test_credit_boundary_99_is_rejected(self):
+        """credit_balance=99 < 100 → insufficient credits → /dashboard redirect."""
+        user = _user(credit_balance=99)
+        db = _mock_db(first_return=None, user_return=user)
+        result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
+        assert isinstance(result, RedirectResponse)
+        assert "/dashboard" in result.headers["location"]
+
+    def test_credit_boundary_100_is_accepted(self):
+        """credit_balance=100 == 100 → exactly enough → proceed to lfa onboarding redirect."""
+        user = _user(credit_balance=100)
+        db = _mock_db(first_return=None, user_return=user)
+        result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
+        assert isinstance(result, RedirectResponse)
+        assert "lfa-player/onboarding" in result.headers["location"]
+
+    def test_integrity_error_during_license_creation_redirects_to_dashboard(self):
+        """IntegrityError during DB commit (race condition duplicate) → 303 /dashboard."""
+        from sqlalchemy.exc import IntegrityError
+        user = _user(credit_balance=200)
+        db = _mock_db(first_return=None, user_return=user)
+        db.flush.side_effect = IntegrityError("duplicate", {}, Exception())
+
+        result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
+
+        assert isinstance(result, RedirectResponse)
+        assert result.status_code == 303
+        assert result.headers["location"] == "/dashboard"
 
 
 # ──────────────────────────────────────────────────────────────────────────────

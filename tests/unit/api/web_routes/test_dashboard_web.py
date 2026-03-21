@@ -25,6 +25,7 @@ from fastapi import HTTPException
 from datetime import date as date_cls
 
 from app.api.web_routes.dashboard import dashboard, spec_dashboard, get_lfa_age_category
+from app.api.web_routes.helpers import require_student_onboarding
 from app.models.user import UserRole
 
 
@@ -417,6 +418,107 @@ class TestSpecDashboard:
         ctx = mock_tmpl.TemplateResponse.call_args.args[1]
         assert ctx["has_active_enrollment"] is True
         assert ctx["current_semester"] is None  # enrollment=None → False branch
+
+    def test_no_onboarding_lfa_player_redirects_to_lfa_onboarding(self):
+        """LFA license with onboarding_completed=False, football_skills=None, no enrollment
+        → effective_onboarding=False → 303 redirect to /specialization/lfa-player/onboarding."""
+        user = _student()
+        license_obj = MagicMock()
+        license_obj.id = 1
+        license_obj.onboarding_completed = False   # explicit falsy — not a MagicMock truthy default
+        license_obj.football_skills = None         # explicit None — not a MagicMock truthy default
+        db = MagicMock()
+        # 1st .first() → license_obj; 2nd .first() (has_enrollment) → None → has_enrollment=False
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None]
+
+        from fastapi.responses import RedirectResponse as FR
+        result = _run(spec_dashboard(
+            request=_req(), spec_type="lfa-football-player", db=db, user=user
+        ))
+
+        assert isinstance(result, FR), f"Expected redirect, got {type(result)}"
+        assert "lfa-player/onboarding" in result.headers["location"]
+
+    def test_no_onboarding_non_lfa_redirects_to_motivation(self):
+        """Non-LFA license with onboarding_completed=False, football_skills=None, no enrollment
+        → effective_onboarding=False → 303 redirect to /specialization/motivation?spec=GANCUJU_PLAYER."""
+        user = _student()
+        license_obj = MagicMock()
+        license_obj.id = 1
+        license_obj.onboarding_completed = False
+        license_obj.football_skills = None
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None]
+
+        from fastapi.responses import RedirectResponse as FR
+        result = _run(spec_dashboard(
+            request=_req(), spec_type="gancuju-player", db=db, user=user
+        ))
+
+        assert isinstance(result, FR), f"Expected redirect, got {type(result)}"
+        assert "motivation" in result.headers["location"]
+        assert "GANCUJU_PLAYER" in result.headers["location"]
+
+    def test_football_skills_non_none_bypasses_onboarding_guard(self):
+        """license.football_skills is not None → effective_onboarding=True even if flag=False.
+        Verifies the OR condition in the guard: flag OR skills OR enrollment."""
+        user = _student()
+        license_obj = MagicMock()
+        license_obj.id = 1
+        license_obj.onboarding_completed = False
+        license_obj.football_skills = {"passing": 70.0}  # non-None → guard bypassed
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.side_effect = [license_obj, None, None]
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        db.query.return_value.filter.return_value.all.return_value = []
+
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(spec_dashboard(request=_req(), spec_type="gancuju-player", db=db, user=user))
+
+        template_name = mock_tmpl.TemplateResponse.call_args.args[0]
+        assert template_name == "dashboard_student_new.html"  # NOT a redirect
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# require_student_onboarding() — guard helper tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestRequireStudentOnboarding:
+
+    def test_onboarded_student_returns_none(self):
+        """Onboarded student → guard passes → returns None (no redirect)."""
+        user = _student()
+        user.onboarding_completed = True
+        result = require_student_onboarding(user)
+        assert result is None
+
+    def test_non_onboarded_student_returns_redirect(self):
+        """Student with onboarding_completed=False → 303 redirect to /dashboard."""
+        from fastapi.responses import RedirectResponse
+        user = _student()
+        user.onboarding_completed = False
+        result = require_student_onboarding(user)
+        assert isinstance(result, RedirectResponse)
+        assert result.status_code == 303
+        assert result.headers["location"] == "/dashboard"
+
+    def test_instructor_role_returns_redirect(self):
+        """Instructor role (not STUDENT) → 303 redirect to /dashboard."""
+        from fastapi.responses import RedirectResponse
+        user = _instructor()
+        user.onboarding_completed = True  # even if onboarded, non-student is blocked
+        result = require_student_onboarding(user)
+        assert isinstance(result, RedirectResponse)
+        assert result.headers["location"] == "/dashboard"
+
+    def test_admin_role_returns_redirect(self):
+        """Admin role (not STUDENT) → 303 redirect to /dashboard."""
+        from fastapi.responses import RedirectResponse
+        user = _admin()
+        result = require_student_onboarding(user)
+        assert isinstance(result, RedirectResponse)
+        assert result.headers["location"] == "/dashboard"
 
 
 # ──────────────────────────────────────────────────────────────────────────────

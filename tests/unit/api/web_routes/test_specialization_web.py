@@ -13,6 +13,7 @@ Note: lfa_player_onboarding_page and lfa_player_onboarding_cancel are now exclus
   Coverage for those routes is in test_onboarding_web.py.
 """
 import asyncio
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
@@ -118,6 +119,67 @@ class TestSpecializationUnlock:
         assert user.credit_balance == 100  # 200 - 100
         db.add.assert_called()
         db.commit.assert_called_once()
+
+    def test_existing_license_raises_409(self):
+        """Race condition: license already exists AFTER SELECT FOR UPDATE → 409 Conflict."""
+        user = _user(credit_balance=200)
+        db = MagicMock()
+        db.query.return_value.with_for_update.return_value.filter.return_value.first.return_value = user
+        # License check returns an existing license → 409
+        existing_license = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = existing_license
+
+        with patch(f"{_BASE}.validate_specialization_for_age", return_value=True), \
+             pytest.raises(HTTPException) as exc_info:
+            _run(specialization_unlock(specialization="LFA_PLAYER", db=db, current_user=user))
+
+        assert exc_info.value.status_code == 409
+        assert "already have a license" in exc_info.value.detail.lower()
+
+    def test_integrity_error_during_commit_raises_409(self):
+        """IntegrityError on db.commit (ultra-rare race) → 409 Conflict."""
+        from sqlalchemy.exc import IntegrityError
+        user = _user(credit_balance=200)
+        db = MagicMock()
+        db.query.return_value.with_for_update.return_value.filter.return_value.first.return_value = user
+        db.query.return_value.filter.return_value.first.return_value = None
+        db.commit.side_effect = IntegrityError("duplicate key", {}, Exception())
+        license_mock = MagicMock()
+        license_mock.id = 1
+
+        with patch(f"{_BASE}.validate_specialization_for_age", return_value=True), \
+             patch(f"{_BASE}.UserLicense", return_value=license_mock), \
+             patch(f"{_BASE}.CreditTransaction", return_value=MagicMock()), \
+             pytest.raises(HTTPException) as exc_info:
+            _run(specialization_unlock(specialization="LFA_PLAYER", db=db, current_user=user))
+
+        assert exc_info.value.status_code == 409
+        assert "concurrent" in exc_info.value.detail.lower() or "already exists" in exc_info.value.detail.lower()
+
+    def test_credit_boundary_99_is_rejected(self):
+        """credit_balance=99 < 100 → 400 Bad Request."""
+        user = _user(credit_balance=99)
+        with pytest.raises(HTTPException) as exc_info:
+            _run(specialization_unlock(specialization="LFA_PLAYER", db=_mock_db(), current_user=user))
+        assert exc_info.value.status_code == 400
+        assert "credits" in exc_info.value.detail.lower()
+
+    def test_credit_boundary_100_is_accepted(self):
+        """credit_balance=100 == 100 → exactly enough → success."""
+        user = _user(credit_balance=100)
+        db = MagicMock()
+        db.query.return_value.with_for_update.return_value.filter.return_value.first.return_value = user
+        db.query.return_value.filter.return_value.first.return_value = None
+        license_mock = MagicMock()
+        license_mock.id = 1
+
+        with patch(f"{_BASE}.validate_specialization_for_age", return_value=True), \
+             patch(f"{_BASE}.UserLicense", return_value=license_mock), \
+             patch(f"{_BASE}.CreditTransaction", return_value=MagicMock()):
+            result = _run(specialization_unlock(specialization="LFA_PLAYER", db=db, current_user=user))
+
+        assert result["success"] is True
+        assert user.credit_balance == 0  # 100 - 100
 
 
 # ──────────────────────────────────────────────────────────────────────────────
