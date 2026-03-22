@@ -38,7 +38,8 @@ from ...models.license import UserLicense
 from ...models.location import Location
 from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
-from ...models.session import Session as SessionModel
+from ...models.session import Session as SessionModel, EventCategory
+from ...models.tournament_ranking import TournamentRanking
 from ...models.instructor_assignment import (
     InstructorAssignment,
     InstructorAssignmentRequest,
@@ -489,7 +490,6 @@ async def admin_create_tournament(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
     name: str = Form(...),
-    code: str = Form(...),
     start_date: str = Form(...),
     end_date: str = Form(...),
     age_group: str = Form("AMATEUR"),
@@ -501,9 +501,8 @@ async def admin_create_tournament(
     """Admin: create a new tournament."""
     _admin_only(user)
 
-    code = code.strip().upper()
-    if not code.startswith("TOURN-") and not code.startswith("OPS-"):
-        code = f"TOURN-{code}"
+    from datetime import datetime as _dt
+    code = f"TOURN-{date.fromisoformat(start_date).strftime('%Y%m%d')}-{_dt.now().strftime('%H%M%S')}"
 
     if db.query(Semester).filter(Semester.code == code).first():
         return RedirectResponse(
@@ -720,6 +719,40 @@ async def admin_tournament_edit_page(
         1 for e in enrollments if e.tournament_checked_in_at is not None
     )
 
+    # Session result status (for Section 7 — result entry panel)
+    all_match_sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.event_category == EventCategory.MATCH,
+        )
+        .order_by(SessionModel.date_start)
+        .all()
+    )
+    sessions_result_status = [
+        {
+            "id": s.id,
+            "title": s.title or f"Session #{s.id}",
+            "date_start": s.date_start.strftime("%Y-%m-%d %H:%M") if s.date_start else "",
+            "match_format": s.match_format or "INDIVIDUAL_RANKING",
+            "has_results": bool(
+                (s.rounds_data and s.rounds_data.get("round_results"))
+                or s.game_results
+            ),
+            "participant_user_ids": s.participant_user_ids or [],
+        }
+        for s in all_match_sessions
+    ]
+
+    # Existing rankings (for Section 8 — rankings panel)
+    existing_rankings = (
+        db.query(TournamentRanking)
+        .filter(TournamentRanking.tournament_id == tournament_id)
+        .order_by(TournamentRanking.rank)
+        .all()
+    )
+    ranking_users = {r.user_id: enrolled_users.get(r.user_id) for r in existing_rankings}
+
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
         {
@@ -737,6 +770,9 @@ async def admin_tournament_edit_page(
             "checked_in_count": checked_in_count,
             "sessions": sessions,
             "session_count": session_count,
+            "sessions_result_status": sessions_result_status,
+            "existing_rankings": existing_rankings,
+            "ranking_users": ranking_users,
             "game_presets": game_presets,
             "tournament_types": tournament_types,
             "campuses": campuses,

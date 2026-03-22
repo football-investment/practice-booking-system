@@ -1202,14 +1202,14 @@ class TestSmoke11AdminPOSTActions:
     # ── Tournament actions ─────────────────────────────────────────────────────
 
     def test_01_create_tournament(self, admin_client, test_db):
-        """SMOKE-11a: POST /admin/tournaments creates a DRAFT tournament in DB."""
-        code = f"SMK11-{uuid.uuid4().hex[:6].upper()}"
+        """SMOKE-11a: POST /admin/tournaments creates a DRAFT tournament — code is auto-generated."""
+        tournament_name = f"Smoke Tournament 11 {uuid.uuid4().hex[:6]}"
+        start_date = (date.today() + timedelta(days=10)).isoformat()
         resp = admin_client.post(
             "/admin/tournaments",
             data={
-                "name": "Smoke Tournament 11",
-                "code": code,
-                "start_date": (date.today() + timedelta(days=10)).isoformat(),
+                "name": tournament_name,
+                "start_date": start_date,
                 "end_date": (date.today() + timedelta(days=40)).isoformat(),
                 "age_group": "AMATEUR",
                 "enrollment_cost": "0",
@@ -1218,30 +1218,39 @@ class TestSmoke11AdminPOSTActions:
         )
         assert resp.status_code == 303
         assert "/admin/tournaments" in resp.headers["location"]
-        full_code = f"TOURN-{code}"
-        t = test_db.query(Semester).filter(Semester.code == full_code).first()
-        assert t is not None, f"Tournament {full_code} not found in DB after create"
+        # Code is auto-generated as TOURN-{YYYYMMDD}-{HHMMSS} — look up by name
+        t = test_db.query(Semester).filter(Semester.name == tournament_name).first()
+        assert t is not None, f"Tournament '{tournament_name}' not found in DB after create"
+        assert t.code.startswith("TOURN-"), f"Expected TOURN- prefix, got: {t.code}"
         assert t.tournament_status == "DRAFT"
         assert t.status == SemesterStatus.DRAFT
 
-    def test_02_create_tournament_duplicate_code_gives_error_redirect(
-        self, admin_client, tournament_draft
-    ):
-        """SMOKE-11b: Duplicate tournament code → 303 with error query param."""
-        # Strip TOURN- prefix — route auto-prepends it, producing the same code
-        raw_code = tournament_draft.code.replace("TOURN-", "")
-        resp = admin_client.post(
+    def test_02_create_two_tournaments_get_unique_codes(self, admin_client, test_db):
+        """SMOKE-11b: Two sequential creates produce unique auto-generated codes (no collision)."""
+        import time
+        name_a = f"Smoke T11 Alpha {uuid.uuid4().hex[:4]}"
+        name_b = f"Smoke T11 Beta {uuid.uuid4().hex[:4]}"
+        start_date_a = (date.today() + timedelta(days=10)).isoformat()
+        start_date_b = (date.today() + timedelta(days=20)).isoformat()
+
+        resp_a = admin_client.post(
             "/admin/tournaments",
-            data={
-                "name": "Duplicate",
-                "code": raw_code,
-                "start_date": (date.today() + timedelta(days=10)).isoformat(),
-                "end_date": (date.today() + timedelta(days=40)).isoformat(),
-            },
+            data={"name": name_a, "start_date": start_date_a, "end_date": (date.today() + timedelta(days=40)).isoformat()},
             follow_redirects=False,
         )
-        assert resp.status_code == 303
-        assert "error=" in resp.headers["location"]
+        time.sleep(1)  # ensure different HHMMSS
+        resp_b = admin_client.post(
+            "/admin/tournaments",
+            data={"name": name_b, "start_date": start_date_b, "end_date": (date.today() + timedelta(days=50)).isoformat()},
+            follow_redirects=False,
+        )
+        assert resp_a.status_code == 303
+        assert resp_b.status_code == 303
+
+        ta = test_db.query(Semester).filter(Semester.name == name_a).first()
+        tb = test_db.query(Semester).filter(Semester.name == name_b).first()
+        assert ta is not None and tb is not None
+        assert ta.code != tb.code, "Auto-generated codes must be unique"
 
     def test_03_start_tournament(
         self, admin_client, tournament_enrollment_closed, test_db
