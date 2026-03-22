@@ -1,8 +1,10 @@
 name: Cypress Web E2E Tests (FastAPI Jinja2)
 
 on:
+  push:
+    branches: [ develop, main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
   workflow_dispatch:
 
 concurrency:

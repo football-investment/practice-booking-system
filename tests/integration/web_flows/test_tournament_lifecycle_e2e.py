@@ -1265,3 +1265,62 @@ class TestTournamentFieldBindings:
         assert cfg.number_of_rounds == 3, (
             f"TournamentConfiguration.number_of_rounds must be 3, got {cfg.number_of_rounds}"
         )
+
+    # ── BIND-07: Edit page renders participant_type dropdown pre-selected ────────
+
+    def test_BIND07_edit_page_shows_participant_type_dropdown_pre_selected(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        GET /admin/tournaments/{id}/edit for a TEAM tournament must render
+        <select id="basic-participant-type"> with TEAM option selected.
+        Proves the participant_type UI field round-trips from DB → HTML.
+        """
+        t = self._make_active_tournament(test_db, tournament_type)
+        t.tournament_config_obj.participant_type = "TEAM"
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+
+        assert 'id="basic-participant-type"' in html, (
+            "Edit page must render <select id='basic-participant-type'>"
+        )
+        assert 'value="TEAM" selected' in html or 'value="TEAM"  selected' in html, (
+            "TEAM must be pre-selected in the participant_type dropdown"
+        )
+        assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must exist in dropdown"
+        assert 'value="MIXED"' in html, "MIXED option must exist in dropdown"
+
+    # ── BIND-08: Edit page renders number_of_rounds field with correct value ─────
+
+    def test_BIND08_edit_page_shows_number_of_rounds_pre_filled(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        GET /admin/tournaments/{id}/edit for a multi-round (5) tournament must
+        render the number_of_rounds input field with value="5".
+        Proves the rounds field round-trips from DB → HTML for multi-round scenarios.
+        """
+        t = self._make_active_tournament(test_db, tournament_type)
+        t.tournament_config_obj.number_of_rounds = 5
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+
+        assert 'id="basic-rounds"' in html, (
+            "Edit page must render number_of_rounds input field with id='basic-rounds'"
+        )
+        assert 'value="5"' in html, (
+            "number_of_rounds=5 must appear as the pre-filled value in the edit page"
+        )
+
