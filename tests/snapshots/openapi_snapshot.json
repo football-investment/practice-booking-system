@@ -2217,6 +2217,11 @@
             "title": "Enrollment Cost",
             "type": "integer"
           },
+          "game_preset_id": {
+            "default": "",
+            "title": "Game Preset Id",
+            "type": "string"
+          },
           "location_id": {
             "default": "",
             "title": "Location Id",
@@ -2228,6 +2233,11 @@
           },
           "start_date": {
             "title": "Start Date",
+            "type": "string"
+          },
+          "tournament_type_id": {
+            "default": "",
+            "title": "Tournament Type Id",
             "type": "string"
           }
         },
