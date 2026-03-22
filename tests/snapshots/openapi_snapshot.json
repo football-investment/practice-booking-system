@@ -2208,10 +2208,6 @@
             "title": "Campus Id",
             "type": "string"
           },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
           "end_date": {
             "title": "End Date",
             "type": "string"
@@ -2237,7 +2233,6 @@
         },
         "required": [
           "name",
-          "code",
           "start_date",
           "end_date"
         ],
