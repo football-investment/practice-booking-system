@@ -114,6 +114,7 @@ def _truncate_transactional_data(db) -> None:
     db.query(Attendance).delete(synchronize_session=False)
     db.query(Booking).delete(synchronize_session=False)
     db.query(CreditTransaction).delete(synchronize_session=False)
+    db.query(TournamentParticipation).delete(synchronize_session=False)
     db.query(SemesterEnrollment).filter(
         SemesterEnrollment.user_id.in_(
             db.query(User.id).filter(User.email.in_(
