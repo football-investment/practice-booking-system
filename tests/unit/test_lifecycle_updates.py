@@ -61,29 +61,50 @@ def _non_admin():
     return u
 
 
+def _cfg(**overrides):
+    """Mock TournamentConfiguration object."""
+    cfg = MagicMock()
+    cfg.tournament_type_id = 1
+    cfg.participant_type = "INDIVIDUAL"
+    cfg.max_players = 20
+    cfg.assignment_type = "OPEN_ASSIGNMENT"
+    cfg.scoring_type = "SCORE_BASED"
+    cfg.measurement_unit = "points"
+    cfg.ranking_direction = "DESC"
+    cfg.number_of_rounds = 3
+    cfg.sessions_generated = False
+    cfg.sessions_generated_at = None
+    for k, v in overrides.items():
+        setattr(cfg, k, v)
+    return cfg
+
+
 def _tournament(**overrides):
     t = MagicMock()
     t.id = 1
     t.name = "Old Name"
     t.enrollment_cost = 100
-    t.max_players = 20
     t.age_group = "AMATEUR"
     t.focus_description = "Old Desc"
     t.start_date = date(2026, 4, 1)
     t.end_date = date(2026, 5, 1)
     t.specialization_type = "LFA_PLAYER"
-    t.assignment_type = "OPEN_ASSIGNMENT"
-    t.participant_type = "INDIVIDUAL"
     t.campus_id = None
-    t.tournament_type_id = 1
-    t.sessions_generated = False
-    t.tournament_config_obj = None
+    t.location_id = None
     t.tournament_status = "ACTIVE"
+    # Config-backed properties (read via tournament_config_obj)
+    cfg = _cfg()
+    t.tournament_config_obj = cfg
+    t.tournament_type_id = cfg.tournament_type_id
+    t.participant_type = cfg.participant_type
+    t.max_players = cfg.max_players
+    t.assignment_type = cfg.assignment_type
+    t.sessions_generated = cfg.sessions_generated
     t.format = "INDIVIDUAL_RANKING"
-    t.scoring_type = "SCORE_BASED"
-    t.measurement_unit = "points"
-    t.ranking_direction = "DESC"
-    t.number_of_rounds = 3
+    t.scoring_type = cfg.scoring_type
+    t.measurement_unit = cfg.measurement_unit
+    t.ranking_direction = cfg.ranking_direction
+    t.number_of_rounds = cfg.number_of_rounds
     t.match_duration_minutes = 90
     t.break_duration_minutes = 15
     t.parallel_fields = 1
@@ -176,24 +197,26 @@ class TestUpdateTournamentSimpleFields:
         assert t.specialization_type == "LFA_COACH"
 
     def test_update_format(self):
+        # format is derived from tournament_type — cannot be set directly; only noted in updates
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(format="HEAD_TO_HEAD"), db=_db(t), current_user=_admin())
-        assert t.format == "HEAD_TO_HEAD"
+        assert "format_note" in result["updates"]
 
     def test_update_scoring_type(self):
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(scoring_type="TIME_BASED"), db=_db(t), current_user=_admin())
-        assert t.scoring_type == "TIME_BASED"
+        assert t.tournament_config_obj.scoring_type == "TIME_BASED"
+        assert "scoring_type" in result["updates"]
 
     def test_update_measurement_unit(self):
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(measurement_unit="seconds"), db=_db(t), current_user=_admin())
-        assert t.measurement_unit == "seconds"
+        assert t.tournament_config_obj.measurement_unit == "seconds"
 
     def test_update_ranking_direction(self):
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(ranking_direction="ASC"), db=_db(t), current_user=_admin())
-        assert t.ranking_direction == "ASC"
+        assert t.tournament_config_obj.ranking_direction == "ASC"
 
     def test_commit_called_on_success(self):
         t = _tournament()
@@ -210,7 +233,7 @@ class TestUpdateTournamentMaxPlayers:
         t = _tournament(max_players=20)
         db = _db_seq(_q(first=t), _q(count_=0))
         result = update_tournament(1, TournamentUpdateRequest(max_players=30), db=db, current_user=_admin())
-        assert t.max_players == 30
+        assert t.tournament_config_obj.max_players == 30
 
     def test_update_max_players_400_when_exceeds_enrollments(self):
         t = _tournament(max_players=20)
@@ -257,12 +280,12 @@ class TestUpdateTournamentValidatedEnums:
     def test_update_assignment_type_open(self):
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(assignment_type="OPEN_ASSIGNMENT"), db=_db(t), current_user=_admin())
-        assert t.assignment_type == "OPEN_ASSIGNMENT"
+        assert t.tournament_config_obj.assignment_type == "OPEN_ASSIGNMENT"
 
     def test_update_assignment_type_application_based(self):
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(assignment_type="APPLICATION_BASED"), db=_db(t), current_user=_admin())
-        assert t.assignment_type == "APPLICATION_BASED"
+        assert t.tournament_config_obj.assignment_type == "APPLICATION_BASED"
 
     def test_update_assignment_type_invalid_raises_400(self):
         t = _tournament()
@@ -273,12 +296,12 @@ class TestUpdateTournamentValidatedEnums:
     def test_update_participant_type_team(self):
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(participant_type="TEAM"), db=_db(t), current_user=_admin())
-        assert t.participant_type == "TEAM"
+        assert t.tournament_config_obj.participant_type == "TEAM"
 
     def test_update_participant_type_mixed(self):
         t = _tournament()
         result = update_tournament(1, TournamentUpdateRequest(participant_type="MIXED"), db=_db(t), current_user=_admin())
-        assert t.participant_type == "MIXED"
+        assert t.tournament_config_obj.participant_type == "MIXED"
 
     def test_update_participant_type_invalid_raises_400(self):
         t = _tournament()
@@ -317,7 +340,7 @@ class TestUpdateTournamentTypeId:
         tt = MagicMock(); tt.id = 2
         db = _db_seq(_q(first=t), _q(first=tt))
         result = update_tournament(1, TournamentUpdateRequest(tournament_type_id=2), db=db, current_user=_admin())
-        assert t.tournament_type_id == 2
+        assert t.tournament_config_obj.tournament_type_id == 2
         assert "tournament_type_id" in result["updates"]
 
     def test_update_tournament_type_id_not_found_raises_404(self):
@@ -414,7 +437,7 @@ class TestUpdateTournamentRounds:
     def test_update_rounds_no_sessions_simple(self):
         t = _tournament(sessions_generated=False, number_of_rounds=3)
         result = update_tournament(1, TournamentUpdateRequest(number_of_rounds=5), db=_db(t), current_user=_admin())
-        assert t.number_of_rounds == 5
+        assert t.tournament_config_obj.number_of_rounds == 5
         assert result["updates"]["number_of_rounds"]["new"] == 5
 
     def test_update_rounds_same_value_no_deletion(self):
@@ -435,3 +458,25 @@ class TestUpdateTournamentRounds:
         assert "sessions_deleted" in result["updates"]
         assert "number_of_rounds changed" in result["updates"]["sessions_deleted"]["reason"]
         assert cfg.sessions_generated == False
+
+
+# ── location_id ────────────────────────────────────────────────────────────────
+
+class TestUpdateTournamentLocationId:
+
+    def test_update_location_id_found(self):
+        t = _tournament()
+        loc = MagicMock(); loc.id = 7
+        db = _db_seq(_q(first=t), _q(first=loc))
+        result = update_tournament(1, TournamentUpdateRequest(location_id=7), db=db, current_user=_admin())
+        assert t.location_id == 7
+        assert "location_id" in result["updates"]
+        assert result["updates"]["location_id"]["new"] == 7
+
+    def test_update_location_id_not_found_raises_404(self):
+        t = _tournament()
+        db = _db_seq(_q(first=t), _q(first=None))
+        with pytest.raises(HTTPException) as exc:
+            update_tournament(1, TournamentUpdateRequest(location_id=99), db=db, current_user=_admin())
+        assert exc.value.status_code == 404
+        assert "Location" in exc.value.detail

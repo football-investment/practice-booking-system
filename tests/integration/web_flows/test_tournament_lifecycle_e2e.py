@@ -970,3 +970,298 @@ class TestMigrationRollbackImpact:
 
         # Both tables co-exist; migration rollback on attendance has no cross-table effect
         # (no FK from tournament_rankings → attendance or vice versa)
+
+
+# ── Field Binding Tests ───────────────────────────────────────────────────────
+
+class TestTournamentFieldBindings:
+    """
+    BIND-01 … BIND-06: Prove that every dropdown / field in the Tournament Edit UI
+    correctly round-trips through the PATCH /api/v1/tournaments/{id} endpoint
+    and lands in the right DB table/column.
+
+    Critical property: TournamentConfiguration holds the writable columns; Semester
+    exposes read-only @property accessors.  Any write must go through tournament_config_obj.
+
+    BIND-01  PATCH location_id → Semester.location_id updated (direct column)
+    BIND-02  PATCH tournament_type_id → TournamentConfiguration.tournament_type_id updated
+    BIND-03  PATCH participant_type → TournamentConfiguration.participant_type updated
+    BIND-04  PATCH scoring_type + measurement_unit + ranking_direction → TournamentConfiguration
+    BIND-05  Edit page GET renders location dropdown pre-selected when t.location_id is set
+    BIND-06  PATCH number_of_rounds (no sessions) → TournamentConfiguration.number_of_rounds
+    """
+
+    # ── shared helpers ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _make_active_tournament(db: Session, tt: TournamentType) -> Semester:
+        """Minimal ACTIVE tournament with a TournamentConfiguration."""
+        code = f"BIND-{uuid.uuid4().hex[:8].upper()}"
+        t = Semester(
+            code=code,
+            name=f"Binding Test {code}",
+            semester_category=SemesterCategory.TOURNAMENT,
+            status=SemesterStatus.ONGOING,
+            tournament_status="ACTIVE",
+            age_group="YOUTH",
+            location_id=None,
+            campus_id=None,
+            start_date=date(2026, 6, 1),
+            end_date=date(2026, 6, 8),
+            enrollment_cost=0,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        db.add(t)
+        db.flush()
+        db.add(TournamentConfiguration(
+            semester_id=t.id,
+            tournament_type_id=tt.id,
+            scoring_type="SCORE_BASED",
+            measurement_unit="points",
+            ranking_direction="DESC",
+            participant_type="INDIVIDUAL",
+            max_players=16,
+            parallel_fields=1,
+            number_of_rounds=1,
+            sessions_generated=False,
+            is_multi_day=False,
+        ))
+        db.flush()
+        db.refresh(t)
+        return t
+
+    @staticmethod
+    def _make_location(db: Session) -> "Location":
+        from app.models.location import Location, LocationType
+        suffix = uuid.uuid4().hex[:6]
+        loc = Location(
+            name=f"Test City {suffix}",
+            city=f"testcity-{suffix}",
+            country="Hungary",
+            is_active=True,
+            location_type=LocationType.PARTNER,
+        )
+        db.add(loc)
+        db.flush()
+        return loc
+
+    # ── BIND-01: location_id round-trip ──────────────────────────────────────
+
+    def test_BIND01_patch_location_id_updates_semester_column(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        PATCH /api/v1/tournaments/{id} with location_id
+        → Semester.location_id updated (direct FK column, not via config_obj).
+        """
+        loc = self._make_location(test_db)
+        t = self._make_active_tournament(test_db, tournament_type)
+
+        resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={"location_id": loc.id},
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert "location_id" in data["updates"], (
+            "Response must include location_id in updates dict"
+        )
+        assert data["updates"]["location_id"]["new"] == loc.id
+
+        # Verify DB write
+        test_db.refresh(t)
+        assert t.location_id == loc.id, (
+            f"Semester.location_id must be {loc.id} after PATCH, got {t.location_id}"
+        )
+
+    def test_BIND01b_patch_location_id_404_for_nonexistent(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """PATCH with a non-existent location_id must return 404."""
+        t = self._make_active_tournament(test_db, tournament_type)
+        resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={"location_id": 999999},
+        )
+        assert resp.status_code == 404, resp.text
+        body = resp.json()
+        # Global exception handler wraps HTTPException as {"error": {"message": "..."}}
+        msg = body.get("detail") or body.get("error", {}).get("message", "")
+        assert "Location" in msg, f"Expected 'Location' in error message, got: {body}"
+
+    # ── BIND-02: tournament_type_id → TournamentConfiguration ────────────────
+
+    def test_BIND02_patch_tournament_type_id_updates_configuration_not_semester(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        PATCH tournament_type_id must write to TournamentConfiguration.tournament_type_id,
+        NOT to a direct Semester column (Semester.tournament_type_id is a read-only @property).
+        Verifying this at the DB level proves the P2 refactoring fix is in place.
+        """
+        new_tt = TournamentFactory.ensure_tournament_type(
+            test_db, code=f"bind-tt2-{uuid.uuid4().hex[:4]}"
+        )
+        t = self._make_active_tournament(test_db, tournament_type)
+        old_type_id = tournament_type.id
+
+        resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={"tournament_type_id": new_tt.id},
+        )
+        assert resp.status_code == 200, resp.text
+        assert "tournament_type_id" in resp.json()["updates"]
+
+        # DB: verify TournamentConfiguration was updated
+        cfg = (
+            test_db.query(TournamentConfiguration)
+            .filter(TournamentConfiguration.semester_id == t.id)
+            .first()
+        )
+        assert cfg is not None
+        assert cfg.tournament_type_id == new_tt.id, (
+            f"TournamentConfiguration.tournament_type_id must be {new_tt.id}, got {cfg.tournament_type_id}"
+        )
+        assert cfg.tournament_type_id != old_type_id, (
+            "Must differ from old tournament_type_id"
+        )
+
+    # ── BIND-03: participant_type → TournamentConfiguration ──────────────────
+
+    def test_BIND03_patch_participant_type_writes_to_configuration(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        PATCH participant_type=TEAM must update TournamentConfiguration.participant_type,
+        not Semester directly (Semester.participant_type is a read-only @property).
+        """
+        t = self._make_active_tournament(test_db, tournament_type)
+        assert t.tournament_config_obj.participant_type == "INDIVIDUAL"  # precondition
+
+        resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={"participant_type": "TEAM"},
+        )
+        assert resp.status_code == 200, resp.text
+
+        cfg = (
+            test_db.query(TournamentConfiguration)
+            .filter(TournamentConfiguration.semester_id == t.id)
+            .first()
+        )
+        assert cfg.participant_type == "TEAM", (
+            f"TournamentConfiguration.participant_type must be 'TEAM', got {cfg.participant_type}"
+        )
+
+    # ── BIND-04: scoring_type + measurement_unit + ranking_direction ──────────
+
+    def test_BIND04_patch_scoring_fields_write_to_configuration(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        PATCH scoring_type + measurement_unit + ranking_direction must all land
+        in TournamentConfiguration, not in Semester (all are read-only @property there).
+        """
+        t = self._make_active_tournament(test_db, tournament_type)
+
+        resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={
+                "scoring_type": "TIME_BASED",
+                "measurement_unit": "seconds",
+                "ranking_direction": "ASC",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        updates = resp.json()["updates"]
+        assert "scoring_type" in updates
+        assert "measurement_unit" in updates
+        assert "ranking_direction" in updates
+
+        cfg = (
+            test_db.query(TournamentConfiguration)
+            .filter(TournamentConfiguration.semester_id == t.id)
+            .first()
+        )
+        assert cfg.scoring_type == "TIME_BASED"
+        assert cfg.measurement_unit == "seconds"
+        assert cfg.ranking_direction == "ASC"
+
+    # ── BIND-05: Edit page renders location dropdown pre-selected ─────────────
+
+    def test_BIND05_edit_page_shows_location_dropdown_pre_selected(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        GET /admin/tournaments/{id}/edit with t.location_id set
+        → HTML contains <option value="{loc.id}" selected …> in #basic-location-id dropdown.
+        """
+        loc = self._make_location(test_db)
+        t = self._make_active_tournament(test_db, tournament_type)
+
+        # Set location directly on the Semester (direct column)
+        t.location_id = loc.id
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+
+        # The dropdown must exist
+        assert 'id="basic-location-id"' in html, (
+            "Edit page must have a <select id='basic-location-id'> dropdown"
+        )
+        # The current location must be pre-selected
+        assert f'value="{loc.id}" selected' in html or f'value="{loc.id}"  selected' in html, (
+            f"Location {loc.id} must be pre-selected in the dropdown (t.location_id={t.location_id})"
+        )
+
+    # ── BIND-06: number_of_rounds → TournamentConfiguration ──────────────────
+
+    def test_BIND06_patch_number_of_rounds_writes_to_configuration(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        PATCH number_of_rounds must write to TournamentConfiguration.number_of_rounds.
+        (sessions_generated=False so no deletion path is triggered.)
+        """
+        t = self._make_active_tournament(test_db, tournament_type)
+        assert t.tournament_config_obj.number_of_rounds == 1  # precondition
+
+        resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={"number_of_rounds": 3},
+        )
+        assert resp.status_code == 200, resp.text
+        updates = resp.json()["updates"]
+        assert updates["number_of_rounds"]["new"] == 3
+
+        cfg = (
+            test_db.query(TournamentConfiguration)
+            .filter(TournamentConfiguration.semester_id == t.id)
+            .first()
+        )
+        assert cfg.number_of_rounds == 3, (
+            f"TournamentConfiguration.number_of_rounds must be 3, got {cfg.number_of_rounds}"
+        )

@@ -236,11 +236,20 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <input type="number" id="basic-max-players" value="{{ t.max_players or '' }}" min="2" placeholder="No limit">
         </div>
         <div class="form-group">
+            <label>Location</label>
+            <select id="basic-location-id" onchange="filterEditCampuses()">
+                <option value="">— No location —</option>
+                {% for loc in locations %}
+                <option value="{{ loc.id }}" {% if t.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
             <label>Campus</label>
             <select id="basic-campus-id">
                 <option value="">— No campus —</option>
                 {% for campus in campuses %}
-                <option value="{{ campus.id }}" {% if t.campus_id == campus.id %}selected{% endif %}>{{ campus.name }}</option>
+                <option value="{{ campus.id }}" data-location="{{ campus.location_id }}" {% if t.campus_id == campus.id %}selected{% endif %}>{{ campus.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -731,6 +740,7 @@ async function saveBasicInfo() {
         enrollment_cost: parseInt(document.getElementById('basic-enrollment-cost').value) || 0,
         age_group:       document.getElementById('basic-age-group').value || undefined,
         campus_id:       parseInt(document.getElementById('basic-campus-id').value) || undefined,
+        location_id:     parseInt(document.getElementById('basic-location-id').value) || undefined,
     };
     const maxP = document.getElementById('basic-max-players').value;
     if (maxP) body.max_players = parseInt(maxP);
@@ -748,6 +758,18 @@ async function saveBasicInfo() {
         statusEl.textContent = '❌ ' + err.message;
         toast(err.message, 'error');
     }
+}
+
+function filterEditCampuses() {
+    const locId = document.getElementById('basic-location-id').value;
+    const campusSel = document.getElementById('basic-campus-id');
+    Array.from(campusSel.options).forEach(opt => {
+        if (!opt.value) return; // keep "— No campus —"
+        opt.hidden = locId ? opt.dataset.location !== locId : false;
+    });
+    // Clear campus selection if now hidden
+    const selected = campusSel.options[campusSel.selectedIndex];
+    if (selected && selected.hidden) campusSel.value = '';
 }
 
 // ── Section 2: Schedule Config ────────────────────────────────────────────────
@@ -1096,5 +1118,6 @@ async function submitResults() {
 }
 
 document.addEventListener('DOMContentLoaded', initRewardForm);
+document.addEventListener('DOMContentLoaded', filterEditCampuses);
 </script>
 {% endblock %}

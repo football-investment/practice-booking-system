@@ -17607,6 +17607,18 @@
             "description": "Tournament format (HEAD_TO_HEAD or INDIVIDUAL_RANKING)",
             "title": "Format"
           },
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Location ID where tournament will be held",
+            "title": "Location Id"
+          },
           "max_players": {
             "anyOf": [
               {
