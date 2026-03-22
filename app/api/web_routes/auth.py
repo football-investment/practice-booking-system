@@ -40,10 +40,19 @@ async def home(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(url="/login", status_code=303)
 
 
+def _safe_next(url: str) -> str:
+    """Validate next-URL to prevent open-redirect attacks.
+    Only relative paths starting with '/' (not '//') are allowed.
+    """
+    if url and url.startswith("/") and not url.startswith("//") and url not in ("/login", "/logout"):
+        return url
+    return "/dashboard"
+
+
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
+async def login_page(request: Request, next: str = ""):
     """Display login page"""
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse("login.html", {"request": request, "next_url": next})
 
 
 @router.post("/login")
@@ -51,6 +60,7 @@ async def login_submit(
     request: Request,
     email: str = Form(...),
     password: str = Form(...),
+    next: str = Form(""),
     db: Session = Depends(get_db)
 ):
     """Process login form"""
@@ -60,13 +70,13 @@ async def login_submit(
     if not user or not verify_password(password, user.password_hash):
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Invalid email or password"}
+            {"request": request, "error": "Invalid email or password", "next_url": next}
         )
 
     if not user.is_active:
         return templates.TemplateResponse(
             "login.html",
-            {"request": request, "error": "Account is inactive"}
+            {"request": request, "error": "Account is inactive", "next_url": next}
         )
 
     # Create access token
@@ -75,11 +85,11 @@ async def login_submit(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
 
-    # Check if student needs age verification (first time login)
-    redirect_url = "/dashboard"
+    # Determine post-login redirect (age-verification takes priority over next)
+    redirect_url = _safe_next(next) if next else "/dashboard"
 
     if user.role == UserRole.STUDENT and user.date_of_birth is None:
-        # First time login - redirect to age verification
+        # First time login - redirect to age verification (next preserved for after verification)
         redirect_url = "/age-verification"
         logger.info("first_time_student_login_redirect", extra={"user": user.email})
 

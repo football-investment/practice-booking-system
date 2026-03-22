@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -167,6 +167,13 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         user_message=exc.detail
     )
 
+    # Browser 401 → redirect to /login?next=<original_url> instead of error page
+    if exc.status_code == 401 and _wants_html(request):
+        next_url = str(request.url.path)
+        if request.url.query:
+            next_url += f"?{request.url.query}"
+        return RedirectResponse(url=f"/login?next={next_url}", status_code=302)
+
     return ProductionExceptionHandler.respond(
         request=request,
         status_code=exc.status_code,
@@ -186,6 +193,13 @@ async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPE
         error_code=error_code,
         user_message=exc.detail
     )
+
+    # Browser 401 → redirect to /login?next=<original_url> instead of error page
+    if exc.status_code == 401 and _wants_html(request):
+        next_url = str(request.url.path)
+        if request.url.query:
+            next_url += f"?{request.url.query}"
+        return RedirectResponse(url=f"/login?next={next_url}", status_code=302)
 
     return ProductionExceptionHandler.respond(
         request=request,

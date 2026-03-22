@@ -171,6 +171,7 @@
 
         <!-- Login Form -->
         <form method="POST" action="/login">
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
             <div class="modern-form-group">
                 <label class="modern-label" for="email">📧 Email Address</label>
                 <input
