@@ -245,6 +245,27 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             </select>
         </div>
     </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Tournament Type</label>
+            <select id="basic-tournament-type">
+                <option value="">— Not set —</option>
+                {% for tt in tournament_types %}
+                <option value="{{ tt.id }}" {% if cfg and cfg.tournament_type_id == tt.id %}selected{% endif %}>
+                    {{ tt.display_name }} ({{ tt.format }})
+                </option>
+                {% endfor %}
+            </select>
+            <span class="field-hint">⚠️ Changing type auto-deletes existing sessions</span>
+        </div>
+        <div class="form-group">
+            <label>Game Preset <span style="color:#a0aec0">(read-only — set at creation)</span></label>
+            <input type="text" value="{{ preset.name if preset else '— No preset —' }}" disabled style="background:#f7fafc;color:#718096;">
+            {% if preset %}
+            <span class="field-hint">Skills: {{ preset.game_config.get('metadata', {}).get('skills', '') if preset.game_config else '' }}</span>
+            {% endif %}
+        </div>
+    </div>
 
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveBasicInfo()">💾 Save Basic Info</button>
@@ -297,64 +318,64 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     <div class="section-header">
         <span class="section-icon">🎁</span>
         <h2>Reward Configuration</h2>
+        {% if reward_cfg %}
+        <span style="font-size:0.8rem;color:#27ae60;margin-left:auto;">✅ Configured</span>
+        {% else %}
+        <span style="font-size:0.8rem;color:#e67e22;margin-left:auto;">⚠️ Not set</span>
+        {% endif %}
     </div>
 
-    {% if reward_cfg %}
-        <div class="reward-summary">
-            {% if reward_cfg.get('first_place') %}
-            <div class="reward-tier">
-                <div class="tier-label">🥇 1st Place</div>
-                <div class="tier-credits">{{ reward_cfg.first_place.get('credits', 0) }} cr</div>
-                <div class="tier-xp">×{{ reward_cfg.first_place.get('xp_multiplier', 1.0) }} XP</div>
-            </div>
-            {% endif %}
-            {% if reward_cfg.get('second_place') %}
-            <div class="reward-tier">
-                <div class="tier-label">🥈 2nd Place</div>
-                <div class="tier-credits">{{ reward_cfg.second_place.get('credits', 0) }} cr</div>
-                <div class="tier-xp">×{{ reward_cfg.second_place.get('xp_multiplier', 1.0) }} XP</div>
-            </div>
-            {% endif %}
-            {% if reward_cfg.get('third_place') %}
-            <div class="reward-tier">
-                <div class="tier-label">🥉 3rd Place</div>
-                <div class="tier-credits">{{ reward_cfg.third_place.get('credits', 0) }} cr</div>
-                <div class="tier-xp">×{{ reward_cfg.third_place.get('xp_multiplier', 1.0) }} XP</div>
-            </div>
-            {% endif %}
-            {% if reward_cfg.get('participation') %}
-            <div class="reward-tier">
-                <div class="tier-label">🎽 Participation</div>
-                <div class="tier-credits">{{ reward_cfg.participation.get('credits', 0) }} cr</div>
-                <div class="tier-xp">×{{ reward_cfg.participation.get('xp_multiplier', 1.0) }} XP</div>
-            </div>
-            {% endif %}
-        </div>
-
-        {% set skills = reward_cfg.get('skill_mappings', []) %}
-        {% if skills %}
-        <p style="margin-top:0.85rem;font-size:0.85rem;color:#718096;">
-            Skills tested:
-            {% for s in skills %}{% if s.get('enabled') %}<strong>{{ s.get('skill', '') }}</strong> ({{ s.get('weight', 1.0) }}×){% if not loop.last %}, {% endif %}{% endif %}{% endfor %}
-        </p>
-        {% endif %}
-
-        <div class="save-row">
-            <span style="font-size:0.85rem;color:#718096;">
-                Policy: <strong>{{ reward_cfg.get('template_name', 'Custom') }}</strong>
-            </span>
-            <button class="btn btn-secondary" onclick="loadRewardConfig()">🔄 Reload from API</button>
-        </div>
-    {% else %}
-        <div class="warn-banner">
-            No reward configuration set. Use the API to configure rewards:
-            <code>POST /api/v1/tournaments/{{ t.id }}/reward-config</code>
-        </div>
-        <div class="save-row">
-            <button class="btn btn-secondary" onclick="loadRewardConfig()">🔄 Load Reward Config</button>
-        </div>
+    {% if not reward_cfg %}
+    <div class="warn-banner">No reward config yet — set one below before finalizing the tournament.</div>
     {% endif %}
-    <div id="reward-config-detail" style="margin-top:1rem;display:none;"></div>
+
+    {# ── Placement tiers form ── #}
+    <p style="font-size:0.85rem;font-weight:700;color:#4a5568;margin-bottom:0.6rem;">Placement Rewards</p>
+    <table style="width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:1.25rem;">
+        <thead>
+            <tr style="border-bottom:2px solid #e2e8f0;">
+                <th style="text-align:left;padding:0.4rem 0.5rem;color:#718096;font-size:0.75rem;text-transform:uppercase;">Tier</th>
+                <th style="text-align:right;padding:0.4rem 0.5rem;color:#718096;font-size:0.75rem;text-transform:uppercase;">Credits</th>
+                <th style="text-align:right;padding:0.4rem 0.5rem;color:#718096;font-size:0.75rem;text-transform:uppercase;">XP Multiplier</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tier, icon, default_cr, default_xp in [
+                ('first_place',  '🥇 1st Place',   500, 2.0),
+                ('second_place', '🥈 2nd Place',   300, 1.5),
+                ('third_place',  '🥉 3rd Place',   150, 1.2),
+                ('participation','🎽 Participation', 50, 1.0),
+            ] %}
+            {% set tier_data = reward_cfg.get(tier, {}) if reward_cfg else {} %}
+            <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:0.4rem 0.5rem;">{{ icon }}</td>
+                <td style="padding:0.4rem 0.5rem;text-align:right;">
+                    <input type="number" id="tier-{{ tier }}-credits"
+                           value="{{ tier_data.get('credits', default_cr) }}"
+                           min="0" max="99999"
+                           style="width:90px;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:5px;text-align:right;">
+                </td>
+                <td style="padding:0.4rem 0.5rem;text-align:right;">
+                    <input type="number" id="tier-{{ tier }}-xp"
+                           value="{{ tier_data.get('xp_multiplier', default_xp) }}"
+                           min="0" max="10" step="0.1"
+                           style="width:75px;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:5px;text-align:right;">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# ── Skills ── #}
+    <p style="font-size:0.85rem;font-weight:700;color:#4a5568;margin-bottom:0.6rem;">
+        Skills (at least 1 must be enabled for reward distribution)
+    </p>
+    <div id="reward-skills-form" style="columns:2;column-gap:1.5rem;margin-bottom:1.25rem;"></div>
+
+    <div class="save-row">
+        <button class="btn btn-primary" onclick="saveRewardConfig()">💾 Save Reward Config</button>
+        <span id="reward-save-status" style="font-size:0.85rem;color:#718096;"></span>
+    </div>
 </div>
 
 {# ── SECTION 4: Enrolled Players / Check-in Status ────────────────────────── #}
@@ -713,6 +734,8 @@ async function saveBasicInfo() {
     };
     const maxP = document.getElementById('basic-max-players').value;
     if (maxP) body.max_players = parseInt(maxP);
+    const ttId = document.getElementById('basic-tournament-type').value;
+    if (ttId) body.tournament_type_id = parseInt(ttId);
 
     const statusEl = document.getElementById('basic-save-status');
     statusEl.textContent = 'Saving…';
@@ -752,14 +775,89 @@ async function saveScheduleConfig() {
 }
 
 // ── Section 3: Reward Config ──────────────────────────────────────────────────
-async function loadRewardConfig() {
+const _SKILL_OPTS = [
+    {skill: 'passing',      category: 'TECHNICAL'},
+    {skill: 'ball_control', category: 'TECHNICAL'},
+    {skill: 'dribbling',    category: 'TECHNICAL'},
+    {skill: 'finishing',    category: 'TECHNICAL'},
+    {skill: 'tackle',       category: 'TECHNICAL'},
+    {skill: 'crossing',     category: 'TECHNICAL'},
+    {skill: 'sprint_speed', category: 'PHYSICAL'},
+    {skill: 'acceleration', category: 'PHYSICAL'},
+    {skill: 'agility',      category: 'PHYSICAL'},
+    {skill: 'stamina',      category: 'PHYSICAL'},
+    {skill: 'strength',     category: 'PHYSICAL'},
+    {skill: 'jumping',      category: 'PHYSICAL'},
+    {skill: 'vision',       category: 'MENTAL'},
+    {skill: 'composure',    category: 'MENTAL'},
+    {skill: 'reactions',    category: 'MENTAL'},
+];
+
+const _CURRENT_REWARD_CFG = {{ reward_cfg | tojson }};
+
+function initRewardForm() {
+    const container = document.getElementById('reward-skills-form');
+    if (!container) return;
+    const skillMap = {};
+    if (_CURRENT_REWARD_CFG && _CURRENT_REWARD_CFG.skill_mappings) {
+        _CURRENT_REWARD_CFG.skill_mappings.forEach(sm => { skillMap[sm.skill] = sm; });
+    }
+    container.innerHTML = _SKILL_OPTS.map(opt => {
+        const cur = skillMap[opt.skill] || {};
+        const enabled = cur.enabled || false;
+        const weight = cur.weight !== undefined ? cur.weight : 1.0;
+        return `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;break-inside:avoid;">
+            <input type="checkbox" id="sk-en-${opt.skill}" ${enabled ? 'checked' : ''}
+                   style="width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+            <label for="sk-en-${opt.skill}"
+                   style="flex:1;font-size:0.85rem;cursor:pointer;${enabled ? 'font-weight:700;' : ''}">
+                ${opt.skill}
+                <span style="font-size:0.72rem;color:#a0aec0;">${opt.category.charAt(0)}</span>
+            </label>
+            <input type="number" id="sk-wt-${opt.skill}" value="${weight}"
+                   min="0.1" max="5.0" step="0.1"
+                   style="width:60px;padding:0.2rem 0.35rem;border:1px solid #e2e8f0;border-radius:4px;
+                          text-align:right;font-size:0.82rem;">
+        </div>`;
+    }).join('');
+}
+
+async function saveRewardConfig() {
+    const tierBadges = {
+        first_place:   [{badge_type:'CHAMPION',    icon:'🥇', title:'Champion',    rarity:'EPIC',     enabled:true, condition:{type:'always'}}],
+        second_place:  [{badge_type:'RUNNER_UP',   icon:'🥈', title:'Runner Up',   rarity:'RARE',     enabled:true, condition:{type:'always'}}],
+        third_place:   [{badge_type:'THIRD_PLACE', icon:'🥉', title:'Third Place', rarity:'UNCOMMON', enabled:true, condition:{type:'always'}}],
+        participation: [{badge_type:'PARTICIPANT', icon:'🎽', title:'Participant', rarity:'COMMON',   enabled:true, condition:{type:'always'}}],
+    };
+    const body = { skill_mappings: [] };
+    ['first_place', 'second_place', 'third_place', 'participation'].forEach(tier => {
+        body[tier] = {
+            credits:        parseInt(document.getElementById(`tier-${tier}-credits`)?.value) || 0,
+            xp_multiplier:  parseFloat(document.getElementById(`tier-${tier}-xp`)?.value)   || 1.0,
+            badges:         tierBadges[tier],
+        };
+    });
+    _SKILL_OPTS.forEach(opt => {
+        body.skill_mappings.push({
+            skill:    opt.skill,
+            category: opt.category,
+            weight:   parseFloat(document.getElementById(`sk-wt-${opt.skill}`)?.value) || 1.0,
+            enabled:  document.getElementById(`sk-en-${opt.skill}`)?.checked || false,
+        });
+    });
+    if (!body.skill_mappings.some(s => s.enabled)) {
+        toast('At least 1 skill must be enabled', 'error');
+        return;
+    }
+    const statusEl = document.getElementById('reward-save-status');
+    statusEl.textContent = 'Saving…';
     try {
-        const cfg = await AdminAPI.get(`/api/v1/tournaments/${TOURN_ID}/reward-config`);
-        const container = document.getElementById('reward-config-detail');
-        container.style.display = 'block';
-        container.innerHTML = `<pre style="font-size:0.78rem;background:#f7fafc;padding:1rem;border-radius:8px;overflow:auto;max-height:300px;">${JSON.stringify(cfg, null, 2)}</pre>`;
-        toast('Reward config loaded', 'info');
+        await AdminAPI.post(`/api/v1/tournaments/${TOURN_ID}/reward-config`, body);
+        toast('Reward config saved');
+        statusEl.textContent = '✅ Saved';
+        setTimeout(() => { statusEl.textContent = ''; location.reload(); }, 1500);
     } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
         toast(err.message, 'error');
     }
 }
@@ -996,5 +1094,7 @@ async function submitResults() {
         toast(err.message, 'error');
     }
 }
+
+document.addEventListener('DOMContentLoaded', initRewardForm);
 </script>
 {% endblock %}

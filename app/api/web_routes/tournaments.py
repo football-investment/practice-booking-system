@@ -49,6 +49,7 @@ from ...models.instructor_assignment import (
     MasterOfferStatus,
 )
 from ...models.tournament_type import TournamentType
+from ...models.tournament_configuration import TournamentConfiguration
 from ...models.user import User, UserRole
 from ...services.age_category_service import (
     calculate_age_at_season_start,
@@ -467,6 +468,8 @@ async def admin_tournaments_list(
 
     locations = db.query(Location).filter(Location.is_active == True).all()
     campuses = db.query(Campus).filter(Campus.is_active == True).all()
+    tournament_types = db.query(TournamentType).order_by(TournamentType.display_name).all()
+    game_presets = db.query(GamePreset).filter(GamePreset.is_active == True).order_by(GamePreset.name).all()
 
     return templates.TemplateResponse(
         "admin/tournaments.html",
@@ -476,6 +479,8 @@ async def admin_tournaments_list(
             "tournament_info": tournament_info,
             "locations": locations,
             "campuses": campuses,
+            "tournament_types": tournament_types,
+            "game_presets": game_presets,
             "flash": request.query_params.get("flash"),
             "flash_type": request.query_params.get("flash_type", "success"),
             "error": request.query_params.get("error"),
@@ -497,6 +502,8 @@ async def admin_create_tournament(
     location_id: str = Form(""),
     campus_id: str = Form(""),
     assignment_type: str = Form("OPEN_ASSIGNMENT"),
+    tournament_type_id: str = Form(""),
+    game_preset_id: str = Form(""),
 ):
     """Admin: create a new tournament."""
     _admin_only(user)
@@ -525,10 +532,28 @@ async def admin_create_tournament(
         campus_id=int(campus_id) if campus_id.strip() else None,
     )
     db.add(t)
+    db.flush()  # get t.id before creating config
+
+    # Always create TournamentConfiguration so edit page works immediately
+    from ...models.game_configuration import GameConfiguration
+    cfg = TournamentConfiguration(
+        semester_id=t.id,
+        tournament_type_id=int(tournament_type_id) if tournament_type_id.strip() else None,
+        assignment_type=assignment_type,
+    )
+    db.add(cfg)
+
+    if game_preset_id.strip():
+        game_cfg = GameConfiguration(
+            semester_id=t.id,
+            game_preset_id=int(game_preset_id),
+        )
+        db.add(game_cfg)
+
     db.commit()
 
     return RedirectResponse(
-        url=f"/admin/tournaments?flash=Tournament+{code}+created+successfully",
+        url=f"/admin/tournaments/{t.id}/edit?flash=Tournament+{code}+created",
         status_code=303,
     )
 

@@ -526,6 +526,30 @@
                         </select>
                     </div>
 
+                    <!-- Tournament Type -->
+                    <div class="form-group">
+                        <label for="tournament_type_id">Tournament Type</label>
+                        <select id="tournament_type_id" name="tournament_type_id">
+                            <option value="">— Select type —</option>
+                            {% for tt in tournament_types %}
+                            <option value="{{ tt.id }}">{{ tt.display_name }} ({{ tt.format }})</option>
+                            {% endfor %}
+                        </select>
+                        <small>Defines HEAD_TO_HEAD vs INDIVIDUAL_RANKING format</small>
+                    </div>
+
+                    <!-- Game Preset -->
+                    <div class="form-group">
+                        <label for="game_preset_id">Game Preset</label>
+                        <select id="game_preset_id" name="game_preset_id">
+                            <option value="">— No preset —</option>
+                            {% for gp in game_presets %}
+                            <option value="{{ gp.id }}">{{ gp.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small>Optional: defines skill weights for the game</small>
+                    </div>
+
                     <!-- Assignment Type -->
                     <div class="form-group">
                         <label for="assignment_type">Assignment Type</label>

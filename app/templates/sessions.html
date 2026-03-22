@@ -527,9 +527,9 @@
 
 {% block scripts %}
 <script>
-// Filter by specialization
-let currentSpecFilter = 'ALL';
-let currentDateFilter = 'all';
+// Filter by specialization (var allows re-execution when body.innerHTML is swapped)
+var currentSpecFilter = 'ALL';
+var currentDateFilter = 'all';
 
 function filterSpecialization(spec) {
     currentSpecFilter = spec;
