@@ -270,10 +270,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         <div class="form-group">
             <label>Participant Type</label>
             <select id="basic-participant-type">
-                {% for pt, label in [('INDIVIDUAL', '👤 Individual'), ('TEAM', '👥 Team'), ('MIXED', '🔀 Mixed')] %}
-                <option value="{{ pt }}" {% if cfg and cfg.participant_type == pt %}selected{% elif not cfg and pt == 'INDIVIDUAL' %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
+                <option value="INDIVIDUAL" {% if not cfg or cfg.participant_type == 'INDIVIDUAL' %}selected{% endif %}>👤 Individual</option>
+                <option value="TEAM" disabled {% if cfg and cfg.participant_type == 'TEAM' %}selected{% endif %}>👥 Team (coming soon)</option>
+                <option value="MIXED" disabled {% if cfg and cfg.participant_type == 'MIXED' %}selected{% endif %}>🔀 Mixed (coming soon)</option>
             </select>
+            <span class="field-hint">TEAM / MIXED ranking is a P2 feature — not yet wired up</span>
         </div>
         <div class="form-group">
             <label>Number of Rounds</label>

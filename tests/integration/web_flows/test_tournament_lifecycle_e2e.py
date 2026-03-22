@@ -69,6 +69,7 @@ from app.models.tournament_achievement import TournamentParticipation
 from app.models.tournament_type import TournamentType
 from app.models.game_preset import GamePreset
 from app.core.security import get_password_hash
+from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from tests.factories.game_factory import PlayerFactory, TournamentFactory
 
 
@@ -1268,19 +1269,22 @@ class TestTournamentFieldBindings:
 
     # ── BIND-07: Edit page renders participant_type dropdown pre-selected ────────
 
-    def test_BIND07_edit_page_shows_participant_type_dropdown_pre_selected(
+    def test_BIND07_edit_page_shows_participant_type_dropdown_with_disabled_options(
         self,
         test_db: Session,
         admin_client: TestClient,
         tournament_type: TournamentType,
     ):
         """
-        GET /admin/tournaments/{id}/edit for a TEAM tournament must render
-        <select id="basic-participant-type"> with TEAM option selected.
-        Proves the participant_type UI field round-trips from DB → HTML.
+        GET /admin/tournaments/{id}/edit must render <select id="basic-participant-type">
+        with INDIVIDUAL selectable and TEAM/MIXED marked disabled (P2 feature).
+
+        Existing tournaments with participant_type='TEAM' in DB still show TEAM
+        as selected (for display/audit) but the option is disabled so it cannot
+        be changed to another unsupported value.
         """
         t = self._make_active_tournament(test_db, tournament_type)
-        t.tournament_config_obj.participant_type = "TEAM"
+        t.tournament_config_obj.participant_type = "INDIVIDUAL"
         test_db.flush()
 
         resp = admin_client.get(f"/admin/tournaments/{t.id}/edit")
@@ -1290,11 +1294,13 @@ class TestTournamentFieldBindings:
         assert 'id="basic-participant-type"' in html, (
             "Edit page must render <select id='basic-participant-type'>"
         )
-        assert 'value="TEAM" selected' in html or 'value="TEAM"  selected' in html, (
-            "TEAM must be pre-selected in the participant_type dropdown"
-        )
         assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must exist in dropdown"
-        assert 'value="MIXED"' in html, "MIXED option must exist in dropdown"
+        assert 'value="TEAM" disabled' in html, (
+            "TEAM option must be disabled (P2 feature — not yet wired up to ranking)"
+        )
+        assert 'value="MIXED" disabled' in html, (
+            "MIXED option must be disabled (P2 feature — not yet wired up to ranking)"
+        )
 
     # ── BIND-08: Edit page renders number_of_rounds field with correct value ─────
 
@@ -1343,7 +1349,7 @@ class TestTournamentFieldBindings:
             "Create form must include participant_type select"
         )
         assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must be present"
-        assert 'value="TEAM"' in html, "TEAM option must be present"
+        assert 'value="TEAM" disabled' in html, "TEAM option must be present but disabled (P2)"
         assert 'name="number_of_rounds"' in html, (
             "Create form must include number_of_rounds input"
         )
@@ -1392,4 +1398,288 @@ class TestTournamentFieldBindings:
         assert cfg.number_of_rounds == 3, (
             f"number_of_rounds must be 3, got {cfg.number_of_rounds}"
         )
+
+
+# ── Multi-round Session Generation Validation ────────────────────────────────
+
+
+class TestMultiRoundSessionGeneration:
+    """
+    SESS-01 … SESS-03: Prove that number_of_rounds actually controls session
+    generation output for INDIVIDUAL_RANKING tournaments.
+
+    Architecture note (from individual_ranking_generator.py):
+      - number_of_rounds > 1 → 1 session, rounds_data.total_rounds = N,
+        scoring_type = 'ROUNDS_BASED', duration = N*d + (N-1)*break
+      - number_of_rounds == 1 → 1 session, scoring_type = original type,
+        duration = 1*d
+
+    PART-01: Documents that participant_type in TournamentConfiguration is stored
+    correctly but ranking calculation always hardcodes "INDIVIDUAL" in
+    TournamentRanking records (P2 gap: TEAM/MIXED not yet wired up).
+    """
+
+    @staticmethod
+    def _make_ir_tournament_type(db: Session) -> TournamentType:
+        """INDIVIDUAL_RANKING TournamentType — min_players=2, format=INDIVIDUAL_RANKING."""
+        code = f"ir-tt-{uuid.uuid4().hex[:6]}"
+        tt = TournamentType(
+            code=code,
+            display_name=f"Individual Ranking ({code})",
+            description="Test INDIVIDUAL_RANKING type",
+            format="INDIVIDUAL_RANKING",
+            min_players=2,
+            max_players=64,
+            requires_power_of_two=False,
+            session_duration_minutes=60,
+            break_between_sessions_minutes=15,
+            config={"code": code, "format": "INDIVIDUAL_RANKING", "scoring_type": "SCORE_BASED",
+                    "ranking_direction": "DESC"},
+        )
+        db.add(tt)
+        db.flush()
+        return tt
+
+    @staticmethod
+    def _make_ir_tournament(
+        db: Session,
+        number_of_rounds: int = 1,
+    ) -> Semester:
+        """IN_PROGRESS INDIVIDUAL_RANKING tournament with TournamentConfiguration.
+
+        INDIVIDUAL_RANKING must NOT have tournament_type_id — format is derived
+        from scoring_type being non-HEAD_TO_HEAD (see Semester.format property).
+        """
+        code = f"SESS-{uuid.uuid4().hex[:8].upper()}"
+        t = Semester(
+            code=code,
+            name=f"IR Test {code[-6:]}",
+            semester_category=SemesterCategory.TOURNAMENT,
+            status=SemesterStatus.ONGOING,
+            tournament_status="IN_PROGRESS",
+            age_group="AMATEUR",
+            start_date=date(2026, 6, 1),
+            end_date=date(2026, 6, 30),
+            enrollment_cost=0,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        db.add(t)
+        db.flush()
+
+        db.add(TournamentConfiguration(
+            semester_id=t.id,
+            tournament_type_id=None,   # INDIVIDUAL_RANKING must not have a tournament_type
+            scoring_type="SCORE_BASED",  # Makes Semester.format return "INDIVIDUAL_RANKING"
+            ranking_direction="DESC",
+            participant_type="INDIVIDUAL",
+            number_of_rounds=number_of_rounds,
+            is_multi_day=False,
+            max_players=32,
+            parallel_fields=1,
+            match_duration_minutes=60,
+            break_duration_minutes=15,
+            sessions_generated=False,
+        ))
+        db.flush()
+        return t
+
+    @staticmethod
+    def _enroll_players(db: Session, tournament: Semester, players: list) -> None:
+        """Insert APPROVED SemesterEnrollment rows for each player (bypasses API)."""
+        for user, license in players:
+            db.add(SemesterEnrollment(
+                user_id=user.id,
+                semester_id=tournament.id,
+                user_license_id=license.id,
+                age_category="AMATEUR",
+                request_status=EnrollmentStatus.APPROVED,
+                payment_verified=True,
+                is_active=True,
+            ))
+        db.flush()
+
+    # ── SESS-01 ───────────────────────────────────────────────────────────────
+
+    def test_SESS01_multi_round_generates_rounds_based_session(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        SESS-01: number_of_rounds=3 → session has:
+          - rounds_data.total_rounds == 3
+          - scoring_type == "ROUNDS_BASED"
+          - duration == 3*60 + 2*15 = 210 minutes
+
+        Proves number_of_rounds actually controls the generated session structure
+        for INDIVIDUAL_RANKING tournaments.
+        """
+        t = self._make_ir_tournament(test_db, number_of_rounds=3)
+
+        # Enroll 4 players (well above min_players=2)
+        players = [PlayerFactory.create_lfa_player(test_db) for _ in range(4)]
+        self._enroll_players(test_db, t, players)
+
+        # Call generate-sessions API (sync path: 4 < 128 threshold)
+        resp = admin_client.post(
+            f"/api/v1/tournaments/{t.id}/generate-sessions",
+            json={"session_duration_minutes": 60, "break_minutes": 15, "parallel_fields": 1},
+        )
+        assert resp.status_code == 200, (
+            f"generate-sessions must return 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        data = resp.json()
+        assert data.get("async") is False, "4 players must use sync path"
+
+        # Verify session structure in DB
+        sessions = test_db.query(SessionModel).filter(
+            SessionModel.semester_id == t.id,
+        ).all()
+        assert len(sessions) == 1, (
+            f"INDIVIDUAL_RANKING must generate exactly 1 session (all rounds in one session), "
+            f"got {len(sessions)}"
+        )
+        s = sessions[0]
+
+        # rounds_data structure
+        rd = s.rounds_data or {}
+        assert rd.get("total_rounds") == 3, (
+            f"rounds_data.total_rounds must be 3, got {rd.get('total_rounds')}. "
+            f"Full rounds_data: {rd}"
+        )
+        assert rd.get("completed_rounds") == 0, (
+            "No rounds should be completed yet after generation"
+        )
+
+        # scoring_type flag
+        assert s.scoring_type == "ROUNDS_BASED", (
+            f"Multi-round INDIVIDUAL_RANKING must use scoring_type='ROUNDS_BASED', "
+            f"got '{s.scoring_type}'"
+        )
+
+        # participant_user_ids must contain all enrolled players
+        assert set(s.participant_user_ids or []) == {u.id for u, _ in players}, (
+            "Session must include all 4 enrolled player IDs in participant_user_ids"
+        )
+
+    # ── SESS-02 ───────────────────────────────────────────────────────────────
+
+    def test_SESS02_single_round_does_not_use_rounds_based(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        SESS-02: number_of_rounds=1 (default) → session has:
+          - rounds_data.total_rounds == 1
+          - scoring_type == original type (not ROUNDS_BASED)
+          - duration == 1*60 = 60 minutes
+
+        Contrast with SESS-01: single-round must NOT activate ROUNDS_BASED mode.
+        """
+        t = self._make_ir_tournament(test_db, number_of_rounds=1)
+
+        players = [PlayerFactory.create_lfa_player(test_db) for _ in range(4)]
+        self._enroll_players(test_db, t, players)
+
+        resp = admin_client.post(
+            f"/api/v1/tournaments/{t.id}/generate-sessions",
+            json={"session_duration_minutes": 60, "break_minutes": 15, "parallel_fields": 1},
+        )
+        assert resp.status_code == 200, resp.text[:400]
+
+        sessions = test_db.query(SessionModel).filter(
+            SessionModel.semester_id == t.id,
+        ).all()
+        assert len(sessions) == 1, "Single-round must also produce exactly 1 session"
+        s = sessions[0]
+
+        rd = s.rounds_data or {}
+        assert rd.get("total_rounds") == 1, (
+            f"Single-round: rounds_data.total_rounds must be 1, got {rd.get('total_rounds')}"
+        )
+        assert s.scoring_type != "ROUNDS_BASED", (
+            f"Single-round must NOT use ROUNDS_BASED scoring_type, got '{s.scoring_type}'"
+        )
+
+    # ── PART-01 ──────────────────────────────────────────────────────────────
+
+    def test_PART01_participant_type_stored_but_ranking_hardcodes_individual(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        PART-01: Documents the P2 gap for participant_type.
+
+        TournamentConfiguration.participant_type='TEAM' is stored correctly
+        (BIND-10 proves the round-trip), but the calculate-rankings endpoint
+        hardcodes 'INDIVIDUAL' in every TournamentRanking row it creates.
+
+        This is by design for the current sprint — TEAM/MIXED ranking logic
+        is a P2 feature.  The UI should restrict these options accordingly.
+
+        Uses INDIVIDUAL_RANKING format (no tournament_type_id) so the IR
+        ranking path runs — H2H ranking requires a known tournament type code
+        (league/knockout/group_knockout) and would raise 400 otherwise.
+
+        Assertion: after calculate-rankings runs, all TournamentRanking rows
+        have participant_type='INDIVIDUAL' regardless of config.
+        """
+        p1, _ = PlayerFactory.create_lfa_player(test_db)
+        p2, _ = PlayerFactory.create_lfa_player(test_db)
+
+        # Build IN_PROGRESS INDIVIDUAL_RANKING tournament with participant_type='TEAM'
+        t = self._make_ir_tournament(test_db, number_of_rounds=1)
+        t.tournament_config_obj.participant_type = "TEAM"
+        test_db.flush()
+
+        # Add a session with INDIVIDUAL_RANKING results (enough for ranking calc)
+        import json as _json
+        session = SessionModel(
+            title="PART-01 Session",
+            semester_id=t.id,
+            date_start=datetime(2026, 1, 5, 10, 0, tzinfo=timezone.utc),
+            date_end=datetime(2026, 1, 5, 11, 0, tzinfo=timezone.utc),
+            session_type=SessionType.on_site,
+            event_category=EventCategory.MATCH,
+            match_format="INDIVIDUAL_RANKING",
+            scoring_type="SCORE_BASED",
+            auto_generated=True,
+            rounds_data={
+                "total_rounds": 1,
+                "completed_rounds": 1,
+                "round_results": {
+                    "1": {str(p1.id): "95", str(p2.id): "80"},
+                },
+            },
+            participant_user_ids=[p1.id, p2.id],
+        )
+        test_db.add(session)
+        test_db.flush()
+
+        # Config still says TEAM
+        cfg = test_db.query(TournamentConfiguration).filter(
+            TournamentConfiguration.semester_id == t.id
+        ).first()
+        assert cfg.participant_type == "TEAM", "Precondition: config must say TEAM"
+
+        # Run calculate-rankings API
+        resp = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
+        assert resp.status_code == 200, (
+            f"calculate-rankings must return 200: {resp.text[:400]}"
+        )
+
+        # All TournamentRanking rows are hardcoded to 'INDIVIDUAL' (P2 gap)
+        test_db.expire_all()
+        rankings = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).all()
+        assert len(rankings) >= 2, "At least 2 ranking rows expected (p1, p2)"
+        for r in rankings:
+            assert r.participant_type == "INDIVIDUAL", (
+                f"P2 gap confirmed: TournamentRanking.participant_type is always "
+                f"'INDIVIDUAL' even when TournamentConfiguration.participant_type='TEAM'. "
+                f"Got: '{r.participant_type}' for user_id={r.user_id}"
+            )
 
