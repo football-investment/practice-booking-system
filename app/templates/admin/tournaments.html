@@ -550,6 +550,24 @@
                         <small>Optional: defines skill weights for the game</small>
                     </div>
 
+                    <!-- Participant Type -->
+                    <div class="form-group">
+                        <label for="participant_type">Participant Type</label>
+                        <select id="participant_type" name="participant_type">
+                            <option value="INDIVIDUAL" selected>👤 Individual</option>
+                            <option value="TEAM">👥 Team</option>
+                            <option value="MIXED">🔀 Mixed</option>
+                        </select>
+                    </div>
+
+                    <!-- Number of Rounds -->
+                    <div class="form-group">
+                        <label for="number_of_rounds">Number of Rounds</label>
+                        <input type="number" id="number_of_rounds" name="number_of_rounds"
+                               min="1" max="10" value="1">
+                        <small>1–10 · INDIVIDUAL_RANKING only</small>
+                    </div>
+
                     <!-- Assignment Type -->
                     <div class="form-group">
                         <label for="assignment_type">Assignment Type</label>

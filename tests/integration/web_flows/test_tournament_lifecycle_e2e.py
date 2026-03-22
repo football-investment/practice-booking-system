@@ -1324,3 +1324,72 @@ class TestTournamentFieldBindings:
             "number_of_rounds=5 must appear as the pre-filled value in the edit page"
         )
 
+    # ── BIND-09: Create form renders participant_type + number_of_rounds ─────────
+
+    def test_BIND09_create_form_has_participant_type_and_rounds_fields(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        GET /admin/tournaments?tab=create must render participant_type select and
+        number_of_rounds input — both fields are required for TEAM / multi-round creation.
+        """
+        resp = admin_client.get("/admin/tournaments?tab=create")
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+
+        assert 'name="participant_type"' in html, (
+            "Create form must include participant_type select"
+        )
+        assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must be present"
+        assert 'value="TEAM"' in html, "TEAM option must be present"
+        assert 'name="number_of_rounds"' in html, (
+            "Create form must include number_of_rounds input"
+        )
+
+    # ── BIND-10: POST create persists participant_type + number_of_rounds ─────────
+
+    def test_BIND10_create_tournament_persists_participant_type_and_rounds(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        POST /admin/tournaments with participant_type=TEAM + number_of_rounds=3 must
+        create a TournamentConfiguration with those exact values.
+        """
+        payload = {
+            "name": "BIND10 Team Multi-round",
+            "start_date": "2026-06-01",
+            "end_date": "2026-06-30",
+            "age_group": "AMATEUR",
+            "enrollment_cost": "0",
+            "location_id": "",
+            "campus_id": "",
+            "assignment_type": "OPEN_ASSIGNMENT",
+            "tournament_type_id": str(tournament_type.id),
+            "game_preset_id": "",
+            "participant_type": "TEAM",
+            "number_of_rounds": "3",
+        }
+        resp = admin_client.post("/admin/tournaments", data=payload)
+        # Should redirect to edit page on success
+        assert resp.status_code in (200, 303), resp.text
+
+        # Find the newly created tournament by name
+        from app.models.semester import Semester as _Sem
+        t = test_db.query(_Sem).filter(_Sem.name == "BIND10 Team Multi-round").first()
+        assert t is not None, "Tournament must be created in DB"
+
+        from app.models.tournament_configuration import TournamentConfiguration as _Cfg
+        cfg = test_db.query(_Cfg).filter(_Cfg.semester_id == t.id).first()
+        assert cfg is not None, "TournamentConfiguration must be created"
+        assert cfg.participant_type == "TEAM", (
+            f"participant_type must be TEAM, got {cfg.participant_type}"
+        )
+        assert cfg.number_of_rounds == 3, (
+            f"number_of_rounds must be 3, got {cfg.number_of_rounds}"
+        )
+

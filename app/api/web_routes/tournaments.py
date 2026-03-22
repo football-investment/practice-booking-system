@@ -504,6 +504,8 @@ async def admin_create_tournament(
     assignment_type: str = Form("OPEN_ASSIGNMENT"),
     tournament_type_id: str = Form(""),
     game_preset_id: str = Form(""),
+    participant_type: str = Form("INDIVIDUAL"),
+    number_of_rounds: int = Form(1),
 ):
     """Admin: create a new tournament."""
     _admin_only(user)
@@ -540,6 +542,8 @@ async def admin_create_tournament(
         semester_id=t.id,
         tournament_type_id=int(tournament_type_id) if tournament_type_id.strip() else None,
         assignment_type=assignment_type,
+        participant_type=participant_type,
+        number_of_rounds=max(1, min(10, number_of_rounds)),
     )
     db.add(cfg)
 
