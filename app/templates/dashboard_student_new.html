@@ -154,6 +154,13 @@
 
 {% block student_content %}
 
+{# ── Breadcrumb ────────────────────────────────────────────────────────────── #}
+<nav class="s-breadcrumb" aria-label="Breadcrumb">
+    <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
+    <span class="s-breadcrumb-sep">›</span>
+    <span class="s-breadcrumb-item active">{{ spec_config.icon if spec_config else '⚽' }} {{ spec_config.name if spec_config else 'LFA Football Player' }}</span>
+</nav>
+
 {# ── Module Navigation Cards ───────────────────────────────────────────────── #}
 {# All 5 targets have require_student_onboarding guard → redirect /dashboard    #}
 {# if user.onboarding_completed is False. (/sessions & /calendar use inline     #}
