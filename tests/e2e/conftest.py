@@ -195,25 +195,28 @@ def page(browser):
     """
     Playwright page instance (new page in browser context).
 
-    Usage in tests:
-        def test_my_feature(page):
-            page.goto("http://localhost:8501")
-            page.fill("input", "test@example.com")
-            # ... test logic ...
-            # page.close() handled automatically
+    Video recording: set PLAYWRIGHT_VIDEO_DIR=test-results/videos to enable.
+    Videos are finalized when the context closes after the test.
 
-    Scope: function (new page per test)
-
-    Note: Skipped if playwright is not installed (integration_critical tests don't need it).
+    Scope: function (new context + page per test)
     """
     if not PLAYWRIGHT_AVAILABLE:
         pytest.skip("Playwright not available - skipping browser-based test")
 
-    page = browser.new_page()
+    video_dir = os.environ.get("PLAYWRIGHT_VIDEO_DIR", "")
+    ctx_kwargs: dict = {}
+    if video_dir:
+        Path(video_dir).mkdir(parents=True, exist_ok=True)
+        ctx_kwargs["record_video_dir"] = video_dir
+        ctx_kwargs["record_video_size"] = {"width": 1280, "height": 720}
+
+    context = browser.new_context(**ctx_kwargs)
+    page = context.new_page()
 
     yield page
 
     page.close()
+    context.close()  # finalizes the video file
 
 
 # ============================================================================

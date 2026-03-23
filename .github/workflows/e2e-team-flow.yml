@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/**'
       - 'tests/e2e/admin_ui/test_team_flow_e2e.py'
+      - 'tests/e2e/admin_ui/test_team_golden_flow.py'
       - '.github/workflows/e2e-team-flow.yml'
   workflow_dispatch:
 
@@ -88,19 +89,23 @@ jobs:
           timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
 
       - name: TM-01 + TM-02 (Captain + Invitee + 0-credit edge)
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/captain
         run: |
-          mkdir -p results
+          mkdir -p results test-results/videos/captain
           PYTHONPATH=. pytest tests/e2e/admin_ui/test_team_flow_e2e.py \
             -k "test_e2e_team_01_full_create_invite_accept_flow or test_e2e_team_02_zero_credits_shows_error" \
             --junitxml=results/tm01_tm02.xml \
             -v --tb=short -s
 
-      - name: Upload screenshots
+      - name: Upload artifacts (screenshots + videos)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-captain-${{ github.run_id }}
-          path: tests/e2e/admin_ui/screenshots/
+          name: artifacts-captain-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/captain/
           retention-days: 7
 
       - name: Upload JUnit results
@@ -175,19 +180,23 @@ jobs:
           timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
 
       - name: TM-03 (Admin bypass add member)
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/admin
         run: |
-          mkdir -p results
+          mkdir -p results test-results/videos/admin
           PYTHONPATH=. pytest tests/e2e/admin_ui/test_team_flow_e2e.py \
             -k "test_e2e_team_03_admin_bypass_add_member" \
             --junitxml=results/tm03.xml \
             -v --tb=short -s
 
-      - name: Upload screenshots
+      - name: Upload artifacts (screenshots + videos)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-admin-${{ github.run_id }}
-          path: tests/e2e/admin_ui/screenshots/
+          name: artifacts-admin-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/admin/
           retention-days: 7
 
       - name: Upload JUnit results
@@ -262,19 +271,23 @@ jobs:
           timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
 
       - name: TM-04 (Wrong user cannot accept invite)
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/auth
         run: |
-          mkdir -p results
+          mkdir -p results test-results/videos/auth
           PYTHONPATH=. pytest tests/e2e/admin_ui/test_team_flow_e2e.py \
             -k "test_e2e_team_04_wrong_user_cannot_accept_invite" \
             --junitxml=results/tm04.xml \
             -v --tb=short -s
 
-      - name: Upload screenshots
+      - name: Upload artifacts (screenshots + videos)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-auth-${{ github.run_id }}
-          path: tests/e2e/admin_ui/screenshots/
+          name: artifacts-auth-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/auth/
           retention-days: 7
 
       - name: Upload JUnit results
@@ -283,6 +296,101 @@ jobs:
         with:
           name: junit-auth
           path: results/tm04.xml
+
+  # ── Job 4: Golden Flow Demo (all 4 roles, one video) ──────────────────────
+  team-e2e-demo:
+    name: "GF-01 Golden Flow Demo (all 4 roles — visual business proof)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Demo runs after the gate passes — only on green CI
+    needs: [team-e2e-captain, team-e2e-admin, team-e2e-auth]
+    if: success()
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-team-e2e-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          python -m playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_tournament_types.py
+
+      - name: Start backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+
+      - name: GF-01 Golden Flow (all 4 roles — slow mode 300ms for legible video)
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/golden-flow
+          PYTEST_SLOW_MO: "300"
+        run: |
+          mkdir -p results test-results/videos/golden-flow
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_team_golden_flow.py \
+            -k "test_gf_01_complete_team_journey" \
+            --junitxml=results/gf01.xml \
+            -v --tb=short -s
+
+      - name: Upload golden flow video + screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-flow-demo-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/golden-flow/
+          retention-days: 14
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-golden-flow
+          path: results/gf01.xml
 
   # ── Summary gate ──────────────────────────────────────────────────────────
   team-e2e-gate:
@@ -302,6 +410,8 @@ jobs:
           echo "| TM-02 0-credit error  | captain with 0 credits → UI error, no team created | ${{ needs.team-e2e-captain.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| TM-03 Admin bypass    | admin adds member directly (no invite flow) | ${{ needs.team-e2e-admin.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| TM-04 Auth boundary   | wrong user cannot accept another user's invite | ${{ needs.team-e2e-auth.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 🎥 Artifacts: screenshots + videos uploaded per job. Golden flow demo video in \`golden-flow-demo-${{ github.run_id }}\`." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           CAP="${{ needs.team-e2e-captain.result }}"
