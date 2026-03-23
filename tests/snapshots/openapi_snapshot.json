@@ -782,33 +782,6 @@
         "title": "AssessmentResponse",
         "type": "object"
       },
-      "AssignInstructorRequest": {
-        "description": "Request to assign an instructor to a tournament",
-        "properties": {
-          "instructor_id": {
-            "description": "ID of the instructor to assign",
-            "title": "Instructor Id",
-            "type": "integer"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional message to instructor",
-            "title": "Message"
-          }
-        },
-        "required": [
-          "instructor_id"
-        ],
-        "title": "AssignInstructorRequest",
-        "type": "object"
-      },
       "AssignmentCreate": {
         "description": "Schema for creating instructor assignment",
         "properties": {
@@ -5121,6 +5094,23 @@
         "title": "DeclineApplicationRequest",
         "type": "object"
       },
+      "DeclineRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "DeclineRequest",
+        "type": "object"
+      },
       "DemoteRequest": {
         "description": "Request body for demoting a level",
         "example": {
@@ -5196,6 +5186,34 @@
           "tournament_id"
         ],
         "title": "DistributeRewardsRequest",
+        "type": "object"
+      },
+      "EligibleInstructorResponse": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ],
+        "title": "EligibleInstructorResponse",
         "type": "object"
       },
       "EnrollmentConflict": {
@@ -10460,6 +10478,191 @@
           "period"
         ],
         "title": "PeriodGenerationResponse",
+        "type": "object"
+      },
+      "PitchAssignmentResponse": {
+        "properties": {
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "assigned_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned By"
+          },
+          "assignment_type": {
+            "title": "Assignment Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "is_master": {
+            "title": "Is Master",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pitch_id": {
+            "title": "Pitch Id",
+            "type": "integer"
+          },
+          "required_age_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Age Group"
+          },
+          "required_license_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required License Type"
+          },
+          "semester_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semester Id"
+          },
+          "sessions_updated": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessions Updated"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "pitch_id",
+          "instructor_id",
+          "semester_id",
+          "is_master",
+          "assignment_type",
+          "status",
+          "required_license_type",
+          "required_age_group",
+          "assigned_by",
+          "created_at",
+          "activated_at",
+          "ended_at",
+          "notes"
+        ],
+        "title": "PitchAssignmentResponse",
+        "type": "object"
+      },
+      "PitchResponse": {
+        "properties": {
+          "campus_id": {
+            "title": "Campus Id",
+            "type": "integer"
+          },
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pitch_number": {
+            "title": "Pitch Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "campus_id",
+          "pitch_number",
+          "name",
+          "capacity",
+          "is_active",
+          "created_at"
+        ],
+        "title": "PitchResponse",
         "type": "object"
       },
       "PlacementRewardConfig": {
@@ -19158,6 +19361,7 @@
       "UserRole": {
         "enum": [
           "admin",
+          "sport_director",
           "instructor",
           "student"
         ],
@@ -21291,6 +21495,68 @@
         "title": "LicenseResponse",
         "type": "object"
       },
+      "app__api__api_v1__endpoints__pitches__AssignInstructorRequest": {
+        "properties": {
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "is_master": {
+            "default": false,
+            "title": "Is Master",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "required_age_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Age Group"
+          },
+          "required_license_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required License Type"
+          },
+          "semester_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semester Id"
+          }
+        },
+        "required": [
+          "instructor_id"
+        ],
+        "title": "AssignInstructorRequest",
+        "type": "object"
+      },
       "app__api__api_v1__endpoints__semester_enrollments__schemas__EnrollmentResponse": {
         "description": "Enrollment response with related data",
         "properties": {
@@ -21652,6 +21918,33 @@
           "created_at"
         ],
         "title": "TournamentCreateResponse",
+        "type": "object"
+      },
+      "app__api__api_v1__endpoints__tournaments__lifecycle_instructor__AssignInstructorRequest": {
+        "description": "Request to assign an instructor to a tournament",
+        "properties": {
+          "instructor_id": {
+            "description": "ID of the instructor to assign",
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional message to instructor",
+            "title": "Message"
+          }
+        },
+        "required": [
+          "instructor_id"
+        ],
+        "title": "AssignInstructorRequest",
         "type": "object"
       },
       "app__schemas__tournament__EnrollmentResponse": {
@@ -28992,6 +29285,69 @@
         "summary": "Confirm Booking",
         "tags": [
           "bookings"
+        ]
+      }
+    },
+    "/api/v1/campuses/{campus_id}/pitches": {
+      "get": {
+        "description": "List all pitches for a campus.",
+        "operationId": "list_campus_pitches_api_v1_campuses__campus_id__pitches_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_inactive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Inactive",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PitchResponse"
+                  },
+                  "title": "Response List Campus Pitches Api V1 Campuses  Campus Id  Pitches Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Campus Pitches",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
         ]
       }
     },
@@ -39878,6 +40234,359 @@
         ]
       }
     },
+    "/api/v1/pitch-assignments/{assignment_id}/accept": {
+      "post": {
+        "description": "Instructor accepts a PENDING pitch assignment.\n\nSide effect when is_master=True: all sessions on that pitch (and semester)\nget session.instructor_id updated to this instructor.",
+        "operationId": "accept_assignment_api_v1_pitch_assignments__assignment_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PitchAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Assignment",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitch-assignments/{assignment_id}/decline": {
+      "post": {
+        "description": "Instructor declines a PENDING pitch assignment.",
+        "operationId": "decline_assignment_api_v1_pitch_assignments__assignment_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PitchAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decline Assignment",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitches/{pitch_id}/assign-instructor": {
+      "post": {
+        "description": "DIRECT mode: admin, sport director, or campus master invites an instructor to a pitch.\n\nCreates a PENDING assignment. The instructor then accepts or declines.\n\n- is_master=True requires: no other ACTIVE master on this pitch/semester\n- required_license_type: if set, instructor must have active InstructorSpecialization",
+        "operationId": "assign_instructor_api_v1_pitches__pitch_id__assign_instructor_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__api_v1__endpoints__pitches__AssignInstructorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PitchAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assign Instructor",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitches/{pitch_id}/assignments": {
+      "get": {
+        "description": "List all assignments for a pitch, optionally filtered by semester and status.",
+        "operationId": "list_pitch_assignments_api_v1_pitches__pitch_id__assignments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "semester_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Semester Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PitchAssignmentResponse"
+                  },
+                  "title": "Response List Pitch Assignments Api V1 Pitches  Pitch Id  Assignments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pitch Assignments",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitches/{pitch_id}/eligible-instructors": {
+      "get": {
+        "description": "List instructors eligible to be assigned to this pitch.\n\nFilters:\n- role=INSTRUCTOR, is_active=True\n- If license_type: must have active InstructorSpecialization\n- Excludes instructors already ACTIVE on this pitch for the same semester",
+        "operationId": "eligible_instructors_api_v1_pitches__pitch_id__eligible_instructors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "semester_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Semester Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "license_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "License Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "age_group",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Age Group"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EligibleInstructorResponse"
+                  },
+                  "title": "Response Eligible Instructors Api V1 Pitches  Pitch Id  Eligible Instructors Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Eligible Instructors",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
     "/api/v1/progression/progress": {
       "get": {
         "description": "Get current user's progression status",
@@ -47114,7 +47823,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AssignInstructorRequest"
+                "$ref": "#/components/schemas/app__api__api_v1__endpoints__tournaments__lifecycle_instructor__AssignInstructorRequest"
               }
             }
           },
