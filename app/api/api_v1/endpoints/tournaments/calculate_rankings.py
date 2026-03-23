@@ -24,6 +24,7 @@ from app.models.session import Session as SessionModel, EventCategory
 from app.models.booking import Booking
 from app.models.tournament_ranking import TournamentRanking
 from app.models.tournament_achievement import TournamentParticipation
+from app.models.team import Team
 from app.services.tournament.ranking.strategies.factory import RankingStrategyFactory
 
 router = APIRouter()
@@ -273,10 +274,11 @@ def get_tournament_rankings(
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    # Get rankings with player names (prefer nickname for uniqueness)
+    # Get rankings with player names (prefer nickname for uniqueness) and team names
     rows = (
-        db.query(TournamentRanking, User.nickname, User.name)
+        db.query(TournamentRanking, User.nickname, User.name, Team.name.label("team_name"))
         .join(User, User.id == TournamentRanking.user_id, isouter=True)
+        .join(Team, Team.id == TournamentRanking.team_id, isouter=True)
         .filter(TournamentRanking.tournament_id == tournament_id)
         .order_by(TournamentRanking.rank)
         .all()
@@ -369,11 +371,13 @@ def get_tournament_rankings(
 
     # Format response
     rankings_data = []
-    for r, nickname, name in rows:
+    for r, nickname, name, team_name in rows:
         display_name = nickname or name
         points_val = float(r.points) if r.points is not None else 0
         entry = {
             "user_id": r.user_id,
+            "team_id": r.team_id,
+            "team_name": team_name,
             "name": display_name,
             "rank": r.rank,
             "points": points_val,
