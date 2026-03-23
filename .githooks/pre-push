@@ -213,6 +213,27 @@ if command -v docker &>/dev/null && [[ -f "${COMPOSE_FILE}" ]]; then
         exit 1
     fi
 fi
+# ─────────────────────────────────────────────────────────────────────────────
+# 0d.  Streamlit decommission check
+#      Streamlit was decommissioned in Sprint 59h.  If the app file no longer
+#      exists, skip Guard 1 entirely and fall through to Guard 2.
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ ! -f "${HOME_PY}" ]]; then
+    mkdir -p "$(dirname "${AUDIT_LOG}")"
+    printf '%s  AUTO-SKIP  branch=%s  user=%s  reason=streamlit-decommissioned\n' \
+        "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+        "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')" \
+        "$(git config user.email 2>/dev/null || echo 'unknown')" \
+        >> "${AUDIT_LOG}"
+    warn "Champion guard SKIPPED — Streamlit app decommissioned (Sprint 59h)"
+    info "Skipping to Guard 2 (Critical E2E branch gate)..."
+    # Jump directly to Guard 2 by skipping the remainder of Guard 1
+    # shellcheck disable=SC2034
+    _SKIP_GUARD1=1
+fi
+
+if [[ "${_SKIP_GUARD1:-0}" != "1" ]]; then
+
 warn "Docker not available — running in NON-CANONICAL fallback mode"
 warn "The Docker stack (docker-compose.test.yml) is the single source of truth."
 warn "Install Docker to guarantee a reproducible, fully isolated test environment."
@@ -372,6 +393,8 @@ else
     echo ""
     exit 1
 fi
+
+fi  # end _SKIP_GUARD1 wrapper
 
 # =============================================================================
 # GUARD 2: Critical E2E Suite Validation (main/develop branches only)
