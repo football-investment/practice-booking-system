@@ -770,9 +770,25 @@ async def admin_tournament_edit_page(
                 or s.game_results
             ),
             "participant_user_ids": s.participant_user_ids or [],
+            "participant_team_ids": s.participant_team_ids or [],
         }
         for s in all_match_sessions
     ]
+
+    # Team name map for TEAM tournaments (team_id → name)
+    enrolled_teams: dict = {}
+    team_enrollments = (
+        db.query(TournamentTeamEnrollment)
+        .filter(
+            TournamentTeamEnrollment.semester_id == tournament_id,
+            TournamentTeamEnrollment.is_active == True,
+        )
+        .all()
+    )
+    if team_enrollments:
+        team_ids = [e.team_id for e in team_enrollments]
+        teams = db.query(Team).filter(Team.id.in_(team_ids)).all()
+        enrolled_teams = {t.id: t.name for t in teams}
 
     # Existing rankings (for Section 8 — rankings panel)
     existing_rankings = (
@@ -801,6 +817,7 @@ async def admin_tournament_edit_page(
             "sessions": sessions,
             "session_count": session_count,
             "sessions_result_status": sessions_result_status,
+            "enrolled_teams": enrolled_teams,
             "existing_rankings": existing_rankings,
             "ranking_users": ranking_users,
             "game_presets": game_presets,
