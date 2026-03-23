@@ -2,7 +2,7 @@ import json
 import os
 import sys
 import secrets
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, EnvSettingsSource
 from pydantic import ConfigDict
 
 
@@ -81,6 +81,41 @@ def get_cors_origins() -> list[str]:
             )
 
     return origins
+
+
+class _CORSFormatError(Exception):
+    """Raised by _CORSSafeEnvSource when CORS_ALLOWED_ORIGINS cannot be JSON-decoded.
+
+    Must NOT subclass ValueError: pydantic-settings' __call__() catches ValueError
+    and re-wraps it as SettingsError, losing the friendly message.  A plain Exception
+    subclass bypasses that catch and surfaces directly to Settings.__init__().
+    """
+
+
+class _CORSSafeEnvSource(EnvSettingsSource):
+    """EnvSettingsSource that raises _CORSFormatError (not opaque SettingsError)
+    when CORS_ALLOWED_ORIGINS value is not valid JSON.
+
+    Why a custom source (not @field_validator): pydantic-settings calls
+    decode_complex_value() during env collection, before pydantic validators run.
+    A @field_validator(mode="before") would never be reached when the source raises.
+    """
+
+    def decode_complex_value(self, field_name: str, field: object, value: object) -> object:
+        # super().decode_complex_value() does json.loads(value) and raises JSONDecodeError
+        # (a ValueError) on bad input — NOT SettingsError.  SettingsError is applied later
+        # by __call__()'s `except ValueError` wrapper.  We catch ValueError here, before
+        # __call__ can re-wrap it, so _CORSFormatError (not a ValueError) escapes cleanly.
+        try:
+            return super().decode_complex_value(field_name, field, value)
+        except ValueError:
+            if field_name == "CORS_ALLOWED_ORIGINS":
+                raise _CORSFormatError(
+                    f"CORS_ALLOWED_ORIGINS must be a JSON array, got: {value!r}\n"
+                    "  Correct  : CORS_ALLOWED_ORIGINS=[\"https://app.lfa.com\",\"https://admin.lfa.com\"]\n"
+                    "  Dev/test : omit this variable — localhost list is configured automatically."
+                ) from None
+            raise
 
 
 class Settings(BaseSettings):
@@ -229,19 +264,21 @@ class Settings(BaseSettings):
 
     model_config = ConfigDict(env_file=".env")
 
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings,
+                                   dotenv_settings, file_secret_settings):
+        return (
+            init_settings,
+            _CORSSafeEnvSource(settings_cls),
+            dotenv_settings,
+            file_secret_settings,
+        )
+
     def __init__(self, **kwargs):
         try:
             super().__init__(**kwargs)
-        except Exception as e:
-            msg = str(e)
-            if "CORS_ALLOWED_ORIGINS" in msg:
-                cors_val = os.getenv("CORS_ALLOWED_ORIGINS", "")
-                raise ValueError(
-                    f"CORS_ALLOWED_ORIGINS must be a JSON array, got: {cors_val!r}\n"
-                    "  Correct  : CORS_ALLOWED_ORIGINS=[\"https://app.lfa.com\",\"https://admin.lfa.com\"]\n"
-                    "  Dev/test : omit this variable — localhost list is configured automatically."
-                ) from None
-            raise
+        except _CORSFormatError as e:
+            raise ValueError(str(e)) from None
 
         # Production-only security validation (skipped in development and testing)
         _is_production = not is_testing() and self.ENVIRONMENT == "production"

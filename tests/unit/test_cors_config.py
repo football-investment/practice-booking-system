@@ -117,3 +117,21 @@ class TestCORSConfigValidator:
         assert data["ok"] is False
         # Should mention omitting the variable is the right approach for dev
         assert "omit" in data["error"].lower() or "dev" in data["error"].lower()
+
+    # ── Non-masking guarantee ──────────────────────────────────────────────────
+
+    def test_unrelated_settings_error_not_masked(self):
+        """A SettingsError from a non-CORS field must NOT be silently converted to
+        a CORS error message — the original error must propagate unchanged."""
+        # SKILL_TIER_THRESHOLDS is dict[int, str]; invalid JSON triggers SettingsError
+        # for that field, not for CORS_ALLOWED_ORIGINS.
+        env = {**_BASE, "SKILL_TIER_THRESHOLDS": "not-valid-json"}
+        data = _run(env)
+        assert data["ok"] is False
+        err = data["error"]
+        # Must NOT have been silently rewritten to the CORS friendly message
+        assert "CORS_ALLOWED_ORIGINS" not in err, (
+            f"Unrelated SettingsError was incorrectly masked as CORS error: {err}"
+        )
+        # Must still reference the actual bad field
+        assert "SKILL_TIER_THRESHOLDS" in err
