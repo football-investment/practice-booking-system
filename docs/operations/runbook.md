@@ -162,7 +162,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - CORS_ALLOWED_ORIGINS=https://app.example.com
+      - CORS_ALLOWED_ORIGINS=["https://app.example.com"]
       - ENVIRONMENT=production
       - DEBUG=false
       - LOG_DIR=/app/logs
@@ -724,7 +724,7 @@ ENVIRONMENT=production
 DEBUG=false
 ADMIN_EMAIL=admin@yourdomain.com
 ADMIN_PASSWORD=<20+ char random password>
-CORS_ALLOWED_ORIGINS=https://app.yourdomain.com
+CORS_ALLOWED_ORIGINS=["https://app.yourdomain.com"]
 
 # ── Database ──────────────────────────────────────────────────────────────────
 DATABASE_URL=postgresql://gancuju:password@db.internal:5432/gancuju_prod
