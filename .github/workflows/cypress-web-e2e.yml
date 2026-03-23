@@ -17,7 +17,7 @@ jobs:
   # izolálható szerepkörönként, böngészőből megtekinthető HTML report.
   cypress-web-by-role:
     runs-on: ubuntu-latest
-    # admin specs are informational — pre-existing failures don't block merges
+    # All roles are blocking — admin tests stabilized as of 2026-03-23 (PR cleanup)
     continue-on-error: ${{ matrix.allow_failure == true }}
     strategy:
       fail-fast: false
@@ -26,7 +26,7 @@ jobs:
           - role: admin
             specs: "cypress/e2e/web/admin/**"
             db_scenario: baseline
-            allow_failure: true
+            allow_failure: false
           - role: instructor
             specs: "cypress/e2e/web/instructor/**,cypress/e2e/web/sessions/instructor_session_lifecycle.cy.js"
             db_scenario: session_ready
