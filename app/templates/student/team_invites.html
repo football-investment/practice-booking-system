@@ -1,0 +1,90 @@
+{% extends "student_base.html" %}
+
+{% block title %}My Team Invites{% endblock %}
+{% block active_page %}tournaments{% endblock %}
+
+{% block extra_styles %}
+<style>
+.invites-container {
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.75rem; color: #2d3748; margin: 0 0 .25rem; }
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+.invite-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.invite-meta { font-size: .85rem; color: #718096; margin-top: .25rem; }
+.btn { padding: .45rem .9rem; border: none; border-radius: 8px; cursor: pointer; font-size: .9rem; font-weight: 600; }
+.btn-success { background: #2f855a; color: white; }
+.btn-success:hover { background: #276749; }
+.btn-outline { background: white; border: 1px solid #e2e8f0; color: #4a5568; }
+.btn-outline:hover { background: #f7fafc; }
+.actions { display: flex; gap: .5rem; }
+.alert-success {
+    background: #f0fff4;
+    border-left: 4px solid #48bb78;
+    padding: .75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    color: #276749;
+}
+.empty-state { text-align: center; padding: 2rem 1rem; color: #718096; }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="invites-container">
+
+    <div class="page-header">
+        <h1>Team Invites</h1>
+        <p style="color:#718096;">Pending invitations to join a team.</p>
+    </div>
+
+    {% if msg %}
+    <div class="alert-success">{{ msg }}</div>
+    {% endif %}
+
+    {% if invites %}
+    {% for inv in invites %}
+    <div class="card">
+        <div class="invite-row">
+            <div>
+                <strong>{{ inv.team.name if inv.team else 'Unknown Team' }}</strong>
+                <div class="invite-meta">
+                    Invited by {{ inv.invited_by.name if inv.invited_by else '—' }}
+                    · {{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '' }}
+                </div>
+            </div>
+            <div class="actions">
+                <form method="POST" action="/teams/invites/{{ inv.id }}/accept">
+                    <button type="submit" class="btn btn-success">Accept</button>
+                </form>
+                <form method="POST" action="/teams/invites/{{ inv.id }}/reject"
+                      onsubmit="return confirm('Decline this invite?')">
+                    <button type="submit" class="btn btn-outline">Decline</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <p>No pending invites.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

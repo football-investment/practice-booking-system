@@ -40,6 +40,8 @@ from .coupon import Coupon, CouponType
 from .invitation_code import InvitationCode
 from .session_group import SessionGroupAssignment, SessionGroupStudent
 from .audit_log import AuditLog
+from .system_event import SystemEvent, SystemEventLevel, SystemEventType
+from .match_structure import MatchStructure, MatchResult, MatchFormat, ScoringType
 
 # 🎓 New Track-Based Modular Education System
 from .track import Track, Module, ModuleComponent
@@ -50,7 +52,7 @@ from .user_progress import UserTrackProgress, UserModuleProgress, TrackProgressS
 from .tournament_enums import TournamentType, ParticipantType, TeamMemberRole
 from .tournament_type import TournamentType as TournamentTypeModel  # DB model for tournament types
 from .game_preset import GamePreset  # Game preset configurations
-from .team import Team, TeamMember, TournamentTeamEnrollment
+from .team import Team, TeamMember, TournamentTeamEnrollment, TeamInvite, TeamInviteStatus
 from .tournament_ranking import TournamentRanking, TournamentStats, TournamentReward
 from .tournament_status_history import TournamentStatusHistory
 from .tournament_configuration import TournamentConfiguration  # P2: Separate tournament config table
@@ -152,6 +154,13 @@ __all__ = [
     "SessionGroupAssignment",
     "SessionGroupStudent",
     "AuditLog",
+    "SystemEvent",
+    "SystemEventLevel",
+    "SystemEventType",
+    "MatchStructure",
+    "MatchResult",
+    "MatchFormat",
+    "ScoringType",
     # Tournament System
     "TournamentType",
     "TournamentTypeModel",
@@ -161,6 +170,8 @@ __all__ = [
     "Team",
     "TeamMember",
     "TournamentTeamEnrollment",
+    "TeamInvite",
+    "TeamInviteStatus",
     "TournamentRanking",
     "TournamentStats",
     "TournamentReward",

@@ -128,6 +128,15 @@ class TournamentConfiguration(Base):
         comment="Number of rounds for INDIVIDUAL_RANKING tournaments (1-10). Each round is a separate session. HEAD_TO_HEAD ignores this."
     )
 
+    # Team cost
+    team_enrollment_cost = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="Credits deducted from captain when creating a team for this tournament. 0 = free."
+    )
+
     # Assignment Configuration
     assignment_type = Column(
         String(30),

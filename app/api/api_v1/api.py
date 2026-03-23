@@ -53,7 +53,8 @@ from .endpoints import (
     session_groups,  # 👥 NEW: Add dynamic session group assignment system
     tournaments,  # 🏆 NEW: Add one-day tournament generator system
     tournament_types,  # 🎯 NEW: Add tournament type system
-    game_presets  # 🎮 P3: Add game preset system
+    game_presets,  # 🎮 P3: Add game preset system
+    teams  # 👥 NEW: Team management + invite flow
 )
 
 from .endpoints.sandbox import run_test as sandbox  # 🧪 NEW: Add sandbox test system
@@ -358,6 +359,13 @@ api_router.include_router(
     game_presets.router,
     prefix="/game-presets",
     tags=["game-presets"]
+)
+
+# 👥 NEW: Team management + invite flow
+api_router.include_router(
+    teams.router,
+    prefix="",
+    tags=["teams"]
 )
 
 # 🎯 NEW: Add tournament session generation system routes (admin only)

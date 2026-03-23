@@ -52,6 +52,7 @@ from ...models.instructor_assignment import (
 from ...models.tournament_type import TournamentType
 from ...models.tournament_configuration import TournamentConfiguration
 from ...models.user import User, UserRole
+from ...services.tournament import team_service as _team_service
 from ...services.age_category_service import (
     calculate_age_at_season_start,
     get_automatic_age_category,
@@ -1128,5 +1129,35 @@ async def admin_tournament_teams_remove(
         db.commit()
     return RedirectResponse(
         url=f"/admin/tournaments/{tournament_id}/teams?flash=Team+removed",
+        status_code=303,
+    )
+
+
+@router.post(
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/members",
+    response_class=RedirectResponse,
+)
+async def admin_add_team_member_direct(
+    tournament_id: int,
+    team_id: int,
+    user_id: int = Form(...),
+    request: Request = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_web),
+):
+    """Admin directly adds a user to a team, bypassing the invite flow."""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        _team_service.add_team_member(db, team_id=team_id, user_id=user_id)
+    except HTTPException as exc:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error={exc.detail}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Member+added",
         status_code=303,
     )

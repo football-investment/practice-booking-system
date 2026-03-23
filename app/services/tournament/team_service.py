@@ -3,12 +3,19 @@ Team Service
 
 Business logic for team management (CRUD operations, member management).
 """
+import uuid
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from fastapi import HTTPException, status
 from typing import List, Optional
 
 from app.models import Team, TeamMember, User, TeamMemberRole
+from app.models.team import TeamInvite, TeamInviteStatus
+from app.models.tournament_configuration import TournamentConfiguration
+from app.models.team import TournamentTeamEnrollment
+from app.models.license import UserLicense
+from app.models.credit_transaction import CreditTransaction, TransactionType
 
 
 def create_team(
@@ -250,3 +257,204 @@ def delete_team(db: Session, team_id: int) -> bool:
     db.commit()
 
     return True
+
+
+# ---------------------------------------------------------------------------
+# Business logic: credit-aware team creation + invite flow
+# ---------------------------------------------------------------------------
+
+def create_team_with_cost(
+    db: Session,
+    name: str,
+    captain_user_id: int,
+    specialization_type: str,
+    tournament_id: int,  # tournament_id = Semester.id (DB FK is called semester_id)
+    code: Optional[str] = None,
+) -> Team:
+    """
+    Creates a team, auto-enrolls it in the tournament, and deducts credits from captain.
+    Uses SELECT FOR UPDATE to prevent race conditions on credit_balance.
+    Raises HTTP 402 if captain has insufficient credits.
+
+    tournament_id = Semester.id — tournaments live in the semesters table.
+    """
+    cfg = db.query(TournamentConfiguration).filter(
+        TournamentConfiguration.semester_id == tournament_id
+    ).first()
+    cost = cfg.team_enrollment_cost if cfg else 0
+
+    if cost > 0:
+        # Lock the license row to prevent concurrent over-spend
+        license = (
+            db.query(UserLicense)
+            .filter(
+                UserLicense.user_id == captain_user_id,
+                UserLicense.is_active == True,
+            )
+            .with_for_update()
+            .first()
+        )
+        if not license or license.credit_balance < cost:
+            available = license.credit_balance if license else 0
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=f"Insufficient credits. Required: {cost}, Available: {available}",
+            )
+        license.credit_balance -= cost
+        db.add(CreditTransaction(
+            user_license_id=license.id,
+            amount=-cost,
+            balance_after=license.credit_balance,
+            transaction_type=TransactionType.ENROLLMENT.value,
+            description=f"Team creation fee for tournament {tournament_id}",
+            idempotency_key=f"team-create-{captain_user_id}-{tournament_id}",
+        ))
+
+    team = create_team(db, name, captain_user_id, specialization_type, code)
+
+    # Auto-enroll team in the tournament
+    db.add(TournamentTeamEnrollment(
+        semester_id=tournament_id,
+        team_id=team.id,
+        is_active=True,
+        payment_verified=(cost == 0),  # free → auto-verified
+    ))
+    db.commit()
+    db.refresh(team)
+    return team
+
+
+def invite_member(
+    db: Session,
+    team_id: int,
+    invited_user_id: int,
+    invited_by_id: int,
+) -> TeamInvite:
+    """
+    Captain invites a player to the team.
+    Raises 403 if caller is not the team captain.
+    Raises 404 if team or invited user not found / user inactive.
+    Raises 409 if user is already an active member.
+    Returns existing PENDING invite if one already exists (idempotent).
+    """
+    team = get_team(db, team_id)
+    if not team or not team.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+
+    if team.captain_user_id != invited_by_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the team captain can invite players",
+        )
+
+    invited_user = db.query(User).filter(User.id == invited_user_id).first()
+    if not invited_user or not invited_user.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found or inactive")
+
+    # Already an active member?
+    existing_member = db.query(TeamMember).filter(
+        and_(
+            TeamMember.team_id == team_id,
+            TeamMember.user_id == invited_user_id,
+            TeamMember.is_active == True,
+        )
+    ).first()
+    if existing_member:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User is already an active team member")
+
+    # Idempotent: return existing PENDING invite
+    existing_invite = db.query(TeamInvite).filter(
+        and_(
+            TeamInvite.team_id == team_id,
+            TeamInvite.invited_user_id == invited_user_id,
+            TeamInvite.status == TeamInviteStatus.PENDING.value,
+        )
+    ).first()
+    if existing_invite:
+        return existing_invite
+
+    invite = TeamInvite(
+        team_id=team_id,
+        invited_user_id=invited_user_id,
+        invited_by_id=invited_by_id,
+        status=TeamInviteStatus.PENDING.value,
+    )
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+    return invite
+
+
+def respond_to_invite(
+    db: Session,
+    invite_id: int,
+    user_id: int,
+    accept: bool,
+) -> TeamInvite:
+    """
+    Invited user accepts or rejects a pending invite.
+    Raises 404 if invite not found or not PENDING.
+    Raises 403 if caller is not the invitee.
+    On accept: adds user as PLAYER via add_team_member().
+    """
+    invite = db.query(TeamInvite).filter(TeamInvite.id == invite_id).first()
+    if not invite or invite.status != TeamInviteStatus.PENDING.value:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending invite not found")
+
+    if invite.invited_user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the invited user can respond")
+
+    if accept:
+        add_team_member(db, invite.team_id, user_id, role=TeamMemberRole.PLAYER.value)
+        invite.status = TeamInviteStatus.ACCEPTED.value
+    else:
+        invite.status = TeamInviteStatus.REJECTED.value
+
+    invite.responded_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(invite)
+    return invite
+
+
+def cancel_invite(
+    db: Session,
+    invite_id: int,
+    captain_user_id: int,
+) -> bool:
+    """
+    Captain cancels a pending invite.
+    Raises 404 if invite not found or not PENDING.
+    Raises 403 if caller is not the team captain.
+    """
+    invite = db.query(TeamInvite).filter(TeamInvite.id == invite_id).first()
+    if not invite or invite.status != TeamInviteStatus.PENDING.value:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending invite not found")
+
+    team = get_team(db, invite.team_id)
+    if not team or team.captain_user_id != captain_user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the team captain can cancel invites")
+
+    invite.status = TeamInviteStatus.CANCELLED.value
+    invite.responded_at = datetime.now(timezone.utc)
+    db.commit()
+    return True
+
+
+def get_pending_invites_for_user(db: Session, user_id: int) -> List[TeamInvite]:
+    """Get all PENDING invites for a user"""
+    return db.query(TeamInvite).filter(
+        and_(
+            TeamInvite.invited_user_id == user_id,
+            TeamInvite.status == TeamInviteStatus.PENDING.value,
+        )
+    ).all()
+
+
+def get_team_pending_invites(db: Session, team_id: int) -> List[TeamInvite]:
+    """Get all PENDING invites for a team (captain view)"""
+    return db.query(TeamInvite).filter(
+        and_(
+            TeamInvite.team_id == team_id,
+            TeamInvite.status == TeamInviteStatus.PENDING.value,
+        )
+    ).all()

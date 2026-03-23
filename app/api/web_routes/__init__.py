@@ -19,6 +19,7 @@ from . import (
     admin,
     tournaments,
     communications,
+    teams,
 )
 
 # Create main router with tags
@@ -39,3 +40,4 @@ router.include_router(instructor_dashboard.router)
 router.include_router(admin.router)
 router.include_router(tournaments.router)
 router.include_router(communications.router)
+router.include_router(teams.router)

@@ -1,0 +1,102 @@
+{% extends "student_base.html" %}
+
+{% block title %}Create Team — {{ tournament.name }}{% endblock %}
+{% block active_page %}tournaments{% endblock %}
+
+{% block extra_styles %}
+<style>
+.team-create-container {
+    max-width: 640px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.75rem; color: #2d3748; }
+.page-header .subtitle { color: #718096; font-size: 1rem; }
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.cost-badge {
+    display: inline-block;
+    padding: .35rem .8rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: .9rem;
+}
+.cost-free { background: #c6f6d5; color: #276749; }
+.cost-paid { background: #fed7d7; color: #9b2c2c; }
+.form-group { margin-bottom: 1.25rem; }
+.form-group label { display: block; font-weight: 600; margin-bottom: .4rem; color: #4a5568; }
+.form-control {
+    width: 100%;
+    padding: .55rem .8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+.btn-primary {
+    background: #2f855a;
+    color: white;
+    border: none;
+    padding: .65rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+}
+.btn-primary:hover { background: #276749; }
+.alert-danger {
+    background: #fff5f5;
+    border-left: 4px solid #fc8181;
+    padding: .75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    color: #c53030;
+}
+.back-link { color: #2f855a; text-decoration: none; font-size: .95rem; }
+.back-link:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="team-create-container">
+    <div class="page-header">
+        <a href="/tournaments" class="back-link">← Back to Tournaments</a>
+        <h1>Create Your Team</h1>
+        <p class="subtitle">{{ tournament.name }}</p>
+    </div>
+
+    {% if error %}
+    <div class="alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="card">
+        <p>
+            Enrollment cost:
+            {% if cost == 0 %}
+            <span class="cost-badge cost-free">Free</span>
+            {% else %}
+            <span class="cost-badge cost-paid">{{ cost }} credits</span>
+            {% endif %}
+        </p>
+
+        <form method="POST" action="/tournaments/{{ tournament.id }}/team/create">
+            <div class="form-group">
+                <label for="name">Team Name</label>
+                <input type="text" id="name" name="name" class="form-control"
+                       required minlength="2" maxlength="100"
+                       placeholder="e.g. Dragon FC">
+            </div>
+            <button type="submit" class="btn-primary">
+                {% if cost > 0 %}Pay {{ cost }} Credits &amp; Create Team{% else %}Create Team{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
