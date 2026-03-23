@@ -1,0 +1,133 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Events{% endblock %}
+{% block page_heading %}🎯 Event Management{% endblock %}
+{% block page_subtitle %}Tournaments, camps, training sessions and match sessions — all partner and center events{% endblock %}
+
+{% block admin_content %}
+
+<div class="module-strip">
+    <span class="module-strip-label">Events</span>
+    <span class="module-strip-item active">🎯 All Events</span>
+</div>
+
+<!-- KPI strip -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.75rem;">
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #f6ad55;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#744210;">{{ tournament_count }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">🏆 Tournaments</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #48bb78;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#276749;">{{ camp_count }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">⛺ Camps</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #667eea;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#553c9a;">{{ training_count }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">🏃 Training Sessions <span style="font-size:0.72rem;">(14d)</span></div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #4299e1;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#2b6cb0;">{{ match_count }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">⚽ Match Sessions <span style="font-size:0.72rem;">(14d)</span></div>
+    </div>
+</div>
+
+<!-- Location cards -->
+<h3 style="font-size:0.88rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem;">📍 Locations</h3>
+{% if all_locations %}
+<div class="hub-grid">
+    {% for loc in all_locations %}
+    <a href="/admin/events/locations/{{ loc.id }}" class="hub-card"
+       style="border-top-color:{% if loc.location_type.value == 'CENTER' %}#4299e1{% else %}#f6ad55{% endif %};">
+        <div class="hub-card-icon">{% if loc.location_type.value == 'CENTER' %}🏫{% else %}🤝{% endif %}</div>
+        <div class="hub-card-title">{{ loc.city }}</div>
+        <div class="hub-card-desc" style="font-size:0.8rem;color:#718096;">
+            {{ loc.location_type.value }} · {{ loc.country }}
+            {% if loc.location_code %} · <code style="font-size:0.75rem;">{{ loc.location_code }}</code>{% endif %}
+        </div>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <span style="font-size:0.8rem;color:#4a5568;font-weight:600;">
+                {{ sem_by_loc.get(loc.id, 0) }} events
+            </span>
+            <span style="font-size:0.8rem;color:#718096;">·</span>
+            <span style="font-size:0.8rem;color:#4a5568;font-weight:600;">
+                {{ sess_by_loc.get(loc.id, 0) }} sessions
+            </span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div style="background:white;border-radius:12px;padding:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);text-align:center;color:#718096;margin-bottom:1.5rem;">
+    <p style="font-size:1.5rem;margin-bottom:0.5rem;">📍</p>
+    <p style="font-size:0.9rem;">No active locations found. <a href="/admin/locations" style="color:#667eea;">Add a location →</a></p>
+</div>
+{% endif %}
+
+<div style="margin-bottom:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+    <a href="/admin/tournaments" style="padding:0.35rem 0.85rem;background:#fef9c3;color:#744210;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">🏆 All Tournaments</a>
+    <a href="/admin/camps" style="padding:0.35rem 0.85rem;background:#c6f6d5;color:#276749;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">⛺ All Camps</a>
+    <a href="/admin/sessions?event_category=TRAINING" style="padding:0.35rem 0.85rem;background:#e9d8fd;color:#553c9a;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">🏃 Training Sessions</a>
+    <a href="/admin/sessions?event_category=MATCH" style="padding:0.35rem 0.85rem;background:#ebf8ff;color:#2b6cb0;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">⚽ Match Sessions</a>
+</div>
+
+<!-- Upcoming structured events -->
+{% if upcoming_events %}
+<div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-top:1.5rem;">
+    <h3 style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:1rem;">📅 Upcoming Events</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:0.86rem;">
+        <thead>
+            <tr>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Start</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Type</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Name</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Location</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Age</th>
+                <th style="text-align:left;padding:0.45rem 0.75rem;background:#f7fafc;color:#718096;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;">Status</th>
+                <th style="padding:0.45rem 0.75rem;background:#f7fafc;border-bottom:2px solid #e2e8f0;"></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ev in upcoming_events %}
+        {% set loc = ev_loc_map.get(ev.location_id) %}
+        {% set cam = ev_cam_map.get(ev.campus_id) %}
+        <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:0.5rem 0.75rem;color:#4a5568;white-space:nowrap;font-size:0.82rem;">{{ ev.start_date.strftime('%b %d') if ev.start_date else '—' }}</td>
+            <td style="padding:0.5rem 0.75rem;">
+                {% if ev.semester_category and ev.semester_category.value == 'TOURNAMENT' %}
+                    <span style="background:#fefcbf;color:#744210;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.72rem;font-weight:600;">🏆 Tournament</span>
+                {% else %}
+                    <span style="background:#c6f6d5;color:#276749;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.72rem;font-weight:600;">⛺ Camp</span>
+                {% endif %}
+            </td>
+            <td style="padding:0.5rem 0.75rem;font-weight:600;color:#2d3748;">{{ ev.name }}</td>
+            <td style="padding:0.5rem 0.75rem;color:#718096;font-size:0.82rem;">
+                {{ loc.city if loc else (cam.name if cam else '—') }}
+            </td>
+            <td style="padding:0.5rem 0.75rem;">
+                {% if ev.age_group %}<span style="background:#fed7e2;color:#97266d;padding:0.15rem 0.45rem;border-radius:4px;font-size:0.72rem;font-weight:600;font-family:monospace;">{{ ev.age_group }}</span>{% else %}—{% endif %}
+            </td>
+            <td style="padding:0.5rem 0.75rem;">
+                {% set s = ev.status.value if ev.status else '' %}
+                {% if s == 'ONGOING' %}<span style="background:#c6f6d5;color:#276749;padding:0.15rem 0.45rem;border-radius:4px;font-size:0.72rem;font-weight:600;">ONGOING</span>
+                {% elif s == 'DRAFT' %}<span style="background:#e2e8f0;color:#4a5568;padding:0.15rem 0.45rem;border-radius:4px;font-size:0.72rem;font-weight:600;">DRAFT</span>
+                {% elif s == 'READY_FOR_ENROLLMENT' %}<span style="background:#bee3f8;color:#2c5282;padding:0.15rem 0.45rem;border-radius:4px;font-size:0.72rem;font-weight:600;">READY</span>
+                {% else %}<span style="background:#e2e8f0;color:#4a5568;padding:0.15rem 0.45rem;border-radius:4px;font-size:0.72rem;font-weight:600;">{{ s }}</span>
+                {% endif %}
+            </td>
+            <td style="padding:0.5rem 0.75rem;">
+                {% if ev.semester_category and ev.semester_category.value == 'TOURNAMENT' %}
+                    <a href="/admin/tournaments/{{ ev.id }}/edit" style="font-size:0.78rem;padding:0.2rem 0.55rem;border-radius:6px;text-decoration:none;font-weight:600;background:#4299e1;color:white;">→</a>
+                {% elif ev.semester_category and ev.semester_category.value == 'CAMP' %}
+                    <a href="/admin/camps/{{ ev.id }}/edit" style="font-size:0.78rem;padding:0.2rem 0.55rem;border-radius:6px;text-decoration:none;font-weight:600;background:#48bb78;color:white;">→</a>
+                {% else %}
+                    <a href="/admin/semesters/{{ ev.id }}/edit" style="font-size:0.78rem;padding:0.2rem 0.55rem;border-radius:6px;text-decoration:none;font-weight:600;background:#e2e8f0;color:#4a5568;">→</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -18,7 +18,7 @@ from sqlalchemy import func as sqlfunc, or_, case
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
-from ...models.semester import Semester, SemesterStatus
+from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.license import UserLicense, LicenseProgression
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.specialization import SpecializationType
@@ -28,7 +28,7 @@ from ...core.security import get_password_hash
 import uuid as _uuid
 from ...models.coupon import Coupon
 from ...models.invitation_code import InvitationCode
-from ...models.session import Session as SessionModel
+from ...models.session import Session as SessionModel, EventCategory
 from ...models.booking import Booking, BookingStatus
 from ...models.attendance import Attendance, AttendanceStatus
 from ...services.audit_service import AuditService
@@ -40,6 +40,11 @@ from ...models.system_event import SystemEvent, SystemEventLevel
 from ...models.game_preset import GamePreset
 from ...skills_config import SKILL_CATEGORIES
 from ...services.location_validation_service import LocationValidationService
+from ...models.event_reward_log import EventRewardLog
+from ...models.football_skill_assessment import FootballSkillAssessment
+from ...models.notification import Notification, NotificationType
+from ...models.instructor_assignment import InstructorAssignment
+from datetime import timedelta
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -550,6 +555,47 @@ async def admin_edit_user_page(
         if lic.is_active and lic.expires_at is not None and lic.expires_at < now_naive
     }
 
+    # ── FÁZIS 5: Skill Progression data (LFA_FOOTBALL_PLAYER only) ──────────────
+    has_lfa_player = any(
+        lic.specialization_type == "LFA_FOOTBALL_PLAYER"
+        for lic in licenses if lic.is_active
+    )
+    xp_logs: list = []
+    xp_total: int = 0
+    skill_assessments: list = []
+    skill_tier_milestones: list = []
+    if has_lfa_player:
+        xp_logs = (
+            db.query(EventRewardLog)
+            .filter(EventRewardLog.user_id == user_id)
+            .order_by(EventRewardLog.created_at.desc())
+            .limit(20)
+            .all()
+        )
+        xp_total = db.query(sqlfunc.sum(EventRewardLog.xp_earned)).filter(
+            EventRewardLog.user_id == user_id
+        ).scalar() or 0
+        if license_ids:
+            skill_assessments = (
+                db.query(FootballSkillAssessment)
+                .filter(
+                    FootballSkillAssessment.user_license_id.in_(license_ids),
+                    FootballSkillAssessment.status != "ARCHIVED",
+                )
+                .order_by(FootballSkillAssessment.assessed_at.desc())
+                .limit(20)
+                .all()
+            )
+        skill_tier_milestones = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user_id,
+                Notification.type == NotificationType.SKILL_TIER_REACHED,
+            )
+            .order_by(Notification.created_at.desc())
+            .all()
+        )
+
     return templates.TemplateResponse(
         "admin/user_edit.html",
         {
@@ -568,6 +614,11 @@ async def admin_edit_user_page(
             "msg": request.query_params.get("msg", ""),
             "error": request.query_params.get("error", ""),
             "error_detail": request.query_params.get("error_detail", ""),
+            "has_lfa_player": has_lfa_player,
+            "xp_logs": xp_logs,
+            "xp_total": xp_total,
+            "skill_assessments": skill_assessments,
+            "skill_tier_milestones": skill_tier_milestones,
         }
     )
 
@@ -1042,6 +1093,29 @@ async def admin_delete_semester(
     return RedirectResponse(url="/admin/semesters", status_code=303)
 
 
+@router.get("/admin/semesters/{semester_id}/edit", response_class=HTMLResponse)
+async def admin_semester_edit_dispatch(
+    semester_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Dispatch: redirect to the appropriate edit page based on semester category."""
+    _admin_guard(user)
+    sem = db.query(Semester).filter(Semester.id == semester_id).first()
+    if not sem:
+        raise HTTPException(status_code=404, detail="Semester not found")
+    is_tournament = (
+        sem.semester_category == SemesterCategory.TOURNAMENT
+        or (sem.code or "").startswith("TOURN-")
+        or (sem.code or "").startswith("OPS-")
+    )
+    if is_tournament:
+        return RedirectResponse(f"/admin/tournaments/{semester_id}/edit", status_code=303)
+    if sem.semester_category == SemesterCategory.CAMP:
+        return RedirectResponse(f"/admin/camps/{semester_id}/edit", status_code=303)
+    return RedirectResponse(f"/admin/semesters", status_code=303)
+
+
 @router.get("/admin/analytics", response_class=HTMLResponse)
 async def admin_analytics_page(
     request: Request,
@@ -1117,6 +1191,30 @@ async def admin_analytics_page(
                     "past": len(matching) - upcoming,
                 })
 
+    # ── FÁZIS 5: Skill tier distribution ─────────────────────────────────────────
+    all_active_assessments = (
+        db.query(FootballSkillAssessment)
+        .filter(FootballSkillAssessment.status != "ARCHIVED")
+        .all()
+    )
+    from collections import defaultdict as _dd
+    _by_skill: dict = _dd(list)
+    for _a in all_active_assessments:
+        _by_skill[_a.skill_name].append(_a.percentage)
+    skill_dist = [
+        {
+            "skill": sn,
+            "beginner": sum(1 for p in pcts if p < 60),
+            "intermediate": sum(1 for p in pcts if 60 <= p < 75),
+            "advanced": sum(1 for p in pcts if 75 <= p < 90),
+            "expert": sum(1 for p in pcts if p >= 90),
+        }
+        for sn, pcts in sorted(_by_skill.items())
+    ]
+    tier_milestone_count = db.query(Notification).filter(
+        Notification.type == NotificationType.SKILL_TIER_REACHED
+    ).count()
+
     return templates.TemplateResponse(
         "admin/analytics.html",
         {
@@ -1129,6 +1227,8 @@ async def admin_analytics_page(
             "selected_location_id": location_id,
             "spec_semesters": dict(spec_semesters),
             "location_campuses": location_campuses,
+            "skill_dist": skill_dist,
+            "tier_milestone_count": tier_milestone_count,
         }
     )
 
@@ -1260,6 +1360,489 @@ def _admin_guard(user: User):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
+@router.get("/admin/programs", response_class=HTMLResponse)
+async def admin_programs_hub_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Programs operational hub (Semesters + Enrollments)"""
+    _admin_guard(user)
+
+    active_semesters_count = db.query(Semester).filter(
+        Semester.status == SemesterStatus.ONGOING
+    ).count()
+    pending_enrollments_count = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.request_status == EnrollmentStatus.PENDING
+    ).count()
+    today = date.today()
+    upcoming_semesters = (
+        db.query(Semester)
+        .filter(Semester.start_date >= today, Semester.status != SemesterStatus.CANCELLED)
+        .options(joinedload(Semester.location))
+        .order_by(Semester.start_date.asc())
+        .limit(5)
+        .all()
+    )
+    total_semesters = db.query(Semester).filter(Semester.status != SemesterStatus.CANCELLED).count()
+    total_enrollments = db.query(SemesterEnrollment).count()
+
+    return templates.TemplateResponse(
+        "admin/programs_hub.html",
+        {
+            "request": request,
+            "user": user,
+            "active_semesters_count": active_semesters_count,
+            "pending_enrollments_count": pending_enrollments_count,
+            "upcoming_semesters": upcoming_semesters,
+            "total_semesters": total_semesters,
+            "total_enrollments": total_enrollments,
+        }
+    )
+
+
+@router.get("/admin/config", response_class=HTMLResponse)
+async def admin_config_hub_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Game Config hub (Game Presets only; Locations moved to top-level nav)"""
+    _admin_guard(user)
+
+    game_presets_count = db.query(GamePreset).count()
+
+    return templates.TemplateResponse(
+        "admin/config_hub.html",
+        {
+            "request": request,
+            "user": user,
+            "game_presets_count": game_presets_count,
+        }
+    )
+
+
+@router.get("/admin/events", response_class=HTMLResponse)
+async def admin_events_hub_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Event Management hub — tournaments, camps, training sessions, match sessions."""
+    _admin_guard(user)
+
+    today = date.today()
+    two_weeks = today + timedelta(days=14)
+
+    tournament_count = db.query(sqlfunc.count(Semester.id)).filter(
+        or_(
+            Semester.code.like("TOURN-%"),
+            Semester.code.like("OPS-%"),
+            Semester.semester_category == SemesterCategory.TOURNAMENT,
+        ),
+        Semester.status != SemesterStatus.CANCELLED,
+    ).scalar() or 0
+
+    camp_count = db.query(sqlfunc.count(Semester.id)).filter(
+        Semester.semester_category == SemesterCategory.CAMP,
+        Semester.status != SemesterStatus.CANCELLED,
+    ).scalar() or 0
+
+    training_count = db.query(sqlfunc.count(SessionModel.id)).filter(
+        SessionModel.event_category == EventCategory.TRAINING,
+        sqlfunc.date(SessionModel.date_start) >= today,
+        sqlfunc.date(SessionModel.date_start) <= two_weeks,
+        SessionModel.session_status != "cancelled",
+    ).scalar() or 0
+
+    match_count = db.query(sqlfunc.count(SessionModel.id)).filter(
+        SessionModel.event_category == EventCategory.MATCH,
+        sqlfunc.date(SessionModel.date_start) >= today,
+        sqlfunc.date(SessionModel.date_start) <= two_weeks,
+        SessionModel.session_status != "cancelled",
+    ).scalar() or 0
+
+    upcoming_events = db.query(Semester).filter(
+        or_(
+            Semester.semester_category.in_([SemesterCategory.TOURNAMENT, SemesterCategory.CAMP]),
+            Semester.code.like("TOURN-%"),
+            Semester.code.like("OPS-%"),
+        ),
+        Semester.start_date >= today,
+        Semester.status != SemesterStatus.CANCELLED,
+    ).order_by(Semester.start_date).limit(5).all()
+
+    # Batch-load locations and campuses for upcoming events table
+    ev_loc_ids = list({e.location_id for e in upcoming_events if e.location_id})
+    ev_cam_ids = list({e.campus_id for e in upcoming_events if e.campus_id})
+    ev_loc_map = {l.id: l for l in db.query(Location).filter(Location.id.in_(ev_loc_ids)).all()} if ev_loc_ids else {}
+    ev_cam_map = {c.id: c for c in db.query(Campus).filter(Campus.id.in_(ev_cam_ids)).all()} if ev_cam_ids else {}
+
+    # Location cards — aggregate semester + session counts per location
+    all_locations = (
+        db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
+    )
+    all_loc_ids = [l.id for l in all_locations]
+    sem_by_loc = (
+        dict(
+            db.query(Semester.location_id, sqlfunc.count(Semester.id))
+            .filter(
+                Semester.location_id.in_(all_loc_ids),
+                Semester.status != SemesterStatus.CANCELLED,
+            )
+            .group_by(Semester.location_id)
+            .all()
+        )
+        if all_loc_ids
+        else {}
+    )
+    # Session has campus_id (no location_id) — count via Campus join
+    if all_loc_ids:
+        all_campuses = (
+            db.query(Campus).filter(Campus.location_id.in_(all_loc_ids)).all()
+        )
+        campus_to_loc = {c.id: c.location_id for c in all_campuses}
+        all_campus_ids = [c.id for c in all_campuses]
+        sess_by_campus = (
+            dict(
+                db.query(SessionModel.campus_id, sqlfunc.count(SessionModel.id))
+                .filter(
+                    SessionModel.campus_id.in_(all_campus_ids),
+                    SessionModel.session_status != "cancelled",
+                )
+                .group_by(SessionModel.campus_id)
+                .all()
+            )
+            if all_campus_ids
+            else {}
+        )
+        sess_by_loc: dict = {}
+        for cam_id, cnt in sess_by_campus.items():
+            loc_id = campus_to_loc.get(cam_id)
+            if loc_id:
+                sess_by_loc[loc_id] = sess_by_loc.get(loc_id, 0) + cnt
+    else:
+        sess_by_loc = {}
+
+    return templates.TemplateResponse(
+        "admin/events_hub.html",
+        {
+            "request": request,
+            "user": user,
+            "tournament_count": tournament_count,
+            "camp_count": camp_count,
+            "training_count": training_count,
+            "match_count": match_count,
+            "upcoming_events": upcoming_events,
+            "ev_loc_map": ev_loc_map,
+            "ev_cam_map": ev_cam_map,
+            "SemesterCategory": SemesterCategory,
+            "all_locations": all_locations,
+            "sem_by_loc": sem_by_loc,
+            "sess_by_loc": sess_by_loc,
+        }
+    )
+
+
+@router.get("/admin/camps", response_class=HTMLResponse)
+async def admin_camps_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+    status_filter: str = "active",
+    age_group_filter: str = "",
+    location_filter: str = "",
+    name_search: str = "",
+):
+    """Admin-only: Camp management — list of CAMP-category semesters."""
+    _admin_guard(user)
+
+    query = db.query(Semester).filter(Semester.semester_category == SemesterCategory.CAMP)
+    if status_filter == "active":
+        query = query.filter(Semester.status != SemesterStatus.CANCELLED)
+    elif status_filter == "cancelled":
+        query = query.filter(Semester.status == SemesterStatus.CANCELLED)
+    if age_group_filter:
+        query = query.filter(Semester.age_group == age_group_filter)
+    if name_search:
+        query = query.filter(Semester.name.ilike(f"%{name_search}%"))
+    camps = query.order_by(Semester.start_date.desc()).all()
+
+    loc_ids = list({c.location_id for c in camps if c.location_id})
+    campus_ids_set = list({c.campus_id for c in camps if c.campus_id})
+    location_map = {l.id: l for l in db.query(Location).filter(Location.id.in_(loc_ids)).all()} if loc_ids else {}
+    campus_map = {c.id: c for c in db.query(Campus).filter(Campus.id.in_(campus_ids_set)).all()} if campus_ids_set else {}
+
+    all_locations = db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
+
+    total = len(camps)
+    ongoing = sum(1 for c in camps if c.status == SemesterStatus.ONGOING)
+    upcoming = sum(1 for c in camps if c.start_date and c.start_date >= date.today() and c.status not in [SemesterStatus.CANCELLED, SemesterStatus.COMPLETED])
+    completed = sum(1 for c in camps if c.status == SemesterStatus.COMPLETED)
+
+    return templates.TemplateResponse(
+        "admin/camps.html",
+        {
+            "request": request,
+            "user": user,
+            "camps": camps,
+            "location_map": location_map,
+            "campus_map": campus_map,
+            "all_locations": all_locations,
+            "status_filter": status_filter,
+            "age_group_filter": age_group_filter,
+            "name_search": name_search,
+            "total": total,
+            "ongoing": ongoing,
+            "upcoming": upcoming,
+            "completed": completed,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+            "SemesterStatus": SemesterStatus,
+        }
+    )
+
+
+@router.post("/admin/camps", response_class=HTMLResponse)
+async def admin_create_camp(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+    name: str = Form(...),
+    code: str = Form(""),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    age_group: str = Form(""),
+    location_id: str = Form(""),
+    campus_id: str = Form(""),
+    enrollment_cost: str = Form("0"),
+):
+    """Admin-only: Create a new Camp semester."""
+    _admin_guard(user)
+
+    camp_code = code.strip() if code.strip() else f"CAMP-{_uuid.uuid4().hex[:6].upper()}"
+    if not camp_code.startswith("CAMP-"):
+        camp_code = f"CAMP-{camp_code}"
+
+    try:
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+    except ValueError:
+        return RedirectResponse(f"/admin/camps?error=Invalid+date+format", status_code=303)
+
+    semester = Semester(
+        name=name.strip(),
+        code=camp_code,
+        start_date=start,
+        end_date=end,
+        semester_category=SemesterCategory.CAMP,
+        status=SemesterStatus.DRAFT,
+        age_group=age_group.strip() or None,
+        location_id=int(location_id) if location_id.strip() else None,
+        campus_id=int(campus_id) if campus_id.strip() else None,
+        enrollment_cost=int(enrollment_cost) if enrollment_cost.strip().isdigit() else 0,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+    )
+    db.add(semester)
+    db.commit()
+    if semester.location_id:
+        return RedirectResponse(
+            f"/admin/events/locations/{semester.location_id}?flash=Camp+created",
+            status_code=303,
+        )
+    return RedirectResponse(f"/admin/camps?flash=Camp+created", status_code=303)
+
+
+@router.get("/admin/camps/{camp_id}/edit", response_class=HTMLResponse)
+async def admin_camp_edit_page(
+    camp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin-only: Edit a Camp semester."""
+    _admin_guard(user)
+    camp = db.query(Semester).filter(
+        Semester.id == camp_id,
+        Semester.semester_category == SemesterCategory.CAMP,
+    ).first()
+    if not camp:
+        raise HTTPException(status_code=404, detail="Camp not found")
+
+    all_locations = db.query(Location).filter(Location.is_active == True).order_by(Location.city).all()
+    campuses_for_loc = (
+        db.query(Campus).filter(Campus.location_id == camp.location_id).all()
+        if camp.location_id else []
+    )
+    return templates.TemplateResponse(
+        "admin/camp_edit.html",
+        {
+            "request": request,
+            "user": user,
+            "camp": camp,
+            "all_locations": all_locations,
+            "campuses_for_loc": campuses_for_loc,
+            "SemesterStatus": SemesterStatus,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@router.post("/admin/camps/{camp_id}/edit", response_class=HTMLResponse)
+async def admin_update_camp(
+    camp_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+    name: str = Form(...),
+    code: str = Form(""),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    age_group: str = Form(""),
+    location_id: str = Form(""),
+    campus_id: str = Form(""),
+    enrollment_cost: str = Form(""),
+    status: str = Form(""),
+):
+    """Admin-only: Update a Camp semester."""
+    _admin_guard(user)
+    camp = db.query(Semester).filter(
+        Semester.id == camp_id,
+        Semester.semester_category == SemesterCategory.CAMP,
+    ).first()
+    if not camp:
+        raise HTTPException(status_code=404, detail="Camp not found")
+
+    try:
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+    except ValueError:
+        return RedirectResponse(
+            f"/admin/camps/{camp_id}/edit?error=Invalid+date+format", status_code=303
+        )
+
+    camp.name = name.strip()
+    if code.strip():
+        camp.code = code.strip()
+    camp.start_date = start
+    camp.end_date = end
+    camp.age_group = age_group.strip() or None
+    camp.location_id = int(location_id) if location_id.strip() else None
+    camp.campus_id = int(campus_id) if campus_id.strip() else None
+    if enrollment_cost.strip().isdigit():
+        camp.enrollment_cost = int(enrollment_cost)
+    if status.strip():
+        try:
+            camp.status = SemesterStatus(status)
+        except ValueError:
+            pass
+    db.commit()
+
+    loc_id = camp.location_id
+    if loc_id:
+        return RedirectResponse(
+            f"/admin/events/locations/{loc_id}?flash=Camp+updated", status_code=303
+        )
+    return RedirectResponse(f"/admin/camps/{camp_id}/edit?flash=Camp+updated", status_code=303)
+
+
+@router.get("/admin/events/locations/{location_id}", response_class=HTMLResponse)
+async def admin_location_events_page(
+    location_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin-only: Per-location event management — all event types CRUD in one place."""
+    _admin_guard(user)
+    loc = db.query(Location).filter(Location.id == location_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    campuses = db.query(Campus).filter(Campus.location_id == location_id).order_by(Campus.name).all()
+    campus_ids = [c.id for c in campuses]
+    campus_map = {c.id: c for c in campuses}
+
+    # Tournaments (TOURNAMENT category OR legacy TOURN-/OPS- codes) at this location
+    tournaments = (
+        db.query(Semester)
+        .filter(
+            or_(
+                Semester.semester_category == SemesterCategory.TOURNAMENT,
+                Semester.code.like("TOURN-%"),
+                Semester.code.like("OPS-%"),
+            ),
+            Semester.location_id == location_id,
+            Semester.status != SemesterStatus.CANCELLED,
+        )
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    # Camps at this location
+    camps = (
+        db.query(Semester)
+        .filter(
+            Semester.semester_category == SemesterCategory.CAMP,
+            Semester.location_id == location_id,
+            Semester.status != SemesterStatus.CANCELLED,
+        )
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    # Academy / Mini Seasons at this location
+    seasons = (
+        db.query(Semester)
+        .filter(
+            Semester.semester_category.in_(
+                [SemesterCategory.ACADEMY_SEASON, SemesterCategory.MINI_SEASON]
+            ),
+            Semester.location_id == location_id,
+            Semester.status != SemesterStatus.CANCELLED,
+        )
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    # Upcoming sessions at this location's campuses (next 30 days)
+    in_30d = date.today() + timedelta(days=30)
+    sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.campus_id.in_(campus_ids),
+            sqlfunc.date(SessionModel.date_start) >= date.today(),
+            sqlfunc.date(SessionModel.date_start) <= in_30d,
+            SessionModel.session_status != "cancelled",
+        )
+        .order_by(SessionModel.date_start)
+        .limit(20)
+        .all()
+        if campus_ids
+        else []
+    )
+
+    return templates.TemplateResponse(
+        "admin/events_location.html",
+        {
+            "request": request,
+            "user": user,
+            "loc": loc,
+            "campuses": campuses,
+            "campus_map": campus_map,
+            "tournaments": tournaments,
+            "camps": camps,
+            "seasons": seasons,
+            "sessions": sessions,
+            "SemesterStatus": SemesterStatus,
+            "SemesterCategory": SemesterCategory,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
 @router.get("/admin/locations", response_class=HTMLResponse)
 async def admin_locations_page(
     request: Request,
@@ -1299,17 +1882,157 @@ async def admin_locations_page(
         loc.city for loc in db.query(Location).all() if loc.city
     ))
 
+    # Batch: active semester counts per location
+    semester_counts: dict = {}
+    if loc_ids:
+        for row in db.query(Semester.location_id, sqlfunc.count(Semester.id)).filter(
+            Semester.location_id.in_(loc_ids),
+            Semester.status.in_([SemesterStatus.READY_FOR_ENROLLMENT, SemesterStatus.ONGOING])
+        ).group_by(Semester.location_id).all():
+            semester_counts[row[0]] = row[1]
+
+    # Batch: active instructor counts per location
+    instructor_counts: dict = {}
+    if loc_ids:
+        for row in db.query(
+            InstructorAssignment.location_id,
+            sqlfunc.count(sqlfunc.distinct(InstructorAssignment.instructor_id))
+        ).filter(
+            InstructorAssignment.location_id.in_(loc_ids),
+            InstructorAssignment.is_active == True  # noqa: E712
+        ).group_by(InstructorAssignment.location_id).all():
+            instructor_counts[row[0]] = row[1]
+
+    # Group locations by country (sorted alphabetically)
+    locations_by_country: dict = defaultdict(list)
+    for loc in locations:
+        locations_by_country[loc.country or "Unknown"].append(loc)
+    locations_by_country = dict(sorted(locations_by_country.items()))
+
     return templates.TemplateResponse(
         "admin/locations.html",
         {
             "request": request,
             "user": user,
             "locations": locations,
+            "locations_by_country": locations_by_country,
             "LocationType": LocationType,
             "all_cities": all_cities,
             "city_filter": city_filter,
             "status_filter": status_filter,
             "name_search": name_search,
+            "semester_counts": semester_counts,
+            "instructor_counts": instructor_counts,
+        }
+    )
+
+
+@router.get("/admin/locations/{location_id}", response_class=HTMLResponse)
+async def admin_location_detail_page(
+    location_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Location detail — hierarchical view of campus, programs, sessions, instructors."""
+    _admin_guard(user)
+
+    loc = db.query(Location).filter(Location.id == location_id).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Q2: Campuses
+    campuses = db.query(Campus).filter(Campus.location_id == location_id).order_by(Campus.name).all()
+    campus_ids = [c.id for c in campuses]
+
+    # Q3: Active/upcoming semesters at this location
+    _active_statuses = [
+        SemesterStatus.READY_FOR_ENROLLMENT,
+        SemesterStatus.ONGOING,
+        SemesterStatus.INSTRUCTOR_ASSIGNED,
+    ]
+    semesters = db.query(Semester).filter(
+        Semester.location_id == location_id,
+        Semester.status.in_(_active_statuses)
+    ).order_by(Semester.start_date).all()
+    semester_ids = [s.id for s in semesters]
+
+    # Q4: Upcoming sessions — UNION: campus_id IN + semester_id IN
+    _today = date.today()
+    _two_weeks = _today + timedelta(days=14)
+    _base_filters = [
+        sqlfunc.date(SessionModel.date_start) >= _today,
+        sqlfunc.date(SessionModel.date_start) <= _two_weeks,
+        SessionModel.session_status != 'cancelled',
+    ]
+    if campus_ids and semester_ids:
+        _loc_filter = or_(
+            SessionModel.campus_id.in_(campus_ids),
+            SessionModel.semester_id.in_(semester_ids),
+        )
+    elif campus_ids:
+        _loc_filter = SessionModel.campus_id.in_(campus_ids)
+    elif semester_ids:
+        _loc_filter = SessionModel.semester_id.in_(semester_ids)
+    else:
+        _loc_filter = None
+
+    if _loc_filter is not None:
+        upcoming_sessions = db.query(SessionModel).filter(
+            _loc_filter, *_base_filters
+        ).order_by(SessionModel.date_start).limit(30).all()
+    else:
+        upcoming_sessions = []
+
+    # Q5: Active instructor assignments at this location
+    assignments = db.query(InstructorAssignment).filter(
+        InstructorAssignment.location_id == location_id,
+        InstructorAssignment.is_active == True  # noqa: E712
+    ).order_by(InstructorAssignment.age_group, InstructorAssignment.year.desc()).all()
+
+    # Q6: Batch load instructor user objects
+    _instr_ids = list({a.instructor_id for a in assignments})
+    instructor_map: dict = (
+        {u.id: u for u in db.query(User).filter(User.id.in_(_instr_ids)).all()}
+        if _instr_ids else {}
+    )
+
+    # Q7: Upcoming session counts per campus (direct campus_id only)
+    campus_session_counts: dict = {}
+    if campus_ids:
+        for row in db.query(SessionModel.campus_id, sqlfunc.count(SessionModel.id)).filter(
+            SessionModel.campus_id.in_(campus_ids),
+            sqlfunc.date(SessionModel.date_start) >= _today,
+            SessionModel.session_status != 'cancelled',
+        ).group_by(SessionModel.campus_id).all():
+            campus_session_counts[row[0]] = row[1]
+
+    # Group semesters by age_group (ordered logically)
+    semesters_by_group: dict = defaultdict(list)
+    for s in semesters:
+        key = s.age_group or (s.semester_category.value if s.semester_category else "OTHER")
+        semesters_by_group[key].append(s)
+    _group_order = ["PRE", "YOUTH", "AMATEUR", "PRO", "TOURNAMENT", "CAMP", "OTHER"]
+    semesters_by_group = {k: semesters_by_group[k] for k in _group_order if k in semesters_by_group}
+
+    return templates.TemplateResponse(
+        "admin/location_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "loc": loc,
+            "campuses": campuses,
+            "semesters": semesters,
+            "semesters_by_group": semesters_by_group,
+            "upcoming_sessions": upcoming_sessions,
+            "assignments": assignments,
+            "instructor_map": instructor_map,
+            "campus_session_counts": campus_session_counts,
+            "LocationType": LocationType,
+            "SemesterStatus": SemesterStatus,
+            "today": _today,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
         }
     )
 
@@ -1462,6 +2185,81 @@ async def admin_update_location(
     loc.location_type = new_loc_type
     db.commit()
     return RedirectResponse(url="/admin/locations", status_code=303)
+
+
+@router.get("/admin/campuses/{campus_id}", response_class=HTMLResponse)
+async def admin_campus_detail_page(
+    campus_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web)
+):
+    """Admin-only: Campus detail — programs, upcoming sessions, location instructors."""
+    _admin_guard(user)
+
+    campus = db.query(Campus).filter(Campus.id == campus_id).first()
+    if not campus:
+        raise HTTPException(status_code=404, detail="Campus not found")
+
+    loc = db.query(Location).filter(Location.id == campus.location_id).first()
+
+    # Q2: Active semesters at this campus
+    _active_statuses = [
+        SemesterStatus.READY_FOR_ENROLLMENT,
+        SemesterStatus.ONGOING,
+        SemesterStatus.INSTRUCTOR_ASSIGNED,
+    ]
+    semesters = db.query(Semester).filter(
+        Semester.campus_id == campus_id,
+        Semester.status.in_(_active_statuses)
+    ).order_by(Semester.start_date).all()
+    semester_ids = [s.id for s in semesters]
+
+    # Q3: Upcoming sessions at this campus (campus_id OR semester)
+    _today = date.today()
+    _base_filters = [
+        sqlfunc.date(SessionModel.date_start) >= _today,
+        SessionModel.session_status != 'cancelled',
+    ]
+    if semester_ids:
+        _sess_filter = or_(
+            SessionModel.campus_id == campus_id,
+            SessionModel.semester_id.in_(semester_ids),
+        )
+    else:
+        _sess_filter = SessionModel.campus_id == campus_id
+
+    sessions = db.query(SessionModel).filter(
+        _sess_filter, *_base_filters
+    ).order_by(SessionModel.date_start).limit(20).all()
+
+    # Q4: Active instructor assignments at parent location
+    assignments = db.query(InstructorAssignment).filter(
+        InstructorAssignment.location_id == campus.location_id,
+        InstructorAssignment.is_active == True  # noqa: E712
+    ).order_by(InstructorAssignment.age_group).all()
+    _instr_ids = list({a.instructor_id for a in assignments})
+    instructor_map: dict = (
+        {u.id: u for u in db.query(User).filter(User.id.in_(_instr_ids)).all()}
+        if _instr_ids else {}
+    )
+
+    return templates.TemplateResponse(
+        "admin/campus_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "campus": campus,
+            "loc": loc,
+            "semesters": semesters,
+            "sessions": sessions,
+            "assignments": assignments,
+            "instructor_map": instructor_map,
+            "today": _today,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        }
+    )
 
 
 @router.get("/admin/campuses/{campus_id}/edit", response_class=HTMLResponse)
@@ -1961,6 +2759,7 @@ async def admin_sessions_page(
     date_from: str = "",
     date_to: str = "",
     cleared: str = "",
+    event_category: str = "",
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web)
 ):
@@ -1993,6 +2792,8 @@ async def admin_sessions_page(
             q = q.filter(SessionModel.date_start <= datetime.strptime(date_to, "%Y-%m-%d").replace(hour=23, minute=59))
         except ValueError:
             pass
+    if event_category in ("TRAINING", "MATCH"):
+        q = q.filter(SessionModel.event_category == event_category)
 
     all_sessions = q.order_by(SessionModel.date_start).all()
 
@@ -2046,6 +2847,7 @@ async def admin_sessions_page(
             "filter_location": location_filter,
             "filter_date_from": date_from,
             "filter_date_to": date_to,
+            "filter_event_category": event_category,
             "SessionType": SessionType,
         }
     )

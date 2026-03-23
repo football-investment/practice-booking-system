@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pathlib import Path
 from datetime import datetime, timezone, date
 import traceback
@@ -77,7 +78,10 @@ async def specialization_select_submit(
                 {"request": request, "user": user, "error": f"Invalid specialization: {specialization}"}
             )
 
-        # NEW LOGIC: Check if user already has a license (already unlocked)
+        # Lock user row to prevent concurrent unlock race conditions
+        user = db.query(User).with_for_update().filter(User.id == user.id).first()
+
+        # Check if user already has a license (AFTER acquiring the lock)
         user_license = db.query(UserLicense).filter(
             UserLicense.user_id == user.id,
             UserLicense.specialization_type == spec_type.value
@@ -146,10 +150,13 @@ async def specialization_select_submit(
             # Other specializations get standard motivation questionnaire
             return RedirectResponse(url=f"/specialization/motivation?spec={spec_type.value}", status_code=303)
 
+    except IntegrityError:
+        db.rollback()
+        logger.warning("onboarding_duplicate_license_attempt", extra={"user": user.email})
+        return RedirectResponse(url="/dashboard", status_code=303)
     except Exception as e:
         db.rollback()
         logger.error("onboarding_spec_selection_error", extra={"user": user.email}, exc_info=True)
-        # Redirect back to dashboard with error message (instead of showing old 4-card page)
         return RedirectResponse(url=f"/dashboard?error={str(e)}", status_code=303)
 
 
@@ -276,10 +283,9 @@ async def lfa_player_onboarding_web_submit(
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
         license.motivation_assessed_by    = user.id
 
-        # Mark onboarding complete on both user and license
-        user.onboarding_completed       = True
-        license.onboarding_completed    = True
-        license.onboarding_completed_at = datetime.now(timezone.utc)
+        # Mark onboarding complete via unified service
+        from ...services.onboarding_service import complete_lfa_player_onboarding
+        complete_lfa_player_onboarding(db, user, license, football_skills)
 
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(license, "football_skills")
@@ -291,7 +297,7 @@ async def lfa_player_onboarding_web_submit(
 
         logger.info("onboarding_complete", extra={"user": user.email, "position": position, "skill_count": len(skills), "avg_skill": round(average_skill, 1)})
 
-        return {"success": True, "redirect": "/dashboard"}
+        return {"success": True, "redirect": "/dashboard/lfa-football-player"}
 
     except Exception as e:
         db.rollback()
@@ -423,10 +429,9 @@ async def lfa_player_onboarding_submit(
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
         license.motivation_assessed_by = user.id
 
-        # Mark onboarding as completed
-        user.onboarding_completed = True
-        license.onboarding_completed = True
-        license.onboarding_completed_at = datetime.now(timezone.utc)
+        # Mark onboarding as completed via unified service
+        from ...services.onboarding_service import complete_lfa_player_onboarding
+        complete_lfa_player_onboarding(db, user, license, football_skills)
 
         # Flag JSONB field as modified
         from sqlalchemy.orm.attributes import flag_modified

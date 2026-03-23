@@ -1,0 +1,196 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Edit Camp — {{ camp.name }}{% endblock %}
+{% block page_heading %}⛺ Edit Camp{% endblock %}
+{% block page_subtitle %}{{ camp.code }} · {{ camp.status.value if camp.status else 'DRAFT' }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .edit-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; margin-bottom: 1.5rem; }
+    .edit-card-hdr { padding: 0.85rem 1.25rem; background: #f8f9fa; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 0.5rem; }
+    .edit-card-hdr h3 { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin: 0; }
+    .edit-card-body { padding: 1.5rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
+    .form-group input, .form-group select {
+        width: 100%; padding: 0.6rem 0.9rem;
+        border: 1px solid #e2e8f0; border-radius: 8px;
+        font-size: 0.9rem; box-sizing: border-box;
+    }
+    .form-group input:focus, .form-group select:focus {
+        outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+    }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #e2e8f0; }
+    .badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    .badge-camp { background: #c6f6d5; color: #276749; }
+    .badge-draft { background: #e2e8f0; color: #4a5568; }
+    .badge-ready { background: #bee3f8; color: #2c5282; }
+    .badge-ongoing { background: #c6f6d5; color: #276749; }
+    .badge-completed { background: #d6bcfa; color: #553c9a; }
+    .badge-age { background: #fed7e2; color: #97266d; font-family: monospace; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="module-strip">
+    <span class="module-strip-label">Events</span>
+    <a href="/admin/events" class="module-strip-item">🎯 All Events</a>
+    <a href="/admin/camps" class="module-strip-item">⛺ Camps</a>
+    {% if camp.location_id %}
+    <a href="/admin/events/locations/{{ camp.location_id }}" class="module-strip-item">📍 Location Events</a>
+    {% endif %}
+    <span class="module-strip-item active">✏️ {{ camp.name }}</span>
+</div>
+
+{% if error %}
+<div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#c53030;font-size:0.9rem;">⚠️ {{ error }}</div>
+{% endif %}
+{% if flash %}
+<div style="background:#f0fff4;border:1px solid #68d391;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#276749;font-size:0.9rem;">✅ {{ flash }}</div>
+{% endif %}
+
+<!-- Header info row -->
+<div style="background:white;border-radius:12px;padding:1.1rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+    <div>
+        <div style="font-size:1.2rem;font-weight:700;color:#2d3748;">⛺ {{ camp.name }}</div>
+        <div style="margin-top:0.3rem;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+            <span class="badge badge-camp">CAMP</span>
+            <code style="font-size:0.8rem;color:#718096;">{{ camp.code }}</code>
+            {% set s = camp.status.value if camp.status else 'DRAFT' %}
+            {% if s == 'DRAFT' %}<span class="badge badge-draft">DRAFT</span>
+            {% elif s == 'READY_FOR_ENROLLMENT' %}<span class="badge badge-ready">READY</span>
+            {% elif s == 'ONGOING' %}<span class="badge badge-ongoing">ONGOING</span>
+            {% elif s == 'COMPLETED' %}<span class="badge badge-completed">DONE</span>
+            {% else %}<span class="badge badge-draft">{{ s }}</span>{% endif %}
+            {% if camp.age_group %}<span class="badge badge-age">{{ camp.age_group }}</span>{% endif %}
+        </div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:0.5rem;">
+        {% if camp.location_id %}
+        <a href="/admin/events/locations/{{ camp.location_id }}"
+           style="padding:0.4rem 1rem;background:#e2e8f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.88rem;">
+            ← Location Events
+        </a>
+        {% else %}
+        <a href="/admin/camps"
+           style="padding:0.4rem 1rem;background:#e2e8f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.88rem;">
+            ← All Camps
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Edit form -->
+<div class="edit-card">
+    <div class="edit-card-hdr">
+        <h3>✏️ Edit Camp Details</h3>
+    </div>
+    <div class="edit-card-body">
+        <form method="post" action="/admin/camps/{{ camp.id }}/edit">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Name *</label>
+                    <input type="text" name="name" value="{{ camp.name }}" required placeholder="e.g. Summer Football Camp 2026">
+                </div>
+                <div class="form-group">
+                    <label>Code <span style="font-size:0.75rem;color:#a0aec0;">(leave blank to keep current)</span></label>
+                    <input type="text" name="code" value="{{ camp.code }}" placeholder="{{ camp.code }}">
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status">
+                        {% for st in SemesterStatus %}
+                        <option value="{{ st.value }}" {% if camp.status == st %}selected{% endif %}>{{ st.value }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Start Date *</label>
+                    <input type="date" name="start_date"
+                           value="{{ camp.start_date.isoformat() if camp.start_date else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date *</label>
+                    <input type="date" name="end_date"
+                           value="{{ camp.end_date.isoformat() if camp.end_date else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Age Group</label>
+                    <select name="age_group">
+                        <option value="" {% if not camp.age_group %}selected{% endif %}>— Any —</option>
+                        <option value="PRE"     {% if camp.age_group == 'PRE'     %}selected{% endif %}>PRE</option>
+                        <option value="YOUTH"   {% if camp.age_group == 'YOUTH'   %}selected{% endif %}>YOUTH</option>
+                        <option value="AMATEUR" {% if camp.age_group == 'AMATEUR' %}selected{% endif %}>AMATEUR</option>
+                        <option value="PRO"     {% if camp.age_group == 'PRO'     %}selected{% endif %}>PRO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Enrollment Cost (credits)</label>
+                    <input type="number" name="enrollment_cost"
+                           value="{{ camp.enrollment_cost if camp.enrollment_cost is not none else 0 }}" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <select name="location_id" id="editCampLocationSelect" onchange="fetchCampCampuses(this.value)">
+                        <option value="">— None —</option>
+                        {% for loc in all_locations %}
+                        <option value="{{ loc.id }}" {% if camp.location_id == loc.id %}selected{% endif %}>
+                            {{ loc.city }} ({{ loc.location_type.value }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Campus</label>
+                    <select name="campus_id" id="editCampCampusSelect">
+                        <option value="">— None —</option>
+                        {% for cam in campuses_for_loc %}
+                        <option value="{{ cam.id }}" {% if camp.campus_id == cam.id %}selected{% endif %}>
+                            {{ cam.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                {% if camp.location_id %}
+                <a href="/admin/events/locations/{{ camp.location_id }}"
+                   style="padding:0.55rem 1.25rem;background:#e2e8f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.88rem;">
+                    Cancel
+                </a>
+                {% else %}
+                <a href="/admin/camps"
+                   style="padding:0.55rem 1.25rem;background:#e2e8f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.88rem;">
+                    Cancel
+                </a>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function fetchCampCampuses(locationId) {
+    var select = document.getElementById('editCampCampusSelect');
+    select.innerHTML = '<option value="">— None —</option>';
+    if (!locationId) return;
+    try {
+        var resp = await fetch('/api/v1/locations/' + locationId + '/campuses');
+        if (!resp.ok) return;
+        var data = await resp.json();
+        (data.campuses || data || []).forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            select.appendChild(opt);
+        });
+    } catch(e) { /* silently ignore */ }
+}
+</script>
+{% endblock %}

@@ -1981,6 +1981,54 @@
         "title": "Body_admin_booking_cancel_admin_bookings__booking_id__cancel_post",
         "type": "object"
       },
+      "Body_admin_create_camp_admin_camps_post": {
+        "properties": {
+          "age_group": {
+            "default": "",
+            "title": "Age Group",
+            "type": "string"
+          },
+          "campus_id": {
+            "default": "",
+            "title": "Campus Id",
+            "type": "string"
+          },
+          "code": {
+            "default": "",
+            "title": "Code",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "enrollment_cost": {
+            "default": "0",
+            "title": "Enrollment Cost",
+            "type": "string"
+          },
+          "location_id": {
+            "default": "",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_create_camp_admin_camps_post",
+        "type": "object"
+      },
       "Body_admin_create_campus_admin_locations__location_id__campuses_post": {
         "properties": {
           "address": {
@@ -2160,10 +2208,6 @@
             "title": "Campus Id",
             "type": "string"
           },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
           "end_date": {
             "title": "End Date",
             "type": "string"
@@ -2172,6 +2216,11 @@
             "default": 0,
             "title": "Enrollment Cost",
             "type": "integer"
+          },
+          "game_preset_id": {
+            "default": "",
+            "title": "Game Preset Id",
+            "type": "string"
           },
           "location_id": {
             "default": "",
@@ -2182,14 +2231,28 @@
             "title": "Name",
             "type": "string"
           },
+          "number_of_rounds": {
+            "default": 1,
+            "title": "Number Of Rounds",
+            "type": "integer"
+          },
+          "participant_type": {
+            "default": "INDIVIDUAL",
+            "title": "Participant Type",
+            "type": "string"
+          },
           "start_date": {
             "title": "Start Date",
+            "type": "string"
+          },
+          "tournament_type_id": {
+            "default": "",
+            "title": "Tournament Type Id",
             "type": "string"
           }
         },
         "required": [
           "name",
-          "code",
           "start_date",
           "end_date"
         ],
@@ -2451,6 +2514,19 @@
         "title": "Body_admin_revoke_license_admin_users__user_id__revoke_license__license_id__post",
         "type": "object"
       },
+      "Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post": {
+        "properties": {
+          "team_id": {
+            "title": "Team Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "title": "Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post",
+        "type": "object"
+      },
       "Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post": {
         "properties": {
           "level": {
@@ -2470,6 +2546,59 @@
           }
         },
         "title": "Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post",
+        "type": "object"
+      },
+      "Body_admin_update_camp_admin_camps__camp_id__edit_post": {
+        "properties": {
+          "age_group": {
+            "default": "",
+            "title": "Age Group",
+            "type": "string"
+          },
+          "campus_id": {
+            "default": "",
+            "title": "Campus Id",
+            "type": "string"
+          },
+          "code": {
+            "default": "",
+            "title": "Code",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "enrollment_cost": {
+            "default": "",
+            "title": "Enrollment Cost",
+            "type": "string"
+          },
+          "location_id": {
+            "default": "",
+            "title": "Location Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "default": "",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_update_camp_admin_camps__camp_id__edit_post",
         "type": "object"
       },
       "Body_admin_update_campus_admin_campuses__campus_id__edit_post": {
@@ -2795,6 +2924,11 @@
         "properties": {
           "email": {
             "title": "Email",
+            "type": "string"
+          },
+          "next": {
+            "default": "",
+            "title": "Next",
             "type": "string"
           },
           "password": {
@@ -16521,6 +16655,30 @@
         "title": "SubmitRoundResultsRequest",
         "type": "object"
       },
+      "SubmitTeamResultsRequest": {
+        "description": "Submit results for a TEAM tournament session (one or more rounds)",
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TeamResultEntry"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "round_number": {
+            "default": 1,
+            "description": "Round number within the session (1-based)",
+            "minimum": 1.0,
+            "title": "Round Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "SubmitTeamResultsRequest",
+        "type": "object"
+      },
       "SystemEventListResponse": {
         "properties": {
           "items": {
@@ -16687,6 +16845,39 @@
           "recorded_at"
         ],
         "title": "TeachingHoursResponse",
+        "type": "object"
+      },
+      "TeamResultEntry": {
+        "description": "Single team's result for a TEAM tournament session",
+        "properties": {
+          "rank": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional rank override; auto-computed if None",
+            "title": "Rank"
+          },
+          "score": {
+            "description": "Score for this team in this session",
+            "title": "Score",
+            "type": "number"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "team_id",
+          "score"
+        ],
+        "title": "TeamResultEntry",
         "type": "object"
       },
       "TestConfig": {
@@ -17500,6 +17691,18 @@
             ],
             "description": "Tournament format (HEAD_TO_HEAD or INDIVIDUAL_RANKING)",
             "title": "Format"
+          },
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Location ID where tournament will be held",
+            "title": "Location Id"
           },
           "max_players": {
             "anyOf": [
@@ -21788,6 +21991,257 @@
         ]
       }
     },
+    "/admin/camps": {
+      "get": {
+        "description": "Admin-only: Camp management \u2014 list of CAMP-category semesters.",
+        "operationId": "admin_camps_page_admin_camps_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "default": "active",
+              "title": "Status Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "age_group_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Age Group Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_filter",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Location Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name_search",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Name Search",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Camps Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Create a new Camp semester.",
+        "operationId": "admin_create_camp_admin_camps_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_camp_admin_camps_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Camp",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/camps/{camp_id}/edit": {
+      "get": {
+        "description": "Admin-only: Edit a Camp semester.",
+        "operationId": "admin_camp_edit_page_admin_camps__camp_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camp_id",
+            "required": true,
+            "schema": {
+              "title": "Camp Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Camp Edit Page",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Admin-only: Update a Camp semester.",
+        "operationId": "admin_update_camp_admin_camps__camp_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camp_id",
+            "required": true,
+            "schema": {
+              "title": "Camp Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_update_camp_admin_camps__camp_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Update Camp",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/campuses/{campus_id}": {
+      "get": {
+        "description": "Admin-only: Campus detail \u2014 programs, upcoming sessions, location instructors.",
+        "operationId": "admin_campus_detail_page_admin_campuses__campus_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Campus Detail Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/campuses/{campus_id}/delete": {
       "post": {
         "operationId": "admin_delete_campus_admin_campuses__campus_id__delete_post",
@@ -21958,6 +22412,28 @@
         ]
       }
     },
+    "/admin/config": {
+      "get": {
+        "description": "Admin-only: Game Config hub (Game Presets only; Locations moved to top-level nav)",
+        "operationId": "admin_config_hub_page_admin_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Config Hub Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/coupons": {
       "get": {
         "description": "Admin-only: Coupon Management page",
@@ -22114,6 +22590,71 @@
           }
         },
         "summary": "Admin Enrollments Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/events": {
+      "get": {
+        "description": "Admin-only: Event Management hub \u2014 tournaments, camps, training sessions, match sessions.",
+        "operationId": "admin_events_hub_page_admin_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Events Hub Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/events/locations/{location_id}": {
+      "get": {
+        "description": "Admin-only: Per-location event management \u2014 all event types CRUD in one place.",
+        "operationId": "admin_location_events_page_admin_events_locations__location_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Location Events Page",
         "tags": [
           "web"
         ]
@@ -22343,6 +22884,71 @@
           }
         },
         "summary": "Admin Toggle Game Preset",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/instructors": {
+      "get": {
+        "description": "Admin instructor list \u2014 all users with role=INSTRUCTOR.",
+        "operationId": "admin_instructors_page_admin_instructors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Instructors Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/instructors/{instructor_id}": {
+      "get": {
+        "description": "Admin instructor detail \u2014 licenses, assignments, availability, requests.",
+        "operationId": "admin_instructor_detail_page_admin_instructors__instructor_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instructor_id",
+            "required": true,
+            "schema": {
+              "title": "Instructor Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Instructor Detail Page",
         "tags": [
           "web"
         ]
@@ -22603,6 +23209,49 @@
         ]
       }
     },
+    "/admin/locations/{location_id}": {
+      "get": {
+        "description": "Admin-only: Location detail \u2014 hierarchical view of campus, programs, sessions, instructors.",
+        "operationId": "admin_location_detail_page_admin_locations__location_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "title": "Location Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Location Detail Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/locations/{location_id}/campuses": {
       "post": {
         "operationId": "admin_create_campus_admin_locations__location_id__campuses_post",
@@ -22845,6 +23494,28 @@
         ]
       }
     },
+    "/admin/programs": {
+      "get": {
+        "description": "Admin-only: Programs operational hub (Semesters + Enrollments)",
+        "operationId": "admin_programs_hub_page_admin_programs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Programs Hub Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/semesters": {
       "get": {
         "description": "Admin-only: Semester management page",
@@ -22968,6 +23639,49 @@
         ]
       }
     },
+    "/admin/semesters/{semester_id}/edit": {
+      "get": {
+        "description": "Dispatch: redirect to the appropriate edit page based on semester category.",
+        "operationId": "admin_semester_edit_dispatch_admin_semesters__semester_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "semester_id",
+            "required": true,
+            "schema": {
+              "title": "Semester Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Semester Edit Dispatch",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/sessions": {
       "get": {
         "description": "Admin-only: Session management \u2014 hierarchical view (Location \u2192 Spec \u2192 Semester \u2192 Session)",
@@ -23030,6 +23744,16 @@
             "schema": {
               "default": "",
               "title": "Cleared",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "event_category",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Event Category",
               "type": "string"
             }
           }
@@ -23499,6 +24223,49 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/edit": {
+      "get": {
+        "description": "Admin: tournament edit page \u2014 all lifecycle management in one place.",
+        "operationId": "admin_tournament_edit_page_admin_tournaments__tournament_id__edit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Edit Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/rollback": {
       "post": {
         "description": "Admin: rollback stuck IN_PROGRESS \u2192 ENROLLMENT_CLOSED for re-generation.",
@@ -23566,6 +24333,140 @@
           }
         },
         "summary": "Admin Start Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams": {
+      "get": {
+        "description": "Admin: manage team enrollments for a TEAM tournament.",
+        "operationId": "admin_tournament_teams_page_admin_tournaments__tournament_id__teams_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/enroll": {
+      "post": {
+        "description": "Enroll a team into a TEAM tournament.",
+        "operationId": "admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/remove": {
+      "post": {
+        "description": "Remove a team from a TEAM tournament.",
+        "operationId": "admin_tournament_teams_remove_admin_tournaments__tournament_id__teams__team_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Remove",
         "tags": [
           "web"
         ]
@@ -43485,6 +44386,63 @@
         ]
       }
     },
+    "/api/v1/sessions/{session_id}/team-results": {
+      "patch": {
+        "description": "Submit results for a TEAM tournament session.\n\nWrites team scores into rounds_data[\"round_results\"][str(round_number)]\nusing \"team_{team_id}\" keys, mirroring the INDIVIDUAL format of \"user_{user_id}\".\n\nAuthorization: Admin or Master Instructor of the tournament.\nIdempotent: re-submitting the same round overwrites previous results.",
+        "operationId": "submit_team_results_api_v1_sessions__session_id__team_results_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitTeamResultsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submit Team Results",
+        "tags": [
+          "sessions",
+          "game-results"
+        ]
+      }
+    },
     "/api/v1/spec-info/age-eligibility": {
       "get": {
         "description": "Check if current user's age meets requirements for a specialization.\n\n**Examples:**\n- `specialization_type=LFA_PLAYER_PRE` \u2192 Check if age 6-11\n- `specialization_type=LFA_COACH&target_group=PRO_HEAD` \u2192 Check if age 23+\n- `specialization_type=INTERNSHIP` \u2192 Check if age 18+\n- `specialization_type=GANCUJU_PLAYER` \u2192 Check if age 5+\n\n**Example Response:**\n```json\n{\n    \"specialization_type\": \"LFA_COACH\",\n    \"target_group\": \"PRO_HEAD\",\n    \"user_age\": 25,\n    \"is_eligible\": true,\n    \"reason\": \"Eligible for LFA Coach (age 25)\"\n}\n```",
@@ -50414,6 +51372,18 @@
       "get": {
         "description": "Display login page",
         "operationId": "login_page_login_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "next",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Next",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -50424,6 +51394,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Login Page",
@@ -51698,6 +52678,138 @@
           }
         },
         "summary": "Unlock Quiz",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/skills": {
+      "get": {
+        "description": "Student skill progression page \u2014 all 29 skills, lazy-loaded.",
+        "operationId": "skills_page_skills_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Skills Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/skills/data": {
+      "get": {
+        "description": "JSON endpoint \u2014 returns full skill profile for lazy-load widgets.",
+        "operationId": "skills_data_endpoint_skills_data_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Skills Data Endpoint",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/skills/history": {
+      "get": {
+        "description": "Student skill history page \u2014 per-skill EMA timeline chart.",
+        "operationId": "skills_history_page_skills_history_get",
+        "parameters": [
+          {
+            "description": "Skill key to pre-select",
+            "in": "query",
+            "name": "skill",
+            "required": false,
+            "schema": {
+              "default": "passing",
+              "description": "Skill key to pre-select",
+              "title": "Skill",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skills History Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/skills/history/data": {
+      "get": {
+        "description": "JSON endpoint \u2014 EMA timeline for a single skill, used by the skill history chart.",
+        "operationId": "skills_history_data_endpoint_skills_history_data_get",
+        "parameters": [
+          {
+            "description": "Skill key, e.g. 'passing', 'finishing'",
+            "in": "query",
+            "name": "skill",
+            "required": false,
+            "schema": {
+              "default": "passing",
+              "description": "Skill key, e.g. 'passing', 'finishing'",
+              "title": "Skill",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Skills History Data Endpoint",
         "tags": [
           "web"
         ]

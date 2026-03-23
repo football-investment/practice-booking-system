@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{# ─────────────────────────────────────────────────────────────────────────────
+   student_base.html  —  Unified base layout for all student-facing pages.
+
+   Usage:
+       {% extends "student_base.html" %}
+       {% block active_page %}sessions{% endblock %}
+       {% block student_content %}
+           <h1>Page content here</h1>
+       {% endblock %}
+
+   Active page values: hub | lfa-player | sessions | progress | skills |
+                       achievements | calendar | credits
+
+   Context expected from route handler (at minimum):
+       user       — User ORM object (for credit_balance, name, email, role)
+       user_age   — int or "N/A" (optional — header display only)
+   ───────────────────────────────────────────────────────────────────────────── #}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/student.css?v=5">
+{% block extra_styles %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+
+{# ── Student Header ────────────────────────────────────────────────────────── #}
+{% block student_header %}
+{% set p = request.url.path %}
+{% set _active = self.active_page() | trim %}
+<div class="student-header {{ spec_header_class | default('') }}">
+    <div class="student-header-inner">
+
+        {# Brand #}
+        <div class="student-brand">🏫 LFA Education Center</div>
+
+        {# Hamburger — toggled by JS on mobile #}
+        <button class="student-hamburger" id="student-hamburger-btn"
+                onclick="toggleStudentNav()" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+
+        {# Nav links — show_spec_nav=False on hub-level pages (credits, profile, etc.) #}
+        <nav class="student-nav" id="student-nav" aria-label="Student navigation">
+            <a href="/dashboard"
+               class="nav-item{% if _active == 'hub' or p == '/dashboard' %} active{% endif %}">🏠 Hub</a>
+            {% if show_spec_nav | default(true) %}
+            <a href="/dashboard/lfa-football-player"
+               class="nav-item{% if _active == 'lfa-player' or p.startswith('/dashboard/lfa') %} active{% endif %}">⚽ LFA Player</a>
+            <a href="/sessions"
+               class="nav-item{% if _active == 'sessions' or p.startswith('/sessions') %} active{% endif %}">📅 Sessions</a>
+            <a href="/progress"
+               class="nav-item{% if _active == 'progress' or p == '/progress' %} active{% endif %}">📊 Progress</a>
+            <a href="/skills"
+               class="nav-item{% if _active == 'skills' or p == '/skills' %} active{% endif %}">⚡ Skills</a>
+            <a href="/achievements"
+               class="nav-item{% if _active == 'achievements' or p == '/achievements' %} active{% endif %}">🏆 Achievements</a>
+            <a href="/calendar"
+               class="nav-item{% if _active == 'calendar' or p == '/calendar' %} active{% endif %}">📆 Calendar</a>
+            {% endif %}
+        </nav>
+
+        {# Right-side actions #}
+        <div class="student-header-actions">
+            {# Credit balance + Credits page link #}
+            <span class="credit-pill">💰 {{ user.credit_balance if user else 0 }}</span>
+            <a href="/credits" class="s-hdr-btn{% if _active == 'credits' or p == '/credits' %} active{% endif %}" title="Credits & transactions">💳</a>
+
+            {# Messages badge #}
+            <div class="badge-wrap">
+                <a href="/messages" class="s-hdr-btn" title="Messages" aria-label="Messages">✉️</a>
+                <span class="badge-dot" id="hdr-msg-badge">0</span>
+            </div>
+
+            {# Notifications badge #}
+            <div class="badge-wrap">
+                <a href="/notifications" class="s-hdr-btn" title="Notifications" aria-label="Notifications">🔔</a>
+                <span class="badge-dot" id="hdr-notif-badge">0</span>
+            </div>
+
+            <a href="/profile" class="s-hdr-btn" title="Profile">👤</a>
+            <a href="/logout"  class="s-hdr-btn" title="Logout">🚪</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{# ── Page Content ──────────────────────────────────────────────────────────── #}
+<main class="student-main">
+    {% block student_content %}{% endblock %}
+</main>
+
+{# ── Unread-count badge polling (same as unified_header.html) ─────────────── #}
+<script>
+function updateUnreadBadges() {
+    fetch('/unread-counts')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data) return;
+            var nb = document.getElementById('hdr-notif-badge');
+            var mb = document.getElementById('hdr-msg-badge');
+            if (nb) {
+                nb.textContent = data.notifications;
+                nb.style.display = data.notifications > 0 ? 'inline-block' : 'none';
+            }
+            if (mb) {
+                mb.textContent = data.messages;
+                mb.style.display = data.messages > 0 ? 'inline-block' : 'none';
+            }
+        })
+        .catch(function() {});
+}
+updateUnreadBadges();
+setInterval(updateUnreadBadges, 60000);
+
+function toggleStudentNav() {
+    var nav = document.getElementById('student-nav');
+    var btn = document.getElementById('student-hamburger-btn');
+    var open = nav.classList.toggle('nav-open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.textContent = open ? '✕' : '☰';
+}
+</script>
+
+{% block scripts %}{% endblock %}
+{% endblock %}
+
+{# Active page marker — child templates override this block #}
+{% block active_page %}{% endblock %}

@@ -1,0 +1,1144 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Edit: {{ t.name }}{% endblock %}
+{% block page_heading %}🏆 Tournament: {{ t.name }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #667eea;
+}
+.section-header h2 { font-size: 1.2rem; color: #2d3748; margin: 0; border: none; padding: 0; }
+.section-icon { font-size: 1.3rem; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-group label { font-size: 0.75rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+.form-group input, .form-group select, .form-group textarea {
+    padding: 0.5rem 0.85rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: white;
+}
+.form-group input:focus, .form-group select:focus { outline: 2px solid #667eea; border-color: transparent; }
+.form-group .field-hint { font-size: 0.75rem; color: #a0aec0; margin-top: 0.15rem; }
+.save-row { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0; }
+.status-badge-inline {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+.status-draft      { background: #edf2f7; color: #4a5568; }
+.status-open       { background: #ebf8ff; color: #2b6cb0; }
+.status-closed     { background: #fffaf0; color: #c05621; }
+.status-progress   { background: #f0fff4; color: #276749; }
+.status-completed  { background: #faf5ff; color: #553c9a; }
+.status-cancelled  { background: #fff5f5; color: #c53030; }
+.checkin-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid #f0f0f0; }
+.checkin-row:last-child { border-bottom: none; }
+.checkin-name { flex: 1; font-size: 0.9rem; color: #2d3748; }
+.checkin-email { font-size: 0.8rem; color: #718096; }
+.checkin-status { font-size: 0.8rem; font-weight: 600; }
+.checked-in { color: #27ae60; }
+.not-checked-in { color: #a0aec0; }
+.session-list-row { display: flex; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+.session-list-row:last-child { border-bottom: none; }
+.session-list-row .sess-time { color: #718096; white-space: nowrap; }
+.session-list-row .sess-type { font-size: 0.78rem; background: #ebf4ff; color: #2b6cb0; padding: 0.15rem 0.5rem; border-radius: 4px; }
+.info-banner { background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.88rem; color: #2b6cb0; margin-bottom: 1rem; }
+.warn-banner { background: #fffaf0; border: 1px solid #fbd38d; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.88rem; color: #c05621; margin-bottom: 1rem; }
+.reward-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+.reward-tier { background: #f7fafc; border-radius: 8px; padding: 0.75rem; text-align: center; border: 1px solid #e2e8f0; }
+.reward-tier .tier-label { font-size: 0.75rem; font-weight: 700; color: #718096; text-transform: uppercase; }
+.reward-tier .tier-credits { font-size: 1.4rem; font-weight: 700; color: #2d3748; }
+.reward-tier .tier-xp { font-size: 0.82rem; color: #667eea; }
+.breadcrumb { font-size: 0.85rem; color: rgba(255,255,255,0.75); margin-bottom: 0.3rem; }
+.breadcrumb a { color: rgba(255,255,255,0.85); text-decoration: none; }
+.breadcrumb a:hover { color: white; text-decoration: underline; }
+@media (max-width: 639px) {
+    .form-row { grid-template-columns: 1fr; }
+    .save-row { flex-wrap: wrap; }
+}
+/* ── Session Gen Wizard modal ───────────────────────────────────────── */
+#sgw-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
+.sgw-modal {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 620px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.sgw-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+.sgw-header h3 { font-size: 0.95rem; font-weight: 700; margin: 0; }
+.sgw-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 0.25rem 0.6rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.sgw-steps {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem 0;
+    flex-shrink: 0;
+}
+.sgw-step-dot {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: #e2e8f0;
+    transition: background 0.2s;
+}
+.sgw-step-active { background: #667eea; }
+.sgw-step-done   { background: #27ae60; }
+#sgw-body {
+    padding: 1.25rem 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+#sgw-nav {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+.sgw-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+.sgw-info-item { background: #f7fafc; border-radius: 8px; padding: 0.6rem 0.85rem; }
+.sgw-info-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #718096; margin-bottom: 0.15rem; }
+.sgw-ok   { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px; padding: 0.75rem 1rem; color: #276749; font-size: 0.9rem; }
+.sgw-warn { background: #fffaf0; border: 1px solid #fbd38d; border-radius: 8px; padding: 0.75rem 1rem; color: #c05621; font-size: 0.9rem; }
+.sgw-info-banner { background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 8px; padding: 0.75rem 1rem; color: #2b6cb0; font-size: 0.88rem; margin-top: 0.75rem; }
+.sgw-form-row { margin-bottom: 1.1rem; }
+.sgw-form-label { display: block; font-size: 0.78rem; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+.sgw-radio-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.sgw-radio-label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.35rem 0.7rem; font-size: 0.88rem; }
+.sgw-radio-label:has(input:checked) { background: #ebf4ff; border-color: #667eea; color: #4c51bf; font-weight: 600; }
+.sgw-summary-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.sgw-summary-table td, .sgw-summary-table th { padding: 0.4rem 0.6rem; border-bottom: 1px solid #e2e8f0; }
+.sgw-summary-table td:first-child { color: #718096; }
+.sgw-progress-bar { height: 0.75rem; background: #e2e8f0; border-radius: 6px; overflow: hidden; }
+.sgw-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 6px; transition: width 0.5s ease; }
+/* ── Rankings table ─────────────────────────────────────────────────────────── */
+.rankings-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.rankings-table th { padding: 0.5rem; border-bottom: 2px solid #e2e8f0; background: #f7fafc; font-size: 0.75rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.04em; }
+.rankings-table td { padding: 0.45rem 0.5rem; border-bottom: 1px solid #f0f0f0; }
+.rankings-table tbody tr:hover { background: #f7fafc; }
+.btn-start { background: #27ae60; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.25rem; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: background 0.15s; }
+.btn-start:hover { background: #219a52; }
+.btn-success { background: #27ae60; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.25rem; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: background 0.15s; }
+.btn-success:hover { background: #219a52; }
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<div class="breadcrumb"><a href="/admin/tournaments">← Tournaments</a></div>
+ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.value }}</strong>
+{% endblock %}
+
+{% block admin_content %}
+
+{# ── Flash / Error ─────────────────────────────────────────────────────────── #}
+{% if flash %}
+<div class="info-banner">✅ {{ flash }}</div>
+{% endif %}
+{% if error %}
+<div class="warn-banner">⚠️ {{ error }}</div>
+{% endif %}
+
+{# ── SECTION 1: Alapadatok ─────────────────────────────────────────────────── #}
+<div class="card" id="section-basic">
+    <div class="section-header">
+        <span class="section-icon">📋</span>
+        <h2>Basic Info</h2>
+        {% set ts = t.tournament_status or '' %}
+        {% if ts == 'DRAFT' %}<span class="status-badge-inline status-draft">DRAFT</span>
+        {% elif ts == 'ENROLLMENT_OPEN' %}<span class="status-badge-inline status-open">ENROLLMENT OPEN</span>
+        {% elif ts == 'ENROLLMENT_CLOSED' %}<span class="status-badge-inline status-closed">ENROLLMENT CLOSED</span>
+        {% elif ts == 'IN_PROGRESS' %}<span class="status-badge-inline status-progress">IN PROGRESS</span>
+        {% elif ts == 'COMPLETED' %}<span class="status-badge-inline status-completed">COMPLETED</span>
+        {% elif ts == 'CANCELLED' %}<span class="status-badge-inline status-cancelled">CANCELLED</span>
+        {% else %}<span class="status-badge-inline status-draft">{{ ts }}</span>{% endif %}
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>Tournament Name</label>
+            <input type="text" id="basic-name" value="{{ t.name }}">
+        </div>
+        <div class="form-group">
+            <label>Code <span style="color:#a0aec0">(read-only)</span></label>
+            <input type="text" value="{{ t.code }}" disabled style="background:#f7fafc;color:#718096;">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="basic-start-date" value="{{ t.start_date.isoformat() if t.start_date else '' }}">
+        </div>
+        <div class="form-group">
+            <label>End Date</label>
+            <input type="date" id="basic-end-date" value="{{ t.end_date.isoformat() if t.end_date else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Enrollment Cost (credits)</label>
+            <input type="number" id="basic-enrollment-cost" value="{{ t.enrollment_cost or 0 }}" min="0">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Age Group</label>
+            <select id="basic-age-group">
+                {% for ag in ['PRE', 'YOUTH', 'AMATEUR', 'PRO'] %}
+                <option value="{{ ag }}" {% if t.age_group == ag %}selected{% endif %}>{{ ag }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Max Players</label>
+            <input type="number" id="basic-max-players" value="{{ t.max_players or '' }}" min="2" placeholder="No limit">
+        </div>
+        <div class="form-group">
+            <label>Location</label>
+            <select id="basic-location-id" onchange="filterEditCampuses()">
+                <option value="">— No location —</option>
+                {% for loc in locations %}
+                <option value="{{ loc.id }}" {% if t.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Campus</label>
+            <select id="basic-campus-id">
+                <option value="">— No campus —</option>
+                {% for campus in campuses %}
+                <option value="{{ campus.id }}" data-location="{{ campus.location_id }}" {% if t.campus_id == campus.id %}selected{% endif %}>{{ campus.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Tournament Type</label>
+            <select id="basic-tournament-type">
+                <option value="">— Not set —</option>
+                {% for tt in tournament_types %}
+                <option value="{{ tt.id }}" {% if cfg and cfg.tournament_type_id == tt.id %}selected{% endif %}>
+                    {{ tt.display_name }} ({{ tt.format }})
+                </option>
+                {% endfor %}
+            </select>
+            <span class="field-hint">⚠️ Changing type auto-deletes existing sessions</span>
+        </div>
+        <div class="form-group">
+            <label>Participant Type</label>
+            <select id="basic-participant-type">
+                <option value="INDIVIDUAL" {% if not cfg or cfg.participant_type == 'INDIVIDUAL' %}selected{% endif %}>👤 Individual</option>
+                <option value="TEAM" {% if cfg and cfg.participant_type == 'TEAM' %}selected{% endif %}>👥 Team</option>
+                <option value="MIXED" disabled {% if cfg and cfg.participant_type == 'MIXED' %}selected{% endif %}>🔀 Mixed (coming soon)</option>
+            </select>
+            {% if cfg and cfg.participant_type == 'TEAM' %}
+            <a href="/admin/tournaments/{{ t.id }}/teams" class="btn btn-sm btn-outline" style="margin-top:6px">👥 Manage Teams →</a>
+            {% endif %}
+            <span class="field-hint">MIXED ranking stays a P3 feature — not yet wired up</span>
+        </div>
+        <div class="form-group">
+            <label>Number of Rounds</label>
+            <input type="number" id="basic-rounds" value="{{ cfg.number_of_rounds if cfg else 1 }}" min="1" max="10">
+            <span class="field-hint">1–10 · INDIVIDUAL_RANKING only</span>
+        </div>
+        <div class="form-group">
+            <label>Game Preset <span style="color:#a0aec0">(read-only — set at creation)</span></label>
+            <input type="text" value="{{ preset.name if preset else '— No preset —' }}" disabled style="background:#f7fafc;color:#718096;">
+            {% if preset %}
+            <span class="field-hint">Skills: {{ preset.game_config.get('metadata', {}).get('skills', '') if preset.game_config else '' }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="save-row">
+        <button class="btn btn-primary" onclick="saveBasicInfo()">💾 Save Basic Info</button>
+        <span id="basic-save-status" style="font-size:0.85rem;color:#718096;"></span>
+    </div>
+</div>
+
+{# ── SECTION 2: Schedule Config ────────────────────────────────────────────── #}
+<div class="card" id="section-schedule">
+    <div class="section-header">
+        <span class="section-icon">⏱️</span>
+        <h2>Schedule Configuration</h2>
+    </div>
+
+    <div class="info-banner">
+        These are global defaults used during session generation. Per-campus overrides take precedence.
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>Match Duration (min)</label>
+            <input type="number" id="sched-match-duration"
+                   value="{{ schedule.match_duration_minutes or '' }}"
+                   min="1" max="480" placeholder="90 (type default)">
+            <span class="field-hint">Leave blank to use tournament type default</span>
+        </div>
+        <div class="form-group">
+            <label>Break Between Matches (min)</label>
+            <input type="number" id="sched-break-duration"
+                   value="{{ schedule.break_duration_minutes or '' }}"
+                   min="0" max="120" placeholder="15 (type default)">
+        </div>
+        <div class="form-group">
+            <label>Parallel Fields / Courts</label>
+            <input type="number" id="sched-parallel-fields"
+                   value="{{ schedule.parallel_fields or 1 }}"
+                   min="1" max="20">
+            <span class="field-hint">Number of simultaneous pitches/boards</span>
+        </div>
+    </div>
+
+    <div class="save-row">
+        <button class="btn btn-primary" onclick="saveScheduleConfig()">💾 Save Schedule Config</button>
+        <span id="sched-save-status" style="font-size:0.85rem;color:#718096;"></span>
+    </div>
+</div>
+
+{# ── SECTION 3: Reward Config ──────────────────────────────────────────────── #}
+<div class="card" id="section-rewards">
+    <div class="section-header">
+        <span class="section-icon">🎁</span>
+        <h2>Reward Configuration</h2>
+        {% if reward_cfg %}
+        <span style="font-size:0.8rem;color:#27ae60;margin-left:auto;">✅ Configured</span>
+        {% else %}
+        <span style="font-size:0.8rem;color:#e67e22;margin-left:auto;">⚠️ Not set</span>
+        {% endif %}
+    </div>
+
+    {% if not reward_cfg %}
+    <div class="warn-banner">No reward config yet — set one below before finalizing the tournament.</div>
+    {% endif %}
+
+    {# ── Placement tiers form ── #}
+    <p style="font-size:0.85rem;font-weight:700;color:#4a5568;margin-bottom:0.6rem;">Placement Rewards</p>
+    <table style="width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:1.25rem;">
+        <thead>
+            <tr style="border-bottom:2px solid #e2e8f0;">
+                <th style="text-align:left;padding:0.4rem 0.5rem;color:#718096;font-size:0.75rem;text-transform:uppercase;">Tier</th>
+                <th style="text-align:right;padding:0.4rem 0.5rem;color:#718096;font-size:0.75rem;text-transform:uppercase;">Credits</th>
+                <th style="text-align:right;padding:0.4rem 0.5rem;color:#718096;font-size:0.75rem;text-transform:uppercase;">XP Multiplier</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tier, icon, default_cr, default_xp in [
+                ('first_place',  '🥇 1st Place',   500, 2.0),
+                ('second_place', '🥈 2nd Place',   300, 1.5),
+                ('third_place',  '🥉 3rd Place',   150, 1.2),
+                ('participation','🎽 Participation', 50, 1.0),
+            ] %}
+            {% set tier_data = reward_cfg.get(tier, {}) if reward_cfg else {} %}
+            <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:0.4rem 0.5rem;">{{ icon }}</td>
+                <td style="padding:0.4rem 0.5rem;text-align:right;">
+                    <input type="number" id="tier-{{ tier }}-credits"
+                           value="{{ tier_data.get('credits', default_cr) }}"
+                           min="0" max="99999"
+                           style="width:90px;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:5px;text-align:right;">
+                </td>
+                <td style="padding:0.4rem 0.5rem;text-align:right;">
+                    <input type="number" id="tier-{{ tier }}-xp"
+                           value="{{ tier_data.get('xp_multiplier', default_xp) }}"
+                           min="0" max="10" step="0.1"
+                           style="width:75px;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:5px;text-align:right;">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# ── Skills ── #}
+    <p style="font-size:0.85rem;font-weight:700;color:#4a5568;margin-bottom:0.6rem;">
+        Skills (at least 1 must be enabled for reward distribution)
+    </p>
+    <div id="reward-skills-form" style="columns:2;column-gap:1.5rem;margin-bottom:1.25rem;"></div>
+
+    <div class="save-row">
+        <button class="btn btn-primary" onclick="saveRewardConfig()">💾 Save Reward Config</button>
+        <span id="reward-save-status" style="font-size:0.85rem;color:#718096;"></span>
+    </div>
+</div>
+
+{# ── SECTION 4: Enrolled Players / Check-in Status ────────────────────────── #}
+<div class="card" id="section-checkin">
+    <div class="section-header">
+        <span class="section-icon">✅</span>
+        <h2>Enrolled Players</h2>
+    </div>
+
+    <div class="stats-row" style="margin-bottom:1rem;">
+        <div class="stat-card">
+            <div class="val">{{ enrollments|length }}</div>
+            <div class="lbl">Enrolled</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ checked_in_count }}</div>
+            <div class="lbl">Checked In</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ enrollments|length - checked_in_count }}</div>
+            <div class="lbl">Pending Check-in</div>
+        </div>
+        {% if preset_min_players %}
+        <div class="stat-card">
+            <div class="val" style="{% if enrollments|length >= preset_min_players %}color:#27ae60{% else %}color:#e74c3c{% endif %}">{{ preset_min_players }}</div>
+            <div class="lbl">Min Players (preset)</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if enrollments %}
+    <div class="info-banner">
+        Players self-check-in within 15 min of tournament start. If 0 check-ins occur, session
+        generation falls back to all approved enrollments automatically.
+    </div>
+
+    <div style="max-height:320px;overflow-y:auto;">
+        {% for enrollment in enrollments %}
+        {% set player = enrolled_users.get(enrollment.user_id) %}
+        <div class="checkin-row">
+            <div style="flex:1">
+                <div class="checkin-name">{{ player.full_name if player else 'User #' ~ enrollment.user_id }}</div>
+                <div class="checkin-email">{{ player.email if player else '' }}</div>
+            </div>
+            <div>
+                <span class="badge badge-{% if enrollment.request_status.value == 'APPROVED' %}student{% else %}instructor{% endif %}"
+                      style="font-size:0.75rem;">{{ enrollment.request_status.value }}</span>
+            </div>
+            <div class="checkin-status {% if enrollment.tournament_checked_in_at %}checked-in{% else %}not-checked-in{% endif %}">
+                {% if enrollment.tournament_checked_in_at %}
+                    ✅ {{ enrollment.tournament_checked_in_at.strftime('%H:%M') }}
+                {% else %}
+                    ⬜ Not checked in
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p style="color:#718096;font-style:italic;">No enrollments yet.</p>
+    {% endif %}
+</div>
+
+{# ── SECTION 5: Session Generation ────────────────────────────────────────── #}
+<div class="card" id="section-sessions">
+    <div class="section-header">
+        <span class="section-icon">📅</span>
+        <h2>Session Generation</h2>
+    </div>
+
+    <div class="stats-row" style="margin-bottom:1rem;">
+        <div class="stat-card">
+            <div class="val">{{ session_count }}</div>
+            <div class="lbl">Sessions</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ '✅' if (cfg and cfg.sessions_generated) else '⬜' }}</div>
+            <div class="lbl">Generated</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ enrollments|length }}</div>
+            <div class="lbl">Players</div>
+        </div>
+    </div>
+
+    {% if preset_min_players and enrollments|length < preset_min_players %}
+    <div class="warn-banner">
+        ⚠️ <strong>Not enough players.</strong>
+        Preset requires <strong>{{ preset_min_players }}</strong> players,
+        currently <strong>{{ enrollments|length }}</strong> enrolled.
+        Session generation will be blocked until minimum is reached.
+    </div>
+    {% endif %}
+
+    {% if cfg and cfg.sessions_generated %}
+        <div class="info-banner">✅ Sessions already generated ({{ session_count }} sessions).
+        Regeneration will delete existing sessions first.</div>
+
+        {% if sessions %}
+        <div style="margin-top:0.75rem;">
+            <p style="font-size:0.85rem;font-weight:600;color:#4a5568;margin-bottom:0.5rem;">First {{ sessions|length }} sessions:</p>
+            {% for s in sessions %}
+            <div class="session-list-row">
+                <span class="sess-time">{{ s.date_start.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span>{{ s.title }}</span>
+                {% if s.game_type %}<span class="sess-type">{{ s.game_type }}</span>{% endif %}
+            </div>
+            {% endfor %}
+            {% if session_count > sessions|length %}
+            <p style="font-size:0.82rem;color:#a0aec0;margin-top:0.4rem;">
+                … and {{ session_count - sessions|length }} more.
+                <a href="/admin/sessions?semester_id={{ t.id }}" style="color:#667eea;">View all →</a>
+            </p>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <div class="save-row">
+        <button class="btn btn-primary" id="btn-generate-sessions"
+                onclick="openSessionGenWizard()"
+                {% if t.tournament_status not in ['ENROLLMENT_CLOSED', 'IN_PROGRESS'] %}
+                title="Available when tournament is ENROLLMENT_CLOSED or IN_PROGRESS"
+                style="opacity:0.5;cursor:not-allowed"
+                {% endif %}>
+            ⚡ Generate Sessions
+        </button>
+        {% if session_count > 0 %}
+        <a href="/admin/sessions?semester_id={{ t.id }}" class="btn btn-secondary">📋 View All Sessions</a>
+        {% endif %}
+    </div>
+</div>
+
+{# ── SECTION 7: Session Results ────────────────────────────────────────────── #}
+{% if t.tournament_status in ['IN_PROGRESS', 'COMPLETED', 'REWARDS_DISTRIBUTED'] %}
+<div class="card" id="section-session-results">
+    <div class="section-header">
+        <span class="section-icon">📝</span>
+        <h2>Session Results</h2>
+        <span style="font-size:0.8rem;color:#718096;margin-left:auto;">
+            {{ sessions_result_status | selectattr('has_results') | list | length }}
+            / {{ sessions_result_status | length }} sessions with results
+        </span>
+    </div>
+
+    {% if sessions_result_status %}
+    <div style="max-height:420px;overflow-y:auto;">
+        {% for sess in sessions_result_status %}
+        <div class="session-list-row" style="justify-content:space-between;padding:0.65rem 0;">
+            <div style="flex:1;min-width:0;">
+                <span class="sess-time">{{ sess.date_start }}</span>
+                <span style="margin-left:0.5rem;font-size:0.88rem;">{{ sess.title }}</span>
+                <span class="sess-type" style="margin-left:0.4rem;">{{ sess.match_format }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+                {% if sess.has_results %}
+                    <span style="color:#27ae60;font-weight:600;font-size:0.85rem;">✅ Results entered</span>
+                {% else %}
+                    <span style="color:#a0aec0;font-size:0.85rem;">⬜ No results</span>
+                {% endif %}
+                {% if t.tournament_status == 'IN_PROGRESS' %}
+                <button class="btn btn-secondary"
+                        style="font-size:0.78rem;padding:0.3rem 0.75rem;"
+                        onclick="openResultModal({{ sess.id }}, '{{ sess.match_format }}', {{ sess.participant_user_ids | tojson }})">
+                    ✏️ Enter Results
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p style="color:#718096;font-style:italic;">No match sessions found. Generate sessions first.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── SECTION 8: Rankings & Skill Delta ────────────────────────────────────── #}
+{% if session_count > 0 and t.tournament_status in ['IN_PROGRESS', 'COMPLETED', 'REWARDS_DISTRIBUTED'] %}
+<div class="card" id="section-rankings">
+    <div class="section-header">
+        <span class="section-icon">🏅</span>
+        <h2>Rankings</h2>
+        {% if existing_rankings %}
+        <span style="font-size:0.8rem;color:#27ae60;margin-left:auto;">
+            ✅ {{ existing_rankings | length }} players ranked
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="save-row" style="margin-bottom:1rem;">
+        <button class="btn btn-primary" onclick="calculateRankings({{ t.id }})">
+            🔢 Calculate Rankings
+        </button>
+        <button class="btn btn-secondary" onclick="loadRankings({{ t.id }})">
+            🔄 Refresh
+        </button>
+        <span id="ranking-status" style="font-size:0.85rem;color:#718096;"></span>
+    </div>
+
+    <div id="rankings-table-container">
+        {% if existing_rankings %}
+        <table class="rankings-table">
+            <thead>
+                <tr>
+                    <th style="text-align:left;">#</th>
+                    <th style="text-align:left;">Player</th>
+                    <th style="text-align:right;">Score / Points</th>
+                    <th style="text-align:right;">W / D / L</th>
+                    {% if t.tournament_status == 'REWARDS_DISTRIBUTED' %}
+                    <th style="text-align:right;">XP</th>
+                    <th style="text-align:right;">Credits</th>
+                    <th style="text-align:right;">Skill Δ</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in existing_rankings %}
+                {% set player = ranking_users.get(r.user_id) %}
+                <tr>
+                    <td style="padding:0.5rem;">
+                        {% if r.rank == 1 %}🥇{% elif r.rank == 2 %}🥈{% elif r.rank == 3 %}🥉
+                        {% else %}{{ r.rank }}{% endif %}
+                    </td>
+                    <td style="padding:0.5rem;">{{ player.full_name if player else 'User #' ~ r.user_id }}</td>
+                    <td style="padding:0.5rem;text-align:right;font-weight:600;">{{ r.points or 0 }}</td>
+                    <td style="padding:0.5rem;text-align:right;color:#718096;">
+                        {{ r.wins or 0 }} / {{ r.draws or 0 }} / {{ r.losses or 0 }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#a0aec0;font-style:italic;">
+            No rankings calculated yet. Enter all session results, then click Calculate Rankings.
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Result Entry Modal ────────────────────────────────────────────────────── #}
+<div id="result-modal-overlay"
+     onclick="if(event.target===this)closeResultModal()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;
+            justify-content:center;align-items:center;padding:1rem;">
+    <div style="background:white;border-radius:14px;max-width:520px;width:100%;max-height:80vh;
+                display:flex;flex-direction:column;overflow:hidden;
+                box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;
+                    padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+            <h3 id="result-modal-title" style="margin:0;font-size:0.95rem;font-weight:700;">
+                Enter Session Results
+            </h3>
+            <button onclick="closeResultModal()"
+                    style="background:rgba(255,255,255,0.2);border:none;color:white;
+                           border-radius:6px;padding:0.25rem 0.6rem;cursor:pointer;font-size:1rem;">✕</button>
+        </div>
+        <div id="result-modal-body"
+             style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;"></div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;
+                    display:flex;justify-content:flex-end;gap:0.75rem;">
+            <button class="btn btn-secondary" onclick="closeResultModal()">Cancel</button>
+            <button class="btn btn-success" onclick="submitResults()">💾 Save Results</button>
+        </div>
+    </div>
+</div>
+
+{# ── SECTION 6: Results & Finalization ────────────────────────────────────── #}
+<div class="card" id="section-results">
+    <div class="section-header">
+        <span class="section-icon">🏅</span>
+        <h2>Results &amp; Finalization</h2>
+    </div>
+
+    <div class="form-row" style="max-width:600px;">
+        <div class="form-group">
+            <label>Current Tournament Status</label>
+            <input type="text" value="{{ t.tournament_status or t.status.value }}" disabled style="background:#f7fafc;color:#718096;">
+        </div>
+        <div class="form-group">
+            <label>Sessions Generated</label>
+            <input type="text" value="{{ 'Yes — ' ~ session_count ~ ' sessions' if (cfg and cfg.sessions_generated) else 'No' }}"
+                   disabled style="background:#f7fafc;color:#718096;">
+        </div>
+    </div>
+
+    <div class="save-row" style="flex-wrap:wrap;gap:0.6rem;">
+        {# Status lifecycle transition buttons #}
+        {% if t.tournament_status == 'DRAFT' %}
+        <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">
+            📢 Open Enrollment
+        </button>
+        {% elif t.tournament_status == 'ENROLLMENT_OPEN' %}
+        <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">
+            🔒 Close Enrollment
+        </button>
+        {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
+        <button class="btn btn-start" onclick="transitionStatus('IN_PROGRESS')">
+            🚀 Start Tournament
+        </button>
+        {% endif %}
+
+        <button class="btn btn-warning"
+                onclick="finalizeResults({{ t.id }})"
+                {% if t.tournament_status != 'IN_PROGRESS' %}
+                title="Only available for IN_PROGRESS tournaments"
+                style="opacity:0.5;cursor:not-allowed"
+                {% endif %}>
+            🏁 Finalize Tournament
+        </button>
+
+        <button class="btn btn-success"
+                onclick="distributeRewards({{ t.id }})"
+                {% if t.tournament_status not in ['IN_PROGRESS', 'COMPLETED'] %}
+                title="Available for IN_PROGRESS or COMPLETED tournaments"
+                style="opacity:0.5;cursor:not-allowed"
+                {% endif %}>
+            🎁 Distribute Rewards
+        </button>
+
+        <a href="/admin/tournaments" class="btn btn-secondary">← Back to Tournaments</a>
+    </div>
+</div>
+
+{# ── Session Gen Wizard modal overlay ─────────────────────────────────────── #}
+<div id="sgw-overlay" onclick="if(event.target===this)SessionGenWizard.close()">
+  <div class="sgw-modal">
+    <div class="sgw-header">
+      <h3 id="sgw-title">⚡ Generate Sessions</h3>
+      <button class="sgw-close" onclick="SessionGenWizard.close()" aria-label="Close">✕</button>
+    </div>
+    <div class="sgw-steps" id="sgw-step-dots"></div>
+    <div id="sgw-body"></div>
+    <div id="sgw-nav"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/session-gen-wizard.js"></script>
+<script>
+const TOURN_ID = {{ t.id }};
+
+// ── Section 1: Basic Info ─────────────────────────────────────────────────────
+async function saveBasicInfo() {
+    const body = {
+        name:            document.getElementById('basic-name').value.trim() || undefined,
+        start_date:      document.getElementById('basic-start-date').value || undefined,
+        end_date:        document.getElementById('basic-end-date').value || undefined,
+        enrollment_cost: parseInt(document.getElementById('basic-enrollment-cost').value) || 0,
+        age_group:       document.getElementById('basic-age-group').value || undefined,
+        campus_id:       parseInt(document.getElementById('basic-campus-id').value) || undefined,
+        location_id:     parseInt(document.getElementById('basic-location-id').value) || undefined,
+    };
+    const maxP = document.getElementById('basic-max-players').value;
+    if (maxP) body.max_players = parseInt(maxP);
+    const ttId = document.getElementById('basic-tournament-type').value;
+    if (ttId) body.tournament_type_id = parseInt(ttId);
+    const ptVal = document.getElementById('basic-participant-type').value;
+    if (ptVal) body.participant_type = ptVal;
+    const roundsVal = document.getElementById('basic-rounds').value;
+    if (roundsVal) body.number_of_rounds = parseInt(roundsVal);
+
+    const statusEl = document.getElementById('basic-save-status');
+    statusEl.textContent = 'Saving…';
+    try {
+        const data = await AdminAPI.patch(`/api/v1/tournaments/${TOURN_ID}`, body);
+        statusEl.textContent = '✅ Saved';
+        toast('Basic info updated');
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        toast(err.message, 'error');
+    }
+}
+
+function filterEditCampuses() {
+    const locId = document.getElementById('basic-location-id').value;
+    const campusSel = document.getElementById('basic-campus-id');
+    Array.from(campusSel.options).forEach(opt => {
+        if (!opt.value) return; // keep "— No campus —"
+        opt.hidden = locId ? opt.dataset.location !== locId : false;
+    });
+    // Clear campus selection if now hidden
+    const selected = campusSel.options[campusSel.selectedIndex];
+    if (selected && selected.hidden) campusSel.value = '';
+}
+
+// ── Section 2: Schedule Config ────────────────────────────────────────────────
+async function saveScheduleConfig() {
+    const matchVal = document.getElementById('sched-match-duration').value;
+    const breakVal = document.getElementById('sched-break-duration').value;
+    const parallelVal = document.getElementById('sched-parallel-fields').value;
+
+    const body = {};
+    if (matchVal)   body.match_duration_minutes  = parseInt(matchVal);
+    if (breakVal)   body.break_duration_minutes  = parseInt(breakVal);
+    if (parallelVal) body.parallel_fields = parseInt(parallelVal);
+
+    const statusEl = document.getElementById('sched-save-status');
+    statusEl.textContent = 'Saving…';
+    try {
+        const data = await AdminAPI.patch(`/api/v1/tournaments/${TOURN_ID}/schedule-config`, body);
+        statusEl.textContent = '✅ Saved';
+        toast('Schedule config updated');
+        setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 3: Reward Config ──────────────────────────────────────────────────
+const _SKILL_OPTS = [
+    {skill: 'passing',      category: 'TECHNICAL'},
+    {skill: 'ball_control', category: 'TECHNICAL'},
+    {skill: 'dribbling',    category: 'TECHNICAL'},
+    {skill: 'finishing',    category: 'TECHNICAL'},
+    {skill: 'tackle',       category: 'TECHNICAL'},
+    {skill: 'crossing',     category: 'TECHNICAL'},
+    {skill: 'sprint_speed', category: 'PHYSICAL'},
+    {skill: 'acceleration', category: 'PHYSICAL'},
+    {skill: 'agility',      category: 'PHYSICAL'},
+    {skill: 'stamina',      category: 'PHYSICAL'},
+    {skill: 'strength',     category: 'PHYSICAL'},
+    {skill: 'jumping',      category: 'PHYSICAL'},
+    {skill: 'vision',       category: 'MENTAL'},
+    {skill: 'composure',    category: 'MENTAL'},
+    {skill: 'reactions',    category: 'MENTAL'},
+];
+
+const _CURRENT_REWARD_CFG = {{ reward_cfg | tojson }};
+
+function initRewardForm() {
+    const container = document.getElementById('reward-skills-form');
+    if (!container) return;
+    const skillMap = {};
+    if (_CURRENT_REWARD_CFG && _CURRENT_REWARD_CFG.skill_mappings) {
+        _CURRENT_REWARD_CFG.skill_mappings.forEach(sm => { skillMap[sm.skill] = sm; });
+    }
+    container.innerHTML = _SKILL_OPTS.map(opt => {
+        const cur = skillMap[opt.skill] || {};
+        const enabled = cur.enabled || false;
+        const weight = cur.weight !== undefined ? cur.weight : 1.0;
+        return `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;break-inside:avoid;">
+            <input type="checkbox" id="sk-en-${opt.skill}" ${enabled ? 'checked' : ''}
+                   style="width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+            <label for="sk-en-${opt.skill}"
+                   style="flex:1;font-size:0.85rem;cursor:pointer;${enabled ? 'font-weight:700;' : ''}">
+                ${opt.skill}
+                <span style="font-size:0.72rem;color:#a0aec0;">${opt.category.charAt(0)}</span>
+            </label>
+            <input type="number" id="sk-wt-${opt.skill}" value="${weight}"
+                   min="0.1" max="5.0" step="0.1"
+                   style="width:60px;padding:0.2rem 0.35rem;border:1px solid #e2e8f0;border-radius:4px;
+                          text-align:right;font-size:0.82rem;">
+        </div>`;
+    }).join('');
+}
+
+async function saveRewardConfig() {
+    const tierBadges = {
+        first_place:   [{badge_type:'CHAMPION',    icon:'🥇', title:'Champion',    rarity:'EPIC',     enabled:true, condition:{type:'always'}}],
+        second_place:  [{badge_type:'RUNNER_UP',   icon:'🥈', title:'Runner Up',   rarity:'RARE',     enabled:true, condition:{type:'always'}}],
+        third_place:   [{badge_type:'THIRD_PLACE', icon:'🥉', title:'Third Place', rarity:'UNCOMMON', enabled:true, condition:{type:'always'}}],
+        participation: [{badge_type:'PARTICIPANT', icon:'🎽', title:'Participant', rarity:'COMMON',   enabled:true, condition:{type:'always'}}],
+    };
+    const body = { skill_mappings: [] };
+    ['first_place', 'second_place', 'third_place', 'participation'].forEach(tier => {
+        body[tier] = {
+            credits:        parseInt(document.getElementById(`tier-${tier}-credits`)?.value) || 0,
+            xp_multiplier:  parseFloat(document.getElementById(`tier-${tier}-xp`)?.value)   || 1.0,
+            badges:         tierBadges[tier],
+        };
+    });
+    _SKILL_OPTS.forEach(opt => {
+        body.skill_mappings.push({
+            skill:    opt.skill,
+            category: opt.category,
+            weight:   parseFloat(document.getElementById(`sk-wt-${opt.skill}`)?.value) || 1.0,
+            enabled:  document.getElementById(`sk-en-${opt.skill}`)?.checked || false,
+        });
+    });
+    if (!body.skill_mappings.some(s => s.enabled)) {
+        toast('At least 1 skill must be enabled', 'error');
+        return;
+    }
+    const statusEl = document.getElementById('reward-save-status');
+    statusEl.textContent = 'Saving…';
+    try {
+        await AdminAPI.post(`/api/v1/tournaments/${TOURN_ID}/reward-config`, body);
+        toast('Reward config saved');
+        statusEl.textContent = '✅ Saved';
+        setTimeout(() => { statusEl.textContent = ''; location.reload(); }, 1500);
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 5: Session Generation wizard ─────────────────────────────────────
+function openSessionGenWizard() {
+    SessionGenWizard.open({
+        tournId:          {{ t.id }},
+        tournName:        {{ t.name | tojson }},
+        enrolledCount:    {{ enrollments|length }},
+        presetMinPlayers: {{ preset_min_players | tojson }},
+        format:           {{ (game_cfg.format if game_cfg and game_cfg.format else 'PLACEMENT') | tojson }},
+        schedule: {
+            match_duration_minutes: {{ schedule.match_duration_minutes | tojson }},
+            break_duration_minutes: {{ schedule.break_duration_minutes | tojson }},
+            parallel_fields:        {{ schedule.parallel_fields or 1 }},
+        },
+    });
+}
+
+// ── Section 6: Results ────────────────────────────────────────────────────────
+async function finalizeResults(tournId) {
+    if (!confirm('Finalize this tournament? This will lock results and calculate final rankings.')) return;
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/finalize-tournament`, {});
+        toast('Tournament finalized');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function distributeRewards(tournId) {
+    if (!confirm('Distribute rewards to all participants? This action awards XP, credits, and badges.')) return;
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
+        toast('Rewards distributed successfully');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 6+: Status lifecycle transition ───────────────────────────────────
+async function transitionStatus(newStatus) {
+    const labels = {
+        'ENROLLMENT_OPEN': 'open enrollment for this tournament',
+        'ENROLLMENT_CLOSED': 'close enrollment',
+        'IN_PROGRESS': 'start the tournament (sessions will be auto-generated)',
+    };
+    if (!confirm(`Are you sure you want to ${labels[newStatus] || newStatus}?`)) return;
+    try {
+        await AdminAPI.patch(`/api/v1/tournaments/${TOURN_ID}/status`, { new_status: newStatus });
+        toast(`Status changed to ${newStatus}`);
+        setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 8: Rankings ───────────────────────────────────────────────────────
+async function calculateRankings(tournId) {
+    const statusEl = document.getElementById('ranking-status');
+    statusEl.textContent = 'Calculating…';
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/calculate-rankings`, {});
+        toast(`Rankings calculated — ${data.rankings_count} players`);
+        statusEl.textContent = '';
+        await loadRankings(tournId);
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        toast(err.message, 'error');
+    }
+}
+
+async function loadRankings(tournId) {
+    const statusEl = document.getElementById('ranking-status');
+    statusEl.textContent = 'Loading…';
+    try {
+        const data = await AdminAPI.get(`/api/v1/tournaments/${tournId}/rankings`);
+        statusEl.textContent = '';
+        const container = document.getElementById('rankings-table-container');
+        if (!data.rankings || data.rankings.length === 0) {
+            container.innerHTML = '<p style="color:#a0aec0;font-style:italic;">No rankings yet. Enter all session results then click Calculate Rankings.</p>';
+            return;
+        }
+        const isH2H = data.tournament_format === 'HEAD_TO_HEAD';
+        const isRewarded = data.rankings[0] && data.rankings[0].xp_earned !== undefined;
+        const rewardHeaders = isRewarded
+            ? '<th style="text-align:right">XP</th><th style="text-align:right">Credits</th><th style="text-align:right">Skill Δ</th>'
+            : '';
+        const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+        const rows = data.rankings.map(r => {
+            const rankCell = medals[r.rank] || r.rank;
+            const wdl = isH2H ? `${r.wins || 0}/${r.draws || 0}/${r.losses || 0}` : '—';
+            const pts = r.measured_value !== undefined
+                ? parseFloat(r.measured_value).toFixed(2)
+                : (r.points || 0);
+            const rewardCells = isRewarded
+                ? `<td style="text-align:right">${r.xp_earned || 0}</td>
+                   <td style="text-align:right">${r.credits_earned || 0}</td>
+                   <td style="text-align:right;font-size:0.8rem;color:#667eea;">${
+                       Object.entries(r.skill_rating_delta || {})
+                           .map(([k, v]) => `${k}: ${v > 0 ? '+' : ''}${parseFloat(v).toFixed(1)}`)
+                           .join('<br>')
+                       || '—'
+                   }</td>`
+                : '';
+            return `<tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:0.45rem 0.5rem;">${rankCell}</td>
+                <td style="padding:0.45rem 0.5rem;">${r.name || 'User #' + r.user_id}</td>
+                <td style="padding:0.45rem 0.5rem;text-align:right;font-weight:600;">${pts}</td>
+                <td style="padding:0.45rem 0.5rem;text-align:right;color:#718096;">${wdl}</td>
+                ${rewardCells}
+            </tr>`;
+        }).join('');
+        container.innerHTML = `
+            <table class="rankings-table">
+                <thead><tr>
+                    <th style="text-align:left;">#</th>
+                    <th style="text-align:left;">Player</th>
+                    <th style="text-align:right;">Score / Points</th>
+                    <th style="text-align:right;">W / D / L</th>
+                    ${rewardHeaders}
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+        toast('Rankings loaded', 'info');
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        toast(err.message, 'error');
+    }
+}
+
+// ── Section 7: Result Entry Modal ─────────────────────────────────────────────
+let _currentSessionId = null;
+let _currentFormat = null;
+let _currentParticipantIds = [];
+
+// Enrolled player IDs from server (needed for INDIVIDUAL_RANKING if no participant_user_ids)
+const ENROLLED_USER_IDS = {{ enrollments | map(attribute='user_id') | list | tojson }};
+const ENROLLED_USER_NAMES = {
+    {% for uid, u in enrolled_users.items() %}
+    {{ uid }}: {{ (u.nickname or u.name or '') | tojson }},
+    {% endfor %}
+};
+
+function openResultModal(sessionId, matchFormat, participantIds) {
+    _currentSessionId = sessionId;
+    _currentFormat = matchFormat;
+    _currentParticipantIds = participantIds && participantIds.length > 0
+        ? participantIds
+        : ENROLLED_USER_IDS;
+    document.getElementById('result-modal-title').textContent =
+        `Enter Results — Session #${sessionId} (${matchFormat})`;
+    const body = document.getElementById('result-modal-body');
+    if (matchFormat === 'HEAD_TO_HEAD') {
+        const [p1, p2] = _currentParticipantIds;
+        const n1 = ENROLLED_USER_NAMES[p1] || `Player #${p1}`;
+        const n2 = ENROLLED_USER_NAMES[p2] || `Player #${p2}`;
+        body.innerHTML = `
+            <p style="font-size:0.85rem;color:#718096;margin-bottom:1rem;">
+                Enter final scores for both participants:
+            </p>
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center;">
+                <div>
+                    <label style="display:block;font-size:0.75rem;font-weight:700;color:#718096;margin-bottom:0.35rem;">
+                        ${n1}
+                    </label>
+                    <input type="number" id="h2h-score-0" min="0" max="99" value="0"
+                           style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;
+                                  font-size:1.4rem;text-align:center;font-weight:700;">
+                </div>
+                <span style="font-size:1.5rem;color:#718096;font-weight:700;text-align:center;">vs</span>
+                <div>
+                    <label style="display:block;font-size:0.75rem;font-weight:700;color:#718096;margin-bottom:0.35rem;">
+                        ${n2}
+                    </label>
+                    <input type="number" id="h2h-score-1" min="0" max="99" value="0"
+                           style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;
+                                  font-size:1.4rem;text-align:center;font-weight:700;">
+                </div>
+            </div>`;
+    } else {
+        // INDIVIDUAL_RANKING
+        body.innerHTML = `
+            <p style="font-size:0.85rem;color:#718096;margin-bottom:0.75rem;">
+                Enter score for each participant (higher is better unless time-based):
+            </p>
+            ${_currentParticipantIds.map((uid, i) => `
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+                <span style="flex:1;font-size:0.9rem;">${ENROLLED_USER_NAMES[uid] || 'User #' + uid}</span>
+                <input type="number" id="ir-score-${i}" data-uid="${uid}"
+                       min="0" step="0.01" value="0"
+                       style="width:110px;padding:0.4rem;border:1px solid #e2e8f0;border-radius:6px;
+                              text-align:right;font-size:0.95rem;">
+            </div>`).join('')}`;
+    }
+    document.getElementById('result-modal-overlay').style.display = 'flex';
+}
+
+function closeResultModal() {
+    document.getElementById('result-modal-overlay').style.display = 'none';
+    _currentSessionId = null;
+    _currentParticipantIds = [];
+}
+
+async function submitResults() {
+    if (!_currentSessionId) return;
+    try {
+        if (_currentFormat === 'HEAD_TO_HEAD') {
+            const s0 = parseInt(document.getElementById('h2h-score-0').value) || 0;
+            const s1 = parseInt(document.getElementById('h2h-score-1').value) || 0;
+            const [p1, p2] = _currentParticipantIds;
+            await AdminAPI.patch(`/api/v1/sessions/${_currentSessionId}/head-to-head-results`, {
+                results: [
+                    { user_id: parseInt(p1), score: s0 },
+                    { user_id: parseInt(p2), score: s1 },
+                ]
+            });
+        } else {
+            const inputs = document.querySelectorAll('[id^="ir-score-"]');
+            const results = Array.from(inputs).map((inp, i) => ({
+                user_id: parseInt(inp.dataset.uid),
+                score: parseFloat(inp.value) || 0,
+                rank: i + 1,
+            }));
+            await AdminAPI.patch(`/api/v1/sessions/${_currentSessionId}/results`, { results });
+        }
+        toast('Results saved successfully');
+        closeResultModal();
+        setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initRewardForm);
+document.addEventListener('DOMContentLoaded', filterEditCampuses);
+</script>
+{% endblock %}

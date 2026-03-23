@@ -23,6 +23,7 @@ from .enrollment_factory import (
     approve_enrollment_payload,
     reject_enrollment_payload,
 )
+from .game_factory import PlayerFactory, TournamentFactory
 
 __all__ = [
     "create_student_payload",
@@ -36,4 +37,6 @@ __all__ = [
     "enroll_in_tournament_payload",
     "approve_enrollment_payload",
     "reject_enrollment_payload",
+    "PlayerFactory",
+    "TournamentFactory",
 ]

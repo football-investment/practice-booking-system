@@ -1,0 +1,156 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Instructors{% endblock %}
+{% block page_heading %}👨‍🏫 Instructor Management{% endblock %}
+
+{% block extra_styles %}
+<style>
+.instructor-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.instructor-table th {
+    background: #f7fafc;
+    color: #718096;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+}
+.instructor-table td {
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+.instructor-table tr:hover td { background: #f7fafc; }
+.badge-role {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #ebf8ff;
+    color: #2b6cb0;
+}
+.badge-master {
+    background: #faf5ff;
+    color: #553c9a;
+}
+.badge-inactive {
+    background: #fff5f5;
+    color: #c53030;
+}
+.count-pill {
+    display: inline-block;
+    min-width: 1.5rem;
+    text-align: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: #edf2f7;
+    color: #4a5568;
+}
+.count-pill.has-data { background: #ebf4ff; color: #2b6cb0; }
+@media (max-width: 639px) {
+    .instructor-table th:nth-child(4),
+    .instructor-table td:nth-child(4),
+    .instructor-table th:nth-child(5),
+    .instructor-table td:nth-child(5) { display: none; }
+}
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="module-strip">
+    <span class="module-strip-label">Users</span>
+    <a href="/admin/users" class="module-strip-item{% if request.url.path.startswith('/admin/users') %} active{% endif %}">👥 User Management</a>
+    <a href="/admin/instructors" class="module-strip-item{% if request.url.path.startswith('/admin/instructors') %} active{% endif %}">👨‍🏫 Instructors</a>
+</div>
+
+{# ── Stats row ────────────────────────────────────────────────────────────────── #}
+<div class="stats-row" style="margin-bottom:1.25rem;">
+    <div class="stat-card">
+        <div class="val">{{ stats.total }}</div>
+        <div class="lbl">Total</div>
+    </div>
+    <div class="stat-card">
+        <div class="val">{{ stats.active }}</div>
+        <div class="lbl">Active</div>
+    </div>
+    <div class="stat-card">
+        <div class="val">{{ stats.masters }}</div>
+        <div class="lbl">Masters</div>
+    </div>
+    <div class="stat-card">
+        <div class="val">{{ stats.with_assignments }}</div>
+        <div class="lbl">Assigned</div>
+    </div>
+</div>
+
+{# ── Instructor table ──────────────────────────────────────────────────────────── #}
+<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <h2 style="font-size:1.05rem;margin:0;color:#2d3748;">All Instructors</h2>
+    </div>
+
+    {% if instructors %}
+    <div class="table-scroll-wrap">
+    <table class="instructor-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Licenses</th>
+                <th>Assignments</th>
+                <th>Master Locations</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for inst in instructors %}
+        <tr>
+            <td>
+                <strong>{{ inst.name }}</strong>
+                {% if master_location_counts.get(inst.id, 0) > 0 %}
+                <span class="badge-role badge-master" style="margin-left:0.4rem;">MASTER</span>
+                {% endif %}
+            </td>
+            <td style="color:#718096;">{{ inst.email }}</td>
+            <td>
+                {% if inst.is_active %}
+                <span class="badge badge-student" style="font-size:0.72rem;">Active</span>
+                {% else %}
+                <span class="badge-role badge-inactive">Inactive</span>
+                {% endif %}
+            </td>
+            <td>
+                {% set lc = license_counts.get(inst.id, 0) %}
+                <span class="count-pill {% if lc > 0 %}has-data{% endif %}">{{ lc }}</span>
+            </td>
+            <td>
+                {% set ac = active_assignment_counts.get(inst.id, 0) %}
+                <span class="count-pill {% if ac > 0 %}has-data{% endif %}">{{ ac }}</span>
+            </td>
+            <td>
+                {% set mc = master_location_counts.get(inst.id, 0) %}
+                <span class="count-pill {% if mc > 0 %}has-data{% endif %}">{{ mc }}</span>
+            </td>
+            <td>
+                <a href="/admin/instructors/{{ inst.id }}" class="action-btn">🔍 Detail</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p style="color:#718096;font-style:italic;text-align:center;padding:2rem 0;">
+        No instructors found.
+    </p>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,24 @@
+{
+  "code": "time_based",
+  "display_name": "Time-Based Ranking",
+  "description": "Players ranked by elapsed time. Fastest time wins (ASC). Best single performance kept across attempts.",
+  "format": "INDIVIDUAL_RANKING",
+  "min_players": 2,
+  "max_players": null,
+  "requires_power_of_two": false,
+  "session_duration_minutes": 60,
+  "break_between_sessions_minutes": 10,
+  "scoring_config": {
+    "scoring_type": "TIME_BASED",
+    "measurement_unit": "seconds",
+    "ranking_direction": "ASC",
+    "aggregation": "MIN_VALUE",
+    "notes": "Lower time = better rank. Aggregation: MIN across rounds (best attempt wins)."
+  },
+  "config_notes": [
+    "No 1v1 matches — all players compete simultaneously in each round",
+    "Ranking direction: ASC (lower time = better)",
+    "Measurement unit: seconds (default), minutes also supported",
+    "Suitable for: sprints, obstacle courses, timed drills, reaction time challenges"
+  ]
+}

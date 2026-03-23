@@ -150,7 +150,7 @@ describe('Business Workflow — Student Full Process', {
     cy.visit('/credits');
     cy.get('body').should('not.contain.text', 'Internal Server Error');
     // .credit-badge renders because credits.html now checks role.value == 'student' (lowercase)
-    cy.get('.credit-badge').should('be.visible').and('contain.text', 'credits');
+    cy.get('.credit-badge').should('be.visible').and('contain.text', 'Credits');
     // Credit balance amount section in main content
     cy.get('.balance-amount').should('be.visible');
     // Coupon sections visible

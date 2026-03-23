@@ -1,0 +1,407 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Instructor: {{ instructor.name }}{% endblock %}
+{% block page_heading %}👨‍🏫 {{ instructor.name }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #667eea;
+}
+.section-header h2 { font-size: 1.1rem; color: #2d3748; margin: 0; border: none; padding: 0; }
+.section-icon { font-size: 1.25rem; }
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+}
+.detail-item { background: #f7fafc; border-radius: 8px; padding: 0.65rem 0.85rem; }
+.detail-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #718096; margin-bottom: 0.2rem; }
+.detail-value { font-size: 0.92rem; font-weight: 600; color: #2d3748; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+.data-table th {
+    background: #f7fafc;
+    color: #718096;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.55rem 0.75rem;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+}
+.data-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.data-table tr:hover td { background: #f7fafc; }
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.st-pending   { background: #fffaf0; color: #c05621; }
+.st-accepted  { background: #f0fff4; color: #276749; }
+.st-declined  { background: #fff5f5; color: #c53030; }
+.st-cancelled { background: #edf2f7; color: #4a5568; }
+.st-expired   { background: #edf2f7; color: #718096; }
+.st-offered   { background: #ebf8ff; color: #2b6cb0; }
+.avail-yes { color: #27ae60; font-weight: 600; }
+.avail-no  { color: #e74c3c; font-weight: 600; }
+.breadcrumb { font-size: 0.85rem; color: rgba(255,255,255,0.75); margin-bottom: 0.3rem; }
+.breadcrumb a { color: rgba(255,255,255,0.85); text-decoration: none; }
+.breadcrumb a:hover { color: white; text-decoration: underline; }
+.empty-state { color: #a0aec0; font-style: italic; font-size: 0.88rem; padding: 0.75rem 0; }
+.action-row { display: flex; gap: 0.75rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<div class="breadcrumb"><a href="/admin/instructors">← Instructors</a></div>
+{{ instructor.email }} ·
+{% if instructor.is_active %}
+<strong style="color:rgba(255,255,255,0.95);">Active</strong>
+{% else %}
+<strong style="color:#fed7d7;">Inactive</strong>
+{% endif %}
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="module-strip">
+    <span class="module-strip-label">Users</span>
+    <a href="/admin/users" class="module-strip-item">👥 User Management</a>
+    <a href="/admin/instructors" class="module-strip-item active">👨‍🏫 Instructors</a>
+</div>
+
+{% if flash %}
+<div class="info-banner" style="margin-bottom:1rem;">✅ {{ flash }}</div>
+{% endif %}
+{% if error %}
+<div class="warn-banner" style="margin-bottom:1rem;">⚠️ {{ error }}</div>
+{% endif %}
+
+{# ── SECTION 1: Basic Info ──────────────────────────────────────────────────── #}
+<div class="card" id="section-basic">
+    <div class="section-header">
+        <span class="section-icon">📋</span>
+        <h2>Basic Info</h2>
+    </div>
+    <div class="detail-grid">
+        <div class="detail-item">
+            <div class="detail-label">Full Name</div>
+            <div class="detail-value">{{ instructor.name }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Email</div>
+            <div class="detail-value" style="word-break:break-all;">{{ instructor.email }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Role</div>
+            <div class="detail-value">{{ instructor.role.value }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="detail-label">Account Status</div>
+            <div class="detail-value">
+                {% if instructor.is_active %}
+                <span style="color:#27ae60;">✅ Active</span>
+                {% else %}
+                <span style="color:#e74c3c;">❌ Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if instructor.date_of_birth %}
+        <div class="detail-item">
+            <div class="detail-label">Date of Birth</div>
+            <div class="detail-value">{{ instructor.date_of_birth.strftime('%Y-%m-%d') }}</div>
+        </div>
+        {% endif %}
+        <div class="detail-item">
+            <div class="detail-label">User ID</div>
+            <div class="detail-value" style="color:#718096;">#{{ instructor.id }}</div>
+        </div>
+    </div>
+    <div class="action-row">
+        <a href="/admin/users/{{ instructor.id }}/edit" class="btn btn-secondary">✏️ Edit Full Profile</a>
+    </div>
+</div>
+
+{# ── SECTION 2: Licenses ───────────────────────────────────────────────────── #}
+<div class="card" id="section-licenses">
+    <div class="section-header">
+        <span class="section-icon">🎓</span>
+        <h2>Licenses</h2>
+        <span style="font-size:0.82rem;color:#718096;margin-left:auto;">{{ licenses|length }} total</span>
+    </div>
+
+    {% if licenses %}
+    <div class="table-scroll-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Specialization</th>
+                <th>Level</th>
+                <th>Started</th>
+                <th>Status</th>
+                <th>Expires</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for lic in licenses %}
+        <tr>
+            <td><strong>{{ lic.specialization_type }}</strong></td>
+            <td>{{ lic.current_level or 0 }}</td>
+            <td style="color:#718096;white-space:nowrap;">{{ lic.started_at.strftime('%Y-%m-%d') if lic.started_at else '—' }}</td>
+            <td>
+                {% if lic.is_active %}
+                <span class="status-badge st-accepted">Active</span>
+                {% else %}
+                <span class="status-badge st-cancelled">Revoked</span>
+                {% endif %}
+            </td>
+            <td style="color:#718096;white-space:nowrap;">
+                {% if lic.expires_at %}
+                {{ lic.expires_at.strftime('%Y-%m-%d') }}
+                {% else %}—{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No licenses found.</p>
+    {% endif %}
+</div>
+
+{# ── SECTION 3: Active Assignments ────────────────────────────────────────── #}
+<div class="card" id="section-assignments">
+    <div class="section-header">
+        <span class="section-icon">📌</span>
+        <h2>Active Assignments</h2>
+        <span style="font-size:0.82rem;color:#718096;margin-left:auto;">{{ assignments|length }} active</span>
+    </div>
+
+    {% if assignments %}
+    <div class="table-scroll-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Location</th>
+                <th>Specialization</th>
+                <th>Age Group</th>
+                <th>Period</th>
+                <th>Year</th>
+                <th>Role</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for asgn in assignments %}
+        <tr>
+            <td><strong>{{ assignment_locations.get(asgn.location_id, '#' ~ asgn.location_id) }}</strong></td>
+            <td style="font-size:0.82rem;color:#4a5568;">{{ asgn.specialization_type }}</td>
+            <td>{{ asgn.age_group }}</td>
+            <td style="white-space:nowrap;color:#718096;">{{ asgn.time_period_start }}–{{ asgn.time_period_end }}</td>
+            <td>{{ asgn.year }}</td>
+            <td>
+                {% if asgn.is_master %}
+                <span class="status-badge" style="background:#faf5ff;color:#553c9a;">Master</span>
+                {% else %}
+                <span class="status-badge st-accepted">Assistant</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No active assignments.</p>
+    {% endif %}
+
+    {% if master_contracts %}
+    <div style="margin-top:1.25rem;">
+        <p style="font-size:0.82rem;font-weight:700;color:#4a5568;margin-bottom:0.5rem;text-transform:uppercase;letter-spacing:0.04em;">Master Contracts</p>
+        <div class="table-scroll-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Contract Start</th>
+                    <th>Contract End</th>
+                    <th>Pathway</th>
+                    <th>Offer Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for mc in master_contracts %}
+            <tr>
+                <td>
+                    <strong>{{ master_location_names.get(mc.location_id, '#' ~ mc.location_id) }}</strong>
+                    {% if not mc.is_active %}<span class="status-badge st-cancelled" style="margin-left:0.4rem;">Ended</span>{% endif %}
+                </td>
+                <td style="color:#718096;white-space:nowrap;">{{ mc.contract_start.strftime('%Y-%m-%d') if mc.contract_start else '—' }}</td>
+                <td style="color:#718096;white-space:nowrap;">{{ mc.contract_end.strftime('%Y-%m-%d') if mc.contract_end else '—' }}</td>
+                <td>{{ mc.hiring_pathway }}</td>
+                <td>
+                    {% if mc.offer_status %}
+                    {% set os = mc.offer_status.value %}
+                    {% if os == 'ACCEPTED' %}<span class="status-badge st-accepted">Accepted</span>
+                    {% elif os == 'OFFERED' %}<span class="status-badge st-offered">Offered</span>
+                    {% elif os == 'DECLINED' %}<span class="status-badge st-declined">Declined</span>
+                    {% elif os == 'EXPIRED' %}<span class="status-badge st-expired">Expired</span>
+                    {% else %}<span class="status-badge st-cancelled">{{ os }}</span>{% endif %}
+                    {% else %}
+                    <span style="color:#a0aec0;font-size:0.8rem;">Legacy</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# ── SECTION 4: Availability Windows ──────────────────────────────────────── #}
+<div class="card" id="section-availability">
+    <div class="section-header">
+        <span class="section-icon">📅</span>
+        <h2>Availability Windows</h2>
+        <span style="font-size:0.82rem;color:#718096;margin-left:auto;">{{ availability|length }} entries</span>
+    </div>
+
+    {% if availability %}
+    <div class="table-scroll-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Year</th>
+                <th>Period</th>
+                <th>Available</th>
+                <th>Notes</th>
+                <th>Updated</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for av in availability %}
+        <tr>
+            <td>{{ av.year }}</td>
+            <td><strong>{{ av.time_period }}</strong></td>
+            <td>
+                {% if av.is_available %}
+                <span class="avail-yes">✅ Yes</span>
+                {% else %}
+                <span class="avail-no">❌ No</span>
+                {% endif %}
+            </td>
+            <td style="color:#718096;font-size:0.83rem;">{{ av.notes or '—' }}</td>
+            <td style="color:#a0aec0;white-space:nowrap;font-size:0.8rem;">
+                {{ av.updated_at.strftime('%Y-%m-%d') if av.updated_at else '—' }}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No availability windows set. Instructor has not declared availability yet.</p>
+    {% endif %}
+</div>
+
+{# ── SECTION 5: Assignment Requests ───────────────────────────────────────── #}
+<div class="card" id="section-requests">
+    <div class="section-header">
+        <span class="section-icon">📨</span>
+        <h2>Assignment Requests</h2>
+        <span style="font-size:0.82rem;color:#718096;margin-left:auto;">Last {{ requests|length }} requests</span>
+    </div>
+
+    {% if requests %}
+    <div class="table-scroll-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Semester</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Sent</th>
+                <th>Responded</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for req in requests %}
+        <tr id="req-row-{{ req.id }}">
+            <td>
+                <strong>{{ semester_names.get(req.semester_id, 'Semester #' ~ req.semester_id) }}</strong>
+                {% if req.request_message %}
+                <div style="font-size:0.78rem;color:#a0aec0;margin-top:0.15rem;" title="{{ req.request_message }}">
+                    {{ req.request_message[:60] }}{% if req.request_message|length > 60 %}…{% endif %}
+                </div>
+                {% endif %}
+            </td>
+            <td>
+                {% set s = req.status.value %}
+                {% if s == 'PENDING' %}<span class="status-badge st-pending">Pending</span>
+                {% elif s == 'ACCEPTED' %}<span class="status-badge st-accepted">Accepted</span>
+                {% elif s == 'DECLINED' %}<span class="status-badge st-declined">Declined</span>
+                {% elif s == 'CANCELLED' %}<span class="status-badge st-cancelled">Cancelled</span>
+                {% elif s == 'EXPIRED' %}<span class="status-badge st-expired">Expired</span>
+                {% else %}<span class="status-badge st-cancelled">{{ s }}</span>{% endif %}
+            </td>
+            <td style="text-align:center;">{{ req.priority }}</td>
+            <td style="color:#718096;white-space:nowrap;font-size:0.8rem;">{{ req.created_at.strftime('%Y-%m-%d') }}</td>
+            <td style="color:#718096;white-space:nowrap;font-size:0.8rem;">
+                {{ req.responded_at.strftime('%Y-%m-%d') if req.responded_at else '—' }}
+            </td>
+            <td>
+                {% if req.status.value == 'PENDING' %}
+                <button class="action-btn"
+                        onclick="cancelRequest({{ req.id }})"
+                        style="background:#fff5f5;color:#c53030;border-color:#fed7d7;">
+                    ✕ Cancel
+                </button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No assignment requests found.</p>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const INSTRUCTOR_ID = {{ instructor.id }};
+
+async function cancelRequest(requestId) {
+    if (!confirm('Cancel this assignment request?')) return;
+    try {
+        await AdminAPI.patch(`/api/v1/instructor-assignments/requests/${requestId}/cancel`, {});
+        toast('Request cancelled');
+        const row = document.getElementById(`req-row-${requestId}`);
+        if (row) {
+            // Update status badge in place
+            const statusCell = row.cells[1];
+            statusCell.innerHTML = '<span class="status-badge st-cancelled">Cancelled</span>';
+            // Remove action button
+            row.cells[5].innerHTML = '';
+        }
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+</script>
+{% endblock %}

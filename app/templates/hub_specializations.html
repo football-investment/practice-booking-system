@@ -17,74 +17,54 @@
             min-height: 100vh;
         }
 
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* ── Hub Header ─────────────────────────────────────────────── */
+        .hub-header.site-header {
+            background: linear-gradient(135deg, #553c9a 0%, #764ba2 100%);
             color: white;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-
-        .header-content {
+        .hub-header-inner {
             max-width: 1200px;
             margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
+            padding: 0.85rem 1.5rem;
         }
-
-        .user-info h1 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .user-info p {
-            opacity: 0.9;
-            font-size: 1rem;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .credit-badge {
+        .hub-brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; }
+        .hub-top-actions { display: flex; align-items: center; gap: 0.5rem; }
+        .hub-credit-pill {
             background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            padding: 0.8rem 1.5rem;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 1.1rem;
+            border: 1.5px solid rgba(255,255,255,0.55);
+            padding: 0.28rem 0.85rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.88rem;
         }
-
-        .btn {
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn-primary {
-            background: white;
-            color: #667eea;
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
+        .hub-action-btn {
+            padding: 0.32rem 0.85rem;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.15);
             color: white;
-            border: 2px solid white;
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            transition: background 0.15s;
         }
+        .hub-action-btn:hover { background: rgba(255,255,255,0.28); color: white; }
+        .hub-action-logout { background: rgba(231,76,60,0.45); }
+        .hub-action-logout:hover { background: rgba(231,76,60,0.75); }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        @media (max-width: 768px) {
+            .hub-header-inner { flex-wrap: wrap; gap: 0.5rem; }
+            .hub-top-actions { flex-wrap: wrap; }
+        }
+        @media (max-width: 480px) {
+            .hub-action-btn { font-size: 0.76rem; padding: 0.28rem 0.6rem; }
+            .hub-credit-pill { font-size: 0.8rem; }
         }
 
         .container {
@@ -278,23 +258,17 @@
         }
     </style>
 
-<!-- Header -->
-<div class="header">
-    <div class="header-content">
-        <div class="user-info">
-            <h1>Welcome, {{ user.name }}! 👋</h1>
-            <p>{{ user.email }} · Age: {{ user_age }} years</p>
-        </div>
-        <div class="header-actions">
+<!-- Hub Header -->
+<div class="hub-header site-header">
+    <div class="hub-header-inner">
+        <span class="hub-brand-name">🏫 LFA Education Center</span>
+        <div class="hub-top-actions">
             {% if user.role.value == 'student' %}
-            <div class="credit-badge">
-                💰 {{ user.credit_balance }} credits
-            </div>
-            <a href="/credits" class="btn btn-primary">💳 Purchase Credits</a>
+            <span class="hub-credit-pill">💰 {{ user.credit_balance }}</span>
+            <a href="/credits" class="hub-action-btn">💳 Credits</a>
             {% endif %}
-            <a href="/about-specializations" class="btn btn-secondary">ℹ️ About Specializations</a>
-            <a href="/profile" class="btn btn-secondary">⚙️ Profile</a>
-            <a href="/logout" class="btn btn-secondary">🚪 Logout</a>
+            <a href="/profile" class="hub-action-btn">👤 Profile</a>
+            <a href="/logout" class="hub-action-btn hub-action-logout">🚪 Logout</a>
         </div>
     </div>
 </div>
@@ -320,7 +294,9 @@
         <div class="cards-grid">
             {% for spec in available_specializations %}
             <div class="spec-card {% if spec.is_unlocked %}unlocked{% elif not spec.is_available %}locked{% endif %}">
+                {% if not spec.is_unlocked and spec.is_available %}
                 <div class="cost-badge">💰 100 Credits</div>
+                {% endif %}
 
                 <div class="spec-icon">{{ spec.icon }}</div>
                 <h3 class="spec-title">{{ spec.name }}</h3>
@@ -328,10 +304,15 @@
                 <p class="spec-description">{{ spec.description }}</p>
 
                 <div class="spec-action">
-                    {% if spec.is_unlocked %}
-                        <div class="unlocked-badge">✅ UNLOCKED</div>
-                        <a href="/dashboard/{{ spec.type.lower().replace('_', '-') }}" class="unlock-btn">
-                            🚀 ENTER {{ spec.name }}
+                    {% if spec.onboarding_completed %}
+                        <div class="unlocked-badge">✅ Active</div>
+                        <a href="/dashboard/{{ spec.type | lower | replace('_', '-') }}" class="unlock-btn" style="margin-top:0.75rem;">
+                            🚀 Enter
+                        </a>
+                    {% elif spec.is_unlocked %}
+                        <div class="unlocked-badge" style="background:#ed8936;">⚙️ Setup Pending</div>
+                        <a href="/dashboard/{{ spec.type | lower | replace('_', '-') }}" class="unlock-btn" style="background:linear-gradient(135deg,#ed8936 0%,#dd6b20 100%);margin-top:0.75rem;">
+                            ⚙️ Continue Setup
                         </a>
                     {% elif not spec.is_available %}
                         <div class="age-locked-badge">🔒 Age Requirement Not Met</div>

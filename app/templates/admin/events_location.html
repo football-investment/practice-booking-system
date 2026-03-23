@@ -1,0 +1,385 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}{{ loc.city }} — Events{% endblock %}
+{% block page_heading %}📍 {{ loc.city }} — Events{% endblock %}
+{% block page_subtitle %}{{ 'CENTER' if loc.location_type.value == 'CENTER' else 'PARTNER' }} · {{ loc.country }} · All event types{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .detail-section { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.5rem; overflow: hidden; }
+    .section-hdr {
+        padding: 0.85rem 1.25rem; background: #f8f9fa; border-bottom: 1px solid #e2e8f0;
+        display: flex; align-items: center; gap: 0.5rem; justify-content: space-between;
+    }
+    .section-hdr-left { display: flex; align-items: center; gap: 0.5rem; }
+    .section-hdr h3 { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin: 0; }
+    .count-badge { font-size: 0.75rem; background: #e2e8f0; color: #4a5568; border-radius: 99px; padding: 0.15rem 0.55rem; font-weight: 600; }
+    .section-body { padding: 1rem 1.25rem; }
+    .dtable { width: 100%; border-collapse: collapse; }
+    .dtable th { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #718096; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e2e8f0; text-align: left; }
+    .dtable td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; vertical-align: middle; }
+    .dtable tr:last-child td { border-bottom: none; }
+    .dtable tr:hover td { background: #f8faff; }
+    .badge { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+    .badge-ongoing { background: #c6f6d5; color: #276749; }
+    .badge-draft { background: #e2e8f0; color: #4a5568; }
+    .badge-ready { background: #bee3f8; color: #2c5282; }
+    .badge-completed { background: #d6bcfa; color: #553c9a; }
+    .badge-cancelled { background: #fed7d7; color: #9b2335; }
+    .badge-age { background: #fed7e2; color: #97266d; font-family: monospace; }
+    .badge-training { background: #f0fff4; color: #276749; }
+    .badge-match { background: #ebf8ff; color: #2b6cb0; }
+    .badge-center { background: #bee3f8; color: #2c5282; }
+    .badge-partner { background: #fefcbf; color: #744210; }
+    .action-link { font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block; }
+    .al-primary { background: #667eea; color: white; }
+    .al-detail { background: #4299e1; color: white; }
+    .al-plain { background: #e2e8f0; color: #4a5568; }
+    .no-data { color: #a0aec0; font-size: 0.88rem; padding: 1rem 0; text-align: center; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 2rem; max-width: 560px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { margin-bottom: 1.25rem; color: #2d3748; }
+    .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; justify-content: flex-end; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.4rem; }
+    .form-group input, .form-group select { width: 100%; padding: 0.55rem 0.9rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box; }
+    .form-group.full { grid-column: 1 / -1; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div class="module-strip">
+    <span class="module-strip-label">Events</span>
+    <a href="/admin/events" class="module-strip-item">🎯 All Events</a>
+    <span class="module-strip-item active">📍 {{ loc.city }}</span>
+</div>
+
+{% if error %}
+<div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#c53030;font-size:0.9rem;">⚠️ {{ error }}</div>
+{% endif %}
+{% if flash %}
+<div style="background:#f0fff4;border:1px solid #68d391;border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#276749;font-size:0.9rem;">✅ {{ flash }}</div>
+{% endif %}
+
+<!-- Location header card -->
+<div style="background:white;border-radius:12px;padding:1.1rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+    <div>
+        <div style="font-size:1.25rem;font-weight:700;color:#2d3748;">{{ loc.city }}</div>
+        <div style="margin-top:0.3rem;display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+            <span class="badge {% if loc.location_type.value == 'CENTER' %}badge-center{% else %}badge-partner{% endif %}">
+                {% if loc.location_type.value == 'CENTER' %}🏫 CENTER{% else %}🤝 PARTNER{% endif %}
+            </span>
+            <span style="font-size:0.8rem;color:#718096;">{{ loc.country }}</span>
+            {% if loc.location_code %}<code style="font-size:0.78rem;color:#718096;">{{ loc.location_code }}</code>{% endif %}
+            <span style="font-size:0.8rem;color:{% if loc.is_active %}#276749{% else %}#9b2335{% endif %};">
+                {{ '✅ Active' if loc.is_active else '❌ Inactive' }}
+            </span>
+        </div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <a href="/admin/locations/{{ loc.id }}"
+           style="padding:0.4rem 0.85rem;background:#f0f0f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;font-size:0.82rem;">
+            📍 Location Details
+        </a>
+    </div>
+</div>
+
+<!-- ── Section 1: Tournaments ─────────────────────────────────────────────── -->
+<div class="detail-section">
+    <div class="section-hdr">
+        <div class="section-hdr-left">
+            <h3>🏆 Tournaments</h3>
+            <span class="count-badge">{{ tournaments|length }}</span>
+        </div>
+        <a href="/admin/semesters/new?location_id={{ loc.id }}&category=TOURNAMENT"
+           class="btn btn-primary" style="font-size:0.82rem;padding:0.3rem 0.85rem;">
+            ➕ New Tournament
+        </a>
+    </div>
+    <div class="section-body">
+        {% if tournaments %}
+        <table class="dtable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Dates</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in tournaments %}
+            <tr>
+                <td><code style="font-size:0.78rem;">{{ t.code }}</code></td>
+                <td style="font-weight:600;color:#2d3748;">{{ t.name }}</td>
+                <td>{% if t.age_group %}<span class="badge badge-age">{{ t.age_group }}</span>{% else %}—{% endif %}</td>
+                <td style="font-size:0.82rem;white-space:nowrap;color:#718096;">{{ t.start_date }} → {{ t.end_date }}</td>
+                <td>
+                    {% set s = t.status.value if t.status else '' %}
+                    {% if s == 'ONGOING' %}<span class="badge badge-ongoing">ONGOING</span>
+                    {% elif s == 'DRAFT' %}<span class="badge badge-draft">DRAFT</span>
+                    {% elif s == 'READY_FOR_ENROLLMENT' %}<span class="badge badge-ready">READY</span>
+                    {% elif s == 'COMPLETED' %}<span class="badge badge-completed">DONE</span>
+                    {% else %}<span class="badge badge-draft">{{ s }}</span>{% endif %}
+                </td>
+                <td>
+                    <a href="/admin/tournaments/{{ t.id }}/edit" class="action-link al-detail">→ Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No tournaments at this location. <a href="/admin/semesters/new?location_id={{ loc.id }}&category=TOURNAMENT" style="color:#667eea;">Create the first →</a></p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Section 2: Camps ────────────────────────────────────────────────────── -->
+<div class="detail-section">
+    <div class="section-hdr">
+        <div class="section-hdr-left">
+            <h3>⛺ Camps</h3>
+            <span class="count-badge">{{ camps|length }}</span>
+        </div>
+        <button type="button" class="btn btn-primary"
+                style="font-size:0.82rem;padding:0.3rem 0.85rem;"
+                onclick="document.getElementById('createCampModal').classList.add('open')">
+            ➕ New Camp
+        </button>
+    </div>
+    <div class="section-body">
+        {% if camps %}
+        <table class="dtable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Dates</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in camps %}
+            <tr>
+                <td><code style="font-size:0.78rem;">{{ c.code }}</code></td>
+                <td style="font-weight:600;color:#2d3748;">{{ c.name }}</td>
+                <td>{% if c.age_group %}<span class="badge badge-age">{{ c.age_group }}</span>{% else %}—{% endif %}</td>
+                <td style="font-size:0.82rem;white-space:nowrap;color:#718096;">{{ c.start_date }} → {{ c.end_date }}</td>
+                <td>
+                    {% set s = c.status.value if c.status else '' %}
+                    {% if s == 'ONGOING' %}<span class="badge badge-ongoing">ONGOING</span>
+                    {% elif s == 'DRAFT' %}<span class="badge badge-draft">DRAFT</span>
+                    {% elif s == 'READY_FOR_ENROLLMENT' %}<span class="badge badge-ready">READY</span>
+                    {% elif s == 'COMPLETED' %}<span class="badge badge-completed">DONE</span>
+                    {% else %}<span class="badge badge-draft">{{ s }}</span>{% endif %}
+                </td>
+                <td>
+                    <a href="/admin/camps/{{ c.id }}/edit" class="action-link al-detail">→ Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No camps at this location yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Section 3: Academy / Mini Seasons ─────────────────────────────────── -->
+<div class="detail-section">
+    <div class="section-hdr">
+        <div class="section-hdr-left">
+            <h3>🎓 Academy / Mini Seasons</h3>
+            <span class="count-badge">{{ seasons|length }}</span>
+        </div>
+        <a href="/admin/semesters/new?location_id={{ loc.id }}"
+           class="btn btn-primary" style="font-size:0.82rem;padding:0.3rem 0.85rem;">
+            ➕ New Season
+        </a>
+    </div>
+    <div class="section-body">
+        {% if seasons %}
+        <table class="dtable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Dates</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for s in seasons %}
+            <tr>
+                <td><code style="font-size:0.78rem;">{{ s.code }}</code></td>
+                <td style="font-weight:600;color:#2d3748;">{{ s.name }}</td>
+                <td style="font-size:0.82rem;color:#718096;">
+                    {% if s.semester_category and s.semester_category.value == 'ACADEMY_SEASON' %}
+                        <span class="badge" style="background:#e9d8fd;color:#553c9a;">🏫 Academy</span>
+                    {% else %}
+                        <span class="badge" style="background:#fef9c3;color:#713f12;">⚡ Mini</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:0.82rem;white-space:nowrap;color:#718096;">{{ s.start_date }} → {{ s.end_date }}</td>
+                <td>
+                    {% set sv = s.status.value if s.status else '' %}
+                    {% if sv == 'ONGOING' %}<span class="badge badge-ongoing">ONGOING</span>
+                    {% elif sv == 'DRAFT' %}<span class="badge badge-draft">DRAFT</span>
+                    {% elif sv == 'READY_FOR_ENROLLMENT' %}<span class="badge badge-ready">READY</span>
+                    {% elif sv == 'COMPLETED' %}<span class="badge badge-completed">DONE</span>
+                    {% else %}<span class="badge badge-draft">{{ sv }}</span>{% endif %}
+                </td>
+                <td>
+                    <a href="/admin/semesters/{{ s.id }}/edit" class="action-link al-plain">→ Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No academy or mini seasons at this location.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Section 4: Upcoming Sessions (next 30d) ───────────────────────────── -->
+<div class="detail-section">
+    <div class="section-hdr">
+        <div class="section-hdr-left">
+            <h3>📅 Upcoming Sessions <span style="font-size:0.78rem;font-weight:400;color:#a0aec0;">(next 30 days)</span></h3>
+            <span class="count-badge">{{ sessions|length }}</span>
+        </div>
+        {% if campuses %}
+        <a href="/admin/sessions?campus_id={{ campuses[0].id }}"
+           style="font-size:0.82rem;padding:0.3rem 0.85rem;background:#e2e8f0;color:#4a5568;border-radius:8px;font-weight:600;text-decoration:none;">
+            → All Sessions
+        </a>
+        {% endif %}
+    </div>
+    <div class="section-body">
+        {% if sessions %}
+        <table class="dtable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Campus</th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Capacity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for sess in sessions %}
+            {% set cam = campus_map.get(sess.campus_id) %}
+            <tr>
+                <td style="white-space:nowrap;font-size:0.82rem;color:#4a5568;">
+                    {{ sess.date_start.strftime('%b %d %H:%M') if sess.date_start else '—' }}
+                </td>
+                <td style="font-size:0.82rem;color:#718096;">
+                    {% if cam %}<a href="/admin/campuses/{{ cam.id }}" style="color:#4299e1;text-decoration:none;">{{ cam.name }}</a>{% else %}—{% endif %}
+                </td>
+                <td style="font-weight:600;color:#2d3748;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ sess.title or '—' }}</td>
+                <td>
+                    {% if sess.event_category and sess.event_category.value == 'MATCH' %}
+                        <span class="badge badge-match">⚽ Match</span>
+                    {% elif sess.event_category and sess.event_category.value == 'TRAINING' %}
+                        <span class="badge badge-training">🏃 Training</span>
+                    {% else %}
+                        <span style="font-size:0.78rem;color:#a0aec0;">—</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:0.82rem;color:#718096;">
+                    {{ sess.current_bookings or 0 }}/{{ sess.max_participants or '∞' }}
+                </td>
+                <td>
+                    {% set st = sess.session_status or '' %}
+                    {% if st == 'scheduled' %}<span class="badge badge-ready">SCHED</span>
+                    {% elif st == 'completed' %}<span class="badge badge-completed">DONE</span>
+                    {% else %}<span class="badge badge-draft">{{ st.upper() }}</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No upcoming sessions in the next 30 days at this location's campuses.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Create Camp Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="createCampModal">
+    <div class="modal">
+        <h3>➕ Create New Camp</h3>
+        <form method="post" action="/admin/camps">
+            <input type="hidden" name="location_id" value="{{ loc.id }}">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Summer Football Camp 2026">
+                </div>
+                <div class="form-group">
+                    <label>Code <span style="font-size:0.75rem;color:#a0aec0;">(auto-generated if blank)</span></label>
+                    <input type="text" name="code" placeholder="e.g. CAMP-SUMMER26">
+                </div>
+                <div class="form-group">
+                    <label>Age Group</label>
+                    <select name="age_group">
+                        <option value="">— Any —</option>
+                        <option value="PRE">PRE</option>
+                        <option value="YOUTH">YOUTH</option>
+                        <option value="AMATEUR">AMATEUR</option>
+                        <option value="PRO">PRO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Start Date *</label>
+                    <input type="date" name="start_date" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date *</label>
+                    <input type="date" name="end_date" required>
+                </div>
+                <div class="form-group">
+                    <label>Campus</label>
+                    <select name="campus_id">
+                        <option value="">— None —</option>
+                        {% for cam in campuses %}
+                        <option value="{{ cam.id }}">{{ cam.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Enrollment Cost (credits)</label>
+                    <input type="number" name="enrollment_cost" value="0" min="0">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('createCampModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn btn-primary">➕ Create Camp</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('createCampModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+});
+</script>
+{% endblock %}

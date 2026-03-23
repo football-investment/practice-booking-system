@@ -151,14 +151,15 @@ def calculate_tournament_rankings(
             rankings = strategy.calculate_rankings(sessions, db)
 
         else:
-            # INDIVIDUAL tournament — use RankingAggregator (direction-aware, same as submission.py)
-            from app.services.tournament.results.calculators.ranking_aggregator import RankingAggregator
+            # INDIVIDUAL_RANKING format — check whether TEAM or INDIVIDUAL participant_type
+            cfg = tournament.tournament_config_obj
+            is_team = cfg and cfg.participant_type == "TEAM"
 
             ranking_direction = "ASC"
-            if tournament.tournament_config_obj:
-                ranking_direction = tournament.tournament_config_obj.ranking_direction or "ASC"
+            if cfg:
+                ranking_direction = cfg.ranking_direction or "ASC"
 
-            # Build combined round_results from all IR sessions
+            # Aggregate round_results across all sessions
             combined_round_results: dict = {}
             for _s in sessions:
                 _rd = _s.rounds_data or {}
@@ -176,18 +177,39 @@ def calculate_tournament_rankings(
                     detail="No round results found in sessions. Submit all results first."
                 )
 
-            _user_finals = RankingAggregator.aggregate_user_values(combined_round_results, ranking_direction)
-            _perf_rankings = RankingAggregator.calculate_performance_rankings(_user_finals, ranking_direction)
-
-            # Normalize: map final_value → points for the insert loop below
-            rankings = [
-                {
-                    "user_id": r["user_id"],
-                    "rank": r["rank"],
-                    "points": r["final_value"],
-                }
-                for r in _perf_rankings
-            ]
+            if is_team:
+                # TEAM aggregation: keys are "team_{id}" → aggregate per team
+                team_scores: dict[int, float] = {}
+                for rk, player_values in combined_round_results.items():
+                    for key, val in player_values.items():
+                        if key.startswith("team_"):
+                            try:
+                                tid = int(key.split("_", 1)[1])
+                                team_scores[tid] = team_scores.get(tid, 0.0) + float(val)
+                            except (ValueError, IndexError):
+                                pass
+                ranked_teams = sorted(
+                    team_scores.items(),
+                    key=lambda x: x[1],
+                    reverse=(ranking_direction == "DESC")
+                )
+                rankings = [
+                    {"team_id": tid, "user_id": None, "rank": i + 1, "points": score}
+                    for i, (tid, score) in enumerate(ranked_teams)
+                ]
+            else:
+                from app.services.tournament.results.calculators.ranking_aggregator import RankingAggregator
+                _user_finals = RankingAggregator.aggregate_user_values(combined_round_results, ranking_direction)
+                _perf_rankings = RankingAggregator.calculate_performance_rankings(_user_finals, ranking_direction)
+                rankings = [
+                    {
+                        "user_id": r["user_id"],
+                        "team_id": None,
+                        "rank": r["rank"],
+                        "points": r["final_value"],
+                    }
+                    for r in _perf_rankings
+                ]
 
     except ValueError as e:
         raise HTTPException(
@@ -200,12 +222,18 @@ def calculate_tournament_rankings(
         TournamentRanking.tournament_id == tournament_id
     ).delete()
 
+    # Determine participant_type from config
+    cfg = tournament.tournament_config_obj
+    is_team = cfg and cfg.participant_type == "TEAM"
+    pt_label = "TEAM" if is_team else "INDIVIDUAL"
+
     # Insert new rankings
     for ranking_data in rankings:
         ranking_record = TournamentRanking(
             tournament_id=tournament_id,
-            user_id=ranking_data["user_id"],
-            participant_type="INDIVIDUAL",
+            user_id=ranking_data.get("user_id"),
+            team_id=ranking_data.get("team_id"),
+            participant_type=pt_label,
             rank=ranking_data["rank"],
             points=ranking_data.get("points", 0),
             wins=ranking_data.get("wins", 0),
@@ -221,6 +249,7 @@ def calculate_tournament_rankings(
     return {
         "tournament_id": tournament_id,
         "tournament_format": tournament_format,
+        "participant_type": pt_label,
         "rankings_count": len(rankings),
         "rankings": rankings,
         "message": "Tournament rankings calculated and stored successfully"

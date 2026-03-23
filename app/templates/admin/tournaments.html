@@ -220,6 +220,12 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Events</span>
+    <a href="/admin/events" class="module-strip-item">🎯 All Events</a>
+    <span class="module-strip-item active">🏆 Tournaments</span>
+</div>
+
     {% if flash %}
     <div class="alert alert-success">✅ {{ flash }}</div>
     {% endif %}
@@ -340,13 +346,8 @@
 
                     <!-- Action buttons -->
                     <div class="action-btns">
-                        <!-- Edit (stub) -->
-                        <button class="action-btn btn-stub" title="Coming soon">✏️ Edit</button>
-
-                        <!-- Edit Schedule (stub, hidden if enrollment started) -->
-                        {% if t.tournament_status not in ('ENROLLMENT_OPEN', 'IN_PROGRESS', 'COMPLETED') %}
-                        <button class="action-btn btn-stub" title="Coming soon">⚙️ Edit Schedule</button>
-                        {% endif %}
+                        <!-- Edit → tournament edit page -->
+                        <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn" style="text-decoration:none;">✏️ Edit</a>
 
                         <!-- Start (ENROLLMENT_CLOSED only) -->
                         {% if t.tournament_status == 'ENROLLMENT_CLOSED' %}
@@ -358,8 +359,8 @@
                         </form>
                         {% endif %}
 
-                        <!-- Reward Config (stub) -->
-                        <button class="action-btn btn-stub" title="Coming soon">🎁 Reward Config</button>
+                        <!-- Reward Config → edit page #section-rewards -->
+                        <a href="/admin/tournaments/{{ t.id }}/edit#section-rewards" class="action-btn" style="text-decoration:none;">🎁 Rewards</a>
 
                         <!-- Cancel (if not COMPLETED/CANCELLED) -->
                         {% if t.tournament_status not in ('COMPLETED', 'CANCELLED') %}
@@ -502,15 +503,6 @@
                                placeholder="e.g. Budapest Open 2026">
                     </div>
 
-                    <!-- Tournament Code -->
-                    <div class="form-group">
-                        <label for="code">Tournament Code *</label>
-                        <input type="text" id="code" name="code" required
-                               placeholder="e.g. TOURN-BDPST-2026"
-                               style="font-family:monospace;">
-                        <small>Auto-prefixed with TOURN- if not set. Must be unique.</small>
-                    </div>
-
                     <!-- Start Date -->
                     <div class="form-group">
                         <label for="start_date">Start Date *</label>
@@ -532,6 +524,49 @@
                             <option value="AMATEUR" selected>AMATEUR</option>
                             <option value="PRO">PRO</option>
                         </select>
+                    </div>
+
+                    <!-- Tournament Type -->
+                    <div class="form-group">
+                        <label for="tournament_type_id">Tournament Type</label>
+                        <select id="tournament_type_id" name="tournament_type_id">
+                            <option value="">— Select type —</option>
+                            {% for tt in tournament_types %}
+                            <option value="{{ tt.id }}">{{ tt.display_name }} ({{ tt.format }})</option>
+                            {% endfor %}
+                        </select>
+                        <small>Defines HEAD_TO_HEAD vs INDIVIDUAL_RANKING format</small>
+                    </div>
+
+                    <!-- Game Preset -->
+                    <div class="form-group">
+                        <label for="game_preset_id">Game Preset</label>
+                        <select id="game_preset_id" name="game_preset_id">
+                            <option value="">— No preset —</option>
+                            {% for gp in game_presets %}
+                            <option value="{{ gp.id }}">{{ gp.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small>Optional: defines skill weights for the game</small>
+                    </div>
+
+                    <!-- Participant Type -->
+                    <div class="form-group">
+                        <label for="participant_type">Participant Type</label>
+                        <select id="participant_type" name="participant_type">
+                            <option value="INDIVIDUAL" selected>👤 Individual</option>
+                            <option value="TEAM">👥 Team</option>
+                            <option value="MIXED" disabled>🔀 Mixed (coming soon)</option>
+                        </select>
+                        <small>MIXED ranking stays a P3 feature. TEAM tournaments require team enrollment via the Teams tab after creation.</small>
+                    </div>
+
+                    <!-- Number of Rounds -->
+                    <div class="form-group">
+                        <label for="number_of_rounds">Number of Rounds</label>
+                        <input type="number" id="number_of_rounds" name="number_of_rounds"
+                               min="1" max="10" value="1">
+                        <small>1–10 · INDIVIDUAL_RANKING only</small>
                     </div>
 
                     <!-- Assignment Type -->

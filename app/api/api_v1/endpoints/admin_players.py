@@ -216,8 +216,6 @@ def _commit_chunk(
                 started_at=now,
                 payment_verified=True,
                 payment_verified_at=now,
-                onboarding_completed=True,
-                onboarding_completed_at=now,
                 is_active=True,
             ))
 

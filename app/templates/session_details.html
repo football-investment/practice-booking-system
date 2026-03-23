@@ -1,9 +1,10 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Session Details - LFA Education Center{% endblock %}
 
-{% block content %}
+{% block active_page %}sessions{% endblock %}
 
+{% block extra_styles %}
 <style>
 .spec-badge-GANCUJU_PLAYER { background-color: #e74c3c; color: white; }
 .spec-badge-LFA_FOOTBALL_PLAYER { background-color: #27ae60; color: white; }
@@ -27,6 +28,9 @@
 .star-rating label:hover,
 .star-rating label:hover ~ label { color: #ffc107; }
 </style>
+{% endblock %}
+
+{% block student_content %}
 
 <!-- Success/Error Messages -->
 <script>

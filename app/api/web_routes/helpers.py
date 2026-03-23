@@ -4,6 +4,23 @@ Helper functions for web routes
 from sqlalchemy.orm import Session
 from datetime import date
 
+from fastapi.responses import RedirectResponse
+from ...models.user import User, UserRole
+
+
+def require_student_onboarding(user: User):
+    """Guard: return 303 redirect to /dashboard if the user is not an onboarded student.
+
+    Covers:
+        - user.role != STUDENT  →  redirect (instructors, admins)
+        - user.onboarding_completed == False  →  redirect
+
+    Note: per-spec UserLicense checks remain the responsibility of spec_dashboard().
+    """
+    if user.role != UserRole.STUDENT or not user.onboarding_completed:
+        return RedirectResponse(url="/dashboard", status_code=303)
+    return None
+
 
 def update_specialization_xp(
     db: Session,

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Form, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pathlib import Path
 from datetime import datetime, timezone
 import logging
@@ -79,6 +80,20 @@ async def specialization_unlock(
             detail=f"Age requirement not met. This specialization requires age {required_age}. Your current age: {current_user.age or 'not set'}."
         )
 
+    # Lock user row to prevent concurrent unlock race conditions
+    current_user = db.query(User).with_for_update().filter(User.id == current_user.id).first()
+
+    # Check for existing license (re-check AFTER acquiring the lock)
+    existing_license = db.query(UserLicense).filter(
+        UserLicense.user_id == current_user.id,
+        UserLicense.specialization_type == spec_type.value
+    ).first()
+    if existing_license:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"You already have a license for {spec_type.value}"
+        )
+
     # Deduct credits (only after all validations pass)
     current_user.credit_balance -= 100
 
@@ -116,7 +131,14 @@ async def specialization_unlock(
     # Update user specialization
     current_user.specialization = spec_type.value
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"License for {spec_type.value} already exists (concurrent request)"
+        )
 
     return {
         "success": True,
@@ -242,10 +264,9 @@ async def student_motivation_questionnaire_submit(
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
         license.motivation_assessed_by = user.id  # Student self-assessment
 
-        # Mark onboarding as completed (BOTH user AND license)
-        user.onboarding_completed = True  # User-level: "has completed at least ONE specialization onboarding"
-        license.onboarding_completed = True  # License-level: "THIS specialization onboarding completed"
-        license.onboarding_completed_at = datetime.now(timezone.utc)
+        # Mark onboarding as completed via unified service
+        from ...services.onboarding_service import complete_motivation_onboarding
+        complete_motivation_onboarding(db, user, license)
 
         db.commit()
         db.refresh(user)
@@ -253,8 +274,9 @@ async def student_motivation_questionnaire_submit(
 
         logger.info("motivation_questionnaire_complete", extra={"user": user.email, "spec": spec_type.value, "avg_score": round(average_score, 2)})
 
-        # Redirect to dashboard - onboarding complete!
-        return RedirectResponse(url="/dashboard", status_code=303)
+        # Redirect directly to the spec dashboard — onboarding complete
+        spec_slug = spec_type.value.lower().replace("_", "-")
+        return RedirectResponse(url=f"/dashboard/{spec_slug}", status_code=303)
 
     except Exception as e:
         db.rollback()

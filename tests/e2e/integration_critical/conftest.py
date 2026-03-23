@@ -93,10 +93,8 @@ def create_test_user(
 
     # Create LFA_FOOTBALL_PLAYER UserLicense for students (needed for tournament enrollment)
     # Create LFA_COACH UserLicense for instructors (needed for tournament assignment)
-    # Note: We only create the user_licenses record, not the full lfa_player_licenses structure
-    # This is sufficient for enrollment/assignment validation
     if role.upper() == "STUDENT":
-        # Use payment verification endpoint to add specialization (creates UserLicense without charging)
+        # Step 1: Create license via payment verification (sets onboarding_completed=False by default)
         spec_response = requests.post(
             f"{api_url}/api/v1/payment-verification/students/{user_id}/add-specialization",
             headers={"Authorization": f"Bearer {admin_token}"},
@@ -104,6 +102,23 @@ def create_test_user(
         )
         if spec_response.status_code not in [200, 201]:
             print(f"⚠️  Specialization creation failed for user {user_id}: {spec_response.status_code} - {spec_response.text}")
+
+        # Step 2: Complete LFA player onboarding via proper endpoint (uses student's own token)
+        # This is the canonical code path — same endpoint real students use in the browser.
+        from app.skills_config import get_all_skill_keys
+        skill_defaults = {k: 75 for k in get_all_skill_keys()}
+        onboarding_response = requests.post(
+            f"{api_url}/specialization/lfa-player/onboarding-submit",
+            headers={"Authorization": f"Bearer {user_token}"},
+            json={
+                "position": "MIDFIELDER",
+                "goals": "improve_performance",
+                "motivation": "Integration test user — auto-generated",
+                "skills": skill_defaults,
+            }
+        )
+        if onboarding_response.status_code not in [200, 201]:
+            print(f"⚠️  Onboarding failed for user {user_id}: {onboarding_response.status_code} - {onboarding_response.text}")
     elif role.upper() == "INSTRUCTOR":
         # Add LFA_COACH license for instructors (needed for tournament assignment)
         # Use direct database creation for simplicity in tests

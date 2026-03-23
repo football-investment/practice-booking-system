@@ -251,6 +251,14 @@ class Session(Base):
                 "This fixes the architectural issue where participants were determined at runtime."
     )
 
+    # ✅ TEAM PARTICIPANTS: For TEAM tournaments — list of team_ids in this session
+    participant_team_ids = Column(
+        ARRAY(Integer),
+        nullable=True,
+        comment="For TEAM tournaments: list of team_ids in this session. "
+                "Mutually exclusive with participant_user_ids."
+    )
+
     # ─── NEW SEMANTIC DIMENSIONS (M-03 to M-06, 2026-03-15) ───────────────────
 
     # M-03: Replaces is_tournament_game boolean with a proper categorical discriminator

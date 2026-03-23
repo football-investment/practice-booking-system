@@ -62,11 +62,14 @@ def _user(uid=99, credit_balance=200, age=20):
     return u
 
 
-def _mock_db(first_return=None, all_return=None):
+def _mock_db(first_return=None, all_return=None, user_return=None):
     db = MagicMock()
     db.query.return_value.filter.return_value.first.return_value = first_return
     db.query.return_value.filter.return_value.all.return_value = all_return or []
     db.query.return_value.filter.return_value.filter.return_value.filter.return_value.first.return_value = first_return
+    # SELECT FOR UPDATE chain (user re-query in specialization_select_submit)
+    _ur = user_return if user_return is not None else first_return
+    db.query.return_value.with_for_update.return_value.filter.return_value.first.return_value = _ur
     return db
 
 
@@ -133,7 +136,8 @@ class TestSpecializationSelectSubmit:
 
     def test_insufficient_credits_redirects_to_dashboard(self):
         user = _user(credit_balance=50)
-        db = _mock_db(first_return=None)  # No existing license
+        # user_return=user: SELECT FOR UPDATE re-query returns the real user mock (50 credits < 100)
+        db = _mock_db(first_return=None, user_return=user)
         result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
         assert isinstance(result, RedirectResponse)
         assert "/dashboard" in result.headers["location"]
@@ -141,25 +145,58 @@ class TestSpecializationSelectSubmit:
     def test_existing_license_skips_credit_deduction(self):
         license_mock = MagicMock()
         user = _user(credit_balance=200)
-        db = _mock_db(first_return=license_mock)
+        # user_return=user: SELECT FOR UPDATE returns user; first_return=license_mock: license check returns existing
+        db = _mock_db(first_return=license_mock, user_return=user)
         result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
         assert isinstance(result, RedirectResponse)
         assert user.credit_balance == 200  # Credits NOT deducted (license already exists)
+        # Guard: existing license path still redirects to the correct onboarding URL
+        assert "lfa-player/onboarding" in result.headers["location"]
 
     def test_lfa_player_redirects_to_lfa_onboarding(self):
         user = _user(credit_balance=200)
-        db = _mock_db(first_return=None)  # Force license creation path
-        # Credit balance >= 100, so unlock proceeds
+        # user_return=user: SELECT FOR UPDATE re-query returns the same user (with 200 credits)
+        # first_return=None: license check returns None → new unlock path
+        db = _mock_db(first_return=None, user_return=user)
         result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
         assert isinstance(result, RedirectResponse)
         assert "lfa-player/onboarding" in result.headers["location"]
 
     def test_non_lfa_spec_redirects_to_motivation(self):
         user = _user(credit_balance=200)
-        db = _mock_db(first_return=None)
+        db = _mock_db(first_return=None, user_return=user)
         result, _ = self._run_submit(user, "GANCUJU_PLAYER", db=db)
         assert isinstance(result, RedirectResponse)
         assert "motivation" in result.headers["location"]
+
+    def test_credit_boundary_99_is_rejected(self):
+        """credit_balance=99 < 100 → insufficient credits → /dashboard redirect."""
+        user = _user(credit_balance=99)
+        db = _mock_db(first_return=None, user_return=user)
+        result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
+        assert isinstance(result, RedirectResponse)
+        assert "/dashboard" in result.headers["location"]
+
+    def test_credit_boundary_100_is_accepted(self):
+        """credit_balance=100 == 100 → exactly enough → proceed to lfa onboarding redirect."""
+        user = _user(credit_balance=100)
+        db = _mock_db(first_return=None, user_return=user)
+        result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
+        assert isinstance(result, RedirectResponse)
+        assert "lfa-player/onboarding" in result.headers["location"]
+
+    def test_integrity_error_during_license_creation_redirects_to_dashboard(self):
+        """IntegrityError during DB commit (race condition duplicate) → 303 /dashboard."""
+        from sqlalchemy.exc import IntegrityError
+        user = _user(credit_balance=200)
+        db = _mock_db(first_return=None, user_return=user)
+        db.flush.side_effect = IntegrityError("duplicate", {}, Exception())
+
+        result, _ = self._run_submit(user, "LFA_FOOTBALL_PLAYER", db=db)
+
+        assert isinstance(result, RedirectResponse)
+        assert result.status_code == 303
+        assert result.headers["location"] == "/dashboard"
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -639,6 +639,12 @@ ADMIN_PAGES = [
     "/admin/system-events",
     "/admin/tournaments",
     "/admin/enrollments",
+    # Nav hub landing pages (SMOKE-27)
+    "/admin/programs",
+    "/admin/config",
+    # Events module (SMOKE-30)
+    "/admin/events",
+    "/admin/camps",
 ]
 
 
@@ -656,26 +662,27 @@ class TestSmoke07Navigation:
         )
 
     def test_analytics_nav_strip_present(self, admin_client):
-        """GET /admin/analytics → nav strip includes all key links."""
+        """GET /admin/analytics → nav strip includes all 10 top-level links."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
-        for link in ["/admin/users", "/admin/sessions", "/admin/semesters",
-                     "/admin/tournaments", "/admin/locations", "/admin/payments"]:
+        for link in ["/admin/users", "/admin/programs", "/admin/sessions",
+                     "/admin/events", "/admin/payments", "/admin/locations",
+                     "/admin/config", "/admin/analytics", "/admin/system-events"]:
             assert link in resp.text, f"Nav link {link} missing from analytics.html"
 
     def test_semesters_nav_strip_present(self, admin_client):
-        """GET /admin/semesters → nav strip includes all key links."""
+        """GET /admin/semesters → nav strip contains Programs hub link."""
         resp = admin_client.get("/admin/semesters")
         assert resp.status_code == 200
-        for link in ["/admin/analytics", "/admin/sessions", "/admin/locations"]:
+        for link in ["/admin/analytics", "/admin/sessions", "/admin/programs"]:
             assert link in resp.text, f"Nav link {link} missing from semesters.html"
 
-    def test_users_page_has_analytics_and_semesters_links(self, admin_client):
-        """GET /admin/users → header nav contains Analytics + Semesters links."""
+    def test_users_page_has_analytics_and_programs_links(self, admin_client):
+        """GET /admin/users → header nav contains Analytics + Programs links."""
         resp = admin_client.get("/admin/users")
         assert resp.status_code == 200
         assert "/admin/analytics" in resp.text
-        assert "/admin/semesters" in resp.text
+        assert "/admin/programs" in resp.text
 
     def test_pagination_on_users_page(self, admin_client):
         """GET /admin/users → page renders with valid page structure."""
@@ -702,10 +709,12 @@ class TestSmoke08InvoiceVerification:
     """Covers the 3-state invoice lifecycle via new web wrapper routes."""
 
     def test_01_bookings_page_in_nav(self, admin_client):
-        """Payments page nav contains Bookings link."""
+        """Payments page loads 200 and contains Commerce module strip."""
         resp = admin_client.get("/admin/payments")
         assert resp.status_code == 200
-        assert "/admin/bookings" in resp.text
+        # Commerce module strip must be present
+        assert "/admin/coupons" in resp.text
+        assert "/admin/invitation-codes" in resp.text
 
     def test_02_verify_invoice(self, admin_client, test_db, invoice_request, student_user):
         """POST /admin/invoices/{id}/verify → 200, credits added to student."""
@@ -837,10 +846,13 @@ class TestSmoke09BookingsPanel:
         assert resp.status_code == 404
 
     def test_07_bookings_page_in_nav(self, admin_client):
-        """Users admin page nav contains Bookings link."""
+        """Users admin page nav contains Sessions link and Instructors module-strip link."""
         resp = admin_client.get("/admin/users")
         assert resp.status_code == 200
-        assert "/admin/bookings" in resp.text
+        # Sessions is a top-level nav item reachable from any admin page
+        assert "/admin/sessions" in resp.text
+        # Users module strip: Instructors link visible from Users page
+        assert "/admin/instructors" in resp.text
 
 
 # ============================================================================
@@ -1190,14 +1202,14 @@ class TestSmoke11AdminPOSTActions:
     # ── Tournament actions ─────────────────────────────────────────────────────
 
     def test_01_create_tournament(self, admin_client, test_db):
-        """SMOKE-11a: POST /admin/tournaments creates a DRAFT tournament in DB."""
-        code = f"SMK11-{uuid.uuid4().hex[:6].upper()}"
+        """SMOKE-11a: POST /admin/tournaments creates a DRAFT tournament — code is auto-generated."""
+        tournament_name = f"Smoke Tournament 11 {uuid.uuid4().hex[:6]}"
+        start_date = (date.today() + timedelta(days=10)).isoformat()
         resp = admin_client.post(
             "/admin/tournaments",
             data={
-                "name": "Smoke Tournament 11",
-                "code": code,
-                "start_date": (date.today() + timedelta(days=10)).isoformat(),
+                "name": tournament_name,
+                "start_date": start_date,
                 "end_date": (date.today() + timedelta(days=40)).isoformat(),
                 "age_group": "AMATEUR",
                 "enrollment_cost": "0",
@@ -1206,30 +1218,39 @@ class TestSmoke11AdminPOSTActions:
         )
         assert resp.status_code == 303
         assert "/admin/tournaments" in resp.headers["location"]
-        full_code = f"TOURN-{code}"
-        t = test_db.query(Semester).filter(Semester.code == full_code).first()
-        assert t is not None, f"Tournament {full_code} not found in DB after create"
+        # Code is auto-generated as TOURN-{YYYYMMDD}-{HHMMSS} — look up by name
+        t = test_db.query(Semester).filter(Semester.name == tournament_name).first()
+        assert t is not None, f"Tournament '{tournament_name}' not found in DB after create"
+        assert t.code.startswith("TOURN-"), f"Expected TOURN- prefix, got: {t.code}"
         assert t.tournament_status == "DRAFT"
         assert t.status == SemesterStatus.DRAFT
 
-    def test_02_create_tournament_duplicate_code_gives_error_redirect(
-        self, admin_client, tournament_draft
-    ):
-        """SMOKE-11b: Duplicate tournament code → 303 with error query param."""
-        # Strip TOURN- prefix — route auto-prepends it, producing the same code
-        raw_code = tournament_draft.code.replace("TOURN-", "")
-        resp = admin_client.post(
+    def test_02_create_two_tournaments_get_unique_codes(self, admin_client, test_db):
+        """SMOKE-11b: Two sequential creates produce unique auto-generated codes (no collision)."""
+        import time
+        name_a = f"Smoke T11 Alpha {uuid.uuid4().hex[:4]}"
+        name_b = f"Smoke T11 Beta {uuid.uuid4().hex[:4]}"
+        start_date_a = (date.today() + timedelta(days=10)).isoformat()
+        start_date_b = (date.today() + timedelta(days=20)).isoformat()
+
+        resp_a = admin_client.post(
             "/admin/tournaments",
-            data={
-                "name": "Duplicate",
-                "code": raw_code,
-                "start_date": (date.today() + timedelta(days=10)).isoformat(),
-                "end_date": (date.today() + timedelta(days=40)).isoformat(),
-            },
+            data={"name": name_a, "start_date": start_date_a, "end_date": (date.today() + timedelta(days=40)).isoformat()},
             follow_redirects=False,
         )
-        assert resp.status_code == 303
-        assert "error=" in resp.headers["location"]
+        time.sleep(1)  # ensure different HHMMSS
+        resp_b = admin_client.post(
+            "/admin/tournaments",
+            data={"name": name_b, "start_date": start_date_b, "end_date": (date.today() + timedelta(days=50)).isoformat()},
+            follow_redirects=False,
+        )
+        assert resp_a.status_code == 303
+        assert resp_b.status_code == 303
+
+        ta = test_db.query(Semester).filter(Semester.name == name_a).first()
+        tb = test_db.query(Semester).filter(Semester.name == name_b).first()
+        assert ta is not None and tb is not None
+        assert ta.code != tb.code, "Auto-generated codes must be unique"
 
     def test_03_start_tournament(
         self, admin_client, tournament_enrollment_closed, test_db
@@ -2695,4 +2716,1125 @@ class TestSmoke22GamePresetPlayerCountGuard:
         test_db.refresh(tourn)
         assert tourn.sessions_generated is True, (
             "sessions_generated must be True after successful generation"
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-23 — Tournament Edit Page (FÁZIS 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke23TournamentEditPage:
+    """SMOKE-23: Admin tournament edit page — GET route, basic info PATCH,
+    schedule-config PATCH, and enrolled player check-in status display.
+
+    SMOKE-23a: GET /admin/tournaments/{id}/edit → 200, HTML contains tournament
+               name, code, and all 6 section IDs.
+    SMOKE-23b: PATCH /api/v1/tournaments/{id} (via API client) → name updated
+               in the DB, response contains updated name.
+    SMOKE-23c: PATCH /api/v1/tournaments/{id}/schedule-config → match_duration,
+               break_duration, parallel_fields persisted in TournamentConfiguration.
+    SMOKE-23d: GET /admin/tournaments/{id}/edit with enrolled player → HTML
+               shows enrolled player count and check-in status indicators.
+    """
+
+    # ── Shared helpers ────────────────────────────────────────────────────────
+
+    def _make_tournament(self, test_db: Session, admin_user: User, suffix: str = "") -> Semester:
+        """Create a minimal tournament with TournamentConfiguration."""
+        today = date.today()
+        tourn = Semester(
+            code=f"S23{suffix}-{uuid.uuid4().hex[:6]}",
+            name=f"SMOKE-23{suffix} Edit Test",
+            start_date=today,
+            end_date=today + timedelta(days=7),
+            tournament_status="ENROLLMENT_CLOSED",
+            master_instructor_id=admin_user.id,
+            tournament_config_obj=TournamentConfiguration(
+                participant_type="INDIVIDUAL",
+                scoring_type="PLACEMENT",
+                sessions_generated=False,
+                parallel_fields=1,
+            ),
+        )
+        test_db.add(tourn)
+        test_db.commit()
+        test_db.refresh(tourn)
+        return tourn
+
+    def _enroll_player(self, test_db: Session, tournament_id: int) -> tuple:
+        """Create one student + license + APPROVED enrollment. Returns (user, enrollment)."""
+        u = User(
+            name=f"S23Player-{uuid.uuid4().hex[:4]}",
+            email=f"s23p-{uuid.uuid4().hex[:6]}@smoke23.test",
+            role=UserRole.STUDENT,
+            password_hash="x",
+        )
+        test_db.add(u)
+        test_db.flush()
+        lic = UserLicense(
+            user_id=u.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        test_db.add(lic)
+        test_db.flush()
+        enroll = SemesterEnrollment(
+            user_id=u.id,
+            semester_id=tournament_id,
+            user_license_id=lic.id,
+            is_active=True,
+            request_status=EnrollmentStatus.APPROVED,
+        )
+        test_db.add(enroll)
+        test_db.commit()
+        test_db.refresh(enroll)
+        return u, enroll
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        """TestClient with web auth override (for GET /admin/... routes)."""
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+
+        app.dependency_overrides.clear()
+
+    @pytest.fixture(scope="function")
+    def api_client(self, test_db: Session, admin_user: User) -> TestClient:
+        """TestClient with Bearer auth override (for PATCH /api/v1/... routes)."""
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user] = lambda: admin_user
+
+        with TestClient(app) as c:
+            yield c
+
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-23a ─────────────────────────────────────────────────────────────
+
+    def test_23a_edit_page_loads_with_tournament_data(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/tournaments/{id}/edit → 200, contains name/code + sections."""
+        tourn = self._make_tournament(test_db, admin_user, suffix="a")
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:200]}"
+
+        html = resp.text
+        # Tournament identity present
+        assert tourn.name in html, "Tournament name missing from edit page"
+        assert tourn.code in html, "Tournament code missing from edit page"
+        # All 6 section anchors present
+        for section_id in [
+            "section-basic", "section-schedule", "section-rewards",
+            "section-checkin", "section-sessions", "section-results"
+        ]:
+            assert section_id in html, f"Section ID '{section_id}' missing from edit page"
+        # AdminAPI client loaded
+        assert "admin-api.js" in html, "admin-api.js not loaded on edit page"
+
+    # ── SMOKE-23b ─────────────────────────────────────────────────────────────
+
+    def test_23b_patch_tournament_updates_name(
+        self, test_db: Session, admin_user: User, api_client: TestClient
+    ):
+        """PATCH /api/v1/tournaments/{id} → name field updated in DB."""
+        tourn = self._make_tournament(test_db, admin_user, suffix="b")
+        new_name = f"SMOKE-23b Updated Name {uuid.uuid4().hex[:4]}"
+
+        resp = api_client.patch(
+            f"/api/v1/tournaments/{tourn.id}",
+            json={"name": new_name},
+        )
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+
+        body = resp.json()
+        assert body.get("tournament_name") == new_name, (
+            f"Response does not reflect new name: {body}"
+        )
+        # Verify DB state
+        test_db.refresh(tourn)
+        assert tourn.name == new_name, f"DB name not updated: {tourn.name}"
+
+    # ── SMOKE-23c ─────────────────────────────────────────────────────────────
+
+    def test_23c_patch_schedule_config_persists(
+        self, test_db: Session, admin_user: User, api_client: TestClient
+    ):
+        """PATCH /api/v1/tournaments/{id}/schedule-config → values stored in TournamentConfiguration."""
+        from app.models.tournament_configuration import TournamentConfiguration as TournConfig
+
+        tourn = self._make_tournament(test_db, admin_user, suffix="c")
+
+        resp = api_client.patch(
+            f"/api/v1/tournaments/{tourn.id}/schedule-config",
+            json={
+                "match_duration_minutes": 75,
+                "break_duration_minutes": 12,
+                "parallel_fields": 3,
+            },
+        )
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+
+        body = resp.json()
+        assert body.get("success") is True
+        assert body["match_duration_minutes"] == 75
+        assert body["break_duration_minutes"] == 12
+        assert body["parallel_fields"] == 3
+
+        # Verify DB persistence
+        cfg = test_db.query(TournConfig).filter(
+            TournConfig.semester_id == tourn.id
+        ).first()
+        assert cfg is not None
+        assert cfg.match_duration_minutes == 75
+        assert cfg.break_duration_minutes == 12
+        assert cfg.parallel_fields == 3
+
+    # ── SMOKE-23d ─────────────────────────────────────────────────────────────
+
+    def test_23d_edit_page_shows_enrolled_players_and_checkin_status(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Edit page lists enrolled players with check-in status indicators."""
+        tourn = self._make_tournament(test_db, admin_user, suffix="d")
+        player, enroll = self._enroll_player(test_db, tourn.id)
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200
+
+        html = resp.text
+        # Player appears in the check-in section
+        assert player.email in html, "Enrolled player email not shown on edit page"
+        # Check-in status indicator present
+        assert "Not checked in" in html or "Checked In" in html or "checked-in" in html, (
+            "Check-in status indicator missing from edit page"
+        )
+        # Enrollment count stat visible
+        assert "section-checkin" in html, "Check-in section missing"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-24 — Session Generation Wizard (FÁZIS 3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke24SessionGenWizard:
+    """SMOKE-24: Session generation wizard integration on the tournament edit page.
+
+    SMOKE-24a: Edit page renders preset warning banner when enrolled_count <
+               preset_min_players (GamePreset guard visible in HTML).
+    SMOKE-24b: POST /api/v1/tournaments/{id}/generate-sessions for an
+               INDIVIDUAL_RANKING tournament with 2 approved players → sync
+               response: success=True, sessions_generated_count >= 1.
+    SMOKE-24c: Edit page contains wizard overlay HTML (sgw-overlay) and loads
+               session-gen-wizard.js (FÁZIS 3 structural check).
+    """
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _make_ir_tournament(
+        self,
+        test_db: Session,
+        admin_user: User,
+        suffix: str = "",
+        status: str = "ENROLLMENT_CLOSED",
+    ) -> Semester:
+        """INDIVIDUAL_RANKING tournament (scoring_type=PLACEMENT, no tournament_type_id)."""
+        today = date.today()
+        tourn = Semester(
+            code=f"S24{suffix}-{uuid.uuid4().hex[:6]}",
+            name=f"SMOKE-24{suffix} Wizard Test",
+            start_date=today,
+            end_date=today + timedelta(days=7),
+            tournament_status=status,
+            master_instructor_id=admin_user.id,
+            tournament_config_obj=TournamentConfiguration(
+                participant_type="INDIVIDUAL",
+                scoring_type="PLACEMENT",  # → INDIVIDUAL_RANKING format
+                tournament_type_id=None,
+                sessions_generated=False,
+                parallel_fields=1,
+            ),
+        )
+        test_db.add(tourn)
+        test_db.commit()
+        test_db.refresh(tourn)
+        return tourn
+
+    def _attach_preset(
+        self,
+        test_db: Session,
+        tournament_id: int,
+        min_players: int = 10,
+    ) -> GamePreset:
+        """Create a GamePreset with min_players and attach it to the tournament via GameConfiguration."""
+        preset = GamePreset(
+            code=f"s24-preset-{uuid.uuid4().hex[:6]}",
+            name=f"SMOKE-24 Test Preset (min {min_players})",
+            game_config={
+                "metadata": {"min_players": min_players},
+                "format_config": {"INDIVIDUAL_RANKING": {}},
+            },
+            is_active=True,
+        )
+        test_db.add(preset)
+        test_db.flush()
+        game_cfg = GameConfiguration(
+            semester_id=tournament_id,
+            game_preset_id=preset.id,
+        )
+        test_db.add(game_cfg)
+        test_db.commit()
+        return preset
+
+    def _enroll_player(
+        self, test_db: Session, tournament_id: int
+    ) -> tuple:
+        """Create one student with an approved enrollment."""
+        u = User(
+            name=f"S24Player-{uuid.uuid4().hex[:4]}",
+            email=f"s24p-{uuid.uuid4().hex[:6]}@smoke24.test",
+            role=UserRole.STUDENT,
+            password_hash="x",
+        )
+        test_db.add(u)
+        test_db.flush()
+        lic = UserLicense(
+            user_id=u.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        test_db.add(lic)
+        test_db.flush()
+        enroll = SemesterEnrollment(
+            user_id=u.id,
+            semester_id=tournament_id,
+            user_license_id=lic.id,
+            is_active=True,
+            request_status=EnrollmentStatus.APPROVED,
+        )
+        test_db.add(enroll)
+        test_db.commit()
+        return u, enroll
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    @pytest.fixture(scope="function")
+    def api_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user] = lambda: admin_user
+        with TestClient(app) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-24a ─────────────────────────────────────────────────────────────
+
+    def test_24a_preset_warning_shown_when_enrolled_lt_min_players(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Edit page shows warn-banner when enrolled_count < preset_min_players."""
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="a")
+        self._attach_preset(test_db, tourn.id, min_players=10)
+        # 0 enrolled players → 0 < 10 → warning must appear
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert "Not enough players" in html, (
+            "Preset minimum-players warning not shown when enrolled < min_players"
+        )
+        assert "10" in html, "min_players value (10) not shown in warning"
+
+    # ── SMOKE-24b ─────────────────────────────────────────────────────────────
+
+    def test_24b_generate_sessions_sync_returns_session_count(
+        self, test_db: Session, admin_user: User, api_client: TestClient
+    ):
+        """POST generate-sessions for IR tournament with 2 players → sync result."""
+        tourn = self._make_ir_tournament(
+            test_db, admin_user, suffix="b", status="IN_PROGRESS"
+        )
+        self._enroll_player(test_db, tourn.id)
+        self._enroll_player(test_db, tourn.id)
+
+        resp = api_client.post(
+            f"/api/v1/tournaments/{tourn.id}/generate-sessions",
+            json={
+                "parallel_fields": 1,
+                "session_duration_minutes": 90,
+                "break_minutes": 15,
+                "number_of_rounds": 1,
+            },
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text}"
+        )
+        body = resp.json()
+        assert body.get("success") is True, f"success != True: {body}"
+        assert body.get("sessions_generated_count", 0) >= 1, (
+            f"Expected >= 1 session, got: {body.get('sessions_generated_count')}"
+        )
+
+    # ── SMOKE-24c ─────────────────────────────────────────────────────────────
+
+    def test_24c_edit_page_contains_wizard_overlay_and_script(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Edit page includes sgw-overlay modal and loads session-gen-wizard.js."""
+        tourn = self._make_ir_tournament(test_db, admin_user, suffix="c")
+
+        resp = web_client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+
+        html = resp.text
+        assert "sgw-overlay" in html, "Wizard overlay (#sgw-overlay) missing from edit page"
+        assert "session-gen-wizard.js" in html, "session-gen-wizard.js not loaded on edit page"
+        assert "SessionGenWizard.open" in html, "openSessionGenWizard() wiring missing from scripts block"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-25 — Instructor Management Pages (FÁZIS 4)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke25InstructorManagement:
+    """SMOKE-25: Admin instructor list + detail pages.
+
+    SMOKE-25a: GET /admin/instructors → 200, stats row + instructor table present,
+               nav item '👨‍🏫 Instructors' active.
+    SMOKE-25b: GET /admin/instructors/{id} → 200, all 5 section IDs present,
+               instructor name + email in HTML.
+    SMOKE-25c: GET /admin/instructors/{id} shows license + availability data
+               for a seeded instructor.
+    """
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _make_instructor(self, test_db: Session, suffix: str = "") -> User:
+        """Create a minimal INSTRUCTOR user."""
+        u = User(
+            name=f"SMOKE-25{suffix} Instructor",
+            email=f"s25inst{suffix}-{uuid.uuid4().hex[:6]}@smoke25.test",
+            role=UserRole.INSTRUCTOR,
+            password_hash="x",
+            is_active=True,
+        )
+        test_db.add(u)
+        test_db.commit()
+        test_db.refresh(u)
+        return u
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-25a ─────────────────────────────────────────────────────────────
+
+    def test_25a_instructor_list_page_loads(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/instructors → 200, stats + nav link present."""
+        self._make_instructor(test_db, suffix="a")
+
+        resp = web_client.get("/admin/instructors")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        # Nav item active
+        assert "/admin/instructors" in html, "Nav link to /admin/instructors missing"
+        # Stats row
+        assert "Total" in html, "'Total' stat label missing"
+        # Table header
+        assert "Licenses" in html, "Licenses column missing"
+        assert "Assignments" in html, "Assignments column missing"
+        # Detail link present
+        assert "Detail" in html or "🔍" in html, "Detail link missing from table"
+
+    # ── SMOKE-25b ─────────────────────────────────────────────────────────────
+
+    def test_25b_instructor_detail_page_loads_sections(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/instructors/{id} → 200, all section IDs + instructor identity."""
+        inst = self._make_instructor(test_db, suffix="b")
+
+        resp = web_client.get(f"/admin/instructors/{inst.id}")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        # Instructor identity
+        assert inst.name in html, "Instructor name missing from detail page"
+        assert inst.email in html, "Instructor email missing from detail page"
+        # All 5 section anchors
+        for section_id in [
+            "section-basic", "section-licenses", "section-assignments",
+            "section-availability", "section-requests",
+        ]:
+            assert section_id in html, f"Section '{section_id}' missing from detail page"
+        # Edit profile link
+        assert f"/admin/users/{inst.id}/edit" in html, "Edit profile link missing"
+
+    # ── SMOKE-25c ─────────────────────────────────────────────────────────────
+
+    def test_25c_instructor_detail_shows_license_and_availability(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """Detail page renders seeded license + availability window data."""
+        from app.models.instructor_assignment import InstructorAvailabilityWindow
+
+        inst = self._make_instructor(test_db, suffix="c")
+
+        # Seed a license
+        lic = UserLicense(
+            user_id=inst.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        test_db.add(lic)
+
+        # Seed an availability window
+        avail = InstructorAvailabilityWindow(
+            instructor_id=inst.id,
+            year=2026,
+            time_period="Q2",
+            is_available=True,
+            notes="Smoke25 availability",
+        )
+        test_db.add(avail)
+        test_db.commit()
+
+        resp = web_client.get(f"/admin/instructors/{inst.id}")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+
+        html = resp.text
+        # License specialization visible
+        assert SpecializationType.LFA_FOOTBALL_PLAYER.value in html, (
+            "License specialization type not rendered"
+        )
+        # Availability window visible
+        assert "Q2" in html, "Availability period 'Q2' not rendered"
+        assert "2026" in html, "Availability year '2026' not rendered"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMOKE-26 — Reward & Skill Progression Dashboard (FÁZIS 5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSmoke26SkillProgressionDashboard:
+    """SMOKE-26: Skill & XP Progression section in user_edit + skill tier distribution in analytics.
+
+    SMOKE-26a: user_edit for LFA_FOOTBALL_PLAYER license holder → #progression section
+               present with XP summary block (zero state).
+    SMOKE-26b: SKILL_TIER_REACHED notification title renders in the milestones list.
+    SMOKE-26c: GET /admin/analytics contains "Skill Tier Distribution" section.
+    """
+
+    def _make_student_with_lfa(self, db: Session) -> tuple:
+        """Create a student + active LFA_FOOTBALL_PLAYER license."""
+        u = User(
+            name="SMOKE-26 Student",
+            email=f"s26-{uuid.uuid4().hex[:6]}@smoke26.test",
+            role=UserRole.STUDENT,
+            password_hash="x",
+            is_active=True,
+        )
+        db.add(u)
+        db.flush()
+        lic = UserLicense(
+            user_id=u.id,
+            specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+            started_at=date.today(),
+            is_active=True,
+        )
+        db.add(lic)
+        db.flush()
+        return u, lic
+
+    @pytest.fixture(scope="function")
+    def web_client(self, test_db: Session, admin_user: User) -> TestClient:
+        def _db():
+            yield test_db
+
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user_web] = lambda: admin_user
+        with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
+            yield c
+        app.dependency_overrides.clear()
+
+    # ── SMOKE-26a ─────────────────────────────────────────────────────────────
+
+    def test_26a_progression_section_visible_for_lfa_player(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """user_edit shows #progression section for LFA_FOOTBALL_PLAYER license holder."""
+        student, _ = self._make_student_with_lfa(test_db)
+        test_db.commit()
+
+        resp = web_client.get(f"/admin/users/{student.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert 'id="progression"' in html, "#progression section missing from page"
+        assert "Total XP Earned" in html, "XP summary block missing from progression section"
+        assert "Skill &amp; XP Progression" in html or "Skill & XP Progression" in html, (
+            "Progression section heading missing"
+        )
+
+    # ── SMOKE-26b ─────────────────────────────────────────────────────────────
+
+    def test_26b_skill_tier_milestone_renders_in_progression(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """SKILL_TIER_REACHED notification title appears in the progression milestones list."""
+        from app.models.notification import Notification, NotificationType
+
+        student, _ = self._make_student_with_lfa(test_db)
+
+        milestone_title = f"Skill Milestone: Dribbling SMOKE26b-{uuid.uuid4().hex[:4]}"
+        notif = Notification(
+            user_id=student.id,
+            title=milestone_title,
+            message="You reached the 60% threshold in Dribbling.",
+            type=NotificationType.SKILL_TIER_REACHED,
+        )
+        test_db.add(notif)
+        test_db.commit()
+
+        resp = web_client.get(f"/admin/users/{student.id}/edit")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert "Skill Tier Milestones" in html, "Milestones sub-heading missing"
+        assert "SMOKE26b" in html, "Milestone notification title not rendered in page"
+
+    # ── SMOKE-26c ─────────────────────────────────────────────────────────────
+
+    def test_26c_analytics_page_has_skill_tier_distribution_section(
+        self, test_db: Session, admin_user: User, web_client: TestClient
+    ):
+        """GET /admin/analytics contains the Skill Tier Distribution section."""
+        resp = web_client.get("/admin/analytics")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+
+        html = resp.text
+        assert "section-skill-dist" in html, "Skill Tier Distribution section ID missing"
+        assert "Skill Tier Distribution" in html, "Skill Tier Distribution heading missing"
+
+
+# ============================================================================
+# SMOKE-27: Navigation hub landing pages
+# ============================================================================
+
+
+class TestSmoke27NavHubs:
+    """SMOKE-27: /admin/programs and /admin/config hub pages load correctly."""
+
+    # ── SMOKE-27a ──────────────────────────────────────────────────────────────
+
+    def test_27a_programs_hub_loads(self, admin_client):
+        """GET /admin/programs → 200, KPI cards and module cards present."""
+        resp = admin_client.get("/admin/programs")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        # Hub cards for both sub-modules
+        assert "Semesters" in html, "Semesters hub card missing"
+        assert "Enrollments" in html, "Enrollments hub card missing"
+        # KPI labels
+        assert "Active Semesters" in html, "Active Semesters KPI missing"
+        assert "Pending Enrollments" in html, "Pending Enrollments KPI missing"
+
+    # ── SMOKE-27b ──────────────────────────────────────────────────────────────
+
+    def test_27b_config_hub_loads(self, admin_client):
+        """GET /admin/config → 200, Game Presets card present."""
+        resp = admin_client.get("/admin/config")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "Game Presets" in html, "Game Presets hub card missing"
+
+    # ── SMOKE-27c ──────────────────────────────────────────────────────────────
+
+    def test_27c_nav_has_10_items(self, admin_client):
+        """GET /admin/analytics → admin nav contains exactly the 10 top-level items."""
+        resp = admin_client.get("/admin/analytics")
+        assert resp.status_code == 200
+        html = resp.text
+        # Verify the 10 nav destinations are all present
+        nav_links = [
+            "/dashboard",
+            "/admin/users",
+            "/admin/programs",
+            "/admin/sessions",
+            "/admin/events",       # Events hub (replaces Tournaments nav item)
+            "/admin/payments",     # Commerce entry point
+            "/admin/locations",    # Locations module
+            "/admin/config",
+            "/admin/analytics",
+            "/admin/system-events",
+        ]
+        for link in nav_links:
+            assert link in html, f"Expected nav link '{link}' missing"
+        # Old direct nav links should NOT appear as nav items any more
+        # (they may appear inside page content, so we only verify Commerce label)
+        assert "🛒 Commerce" in html, "Commerce nav label missing"
+        assert "Tier milestones reached" in html, "Tier milestone count label missing"
+
+
+# ============================================================================
+# SMOKE-28: Operational admin dashboard — 4-layer layout
+# ============================================================================
+
+
+class TestSmoke28Dashboard:
+    """SMOKE-28: Operational admin dashboard — 4-layer KPI + queue + activity layout."""
+
+    # ── SMOKE-28a ──────────────────────────────────────────────────────────────
+
+    def test_28a_dashboard_loads(self, admin_client):
+        """GET /dashboard → 200, no Internal Server Error."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        assert "Internal Server Error" not in resp.text
+
+    # ── SMOKE-28b ──────────────────────────────────────────────────────────────
+
+    def test_28b_kpi_labels_present(self, admin_client):
+        """Dashboard contains all 4 primary KPI metric labels."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "Total Users" in html, "Total Users KPI label missing"
+        assert "Upcoming Sessions" in html, "Upcoming Sessions KPI label missing"
+        assert "Active Tournaments" in html, "Active Tournaments KPI label missing"
+        assert "Pending Revenue" in html, "Pending Revenue KPI label missing"
+
+    # ── SMOKE-28c ──────────────────────────────────────────────────────────────
+
+    def test_28c_queue_labels_present(self, admin_client):
+        """Dashboard contains all 4 operational queue card labels."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "Pending Enrollments" in html, "Pending Enrollments queue label missing"
+        assert "Today's Sessions" in html, "Today's Sessions queue label missing"
+        assert "Pending Payments" in html, "Pending Payments queue label missing"
+        assert "Unresolved Events" in html, "Unresolved Events queue label missing"
+
+    # ── SMOKE-28d ──────────────────────────────────────────────────────────────
+
+    def test_28d_dashboard_no_server_error_clean_db(self, admin_client):
+        """Dashboard renders without error on a clean (empty) test DB."""
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "Internal Server Error" not in html
+        assert "Traceback" not in html
+        # Layer 3 quick-stats panel should be present
+        assert "Active Semesters" in html, "Quick stats panel missing Active Semesters label"
+
+    # ── SMOKE-28e ──────────────────────────────────────────────────────────────
+
+    def test_28e_alert_banner_present_with_pending_enrollment(
+        self, admin_client, test_db: Session
+    ):
+        """Alert banner renders when at least one PENDING enrollment exists."""
+        # Seed: student → license → semester → PENDING enrollment
+        student = User(
+            email=f"smoke28e+{uuid.uuid4().hex[:8]}@lfa.com",
+            name="Smoke28e Student",
+            password_hash=get_password_hash("student123"),
+            role=UserRole.STUDENT,
+            is_active=True,
+        )
+        test_db.add(student)
+        test_db.flush()
+
+        license_ = UserLicense(
+            user_id=student.id,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            is_active=True,
+            started_at=datetime.now(ZoneInfo("UTC")),
+        )
+        test_db.add(license_)
+        test_db.flush()
+
+        semester = Semester(
+            code=f"SMOKE28E-{uuid.uuid4().hex[:6].upper()}",
+            name="Smoke28e Semester",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=90),
+            status=SemesterStatus.ONGOING,
+        )
+        test_db.add(semester)
+        test_db.flush()
+
+        enrollment = SemesterEnrollment(
+            user_id=student.id,
+            semester_id=semester.id,
+            user_license_id=license_.id,
+            request_status=EnrollmentStatus.PENDING,
+        )
+        test_db.add(enrollment)
+        test_db.flush()
+
+        resp = admin_client.get("/dashboard")
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
+        html = resp.text
+        assert "dashboard-alert-banner" in html, (
+            "Alert banner div missing — expected when pending enrollment count > 0"
+        )
+
+
+# ============================================================================
+# SMOKE-29: Location module — hierarchical location/campus views
+# ============================================================================
+
+
+class TestSmoke29LocationModule:
+    """SMOKE-29: Location-centric admin module — list, detail, campus detail."""
+
+    # ── SMOKE-29a ──────────────────────────────────────────────────────────────
+
+    def test_29a_locations_in_nav_not_under_config(self, admin_client):
+        """GET /admin/analytics → nav contains /admin/locations as top-level item,
+        not nested under /admin/config.
+        """
+        resp = admin_client.get("/admin/analytics")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "/admin/locations" in html, "/admin/locations missing from nav"
+        # Locations must appear as its own nav-item href, not inside /admin/config
+        assert 'href="/admin/locations"' in html, (
+            "/admin/locations should be a direct nav href, not nested"
+        )
+
+    # ── SMOKE-29b ──────────────────────────────────────────────────────────────
+
+    def test_29b_location_detail_loads_with_four_sections(
+        self, admin_client, test_db: Session
+    ):
+        """GET /admin/locations/{id} → 200 and all 4 section IDs present."""
+        loc = Location(
+            name="SMOKE29 Budapest",
+            city="SMOKE29 City",
+            country="Hungary",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/locations/{loc.id}")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        for section_id in [
+            "section-campuses",
+            "section-programs",
+            "section-sessions",
+            "section-instructors",
+        ]:
+            assert section_id in html, f"Section '{section_id}' missing from location detail"
+
+    # ── SMOKE-29c ──────────────────────────────────────────────────────────────
+
+    def test_29c_location_detail_renders_seeded_campus_and_semester(
+        self, admin_client, test_db: Session
+    ):
+        """Seeded Campus and Semester both appear in /admin/locations/{id}."""
+        loc = Location(
+            name="SMOKE29c Location",
+            city="SMOKE29c City",
+            country="Hungary",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        campus = Campus(
+            location_id=loc.id,
+            name="SMOKE29c Campus",
+            is_active=True,
+        )
+        test_db.add(campus)
+        test_db.flush()
+
+        semester = Semester(
+            location_id=loc.id,
+            campus_id=campus.id,
+            name="SMOKE29c Program",
+            code="SM29C",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=90),
+            status=SemesterStatus.ONGOING,
+            specialization_type="LFA_PLAYER_YOUTH",
+            age_group="YOUTH",
+        )
+        test_db.add(semester)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/locations/{loc.id}")
+        assert resp.status_code == 200
+        html = resp.text
+        assert "SMOKE29c Campus" in html, "Seeded campus name not rendered in location detail"
+        assert "SMOKE29c Program" in html, "Seeded semester name not rendered in location detail"
+
+    # ── SMOKE-29d ──────────────────────────────────────────────────────────────
+
+    def test_29d_campus_detail_loads_with_sections_and_parent_location(
+        self, admin_client, test_db: Session
+    ):
+        """GET /admin/campuses/{id} → 200, 'Upcoming Sessions' section present,
+        and parent location name visible.
+        """
+        loc = Location(
+            name="SMOKE29d Location",
+            city="SMOKE29d City",
+            country="Hungary",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        campus = Campus(
+            location_id=loc.id,
+            name="SMOKE29d Campus",
+            is_active=True,
+        )
+        test_db.add(campus)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/campuses/{campus.id}")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "Upcoming Sessions" in html, "'Upcoming Sessions' section heading missing"
+        assert "SMOKE29d City" in html, "Parent location city not rendered in campus detail"
+
+
+# ============================================================================
+# SMOKE-30: Event Management module — hub + camps + sessions filter
+# ============================================================================
+
+
+class TestSmoke30EventModule:
+    """SMOKE-30: Event Management hub, Camps list, and sessions EventCategory filter."""
+
+    # ── SMOKE-30a ──────────────────────────────────────────────────────────────
+
+    def test_30a_events_hub_loads_with_four_hub_cards(self, admin_client):
+        """GET /admin/events → 200 + all 4 hub card titles present."""
+        resp = admin_client.get("/admin/events")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        for card_title in ["Tournaments", "Camps", "Training Sessions", "Match Sessions"]:
+            assert card_title in html, f"Hub card '{card_title}' missing from /admin/events"
+
+    # ── SMOKE-30b ──────────────────────────────────────────────────────────────
+
+    def test_30b_camps_page_loads(self, admin_client):
+        """GET /admin/camps → 200, no Internal Server Error (empty list is OK)."""
+        resp = admin_client.get("/admin/camps")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+
+    # ── SMOKE-30c ──────────────────────────────────────────────────────────────
+
+    def test_30c_camps_page_renders_seeded_camp(
+        self, admin_client, test_db: Session
+    ):
+        """Seeded CAMP semester appears on /admin/camps list."""
+        camp = Semester(
+            name="SMOKE30c Summer Camp",
+            code="CAMP-SMOKE30C",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=7),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        # Set semester_category via attribute (string value accepted by SA)
+        from app.models.semester import SemesterCategory as SC
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.get("/admin/camps")
+        assert resp.status_code == 200
+        assert "SMOKE30c Summer Camp" in resp.text, (
+            "Seeded CAMP semester name not visible on /admin/camps"
+        )
+
+    # ── SMOKE-30d ──────────────────────────────────────────────────────────────
+
+    def test_30d_sessions_event_category_filter_returns_200(self, admin_client):
+        """GET /admin/sessions?event_category=MATCH → 200, no 500."""
+        resp = admin_client.get("/admin/sessions?event_category=MATCH")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+
+        resp2 = admin_client.get("/admin/sessions?event_category=TRAINING")
+        assert resp2.status_code == 200
+        assert "Internal Server Error" not in resp2.text
+
+
+# ============================================================================
+# SMOKE-31: Location-First Events module — per-location events page + camp edit
+# ============================================================================
+
+
+class TestSmoke31LocationFirstEvents:
+    """SMOKE-31: Location-first Events redesign — per-location CRUD page and camp edit."""
+
+    # ── SMOKE-31a ──────────────────────────────────────────────────────────────
+
+    def test_31a_location_events_page_loads(self, admin_client, test_db: Session):
+        """Seeded location → GET /admin/events/locations/{id} → 200, 4 section headers present."""
+        from app.models.semester import SemesterCategory as SC
+
+        loc = Location(
+            name="TestCity31a Location",
+            city="TestCity31a",
+            country="HU",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        test_db.add(loc)
+        test_db.flush()
+
+        camp = Semester(
+            name="SMOKE31a Camp",
+            code="CAMP-SMOKE31A",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=7),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            location_id=loc.id,
+        )
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/events/locations/{loc.id}")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "TestCity31a" in html, "Location city not in page heading"
+        for section in ["Tournaments", "Camps", "Academy / Mini Seasons", "Upcoming Sessions"]:
+            assert section in html, f"Section '{section}' missing from location events page"
+
+    # ── SMOKE-31b ──────────────────────────────────────────────────────────────
+
+    def test_31b_camp_edit_page_loads(self, admin_client, test_db: Session):
+        """Seeded CAMP → GET /admin/camps/{id}/edit → 200, camp name and code in form."""
+        from app.models.semester import SemesterCategory as SC
+
+        camp = Semester(
+            name="SMOKE31b Edit Camp",
+            code="CAMP-SMOKE31B",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=5),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/camps/{camp.id}/edit")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
+        )
+        assert "Internal Server Error" not in resp.text
+        html = resp.text
+        assert "SMOKE31b Edit Camp" in html, "Camp name not found in edit page"
+        assert "CAMP-SMOKE31B" in html, "Camp code not found in edit page"
+
+    # ── SMOKE-31c ──────────────────────────────────────────────────────────────
+
+    def test_31c_camp_edit_post_updates_camp(self, admin_client, test_db: Session):
+        """POST /admin/camps/{id}/edit updates camp name → 303 redirect."""
+        from app.models.semester import SemesterCategory as SC
+
+        camp = Semester(
+            name="SMOKE31c Original Name",
+            code="CAMP-SMOKE31C",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=5),
+            status=SemesterStatus.DRAFT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        camp.semester_category = SC.CAMP
+        test_db.add(camp)
+        test_db.flush()
+
+        resp = admin_client.post(
+            f"/admin/camps/{camp.id}/edit",
+            data={
+                "name": "SMOKE31c Updated Name",
+                "code": "CAMP-SMOKE31C",
+                "start_date": date.today().isoformat(),
+                "end_date": (date.today() + timedelta(days=5)).isoformat(),
+                "age_group": "",
+                "location_id": "",
+                "campus_id": "",
+                "enrollment_cost": "0",
+                "status": "DRAFT",
+            },
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303, (
+            f"Expected 303 redirect after camp update, got {resp.status_code}: {resp.text[:400]}"
+        )
+
+        test_db.refresh(camp)
+        assert camp.name == "SMOKE31c Updated Name", (
+            f"Camp name not updated in DB — got '{camp.name}'"
         )

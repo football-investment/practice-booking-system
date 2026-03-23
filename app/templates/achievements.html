@@ -1,12 +1,81 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
+
+{% block active_page %}achievements{% endblock %}
 
 {% block title %}Achievements - LFA Education Center{% endblock %}
 
-{% block content %}
-<div class="welcome-section">
-    <h1>🏆 Achievements</h1>
-    <p>Track your progress and unlock rewards</p>
-</div>
+{% block student_header %}
+{% set _page_icon = '🏆' %}
+{% set _page_name = 'Achievements' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+.achievement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.achievement-card {
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.achievement-card.unlocked {
+    border: 2px solid var(--success-color);
+}
+
+.achievement-card.locked {
+    opacity: 0.6;
+    border: 2px solid #95a5a6;
+}
+
+.achievement-card.locked .achievement-icon {
+    filter: grayscale(100%);
+}
+
+.achievement-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.achievement-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+@media (max-width: 640px) {
+    .achievement-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block student_content %}
+<section class="mod-nav-section">
+    <div class="mod-nav-grid">
+        <a href="/sessions" class="mod-nav-card">
+            <span class="mod-nav-icon">📅</span>
+            <span class="mod-nav-title">Sessions</span>
+        </a>
+        <a href="/progress" class="mod-nav-card">
+            <span class="mod-nav-icon">📊</span>
+            <span class="mod-nav-title">Progress</span>
+        </a>
+        <a href="/skills" class="mod-nav-card">
+            <span class="mod-nav-icon">⚡</span>
+            <span class="mod-nav-title">Skills</span>
+        </a>
+        <a href="/calendar" class="mod-nav-card">
+            <span class="mod-nav-icon">📆</span>
+            <span class="mod-nav-title">Calendar</span>
+        </a>
+    </div>
+</section>
 
 <!-- Stats Overview -->
 <div class="cards-grid" style="grid-template-columns: repeat(4, 1fr);">
@@ -102,41 +171,4 @@
     </div>
     {% endif %}
 </div>
-
-<style>
-.achievement-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.5rem;
-}
-
-.achievement-card {
-    text-align: center;
-    transition: all 0.3s ease;
-}
-
-.achievement-card.unlocked {
-    border: 2px solid var(--success-color);
-}
-
-.achievement-card.locked {
-    opacity: 0.6;
-    border: 2px solid #95a5a6;
-}
-
-.achievement-card.locked .achievement-icon {
-    filter: grayscale(100%);
-}
-
-.achievement-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.achievement-card h3 {
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-    color: var(--primary-color);
-}
-</style>
 {% endblock %}

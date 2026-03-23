@@ -1,0 +1,53 @@
+{# ─────────────────────────────────────────────────────────────────────────────
+   includes/spec_subpage_hdr.html
+   Floating slate card header for spec sub-pages (Skills, Sessions, Progress,
+   Achievements, Calendar).
+
+   Usage — inside {% block student_header %} of the child template:
+
+       {% block student_header %}
+       {% set _page_icon = '⚡' %}
+       {% set _page_name = 'Skills' %}
+       {% include "includes/spec_subpage_hdr.html" %}
+       {% endblock %}
+
+   Context required: user (ORM object with .specialization, .credit_balance)
+   Context optional: _page_icon, _page_name (set by caller before include)
+   Context optional: spec_dashboard_url, spec_dashboard_icon — from route via _spec_ctx(user)
+   ───────────────────────────────────────────────────────────────────────────── #}
+
+{# Primary: use route-provided values (set by _spec_ctx helper in each route handler).
+   Fallback: derive from user.specialization.
+   Last resort: ⚽ → /dashboard (icon always visible, never hidden). #}
+{% if spec_dashboard_url %}
+  {% set _surl  = spec_dashboard_url %}
+  {% set _sicon = spec_dashboard_icon | default('⚽') %}
+{% else %}
+  {% set _sv = (user.specialization.value if user.specialization else '') if user else '' %}
+  {% if _sv == 'LFA_FOOTBALL_PLAYER' %}
+    {% set _surl = '/dashboard/lfa-football-player' %}{% set _sicon = '⚽' %}
+  {% elif _sv == 'LFA_COACH' %}
+    {% set _surl = '/dashboard/lfa-coach' %}{% set _sicon = '👨‍🏫' %}
+  {% elif _sv == 'INTERNSHIP' %}
+    {% set _surl = '/dashboard/internship' %}{% set _sicon = '💼' %}
+  {% elif _sv == 'GANCUJU_PLAYER' %}
+    {% set _surl = '/dashboard/gancuju-player' %}{% set _sicon = '🥋' %}
+  {% else %}
+    {# Specialization unresolvable — link to hub, keep ⚽ so the icon is always present #}
+    {% set _surl = '/dashboard' %}{% set _sicon = '⚽' %}
+  {% endif %}
+{% endif %}
+
+<div class="student-header spec-pg-hdr">
+    <div class="student-header-inner">
+        <a href="/dashboard" class="s-hdr-btn" title="Hub">🏠</a>
+        <a href="{{ _surl }}" class="s-hdr-btn" title="Spec Dashboard">{{ _sicon }}</a>
+        <div class="student-brand">{{ _page_icon | default('') }} {{ _page_name | default('') }}</div>
+        <div class="student-header-actions">
+            <span class="credit-pill">💰 {{ user.credit_balance if user else 0 }}</span>
+            <a href="/credits" class="s-hdr-btn" title="Credits">💳</a>
+            <a href="/profile" class="s-hdr-btn" title="Profile">👤</a>
+            <a href="/logout"  class="s-hdr-btn" title="Logout">🚪</a>
+        </div>
+    </div>
+</div>

@@ -129,7 +129,7 @@ class TestLoginSubmit:
         db = _mock_db(first_return=None)
         with patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
-            _run(login_submit(request=_req(), email="nobody@test.com", password="x", db=db))
+            _run(login_submit(request=_req(), email="nobody@test.com", password="x", next="", db=db))
         tmpl, ctx = mock_tmpl.TemplateResponse.call_args.args
         assert tmpl == "login.html"
         assert "error" in ctx
@@ -140,7 +140,7 @@ class TestLoginSubmit:
         with patch(f"{_BASE}.verify_password", return_value=False), \
              patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
-            _run(login_submit(request=_req(), email="test@test.com", password="bad", db=db))
+            _run(login_submit(request=_req(), email="test@test.com", password="bad", next="", db=db))
         tmpl, ctx = mock_tmpl.TemplateResponse.call_args.args
         assert tmpl == "login.html"
         assert "error" in ctx
@@ -151,7 +151,7 @@ class TestLoginSubmit:
         with patch(f"{_BASE}.verify_password", return_value=True), \
              patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
-            _run(login_submit(request=_req(), email="test@test.com", password="pass", db=db))
+            _run(login_submit(request=_req(), email="test@test.com", password="pass", next="", db=db))
         _, ctx = mock_tmpl.TemplateResponse.call_args.args
         assert "inactive" in ctx.get("error", "").lower()
 
@@ -162,7 +162,7 @@ class TestLoginSubmit:
         with patch(f"{_BASE}.verify_password", return_value=True), \
              patch(f"{_BASE}.create_access_token", return_value="tok"), \
              patch(f"{_BASE}.settings", s):
-            result = _run(login_submit(request=_req(), email="i@test.com", password="p", db=db))
+            result = _run(login_submit(request=_req(), email="i@test.com", password="p", next="", db=db))
         assert isinstance(result, RedirectResponse)
         assert "/dashboard" in result.headers["location"]
 
@@ -173,7 +173,7 @@ class TestLoginSubmit:
         with patch(f"{_BASE}.verify_password", return_value=True), \
              patch(f"{_BASE}.create_access_token", return_value="tok"), \
              patch(f"{_BASE}.settings", s):
-            result = _run(login_submit(request=_req(), email="s@test.com", password="p", db=db))
+            result = _run(login_submit(request=_req(), email="s@test.com", password="p", next="", db=db))
         assert isinstance(result, RedirectResponse)
         assert "/dashboard" in result.headers["location"]
 
@@ -184,7 +184,7 @@ class TestLoginSubmit:
         with patch(f"{_BASE}.verify_password", return_value=True), \
              patch(f"{_BASE}.create_access_token", return_value="tok"), \
              patch(f"{_BASE}.settings", s):
-            result = _run(login_submit(request=_req(), email="s@test.com", password="p", db=db))
+            result = _run(login_submit(request=_req(), email="s@test.com", password="p", next="", db=db))
         assert isinstance(result, RedirectResponse)
         assert "/age-verification" in result.headers["location"]
 

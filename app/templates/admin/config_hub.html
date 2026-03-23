@@ -1,0 +1,27 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Game Config{% endblock %}
+{% block page_heading %}🎮 Game Config{% endblock %}
+{% block page_subtitle %}Game presets and scoring configuration{% endblock %}
+
+{% block admin_content %}
+
+<!-- KPI row -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.75rem;">
+    <div style="background:white;border-radius:12px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:3px solid #667eea;text-align:center;">
+        <div style="font-size:2rem;font-weight:700;color:#553c9a;">{{ game_presets_count }}</div>
+        <div style="color:#718096;font-size:0.82rem;margin-top:0.25rem;">🎮 Game Presets</div>
+    </div>
+</div>
+
+<!-- Module hub cards -->
+<div class="hub-grid">
+    <a href="/admin/game-presets" class="hub-card">
+        <div class="hub-card-icon">🎮</div>
+        <div class="hub-card-title">Game Presets</div>
+        <div class="hub-card-desc">Define game formats, player requirements, scoring rules, and session reward config for each preset.</div>
+        <div class="hub-card-count">{{ game_presets_count }}</div>
+    </a>
+</div>
+
+{% endblock %}

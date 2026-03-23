@@ -35,7 +35,6 @@ class TournamentUpdateRequest(BaseModel):
     max_players: Optional[int] = Field(None, gt=0, description="Maximum players")
     age_group: Optional[str] = Field(None, description="Age group")
     description: Optional[str] = Field(None, description="Tournament description")
-    # ✅ NEW: Additional editable fields for admin
     start_date: Optional[str] = Field(None, description="Tournament start date (ISO format)")
     end_date: Optional[str] = Field(None, description="Tournament end date (ISO format)")
     specialization_type: Optional[str] = Field(None, description="Specialization type")
@@ -43,14 +42,13 @@ class TournamentUpdateRequest(BaseModel):
     participant_type: Optional[str] = Field(None, description="Participant type (INDIVIDUAL, TEAM, MIXED)")
     tournament_type_id: Optional[int] = Field(None, description="Tournament type ID (⚠️ WARNING: Can only change if no sessions generated)")
     tournament_status: Optional[str] = Field(None, description="Tournament status (⚠️ ADMIN OVERRIDE: Bypasses state machine validation)")
-    # ✅ NEW: Tournament format and scoring configuration
     format: Optional[str] = Field(None, description="Tournament format (HEAD_TO_HEAD or INDIVIDUAL_RANKING)")
     scoring_type: Optional[str] = Field(None, description="Scoring type (TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT)")
     measurement_unit: Optional[str] = Field(None, description="Measurement unit (seconds, meters, points, etc.)")
     ranking_direction: Optional[str] = Field(None, description="Ranking direction (ASC = lowest wins, DESC = highest wins)")
     number_of_rounds: Optional[int] = Field(None, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (⚠️ WARNING: Triggers session regeneration if changed)")
-    # ✅ NEW: Campus assignment (required before ENROLLMENT_OPEN status)
     campus_id: Optional[int] = Field(None, description="Campus ID where tournament will be held")
+    location_id: Optional[int] = Field(None, description="Location ID where tournament will be held")
 
 
 # ============================================================================
@@ -116,7 +114,7 @@ def update_tournament(
         updates["enrollment_cost"] = {"old": tournament.enrollment_cost, "new": request.enrollment_cost}
         tournament.enrollment_cost = request.enrollment_cost
 
-    # Update max_players
+    # Update max_players (lives in TournamentConfiguration)
     if request.max_players is not None:
         # Check if tournament has enrollments
         enrollments_count = db.query(Semester).filter(
@@ -130,7 +128,8 @@ def update_tournament(
             )
 
         updates["max_players"] = {"old": tournament.max_players, "new": request.max_players}
-        tournament.max_players = request.max_players
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.max_players = request.max_players
 
     # Update age_group
     if request.age_group is not None:
@@ -173,9 +172,8 @@ def update_tournament(
         updates["specialization_type"] = {"old": tournament.specialization_type, "new": request.specialization_type}
         tournament.specialization_type = request.specialization_type
 
-    # ✅ NEW: Update assignment_type
+    # Update assignment_type (lives in TournamentConfiguration)
     if request.assignment_type is not None:
-        # Validate assignment_type
         valid_types = ["OPEN_ASSIGNMENT", "APPLICATION_BASED"]
         if request.assignment_type not in valid_types:
             raise HTTPException(
@@ -183,11 +181,11 @@ def update_tournament(
                 detail=f"Invalid assignment_type: {request.assignment_type}. Must be one of {valid_types}"
             )
         updates["assignment_type"] = {"old": tournament.assignment_type, "new": request.assignment_type}
-        tournament.assignment_type = request.assignment_type
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.assignment_type = request.assignment_type
 
-    # ✅ NEW: Update participant_type
+    # Update participant_type (lives in TournamentConfiguration)
     if request.participant_type is not None:
-        # Validate participant_type
         valid_types = ["INDIVIDUAL", "TEAM", "MIXED"]
         if request.participant_type not in valid_types:
             raise HTTPException(
@@ -195,7 +193,8 @@ def update_tournament(
                 detail=f"Invalid participant_type: {request.participant_type}. Must be one of {valid_types}"
             )
         updates["participant_type"] = {"old": tournament.participant_type, "new": request.participant_type}
-        tournament.participant_type = request.participant_type
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.participant_type = request.participant_type
 
     # ✅ NEW: Update campus_id (required for ENROLLMENT_OPEN status)
     if request.campus_id is not None:
@@ -210,9 +209,8 @@ def update_tournament(
         updates["campus_id"] = {"old": tournament.campus_id, "new": request.campus_id}
         tournament.campus_id = request.campus_id
 
-    # ⚠️ NEW: Update tournament_type_id (AUTO-REGENERATES sessions)
+    # Update tournament_type_id (lives in TournamentConfiguration — ⚠️ auto-deletes sessions on change)
     if request.tournament_type_id is not None:
-        # Validate tournament type exists
         from app.models.tournament_type import TournamentType
         tournament_type = db.query(TournamentType).filter(TournamentType.id == request.tournament_type_id).first()
         if not tournament_type:
@@ -221,7 +219,7 @@ def update_tournament(
                 detail=f"Tournament type {request.tournament_type_id} not found"
             )
 
-        # ✅ AUTO-DELETE existing sessions if type changes
+        # Auto-delete existing sessions if type changes
         if tournament.sessions_generated and tournament.tournament_type_id != request.tournament_type_id:
             from app.models.session import Session as SessionModel
             deleted_count = db.query(SessionModel).filter(SessionModel.semester_id == tournament.id).delete()
@@ -231,7 +229,8 @@ def update_tournament(
             updates["sessions_deleted"] = {"count": deleted_count, "reason": "tournament_type_changed"}
 
         updates["tournament_type_id"] = {"old": tournament.tournament_type_id, "new": request.tournament_type_id}
-        tournament.tournament_type_id = request.tournament_type_id
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.tournament_type_id = request.tournament_type_id
 
     # ⚠️ ADMIN OVERRIDE: Update tournament_status (bypasses state machine validation)
     if request.tournament_status is not None:
@@ -286,52 +285,48 @@ def update_tournament(
             else:
                 updates["session_generation_skipped"] = reason
 
-    # ✅ NEW: Update format (INDIVIDUAL_RANKING vs HEAD_TO_HEAD)
+    # format is derived from tournament_type.format — cannot be set directly; use tournament_type_id
     if request.format is not None:
-        updates["format"] = {"old": tournament.format, "new": request.format}
-        tournament.format = request.format
+        updates["format_note"] = "format is derived from tournament_type; use tournament_type_id to change it"
 
-    # ✅ NEW: Update scoring_type (TIME_BASED, DISTANCE_BASED, SCORE_BASED, PLACEMENT)
+    # Update scoring_type (lives in TournamentConfiguration)
     if request.scoring_type is not None:
         updates["scoring_type"] = {"old": tournament.scoring_type, "new": request.scoring_type}
-        tournament.scoring_type = request.scoring_type
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.scoring_type = request.scoring_type
 
-    # ✅ NEW: Update measurement_unit (seconds, meters, points, etc.)
+    # Update measurement_unit (lives in TournamentConfiguration)
     if request.measurement_unit is not None:
         updates["measurement_unit"] = {"old": tournament.measurement_unit, "new": request.measurement_unit}
-        tournament.measurement_unit = request.measurement_unit
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.measurement_unit = request.measurement_unit
 
-    # ✅ NEW: Update ranking_direction (ASC/DESC)
+    # Update ranking_direction (lives in TournamentConfiguration)
     if request.ranking_direction is not None:
         updates["ranking_direction"] = {"old": tournament.ranking_direction, "new": request.ranking_direction}
-        tournament.ranking_direction = request.ranking_direction
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.ranking_direction = request.ranking_direction
 
-    # ⚠️ NEW: Update number_of_rounds (AUTO-REGENERATES sessions if changed)
+    # Update number_of_rounds (lives in TournamentConfiguration — ⚠️ auto-regenerates sessions on change)
     if request.number_of_rounds is not None:
         old_rounds = tournament.number_of_rounds
 
-        # ✅ AUTO-DELETE and MARK for regeneration if rounds changed and sessions exist
         if tournament.sessions_generated and old_rounds != request.number_of_rounds:
             from app.models.session import Session as SessionModel
             from app.models.attendance import Attendance
 
-            # Get session IDs to delete
             session_ids = [s.id for s in db.query(SessionModel).filter(
                 SessionModel.semester_id == tournament.id,
                 SessionModel.auto_generated == True
             ).all()]
 
             if session_ids:
-                # Delete attendance records first
                 db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).delete(synchronize_session=False)
-
-                # Delete sessions
                 deleted_count = db.query(SessionModel).filter(
                     SessionModel.semester_id == tournament.id,
                     SessionModel.auto_generated == True
                 ).delete(synchronize_session=False)
 
-                # Reset flags so lifecycle can regenerate
                 if tournament.tournament_config_obj:
                     tournament.tournament_config_obj.sessions_generated = False
                     tournament.tournament_config_obj.sessions_generated_at = None
@@ -343,7 +338,20 @@ def update_tournament(
                 }
 
         updates["number_of_rounds"] = {"old": old_rounds, "new": request.number_of_rounds}
-        tournament.number_of_rounds = request.number_of_rounds
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.number_of_rounds = request.number_of_rounds
+
+    # Update location_id (direct Semester column)
+    if request.location_id is not None:
+        from app.models.location import Location
+        location = db.query(Location).filter(Location.id == request.location_id).first()
+        if not location:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Location {request.location_id} not found"
+            )
+        updates["location_id"] = {"old": tournament.location_id, "new": request.location_id}
+        tournament.location_id = request.location_id
 
     # If no updates, return early
     if not updates:

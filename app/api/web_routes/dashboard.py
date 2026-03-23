@@ -2,7 +2,7 @@
 Dashboard routes for student, instructor, and admin dashboards
 """
 from fastapi import APIRouter, Request, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -10,13 +10,20 @@ from datetime import date
 import logging
 import re
 
+from sqlalchemy import func as sqlfunc
+
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 UserModel = User  # alias used in some template context sections
-from ...models.semester import Semester, SemesterStatus
+from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.license import UserLicense
-from ...models.semester_enrollment import SemesterEnrollment
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...models.session import Session as SessionModel
+from ...models.invoice_request import InvoiceRequest, InvoiceRequestStatus
+from ...models.system_event import SystemEvent
+from ...models.audit_log import AuditLog
+from ...models.coupon import Coupon
 from ...utils.age_requirements import get_available_specializations
 from .helpers import get_lfa_age_category
 
@@ -46,7 +53,19 @@ async def dashboard(
 
         # Get user's existing licenses (unlocked specializations)
         user_licenses = db.query(UserLicense).filter(UserLicense.user_id == user.id).all()
-        unlocked_specs = {lic.specialization_type for lic in user_licenses}
+        license_map = {lic.specialization_type: lic for lic in user_licenses}
+
+        # Pre-fetch which license IDs have at least one SemesterEnrollment (legacy compat)
+        license_ids = [lic.id for lic in user_licenses]
+        enrolled_license_ids: set = set()
+        if license_ids:
+            enrolled_license_ids = {
+                row[0] for row in
+                db.query(SemesterEnrollment.user_license_id)
+                .filter(SemesterEnrollment.user_license_id.in_(license_ids))
+                .distinct()
+                .all()
+            }
 
         # Get age-appropriate specializations
         available_specs_list = get_available_specializations(user_age)
@@ -54,7 +73,16 @@ async def dashboard(
         # Build specialization data with unlock status (ALWAYS SHOW ALL)
         specializations_data = []
         for spec_item in available_specs_list:
-            is_unlocked = spec_item["type"] in unlocked_specs
+            is_unlocked = spec_item["type"] in license_map
+            lic = license_map.get(spec_item["type"])
+            # Effective onboarding: explicit flag OR skills data present OR legacy enrollment
+            effective_onboarding = bool(
+                lic and (
+                    lic.onboarding_completed
+                    or lic.football_skills is not None
+                    or lic.id in enrolled_license_ids
+                )
+            )
             specializations_data.append({
                 "type": spec_item["type"],
                 "name": spec_item["name"],
@@ -62,11 +90,12 @@ async def dashboard(
                 "color": spec_item["color"],
                 "description": spec_item["description"],
                 "age_requirement": spec_item["age_requirement"],
-                "is_unlocked": is_unlocked,  # ✅ NEW: Mark as unlocked if user has license
+                "is_unlocked": is_unlocked,
+                "onboarding_completed": effective_onboarding,
                 "is_available": True
             })
 
-        logger.info("dashboard_loaded", extra={"user": user.email, "unlocked_specs": len(unlocked_specs), "total_specs": len(specializations_data)})
+        logger.info("dashboard_loaded", extra={"user": user.email, "unlocked_specs": len(license_map), "total_specs": len(specializations_data)})
 
         # ALWAYS show specialization hub (no auto-redirect)
         return templates.TemplateResponse(
@@ -76,7 +105,7 @@ async def dashboard(
                 "user": user,
                 "user_age": user_age or "N/A",
                 "available_specializations": specializations_data,
-                "unlocked_count": len(unlocked_specs)  # For displaying stats
+                "unlocked_count": len(license_map)
             }
         )
     else:
@@ -155,12 +184,92 @@ async def dashboard(
     # ========================================
 
     if user.role == UserRole.ADMIN:
-        # ADMIN Dashboard
+        # ADMIN Dashboard — operational 4-layer layout
         logger.debug("dashboard_routing", extra={"user": user.email, "template": "dashboard_admin.html"})
-        stats = {
-            "total_users": db.query(UserModel).count(),
-            "active_students": db.query(UserModel).filter(UserModel.role == UserRole.STUDENT).count(),
-            "instructors": db.query(UserModel).filter(UserModel.role == UserRole.INSTRUCTOR).count(),
+        _today = date.today()
+
+        # ── Layer 1: Primary KPI ──────────────────────────────────────────────
+        _active_sessions = db.query(SessionModel).filter(
+            sqlfunc.date(SessionModel.date_start) >= _today,
+            SessionModel.session_status != 'cancelled'
+        ).count()
+        _active_tournaments = db.query(Semester).filter(
+            Semester.semester_category == SemesterCategory.TOURNAMENT,
+            Semester.status.in_([SemesterStatus.READY_FOR_ENROLLMENT, SemesterStatus.ONGOING])
+        ).count()
+        _pending_revenue = db.query(
+            sqlfunc.coalesce(sqlfunc.sum(InvoiceRequest.amount_eur), 0)
+        ).filter(InvoiceRequest.status == InvoiceRequestStatus.PENDING.value).scalar() or 0.0
+
+        kpi = {
+            "total_users": db.query(User).count(),
+            "active_sessions": _active_sessions,
+            "active_tournaments": _active_tournaments,
+            "pending_revenue_eur": round(float(_pending_revenue), 2),
+        }
+
+        # ── Layer 2: Operational Queue ────────────────────────────────────────
+        _pending_enrollments = db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.request_status == EnrollmentStatus.PENDING
+        ).count()
+        _todays_sessions = db.query(SessionModel).filter(
+            sqlfunc.date(SessionModel.date_start) == _today,
+            SessionModel.session_status != 'cancelled'
+        ).count()
+        _pending_payments = db.query(InvoiceRequest).filter(
+            InvoiceRequest.status == InvoiceRequestStatus.PENDING.value
+        ).count()
+        _unresolved_events = db.query(SystemEvent).filter(
+            SystemEvent.resolved == False  # noqa: E712
+        ).count()
+
+        queue = {
+            "pending_enrollments": _pending_enrollments,
+            "todays_sessions": _todays_sessions,
+            "pending_payments": _pending_payments,
+            "unresolved_events": _unresolved_events,
+        }
+
+        # ── Layer 0: Alert condition ──────────────────────────────────────────
+        show_alert = _pending_enrollments > 0 or _pending_payments > 0 or _unresolved_events > 0
+
+        # ── Layer 3A: Recent activity feed ────────────────────────────────────
+        _recent_logs = (
+            db.query(AuditLog)
+            .filter(AuditLog.user_id.isnot(None))
+            .order_by(AuditLog.timestamp.desc())
+            .limit(10)
+            .all()
+        )
+        _actor_ids = list({log.user_id for log in _recent_logs if log.user_id})
+        actor_map = (
+            {u.id: u for u in db.query(User).filter(User.id.in_(_actor_ids)).all()}
+            if _actor_ids else {}
+        )
+
+        # ── Layer 3B: Quick stats ─────────────────────────────────────────────
+        _month_start = _today.replace(day=1)
+        _revenue_mtd = db.query(
+            sqlfunc.coalesce(sqlfunc.sum(InvoiceRequest.amount_eur), 0)
+        ).filter(
+            InvoiceRequest.status.in_([
+                InvoiceRequestStatus.PAID.value, InvoiceRequestStatus.VERIFIED.value
+            ]),
+            sqlfunc.date(InvoiceRequest.created_at) >= _month_start
+        ).scalar() or 0.0
+
+        quick_stats = {
+            "active_semesters": db.query(Semester).filter(
+                Semester.status == SemesterStatus.ONGOING,
+                Semester.semester_category != SemesterCategory.TOURNAMENT
+            ).count(),
+            "enrolled_students": db.query(SemesterEnrollment).filter(
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+            ).count(),
+            "active_coupons": db.query(Coupon).filter(Coupon.is_active == True).count(),  # noqa: E712
+            "revenue_mtd": round(float(_revenue_mtd), 2),
+            "total_students": db.query(User).filter(User.role == UserRole.STUDENT).count(),
+            "total_instructors": db.query(User).filter(User.role == UserRole.INSTRUCTOR).count(),
         }
 
         response = templates.TemplateResponse(
@@ -168,8 +277,14 @@ async def dashboard(
             {
                 "request": request,
                 "user": user,
-                "active_semesters": active_semesters,
-                "stats": stats
+                "active_semesters": active_semesters,  # kept for backward compat
+                "kpi": kpi,
+                "queue": queue,
+                "show_alert": show_alert,
+                "recent_activity": _recent_logs,
+                "actor_map": actor_map,
+                "quick_stats": quick_stats,
+                "today_display": _today.strftime('%A, %B %d, %Y'),
             }
         )
     elif user.role == UserRole.INSTRUCTOR:
@@ -185,30 +300,9 @@ async def dashboard(
             }
         )
     else:  # pragma: no cover
-        # Fallback dashboard (unreachable with current 3-role enum: student early-returns above)
-        logger.debug("dashboard_routing", extra={"user": user.email, "template": "dashboard_student_new.html"})
-        response = templates.TemplateResponse(
-            "dashboard_student_new.html",
-            {
-                "request": request,
-                "user": user,
-                "specialization": specialization,
-                "xp_data": xp_data,
-                "user_licenses": user_licenses,
-                "specialization_color": specialization_color,
-                "pending_enrollments": pending_enrollments,
-                "has_active_enrollment": has_active_enrollment,
-                "current_license": current_license,
-                "available_semesters": available_semesters,
-                "current_semester": current_semester,
-                "next_semester": next_semester,
-                "football_skills": football_skills,
-                "skills_updated_by_name": skills_updated_by_name,
-                "upcoming_sessions": upcoming_sessions,
-                "credit_balance": credit_balance,
-                "credit_purchased": credit_purchased
-            }
-        )
+        # Unreachable: UserRole enum has exactly 3 values (STUDENT/INSTRUCTOR/ADMIN).
+        # Student early-returns above; INSTRUCTOR and ADMIN are handled above.
+        raise HTTPException(status_code=403, detail="Unknown role")
     # Disable caching to ensure fresh data
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
@@ -267,6 +361,23 @@ async def spec_dashboard(
             detail=f"You don't have access to {spec_type}. Please unlock it first."
         )
 
+    # Onboarding guard: effective_onboarding = flag OR skills OR legacy enrollment
+    has_enrollment = db.query(SemesterEnrollment.id).filter(
+        SemesterEnrollment.user_license_id == user_license.id
+    ).first() is not None
+    effective_onboarding = (
+        user_license.onboarding_completed
+        or user_license.football_skills is not None
+        or has_enrollment
+    )
+    if not effective_onboarding:
+        onboarding_url = (
+            "/specialization/lfa-player/onboarding"
+            if spec_enum == "LFA_FOOTBALL_PLAYER"
+            else f"/specialization/motivation?spec={spec_enum}"
+        )
+        return RedirectResponse(url=onboarding_url, status_code=303)
+
     # Simple spec config (no external config file needed)
     spec_configs = {
         "LFA_FOOTBALL_PLAYER": {"name": "LFA Football Player", "icon": "⚽", "color": "#2ecc71"},
@@ -308,11 +419,11 @@ async def spec_dashboard(
         logger.debug("lfa_age_check", extra={"user": user.email, "age_category": age_category, "user_age": user_age})
 
         if not age_category:
-            # User doesn't meet age requirements
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=age_description
-            )
+            # 18+ student — instructor must assign AMATEUR or PRO.
+            # Until assignment is stored, default to AMATEUR so the page renders.
+            age_category = "AMATEUR"
+            age_category_name = "AMATEUR (Adult)"
+            age_range = "18+ years"
 
     # Map specialization to semester code prefix
     semester_code_prefix = {
@@ -370,6 +481,17 @@ async def spec_dashboard(
     # Get user credit balance
     credit_balance = user.credit_balance if hasattr(user, 'credit_balance') else 0
 
+    # Map spec type to header gradient class
+    _spec_header_map = {
+        "LFA_FOOTBALL_PLAYER": "hdr-football",
+        "LFA_COACH": "hdr-coach",
+        "INTERNSHIP": "hdr-intern",
+        "JUNIOR_INTERNSHIP": "hdr-intern",
+        "SENIOR_INTERNSHIP": "hdr-intern",
+        "GANCUJU_PLAYER": "hdr-gancuju",
+    }
+    spec_header_class = _spec_header_map.get(spec_enum, "hdr-football")
+
     return templates.TemplateResponse(
         "dashboard_student_new.html",
         {
@@ -391,6 +513,7 @@ async def spec_dashboard(
             "age_category_name": age_category_name,
             "age_range": age_range,
             "age_description": age_description,
-            "user_age": user_age
+            "user_age": user_age,
+            "spec_header_class": spec_header_class
         }
     )

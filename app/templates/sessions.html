@@ -1,9 +1,16 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}Sessions - LFA Education Center{% endblock %}
 
-{% block content %}
+{% block active_page %}sessions{% endblock %}
 
+{% block student_header %}
+{% set _page_icon = '📅' %}
+{% set _page_name = 'Sessions' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
 <style>
 /* Specialization colors */
 .spec-badge-GANCUJU_PLAYER { background-color: #e74c3c; color: white; }
@@ -32,32 +39,56 @@
     50% { opacity: 0.6; }
 }
 </style>
+{% endblock %}
 
-<div class="welcome-section">
-    <h1>📅 Training Sessions</h1>
-    {% if is_instructor %}
-        <p>Manage your teaching sessions</p>
-    {% else %}
-        <p>Browse and book your training sessions</p>
-    {% endif %}
-</div>
+{% block student_content %}
+<h1 style="margin: 0 0 1.5rem 0; font-size: 1.75rem; color: #2d3748;">Training Sessions</h1>
+<section class="mod-nav-section">
+    <div class="mod-nav-grid">
+        <a href="/progress" class="mod-nav-card">
+            <span class="mod-nav-icon">📊</span>
+            <span class="mod-nav-title">Progress</span>
+        </a>
+        <a href="/skills" class="mod-nav-card">
+            <span class="mod-nav-icon">⚡</span>
+            <span class="mod-nav-title">Skills</span>
+        </a>
+        <a href="/achievements" class="mod-nav-card">
+            <span class="mod-nav-icon">🏆</span>
+            <span class="mod-nav-title">Achievements</span>
+        </a>
+        <a href="/calendar" class="mod-nav-card">
+            <span class="mod-nav-icon">📆</span>
+            <span class="mod-nav-title">Calendar</span>
+        </a>
+    </div>
+</section>
 
-<!-- Success/Error Messages -->
+<!-- Success/Error Messages (flash banner) -->
+<div id="flash-banner" style="display:none; padding:0.85rem 1.2rem; border-radius:8px; margin-bottom:1rem; font-weight:500;"></div>
 <script>
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('success') === 'booked') {
-    alert('✅ Session booked successfully!');
-    window.history.replaceState({}, document.title, "/sessions");
-} else if (urlParams.get('success') === 'cancelled') {
-    alert('✅ Booking cancelled successfully!');
-    window.history.replaceState({}, document.title, "/sessions");
-} else if (urlParams.get('info') === 'already_booked') {
-    alert('ℹ️ You have already booked this session.');
-    window.history.replaceState({}, document.title, "/sessions");
-} else if (urlParams.get('error')) {
-    alert('❌ Error: ' + urlParams.get('error'));
-    window.history.replaceState({}, document.title, "/sessions");
-}
+(function() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var banner = document.getElementById('flash-banner');
+    var msg = null, bg = null, color = '#fff';
+    if (urlParams.get('success') === 'booked') {
+        msg = '✅ Session booked successfully!'; bg = '#27ae60';
+    } else if (urlParams.get('success') === 'cancelled') {
+        msg = '✅ Booking cancelled successfully!'; bg = '#27ae60';
+    } else if (urlParams.get('info') === 'already_booked') {
+        msg = 'ℹ️ You have already booked this session.'; bg = '#3498db';
+    } else if (urlParams.get('error')) {
+        msg = '❌ Error: ' + urlParams.get('error'); bg = '#e74c3c';
+    }
+    if (msg) {
+        banner.textContent = msg;
+        banner.style.background = bg;
+        banner.style.color = color;
+        banner.style.display = 'block';
+        window.history.replaceState({}, document.title, "/sessions");
+        setTimeout(function() { banner.style.display = 'none'; }, 5000);
+    }
+})();
 </script>
 
 {% if is_instructor %}
@@ -493,10 +524,13 @@ if (urlParams.get('success') === 'booked') {
 
 {% endif %}  <!-- End STUDENT VIEW -->
 
+{% endblock %}
+
+{% block scripts %}
 <script>
-// Filter by specialization
-let currentSpecFilter = 'ALL';
-let currentDateFilter = 'all';
+// Filter by specialization (var allows re-execution when body.innerHTML is swapped)
+var currentSpecFilter = 'ALL';
+var currentDateFilter = 'all';
 
 function filterSpecialization(spec) {
     currentSpecFilter = spec;

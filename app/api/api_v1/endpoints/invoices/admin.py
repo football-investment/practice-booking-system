@@ -1,5 +1,6 @@
 """Invoice admin operations"""
 
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import Any
@@ -10,6 +11,7 @@ from .....database import get_db
 from .....dependencies import get_current_admin_user
 from .....models.user import User
 from .....models.invoice_request import InvoiceRequest
+from .....models.credit_transaction import CreditTransaction, TransactionType
 
 
 router = APIRouter()
@@ -86,11 +88,16 @@ async def verify_invoice_payment(
     new_balance = student.credit_balance
     new_purchased = student.credit_purchased
 
-    # NOTE: CreditTransaction is LICENSE-BASED, not USER-BASED
-    # We need to find the primary user_license for this user's specialization
-    # Or we can skip creating CreditTransaction since we moved to centralized user.credit_balance
-    # For now, let's just update the user balance without creating a transaction
-    # (CreditTransaction was designed for the old license-based credit system)
+    ct = CreditTransaction(
+        user_id=student.id,
+        transaction_type=TransactionType.PURCHASE.value,
+        amount=invoice.credit_amount,
+        balance_after=new_balance,
+        description=f"Invoice #{invoice.id} payment verified by admin (API)",
+        idempotency_key=f"api-invoice-verify-{invoice.id}",
+        performed_by_user_id=current_user.id,
+    )
+    db.add(ct)
 
     db.commit()
     db.refresh(invoice)
@@ -246,6 +253,17 @@ async def unverify_invoice_payment(
     now = datetime.now(timezone.utc)
     invoice.status = "pending"
     invoice.verified_at = None  # Clear verification timestamp
+
+    ct = CreditTransaction(
+        user_id=student.id,
+        transaction_type=TransactionType.ADMIN_ADJUSTMENT.value,
+        amount=-invoice.credit_amount,
+        balance_after=new_balance,
+        description=f"Invoice #{invoice.id} unverified by admin (API) — credits removed",
+        idempotency_key=f"api-invoice-unverify-{invoice.id}-{uuid.uuid4().hex[:8]}",
+        performed_by_user_id=current_user.id,
+    )
+    db.add(ct)
 
     db.commit()
     db.refresh(invoice)

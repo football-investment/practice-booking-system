@@ -1,0 +1,428 @@
+{% extends "student_base.html" %}
+
+{% block title %}Skill Progression - LFA{% endblock %}
+{% block active_page %}skills{% endblock %}
+
+{% block student_header %}
+{% set _page_icon = '⚡' %}
+{% set _page_name = 'Skills' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .skills-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+        margin-bottom: 28px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 5px solid #667eea;
+        text-align: center;
+    }
+
+    .stat-card h3 { margin: 0 0 10px; color: #555; font-size: 0.95rem; }
+    .stat-value   { font-size: 2.2rem; font-weight: bold; color: #667eea; }
+    .stat-label   { color: #888; font-size: 0.85rem; margin-top: 4px; }
+
+    /* Preset banner */
+    .preset-banner {
+        background: #fff8e6;
+        border: 1px solid #f0c060;
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 28px;
+    }
+
+    .preset-banner h3 { margin: 0 0 12px; color: #7a5c00; font-size: 1rem; }
+
+    .preset-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .chip {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .chip-active   { background: #ffc107; color: #5a3e00; }
+    .chip-inactive { background: #e9ecef; color: #6c757d; }
+
+    /* Skill grid */
+    .skill-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+        margin-bottom: 36px;
+    }
+
+    .skill-card {
+        background: white;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        border-left: 4px solid #667eea;
+        transition: box-shadow 0.2s;
+    }
+
+    .skill-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+    .skill-card.preset-active { border-left-color: #f0a500; }
+
+    .skill-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .skill-name-row { display: flex; align-items: center; gap: 8px; }
+    .skill-emoji    { font-size: 1.3rem; }
+    .skill-name     { font-weight: 700; font-size: 1rem; color: #2c3e50;
+                      text-transform: capitalize; }
+
+    .preset-badge {
+        background: #ffc107;
+        color: #5a3e00;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 10px;
+        white-space: nowrap;
+    }
+
+    .skill-level-row {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .skill-level { font-size: 1.8rem; font-weight: bold; color: #2c3e50; }
+
+    .skill-delta-pos { font-size: 0.9rem; color: #27ae60; font-weight: 600; }
+    .skill-delta-neg { font-size: 0.9rem; color: #e74c3c; font-weight: 600; }
+    .skill-delta-zero{ font-size: 0.9rem; color: #95a5a6; }
+
+    /* Progress bar */
+    .skill-bar-wrap {
+        background: #ecf0f1;
+        border-radius: 8px;
+        height: 10px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .skill-bar-fill {
+        height: 100%;
+        border-radius: 8px;
+        transition: width 0.4s ease;
+    }
+
+    .skill-meta {
+        font-size: 0.8rem;
+        color: #95a5a6;
+        display: flex;
+        gap: 12px;
+    }
+
+    /* Tournament history */
+    .history-card {
+        background: white;
+        border-radius: 15px;
+        padding: 28px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin-bottom: 24px;
+    }
+
+    .history-card h2 {
+        margin: 0 0 20px;
+        color: #333;
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 10px;
+    }
+
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .history-table th {
+        text-align: left; padding: 10px 14px;
+        background: #f8f9fa; color: #555;
+        font-size: 0.82rem; text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .history-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+    .history-table tr:last-child td { border-bottom: none; }
+
+    .placement-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .place-1 { background: #fff3cd; color: #856404; }
+    .place-2 { background: #e2e3e5; color: #383d41; }
+    .place-3 { background: #fde7c7; color: #7a4200; }
+    .place-other { background: #f8f9fa; color: #6c757d; }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #95a5a6;
+    }
+
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    /* Loading placeholder */
+    .loading-placeholder {
+        text-align: center;
+        padding: 40px;
+        color: #aaa;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<section class="mod-nav-section">
+    <div class="mod-nav-grid">
+        <a href="/sessions" class="mod-nav-card">
+            <span class="mod-nav-icon">📅</span>
+            <span class="mod-nav-title">Sessions</span>
+        </a>
+        <a href="/progress" class="mod-nav-card">
+            <span class="mod-nav-icon">📊</span>
+            <span class="mod-nav-title">Progress</span>
+        </a>
+        <a href="/achievements" class="mod-nav-card">
+            <span class="mod-nav-icon">🏆</span>
+            <span class="mod-nav-title">Achievements</span>
+        </a>
+        <a href="/calendar" class="mod-nav-card">
+            <span class="mod-nav-icon">📆</span>
+            <span class="mod-nav-title">Calendar</span>
+        </a>
+    </div>
+</section>
+<div class="skills-container">
+
+    <!-- Summary Stats (lazy-loaded) -->
+    <div id="skills-stats" class="stats-grid">
+        <div class="stat-card">
+            <div class="loading-placeholder"><span class="s-spinner"></span> Loading…</div>
+        </div>
+    </div>
+
+    <!-- Active Preset Banner (lazy-loaded) -->
+    <div id="preset-banner" class="preset-banner" style="display:none;">
+        <h3>🎯 Skills currently being tested in your active tournaments:</h3>
+        <div id="preset-chips" class="preset-chips"></div>
+    </div>
+
+    <!-- Skill Grid (lazy-loaded) -->
+    <div id="skill-grid">
+        <div class="loading-placeholder">
+            <span class="s-spinner"></span> Loading your skill profile…
+        </div>
+    </div>
+
+    <!-- Skill Events (server-side) -->
+    <div class="history-card">
+        <h2>📈 Skill Events &nbsp;<a href="/skills/history" style="font-size:0.75rem;font-weight:500;color:#667eea;text-decoration:none;">📊 Event History Chart →</a></h2>
+
+        {% if tournament_history %}
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Event</th>
+                    <th>Date</th>
+                    <th>Placement</th>
+                    <th>Skill Pts</th>
+                    <th>XP</th>
+                    <th>Credits</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tournament_history %}
+                <tr>
+                    <td><strong>{{ t.tournament_name }}</strong></td>
+                    <td>{{ t.tournament_date.strftime('%b %d, %Y') if t.tournament_date else '—' }}</td>
+                    <td>
+                        {% if t.placement == 1 %}
+                            <span class="placement-badge place-1">🥇 1st</span>
+                        {% elif t.placement == 2 %}
+                            <span class="placement-badge place-2">🥈 2nd</span>
+                        {% elif t.placement == 3 %}
+                            <span class="placement-badge place-3">🥉 3rd</span>
+                        {% elif t.placement %}
+                            <span class="placement-badge place-other">{{ t.placement }}th</span>
+                        {% else %}
+                            <span class="placement-badge place-other">● Participant</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ "%.1f"|format(t.skill_points_total) }}</td>
+                    <td>{{ t.xp_awarded }}</td>
+                    <td>{{ t.credits_awarded }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📈</div>
+            <p>No skill events yet. Participate in your first event to see results here!</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    // Tier colors — must match student.css --tier-* tokens and dashboard_student_new.html
+    const TIER_COLORS = {
+        BEGINNER:     '#6b7280',
+        DEVELOPING:   '#3b82f6',
+        INTERMEDIATE: '#f59e0b',
+        ADVANCED:     '#dc2626',
+        MASTER:       '#9333ea',
+    };
+
+    function barWidth(level) {
+        // Map 40–99 → 0–100 %
+        return Math.max(0, Math.min(100, ((level - 40) / 59) * 100)).toFixed(1);
+    }
+
+    function deltaHtml(delta) {
+        if (delta > 0.05)  return `<span class="skill-delta-pos">+${delta.toFixed(1)} ↑</span>`;
+        if (delta < -0.05) return `<span class="skill-delta-neg">${delta.toFixed(1)} ↓</span>`;
+        return `<span class="skill-delta-zero">±0</span>`;
+    }
+
+    function renderStats(data) {
+        const el = document.getElementById('skills-stats');
+        el.innerHTML = `
+            <div class="stat-card">
+                <h3>📊 Average Level</h3>
+                <div class="stat-value">${data.average_level.toFixed(1)}</div>
+                <div class="stat-label">across all 29 skills</div>
+            </div>
+            <div class="stat-card">
+                <h3>🏆 Tournaments</h3>
+                <div class="stat-value">${data.total_tournaments}</div>
+                <div class="stat-label">completed</div>
+            </div>
+            <div class="stat-card">
+                <h3>🎯 Preset Skills</h3>
+                <div class="stat-value">${data.active_preset_skills.length}</div>
+                <div class="stat-label">currently being tested</div>
+            </div>
+            <div class="stat-card">
+                <h3>✅ Assessments</h3>
+                <div class="stat-value">${data.total_assessments}</div>
+                <div class="stat-label">skill assessments</div>
+            </div>
+        `;
+    }
+
+    function renderPresetBanner(activeSkills) {
+        if (!activeSkills || activeSkills.length === 0) return;
+        const banner = document.getElementById('preset-banner');
+        const chips  = document.getElementById('preset-chips');
+        banner.style.display = 'block';
+
+        // All 29 skill keys (sorted same as server)
+        const allSkills = Object.keys(window._skillData || {});
+        const activeSet = new Set(activeSkills);
+
+        // Show active first
+        const ordered = [...activeSkills, ...allSkills.filter(s => !activeSet.has(s))];
+
+        chips.innerHTML = ordered.slice(0, 20).map(sk => {
+            const cls = activeSet.has(sk) ? 'chip chip-active' : 'chip chip-inactive';
+            return `<span class="${cls}">${sk.replace(/_/g, ' ')}</span>`;
+        }).join('');
+    }
+
+    function renderSkillGrid(skills, activePreset) {
+        const activeSet = new Set(activePreset || []);
+        const grid = document.getElementById('skill-grid');
+
+        const sorted = Object.entries(skills)
+            .sort((a, b) => b[1].current_level - a[1].current_level);
+
+        const cards = sorted.map(([key, s]) => {
+            const color   = TIER_COLORS[s.tier] || '#667eea';
+            const isActive = activeSet.has(key);
+            const presetBadge = isActive
+                ? `<span class="preset-badge">PRESET</span>`
+                : '';
+
+            return `
+            <div class="skill-card ${isActive ? 'preset-active' : ''}">
+                <div class="skill-card-header">
+                    <div class="skill-name-row">
+                        <span class="skill-emoji">${s.tier_emoji || '📊'}</span>
+                        <span class="skill-name">${key.replace(/_/g, ' ')}</span>
+                    </div>
+                    ${presetBadge}
+                </div>
+                <div class="skill-level-row">
+                    <span class="skill-level">${s.current_level.toFixed(1)}</span>
+                    ${deltaHtml(s.total_delta || 0)}
+                </div>
+                <div class="skill-bar-wrap">
+                    <div class="skill-bar-fill"
+                         style="width:${barWidth(s.current_level)}%;background:${color};"></div>
+                </div>
+                <div class="skill-meta">
+                    <span>Baseline: ${s.baseline.toFixed(1)}</span>
+                    <span>·</span>
+                    <span>${s.tournament_count || 0} tournament${s.tournament_count !== 1 ? 's' : ''}</span>
+                    <span>·</span>
+                    <span>${s.tier ? s.tier.toLowerCase() : 'beginner'}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        grid.innerHTML = `<div class="skill-grid">${cards}</div>`;
+    }
+
+    async function loadSkillData() {
+        try {
+            const resp = await fetch('/skills/data');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            window._skillData = data.skills;
+            renderStats(data);
+            renderSkillGrid(data.skills, data.active_preset_skills);
+            renderPresetBanner(data.active_preset_skills);
+        } catch (err) {
+            document.getElementById('skills-stats').innerHTML =
+                `<div class="stat-card"><p style="color:#e74c3c;">Could not load skill data.</p></div>`;
+            document.getElementById('skill-grid').innerHTML =
+                `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Skill data could not be loaded. Please try refreshing.</p></div>`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSkillData);
+})();
+</script>
+{% endblock %}

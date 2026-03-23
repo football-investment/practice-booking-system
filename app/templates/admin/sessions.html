@@ -56,6 +56,12 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Sessions</span>
+    <a href="/admin/sessions" class="module-strip-item{% if request.url.path.startswith('/admin/sessions') %} active{% endif %}">📅 Sessions</a>
+    <a href="/admin/bookings" class="module-strip-item{% if request.url.path.startswith('/admin/bookings') %} active{% endif %}">📋 Bookings</a>
+</div>
+
     <!-- Stats -->
     <div class="stats-row">
         <div class="stat-card">
@@ -74,6 +80,14 @@
 
     <!-- Filters -->
     <form method="get" action="/admin/sessions" class="filter-bar">
+        <div class="filter-group">
+            <label>Event Category</label>
+            <select name="event_category">
+                <option value="" {% if not filter_event_category %}selected{% endif %}>All Categories</option>
+                <option value="TRAINING" {% if filter_event_category == 'TRAINING' %}selected{% endif %}>🏃 Training</option>
+                <option value="MATCH"    {% if filter_event_category == 'MATCH'    %}selected{% endif %}>⚽ Match</option>
+            </select>
+        </div>
         <div class="filter-group">
             <label>Session Type</label>
             <select name="session_type">
@@ -192,6 +206,11 @@
                                         <span class="badge badge-{{ s.session_status.replace('_', '-') }}">
                                             {{ s.session_status.replace('_', ' ').title() }}
                                         </span>
+                                        {% if s.event_category == 'MATCH' %}
+                                        <span class="badge" style="background:#ebf8ff;color:#2b6cb0;margin-left:0.25rem;">⚽ Match</span>
+                                        {% elif s.event_category == 'TRAINING' %}
+                                        <span class="badge" style="background:#f0fff4;color:#276749;margin-left:0.25rem;">🏃 Training</span>
+                                        {% endif %}
                                     </div>
                                     <div class="session-actions">
                                         <a href="/sessions/{{ s.id }}" class="btn btn-sm btn-primary" title="View session details">👁️</a>

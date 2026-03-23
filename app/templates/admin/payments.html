@@ -73,6 +73,13 @@
 
 {% block admin_content %}
 
+<div class="module-strip">
+    <span class="module-strip-label">Commerce</span>
+    <a href="/admin/payments" class="module-strip-item{% if request.url.path.startswith('/admin/payments') %} active{% endif %}">💳 Payments</a>
+    <a href="/admin/coupons" class="module-strip-item{% if request.url.path.startswith('/admin/coupons') %} active{% endif %}">🎟️ Coupons</a>
+    <a href="/admin/invitation-codes" class="module-strip-item{% if request.url.path.startswith('/admin/invitation-codes') %} active{% endif %}">🎁 Invitation Codes</a>
+</div>
+
     <!-- Financial KPI header (8 metrics) -->
     <div style="margin-bottom:1.5rem;">
         <h3 style="font-size:0.95rem;color:#4a5568;margin-bottom:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">💶 Financial Snapshot</h3>

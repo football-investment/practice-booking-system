@@ -1,13 +1,14 @@
 """
 Student-specific feature routes (about specializations, credits, progress, achievements)
 """
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pathlib import Path
 from datetime import date, datetime, timezone
+from typing import List
 
 from sqlalchemy.orm import joinedload
 
@@ -16,19 +17,42 @@ from ...dependencies import get_current_user_web, get_current_user_optional
 from ...models.user import User, UserRole
 from ...models.semester import Semester
 from ...models.license import UserLicense
-from ...models.semester_enrollment import SemesterEnrollment
+from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from ...models.tournament_achievement import TournamentParticipation
 from ...models.achievement import Achievement
 from ...models.gamification import UserAchievement
 from ...models.invoice_request import InvoiceRequest
 from ...models.quiz import AdaptiveLearningSession
 from ...models.session import Session as SessionModel
 from ...services.gamification import GamificationService
+from .helpers import require_student_onboarding
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter()
+
+_SPEC_DASHBOARD_MAP = {
+    "LFA_FOOTBALL_PLAYER": ("/dashboard/lfa-football-player", "⚽"),
+    "LFA_COACH":            ("/dashboard/lfa-coach",           "👨‍🏫"),
+    "INTERNSHIP":           ("/dashboard/internship",           "💼"),
+    "GANCUJU_PLAYER":       ("/dashboard/gancuju-player",      "🥋"),
+}
+
+def _spec_ctx(user: User, db: Session = None) -> dict:
+    """Return spec_dashboard_url + spec_dashboard_icon for sub-page headers.
+    Falls back to UserLicense query if user.specialization is not set."""
+    sv = user.specialization.value if user and user.specialization else ""
+    if not sv and db and user:
+        lic = db.query(UserLicense).filter(
+            UserLicense.user_id == user.id,
+            UserLicense.is_active == True,
+        ).first()
+        if lic and lic.specialization_type:
+            sv = lic.specialization_type.value if hasattr(lic.specialization_type, "value") else str(lic.specialization_type)
+    url, icon = _SPEC_DASHBOARD_MAP.get(sv, ("", ""))
+    return {"spec_dashboard_url": url, "spec_dashboard_icon": icon}
 
 
 @router.get("/about-specializations", response_class=HTMLResponse)
@@ -48,7 +72,9 @@ async def about_specializations_page(
         {
             "request": request,
             "user": user,
-            "user_age": user_age
+            "user_age": user_age,
+            "spec_header_class": "hdr-hub",
+            "show_spec_nav": False,
         }
     )
 
@@ -180,7 +206,9 @@ async def credits_page(
             "transactions": transactions,
             "invoice_requests": invoice_requests,
             "specialization_color": specialization_color or '#667eea',
-            "today": datetime.now(timezone.utc).date()
+            "today": datetime.now(timezone.utc).date(),
+            "spec_header_class": "hdr-hub",
+            "show_spec_nav": False
         }
     )
 
@@ -192,8 +220,9 @@ async def progress_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display student academic progress page with XP, level, and semester completion"""
-    if user.role != UserRole.STUDENT:
-        return RedirectResponse(url="/dashboard", status_code=303)
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
 
     gamification = GamificationService(db)
 
@@ -358,6 +387,8 @@ async def progress_page(
         {
             "request": request,
             "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
             "stats": stats,
             "semester": semester_data,
             "level_progress": {
@@ -380,6 +411,10 @@ async def achievements_page(
     user: User = Depends(get_current_user_web)
 ):
     """Display achievements page - using REAL database data"""
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
+
     all_achievements_query = db.query(Achievement).filter(
         Achievement.is_active == True
     ).all()
@@ -423,6 +458,8 @@ async def achievements_page(
         {
             "request": request,
             "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
             "all_achievements": all_achievements_list,
             "recent_achievements": recent_achievements,
             "unlocked_count": unlocked_count,
@@ -430,4 +467,182 @@ async def achievements_page(
             "total_xp": total_xp,
             "completion_rate": completion_rate
         }
+    )
+
+
+# ─── Skill Progression helpers ────────────────────────────────────────────────
+
+def _get_active_preset_skills(db: Session, user_id: int) -> List[str]:
+    """Return union of skills_tested from all active-tournament GamePresets the user is enrolled in."""
+    from ...models.game_configuration import GameConfiguration
+    from ...models.game_preset import GamePreset
+
+    enrollments = (
+        db.query(SemesterEnrollment)
+        .filter(
+            SemesterEnrollment.user_id == user_id,
+            SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+        )
+        .join(Semester, SemesterEnrollment.semester_id == Semester.id)
+        .filter(Semester.tournament_status.in_(["ENROLLMENT_OPEN", "IN_PROGRESS"]))
+        .all()
+    )
+
+    active_skills: set = set()
+    for enr in enrollments:
+        cfg = (
+            db.query(GameConfiguration)
+            .filter(GameConfiguration.semester_id == enr.semester_id)
+            .first()
+        )
+        if cfg and cfg.game_preset_id:
+            preset = db.query(GamePreset).filter(GamePreset.id == cfg.game_preset_id).first()
+            if preset:
+                active_skills.update(preset.skills_tested or [])
+
+    return sorted(active_skills)
+
+
+def _get_tournament_history(db: Session, user_id: int) -> List[dict]:
+    """Return up to 20 most recent tournament participations for a user."""
+    rows = (
+        db.query(TournamentParticipation, Semester)
+        .join(Semester, TournamentParticipation.semester_id == Semester.id)
+        .filter(TournamentParticipation.user_id == user_id)
+        .order_by(TournamentParticipation.achieved_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    history = []
+    for tp, sem in rows:
+        sp = tp.skill_points_awarded or {}
+        skill_pts_total = round(sum(float(v) for v in sp.values() if v is not None), 1) if sp else 0.0
+        history.append({
+            "tournament_name": sem.name,
+            "tournament_date": sem.start_date,
+            "placement": tp.placement,
+            "skill_points_total": skill_pts_total,
+            "xp_awarded": tp.xp_awarded or 0,
+            "credits_awarded": tp.credits_awarded or 0,
+        })
+    return history
+
+
+# ─── Skill Progression routes ─────────────────────────────────────────────────
+
+@router.get("/skills/data")
+async def skills_data_endpoint(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """JSON endpoint — returns full skill profile for lazy-load widgets."""
+    if user.role != UserRole.STUDENT:
+        raise HTTPException(status_code=403, detail="Students only")
+
+    from ...services.skill_progression_service import get_skill_profile
+
+    profile = get_skill_profile(db, user.id)
+    active_preset_skills = _get_active_preset_skills(db, user.id)
+
+    return JSONResponse({
+        "skills": profile["skills"],
+        "average_level": profile["average_level"],
+        "total_tournaments": profile["total_tournaments"],
+        "total_assessments": profile["total_assessments"],
+        "active_preset_skills": active_preset_skills,
+    })
+
+
+@router.get("/skills", response_class=HTMLResponse)
+async def skills_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Student skill progression page — all 29 skills, lazy-loaded."""
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
+
+    tournament_history = _get_tournament_history(db, user.id)
+    has_lfa_license = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id == user.id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            UserLicense.is_active == True,
+        )
+        .first()
+    ) is not None
+
+    return templates.TemplateResponse(
+        "skills.html",
+        {
+            "request": request,
+            "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
+            "tournament_history": tournament_history,
+            "has_lfa_license": has_lfa_license,
+        },
+    )
+
+
+# ─── Skill History routes ──────────────────────────────────────────────────────
+
+@router.get("/skills/history/data")
+async def skills_history_data_endpoint(
+    request: Request,
+    skill: str = Query("passing", description="Skill key, e.g. 'passing', 'finishing'"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """JSON endpoint — EMA timeline for a single skill, used by the skill history chart."""
+    if user.role != UserRole.STUDENT:
+        raise HTTPException(status_code=403, detail="Students only")
+
+    from ...services.skill_progression_service import get_skill_timeline
+    from ...skills_config import get_all_skill_keys, get_skill_display_name
+
+    if skill not in get_all_skill_keys():
+        raise HTTPException(status_code=404, detail=f"Unknown skill key: {skill!r}")
+
+    result = get_skill_timeline(db, user.id, skill)
+    result["skill_display_name"] = get_skill_display_name(skill, lang="en")
+    return JSONResponse(result)
+
+
+@router.get("/skills/history", response_class=HTMLResponse)
+async def skills_history_page(
+    request: Request,
+    skill: str = Query("passing", description="Skill key to pre-select"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Student skill history page — per-skill EMA timeline chart."""
+    guard = require_student_onboarding(user)
+    if guard:
+        return guard
+
+    from ...skills_config import get_all_skill_keys, get_skill_display_name, SKILL_CATEGORIES
+
+    all_skills = [
+        {"key": k, "name": get_skill_display_name(k, "en")}
+        for k in get_all_skill_keys()
+    ]
+    valid_skill = skill if skill in get_all_skill_keys() else "passing"
+
+    return templates.TemplateResponse(
+        "skill_history.html",
+        {
+            "request": request,
+            "user": user,
+            "spec_header_class": "hdr-hub",
+            **_spec_ctx(user, db),
+            "all_skills": all_skills,
+            "selected_skill": valid_skill,
+            "skill_categories": SKILL_CATEGORIES,
+        },
     )

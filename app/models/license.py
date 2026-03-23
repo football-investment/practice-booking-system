@@ -3,7 +3,7 @@
 Marketing-oriented license progression system with cultural narratives
 """
 import enum
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
@@ -185,7 +185,11 @@ class UserLicense(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                        onupdate=lambda: datetime.now(timezone.utc))
-    
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'specialization_type', name='uq_user_license_spec'),
+    )
+
     # Relationships
     user = relationship("User", back_populates="licenses", foreign_keys="[UserLicense.user_id]")
     assessor = relationship("User", foreign_keys="[UserLicense.motivation_assessed_by]")

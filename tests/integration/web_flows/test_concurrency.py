@@ -36,7 +36,10 @@ from datetime import datetime, timezone
 import pytest
 from app.models.booking import Booking, BookingStatus
 from app.models.attendance import Attendance
+from app.models.credit_transaction import CreditTransaction
+from app.models.license import UserLicense
 from app.models.quiz import QuizAttempt
+from app.models.user import User
 
 
 class TestDoubleBookingIdempotency:
@@ -220,6 +223,136 @@ class TestDoubleAttendanceMarkIdempotency:
         )
         assert len(rows) == 1
         assert rows[0].marked_by == instructor_user.id
+
+class TestSpecializationUnlockIdempotency:
+    """
+    SMOKE-CONC-01/02: Specialization unlock idempotency guards.
+
+    Sequential simulation of the race-condition scenario:
+      - Two requests arrive from the same user for the same specialization.
+      - The 'winner' commits first: license created, 100 credits deducted.
+      - The 'loser' arrives after: must see the existing license, skip deduction.
+
+    Covered by DB-level safety:
+      1. SELECT ... FOR UPDATE on the User row (serialises balance reads)
+      2. UniqueConstraint uq_user_license_spec (DB rejects duplicate INSERT)
+      3. Re-query for existing license AFTER acquiring the lock
+    """
+
+    def test_double_unlock_same_spec_creates_one_license_no_double_deduction(
+        self,
+        student_client,
+        student_user,
+        test_db,
+    ):
+        """SMOKE-CONC-01: double POST /specialization/select (same spec) → 1 license, 100 credits total."""
+        # Give student enough credits for both attempts
+        student_user.credit_balance = 200
+        test_db.flush()
+
+        # First unlock — must succeed
+        resp1 = student_client.post(
+            "/specialization/select",
+            data={"specialization": "LFA_FOOTBALL_PLAYER"},
+            follow_redirects=False,
+        )
+        assert resp1.status_code == 303
+
+        test_db.expire_all()
+
+        licenses = (
+            test_db.query(UserLicense)
+            .filter(
+                UserLicense.user_id == student_user.id,
+                UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            )
+            .all()
+        )
+        assert len(licenses) == 1, "Exactly 1 license after first unlock"
+        license_id = licenses[0].id
+
+        cts = (
+            test_db.query(CreditTransaction)
+            .filter(CreditTransaction.user_license_id == license_id)
+            .all()
+        )
+        assert len(cts) == 1, "Exactly 1 CreditTransaction after first unlock"
+        assert cts[0].amount == -100
+
+        balance_after_first = (
+            test_db.query(User).filter(User.id == student_user.id).first().credit_balance
+        )
+        assert balance_after_first == 100, "100 credits remain after first unlock"
+
+        # Second unlock — same spec (race loser arriving after winner committed)
+        resp2 = student_client.post(
+            "/specialization/select",
+            data={"specialization": "LFA_FOOTBALL_PLAYER"},
+            follow_redirects=False,
+        )
+        assert resp2.status_code == 303
+
+        test_db.expire_all()
+
+        # Still exactly 1 license — no duplicate
+        licenses_after = (
+            test_db.query(UserLicense)
+            .filter(
+                UserLicense.user_id == student_user.id,
+                UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            )
+            .all()
+        )
+        assert len(licenses_after) == 1, "Still exactly 1 license after duplicate attempt"
+
+        # No new CreditTransaction — no double-deduction
+        cts_after = (
+            test_db.query(CreditTransaction)
+            .filter(CreditTransaction.user_license_id == license_id)
+            .all()
+        )
+        assert len(cts_after) == 1, "No new CreditTransaction on duplicate attempt"
+
+        balance_after_second = (
+            test_db.query(User).filter(User.id == student_user.id).first().credit_balance
+        )
+        assert balance_after_second == 100, "Credits unchanged after duplicate attempt"
+
+    def test_insufficient_credits_unlock_rejected_no_license_created(
+        self,
+        student_client,
+        student_user,
+        test_db,
+    ):
+        """SMOKE-CONC-02: POST /specialization/select with < 100 credits → 303 error, no license, balance unchanged."""
+        student_user.credit_balance = 50
+        test_db.flush()
+
+        resp = student_client.post(
+            "/specialization/select",
+            data={"specialization": "LFA_FOOTBALL_PLAYER"},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        location = resp.headers["location"]
+        assert "error" in location or "dashboard" in location
+
+        test_db.expire_all()
+
+        licenses = (
+            test_db.query(UserLicense)
+            .filter(
+                UserLicense.user_id == student_user.id,
+                UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            )
+            .all()
+        )
+        assert len(licenses) == 0, "No license created when credits insufficient"
+
+        balance = (
+            test_db.query(User).filter(User.id == student_user.id).first().credit_balance
+        )
+        assert balance == 50, "Balance unchanged when unlock rejected"
 
     def test_mark_present_then_absent_updates_status(
         self,

@@ -12,6 +12,7 @@ from ....dependencies import get_current_admin_user, get_current_admin_user_web,
 from ....models.coupon import Coupon, CouponType, CouponUsage
 from ....models.audit_log import AuditLog, AuditAction
 from ....models.user import User
+from ....models.credit_transaction import CreditTransaction, TransactionType
 
 router = APIRouter()
 
@@ -604,6 +605,17 @@ async def apply_coupon(
     # Add credits to user's balance
     current_user.credit_balance = (current_user.credit_balance or 0) + credits_awarded
     current_user.credit_purchased = (current_user.credit_purchased or 0) + credits_awarded
+
+    # Audit log — every credit_balance mutation must have a CreditTransaction
+    ct = CreditTransaction(
+        user_id=current_user.id,
+        transaction_type=TransactionType.ADMIN_ADJUSTMENT.value,
+        amount=credits_awarded,
+        balance_after=current_user.credit_balance,
+        description=f"Coupon '{coupon.code}' applied — {credits_awarded} bonus credits",
+        idempotency_key=f"coupon-{coupon.id}-user-{current_user.id}",
+    )
+    db.add(ct)
 
     # Create usage record
     usage = CouponUsage(

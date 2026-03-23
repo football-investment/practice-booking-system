@@ -139,6 +139,21 @@ def enroll_in_tournament(
             detail="LFA Football Player license not found. Please unlock this specialization first."
         )
 
+    # 4.5 Onboarding guard: effective_onboarding = flag OR skills OR legacy enrollment
+    has_enrollment_for_lic = db.query(SemesterEnrollment.id).filter(
+        SemesterEnrollment.user_license_id == license.id
+    ).first() is not None
+    effective_onboarding = (
+        license.onboarding_completed
+        or license.football_skills is not None
+        or has_enrollment_for_lic
+    )
+    if not effective_onboarding:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Complete your LFA Football Player onboarding before enrolling in tournaments."
+        )
+
     # 5. Calculate age category at season start (July 1)
     if not current_user.date_of_birth:
         raise HTTPException(
