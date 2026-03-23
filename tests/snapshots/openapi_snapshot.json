@@ -1952,6 +1952,19 @@
         "title": "BatchEnrollResponse",
         "type": "object"
       },
+      "Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post",
+        "type": "object"
+      },
       "Body_admin_booking_attendance_admin_bookings__booking_id__attendance_post": {
         "properties": {
           "attendance_status": {
@@ -3246,6 +3259,32 @@
           "time_spent"
         ],
         "title": "Body_submit_quiz_quizzes__quiz_id__submit_post",
+        "type": "object"
+      },
+      "Body_team_create_submit_tournaments__tournament_id__team_create_post": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_team_create_submit_tournaments__tournament_id__team_create_post",
+        "type": "object"
+      },
+      "Body_team_invite_teams__team_id__invite_post": {
+        "properties": {
+          "invited_user_id": {
+            "title": "Invited User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "invited_user_id"
+        ],
+        "title": "Body_team_invite_teams__team_id__invite_post",
         "type": "object"
       },
       "Booking": {
@@ -24427,6 +24466,61 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/members": {
+      "post": {
+        "description": "Admin directly adds a user to a team, bypassing the invite flow.",
+        "operationId": "admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Add Team Member Direct",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/teams/{team_id}/remove": {
       "post": {
         "description": "Remove a team from a TEAM tournament.",
@@ -45544,6 +45638,279 @@
         ]
       }
     },
+    "/api/v1/teams/invites/my": {
+      "get": {
+        "description": "Get all pending invites for the current user.",
+        "operationId": "my_invites_api_v1_teams_invites_my_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Invites",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/invites/{invite_id}/accept": {
+      "post": {
+        "description": "Accept a pending team invite.",
+        "operationId": "accept_invite_api_v1_teams_invites__invite_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/invites/{invite_id}/reject": {
+      "post": {
+        "description": "Reject a pending team invite.",
+        "operationId": "reject_invite_api_v1_teams_invites__invite_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{team_id}": {
+      "get": {
+        "description": "Get team details (members + pending invites). Captain or admin only.",
+        "operationId": "get_team_api_v1_teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Team",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{team_id}/invites": {
+      "post": {
+        "description": "Captain invites a player. Caller must be the team captain.",
+        "operationId": "create_invite_api_v1_teams__team_id__invites_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "invited_user_id",
+            "required": true,
+            "schema": {
+              "title": "Invited User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{team_id}/invites/{invite_id}": {
+      "delete": {
+        "description": "Captain cancels a pending invite.",
+        "operationId": "cancel_invite_api_v1_teams__team_id__invites__invite_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
     "/api/v1/tournament-types/": {
       "get": {
         "description": "List all available tournament types (Admin only)\n\nReturns tournament type metadata including:\n- Basic info (id, code, display_name, description)\n- Player constraints (min_players, max_players, requires_power_of_two)\n- Timing defaults (session_duration_minutes, break_between_sessions_minutes)\n- Full config (JSON with detailed rules)\n\n**Authorization:** Admin only\n\n**Response Example:**\n```json\n[\n    {\n        \"id\": 1,\n        \"code\": \"league\",\n        \"display_name\": \"League (Round Robin)\",\n        \"description\": \"Every player plays against every other player once...\",\n        \"min_players\": 4,\n        \"max_players\": 16,\n        \"requires_power_of_two\": false,\n        \"session_duration_minutes\": 90,\n        \"break_between_sessions_minutes\": 15,\n        \"config\": {...}\n    }\n]\n```",
@@ -50408,6 +50775,85 @@
         ]
       }
     },
+    "/api/v1/users/invite-search": {
+      "get": {
+        "description": "Search active users by name/email for the invite form.\nExcludes the caller, existing active members of the given team, and users\nwith a PENDING invite to that team.",
+        "operationId": "invite_search_users_api_v1_users_invite_search_get",
+        "parameters": [
+          {
+            "description": "Name or email prefix",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "Name or email prefix",
+              "minLength": 2,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclude existing members of this team",
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclude existing members of this team",
+              "title": "Team Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite Search Users",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
     "/api/v1/users/me": {
       "get": {
         "description": "Get current user profile with licenses",
@@ -53110,6 +53556,287 @@
         ]
       }
     },
+    "/teams/invites": {
+      "get": {
+        "operationId": "my_invites_teams_invites_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "msg",
+            "required": false,
+            "schema": {
+              "title": "Msg",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Invites",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/invites/{invite_id}/accept": {
+      "post": {
+        "operationId": "accept_invite_teams_invites__invite_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/invites/{invite_id}/reject": {
+      "post": {
+        "operationId": "reject_invite_teams_invites__invite_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/{team_id}": {
+      "get": {
+        "operationId": "team_dashboard_teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "msg",
+            "required": false,
+            "schema": {
+              "title": "Msg",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "title": "Error",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Dashboard",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/{team_id}/invite": {
+      "post": {
+        "operationId": "team_invite_teams__team_id__invite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_team_invite_teams__team_id__invite_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/{team_id}/invites/{invite_id}/cancel": {
+      "post": {
+        "operationId": "team_cancel_invite_teams__team_id__invites__invite_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Cancel Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/tournaments": {
       "get": {
         "description": "Browse ENROLLMENT_OPEN / IN_PROGRESS tournaments available to the student.",
@@ -53170,6 +53897,96 @@
           }
         },
         "summary": "Tournament Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/tournaments/{tournament_id}/team/create": {
+      "get": {
+        "operationId": "team_create_form_tournaments__tournament_id__team_create_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Create Form",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "team_create_submit_tournaments__tournament_id__team_create_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_team_create_submit_tournaments__tournament_id__team_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Create Submit",
         "tags": [
           "web"
         ]
