@@ -53556,6 +53556,76 @@
         ]
       }
     },
+    "/teams/invite-search": {
+      "get": {
+        "description": "Cookie-auth AJAX endpoint for the team invite search box.\nReturns JSON list of {id, name, email} matching the query string,\nexcluding the caller and existing/pending team members.",
+        "operationId": "invite_search_web_teams_invite_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "minLength": 2,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invite Search Web",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/teams/invites": {
       "get": {
         "operationId": "my_invites_teams_invites_get",
