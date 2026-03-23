@@ -129,8 +129,10 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         method = request.method
 
-        # Skip CSRF for exempt paths
-        if self._is_exempt(path):
+        # Exempt paths skip POST/state-changing CSRF validation only.
+        # Safe GET requests on exempt paths (e.g. /login) still receive a CSRF
+        # cookie so subsequent form submissions have a token available.
+        if self._is_exempt(path) and method not in self.SAFE_METHODS:
             return await call_next(request)
 
         # Skip CSRF for API requests with Bearer auth

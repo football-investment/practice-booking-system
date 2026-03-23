@@ -16,6 +16,8 @@ import pytest
 import requests
 from http.cookies import SimpleCookie
 
+from app.config import settings
+
 # Note: Cookie security settings are checked at runtime
 # COOKIE_SECURE, SameSite, HttpOnly, max-age are configured in app.config.settings
 

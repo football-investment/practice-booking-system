@@ -23,10 +23,15 @@ class TestClientAdapter:
 
     This adapter makes them work without a running server by translating to:
         test_client.post("/api/v1/auth/login", json={...})
+
+    Each call creates a fresh TestClient to match the stateless behaviour of
+    individual requests.get() / requests.post() calls (no implicit cookie jar).
+    Tests that need cookies across a request pair pass them explicitly via the
+    `cookies=` kwarg, which the TestClient honours correctly.
     """
 
-    def __init__(self):
-        self.client = TestClient(app, raise_server_exceptions=False, follow_redirects=True)
+    def _fresh_client(self) -> TestClient:
+        return TestClient(app, raise_server_exceptions=False, follow_redirects=True)
 
     def _is_local(self, url: str) -> bool:
         parsed = urlparse(url)
@@ -45,51 +50,54 @@ class TestClientAdapter:
         adapted.status_code = resp.status_code
         adapted.text = resp.text
         adapted.json = resp.json
-        adapted.headers = dict(resp.headers)
+        # Use httpx.Headers directly: case-insensitive + supports get_list()
+        adapted.headers = resp.headers
         adapted.content = resp.content
         adapted.url = str(resp.url)
         adapted.ok = resp.is_success if hasattr(resp, 'is_success') else (200 <= resp.status_code < 400)
+        # Copy cookies so tests can check response.cookies["csrf_token"]
+        adapted.cookies = dict(resp.cookies)
         return adapted
 
     def post(self, url, **kwargs):
         if self._is_local(url):
-            return self._adapt_response(self.client.post(self._path(url), **kwargs))
+            return self._adapt_response(self._fresh_client().post(self._path(url), **kwargs))
         import requests as _real
         return _real.Session().post(url, **kwargs)
 
     def get(self, url, **kwargs):
         if self._is_local(url):
-            return self._adapt_response(self.client.get(self._path(url), **kwargs))
+            return self._adapt_response(self._fresh_client().get(self._path(url), **kwargs))
         import requests as _real
         return _real.Session().get(url, **kwargs)
 
     def put(self, url, **kwargs):
         if self._is_local(url):
-            return self._adapt_response(self.client.put(self._path(url), **kwargs))
+            return self._adapt_response(self._fresh_client().put(self._path(url), **kwargs))
         import requests as _real
         return _real.Session().put(url, **kwargs)
 
     def patch(self, url, **kwargs):
         if self._is_local(url):
-            return self._adapt_response(self.client.patch(self._path(url), **kwargs))
+            return self._adapt_response(self._fresh_client().patch(self._path(url), **kwargs))
         import requests as _real
         return _real.Session().patch(url, **kwargs)
 
     def delete(self, url, **kwargs):
         if self._is_local(url):
-            return self._adapt_response(self.client.delete(self._path(url), **kwargs))
+            return self._adapt_response(self._fresh_client().delete(self._path(url), **kwargs))
         import requests as _real
         return _real.Session().delete(url, **kwargs)
 
     def options(self, url, **kwargs):
         if self._is_local(url):
-            return self._adapt_response(self.client.options(self._path(url), **kwargs))
+            return self._adapt_response(self._fresh_client().options(self._path(url), **kwargs))
         import requests as _real
         return _real.Session().options(url, **kwargs)
 
     def request(self, method, url, **kwargs):
         if self._is_local(url):
-            fn = getattr(self.client, method.lower())
+            fn = getattr(self._fresh_client(), method.lower())
             return self._adapt_response(fn(self._path(url), **kwargs))
         import requests as _real
         return _real.Session().request(method, url, **kwargs)
