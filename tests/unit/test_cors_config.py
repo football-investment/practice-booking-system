@@ -48,6 +48,11 @@ _BASE_PROD = {
     "ADMIN_PASSWORD": "Str0ng!Pass#2026",
     "ADMIN_NAME": "LFA Admin",
     "COOKIE_SECURE": "true",
+    # Required: production validator raises if DEBUG=True (app/config.py:330-335).
+    # In CI there is no .env file and no DEBUG env var, so the class default
+    # (True) fires the check.  Local runs pass because the developer's .env has
+    # DEBUG=false.  Always include this key in _BASE_PROD to avoid CI flakiness.
+    "DEBUG": "false",
 }
 
 
