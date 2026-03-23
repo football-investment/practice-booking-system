@@ -15,8 +15,47 @@ from app.dependencies import get_current_user
 from app.models.user import User, UserRole
 from app.models.session import Session as SessionModel, EventCategory
 from app.models.tournament_enums import TournamentPhase  # Phase 2.1: Import enum
+from app.core.redis_pubsub import publish_tournament_update
 
 router = APIRouter()
+
+
+def _publish_session_result(db, session: SessionModel) -> None:
+    """Publish a session_result event to Redis after db.commit()."""
+    try:
+        tournament_id = session.semester_id
+        if tournament_id is None:
+            return
+        completed = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.session_status == "completed",
+            )
+            .count()
+        )
+        total = (
+            db.query(SessionModel)
+            .filter(SessionModel.semester_id == tournament_id)
+            .count()
+        )
+        progress = round(completed / total, 4) if total > 0 else 0.0
+        publish_tournament_update(
+            tournament_id,
+            {
+                "type": "session_result",
+                "session_id": session.id,
+                "campus_id": getattr(session, "campus_id", None),
+                "pitch_id": getattr(session, "pitch_id", None),
+                "round_number": getattr(session, "tournament_round", None),
+                "status": "completed",
+                "completed_count": completed,
+                "total_count": total,
+                "progress_pct": progress,
+            },
+        )
+    except Exception:
+        pass  # live monitoring is best-effort
 
 
 class GameResultEntry(BaseModel):
@@ -109,6 +148,7 @@ def submit_game_results(
 
     db.commit()
     db.refresh(session)
+    _publish_session_result(db, session)
 
     return {
         "session_id": session_id,
@@ -303,6 +343,7 @@ def submit_head_to_head_match_result(
 
     db.commit()
     db.refresh(session)
+    _publish_session_result(db, session)
 
     # Phase 2.1: Use TournamentPhase enum for type-safe comparison
     progression_result = None
@@ -416,6 +457,8 @@ def submit_team_results(
     session.rounds_data = rd
     flag_modified(session, "rounds_data")
     db.commit()
+    db.refresh(session)
+    _publish_session_result(db, session)
 
     return {
         "session_id": session_id,

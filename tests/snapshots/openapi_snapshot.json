@@ -24598,6 +24598,49 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/live": {
+      "get": {
+        "description": "Admin live monitoring dashboard for a specific tournament.\n\nShows per-campus/pitch progress, active instructors, and a live feed of\nthe last 20 completed sessions.  Updates arrive via WebSocket.",
+        "operationId": "tournament_live_dashboard_admin_tournaments__tournament_id__live_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tournament Live Dashboard",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/rollback": {
       "post": {
         "description": "Admin: rollback stuck IN_PROGRESS \u2192 ENROLLMENT_CLOSED for re-generation.",
