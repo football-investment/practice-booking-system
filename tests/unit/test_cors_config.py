@@ -1,8 +1,10 @@
 """
 Unit tests for CORS_ALLOWED_ORIGINS config validation.
 
-Locks down the Settings.parse_cors_origins validator so the friendly error
-message is guaranteed and the behaviour cannot silently regress.
+Locks down the _CORSSafeEnvSource / _CORSFormatError interception chain so
+the friendly error message is guaranteed and the behaviour cannot silently
+regress.  See app/config.py IMPORTANT comment for the full explanation of why
+a @field_validator cannot be used here.
 
 Each test uses a subprocess so module-level state (already-imported Settings,
 loaded .env, cached os.environ) cannot leak between cases.
@@ -26,7 +28,7 @@ try:
     s = Settings()
     print(json.dumps({{"ok": True, "cors": s.CORS_ALLOWED_ORIGINS}}))
 except Exception as e:
-    print(json.dumps({{"ok": False, "error": str(e)}}))
+    print(json.dumps({{"ok": False, "error": str(e), "exc_type": type(e).__qualname__}}))
 """
 
 _BASE = {
@@ -84,6 +86,21 @@ class TestCORSConfigValidator:
         assert data["cors"] == ["https://app.lfa.com", "https://admin.lfa.com"]
 
     # ── Error paths — must raise ValueError, not SettingsError ────────────────
+    # Regression: previously raised pydantic_settings.sources.SettingsError
+    # when CORS_ALLOWED_ORIGINS was a plain URL string in CI .env (2026-03-23).
+
+    def test_cors_error_not_wrapped_in_settings_error(self):
+        """CORS format error must surface as ValueError, never as SettingsError.
+
+        Regression lock: the _CORSFormatError bypass ensures the opaque
+        SettingsError from pydantic-settings does not reach the caller.
+        """
+        env = {**_BASE, "CORS_ALLOWED_ORIGINS": "http://localhost:3000"}
+        data = _run(env)
+        assert data["ok"] is False
+        assert data["exc_type"] == "ValueError", (
+            f"Expected ValueError but got {data['exc_type']}: {data['error']}"
+        )
 
     def test_plain_url_raises_value_error_with_hint(self):
         """Plain URL (no brackets) must raise ValueError with clear instructions."""
