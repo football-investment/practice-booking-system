@@ -2032,6 +2032,14 @@ jobs:
         echo "✅ Server ready"
 
     - name: CSRF protection tests (Double Submit Cookie — 28 tests)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_security_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+        ADMIN_EMAIL: admin@lfa.com
+        ADMIN_PASSWORD: admin123
+        ENVIRONMENT: test
+        TESTING: "true"
+        ENABLE_RATE_LIMITING: "false"
       run: |
         # test_cors_config.py excluded: references Streamlit :8501 (decommissioned Sprint 59h)
         PYTHONPATH=. pytest \
@@ -2040,6 +2048,14 @@ jobs:
           -v --tb=short --maxfail=0
 
     - name: SQL injection prevention tests (35 tests)
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_security_test
+        SECRET_KEY: test-secret-key-for-ci-only-not-production
+        ADMIN_EMAIL: admin@lfa.com
+        ADMIN_PASSWORD: admin123
+        ENVIRONMENT: test
+        TESTING: "true"
+        ENABLE_RATE_LIMITING: "false"
       run: |
         PYTHONPATH=. pytest tests/security/sql_injection/ \
           -v --tb=short --maxfail=0
