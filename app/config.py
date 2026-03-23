@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import secrets
@@ -229,7 +230,18 @@ class Settings(BaseSettings):
     model_config = ConfigDict(env_file=".env")
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        try:
+            super().__init__(**kwargs)
+        except Exception as e:
+            msg = str(e)
+            if "CORS_ALLOWED_ORIGINS" in msg:
+                cors_val = os.getenv("CORS_ALLOWED_ORIGINS", "")
+                raise ValueError(
+                    f"CORS_ALLOWED_ORIGINS must be a JSON array, got: {cors_val!r}\n"
+                    "  Correct  : CORS_ALLOWED_ORIGINS=[\"https://app.lfa.com\",\"https://admin.lfa.com\"]\n"
+                    "  Dev/test : omit this variable — localhost list is configured automatically."
+                ) from None
+            raise
 
         # Production-only security validation (skipped in development and testing)
         _is_production = not is_testing() and self.ENVIRONMENT == "production"
