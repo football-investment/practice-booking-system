@@ -2231,6 +2231,16 @@
             "title": "Name",
             "type": "string"
           },
+          "number_of_rounds": {
+            "default": 1,
+            "title": "Number Of Rounds",
+            "type": "integer"
+          },
+          "participant_type": {
+            "default": "INDIVIDUAL",
+            "title": "Participant Type",
+            "type": "string"
+          },
           "start_date": {
             "title": "Start Date",
             "type": "string"
@@ -2502,6 +2512,19 @@
           "reason"
         ],
         "title": "Body_admin_revoke_license_admin_users__user_id__revoke_license__license_id__post",
+        "type": "object"
+      },
+      "Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post": {
+        "properties": {
+          "team_id": {
+            "title": "Team Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "team_id"
+        ],
+        "title": "Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post",
         "type": "object"
       },
       "Body_admin_unresolve_system_event_admin_system_events__event_id__unresolve_post": {
@@ -2901,6 +2924,11 @@
         "properties": {
           "email": {
             "title": "Email",
+            "type": "string"
+          },
+          "next": {
+            "default": "",
+            "title": "Next",
             "type": "string"
           },
           "password": {
@@ -16627,6 +16655,30 @@
         "title": "SubmitRoundResultsRequest",
         "type": "object"
       },
+      "SubmitTeamResultsRequest": {
+        "description": "Submit results for a TEAM tournament session (one or more rounds)",
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TeamResultEntry"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "round_number": {
+            "default": 1,
+            "description": "Round number within the session (1-based)",
+            "minimum": 1.0,
+            "title": "Round Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "SubmitTeamResultsRequest",
+        "type": "object"
+      },
       "SystemEventListResponse": {
         "properties": {
           "items": {
@@ -16793,6 +16845,39 @@
           "recorded_at"
         ],
         "title": "TeachingHoursResponse",
+        "type": "object"
+      },
+      "TeamResultEntry": {
+        "description": "Single team's result for a TEAM tournament session",
+        "properties": {
+          "rank": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional rank override; auto-computed if None",
+            "title": "Rank"
+          },
+          "score": {
+            "description": "Score for this team in this session",
+            "title": "Score",
+            "type": "number"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "team_id",
+          "score"
+        ],
+        "title": "TeamResultEntry",
         "type": "object"
       },
       "TestConfig": {
@@ -24248,6 +24333,140 @@
           }
         },
         "summary": "Admin Start Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams": {
+      "get": {
+        "description": "Admin: manage team enrollments for a TEAM tournament.",
+        "operationId": "admin_tournament_teams_page_admin_tournaments__tournament_id__teams_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/enroll": {
+      "post": {
+        "description": "Enroll a team into a TEAM tournament.",
+        "operationId": "admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/remove": {
+      "post": {
+        "description": "Remove a team from a TEAM tournament.",
+        "operationId": "admin_tournament_teams_remove_admin_tournaments__tournament_id__teams__team_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Remove",
         "tags": [
           "web"
         ]
@@ -44167,6 +44386,63 @@
         ]
       }
     },
+    "/api/v1/sessions/{session_id}/team-results": {
+      "patch": {
+        "description": "Submit results for a TEAM tournament session.\n\nWrites team scores into rounds_data[\"round_results\"][str(round_number)]\nusing \"team_{team_id}\" keys, mirroring the INDIVIDUAL format of \"user_{user_id}\".\n\nAuthorization: Admin or Master Instructor of the tournament.\nIdempotent: re-submitting the same round overwrites previous results.",
+        "operationId": "submit_team_results_api_v1_sessions__session_id__team_results_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitTeamResultsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submit Team Results",
+        "tags": [
+          "sessions",
+          "game-results"
+        ]
+      }
+    },
     "/api/v1/spec-info/age-eligibility": {
       "get": {
         "description": "Check if current user's age meets requirements for a specialization.\n\n**Examples:**\n- `specialization_type=LFA_PLAYER_PRE` \u2192 Check if age 6-11\n- `specialization_type=LFA_COACH&target_group=PRO_HEAD` \u2192 Check if age 23+\n- `specialization_type=INTERNSHIP` \u2192 Check if age 18+\n- `specialization_type=GANCUJU_PLAYER` \u2192 Check if age 5+\n\n**Example Response:**\n```json\n{\n    \"specialization_type\": \"LFA_COACH\",\n    \"target_group\": \"PRO_HEAD\",\n    \"user_age\": 25,\n    \"is_eligible\": true,\n    \"reason\": \"Eligible for LFA Coach (age 25)\"\n}\n```",
@@ -51096,6 +51372,18 @@
       "get": {
         "description": "Display login page",
         "operationId": "login_page_login_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "next",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Next",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -51106,6 +51394,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Login Page",
