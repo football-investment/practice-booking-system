@@ -138,7 +138,7 @@ def list_users(
     )
 
 
-@router.get("/{user_id}", response_model=UserWithStats)
+@router.get("/{user_id:int}", response_model=UserWithStats)
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -163,7 +163,7 @@ def get_user(
     )
 
 
-@router.patch("/{user_id}", response_model=UserSchema)
+@router.patch("/{user_id:int}", response_model=UserSchema)
 def update_user(
     user_id: int,
     user_update: UserUpdate,
@@ -199,7 +199,7 @@ def update_user(
     return user
 
 
-@router.delete("/{user_id}")
+@router.delete("/{user_id:int}")
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),

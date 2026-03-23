@@ -93,7 +93,7 @@ def update_own_profile(
     return user_data
 
 
-@router.post("/{user_id}/reset-password")
+@router.post("/{user_id:int}/reset-password")
 def reset_user_password(
     user_id: int,
     password_data: ResetPassword,

@@ -68,7 +68,7 @@ def invite_search_users(
 # Teams
 # ---------------------------------------------------------------------------
 
-@router.get("/teams/{team_id}")
+@router.get("/teams/{team_id:int}")
 def get_team(
     team_id: int,
     db: Session = Depends(get_db),
@@ -113,7 +113,7 @@ def get_team(
 # Invites
 # ---------------------------------------------------------------------------
 
-@router.post("/teams/{team_id}/invites")
+@router.post("/teams/{team_id:int}/invites")
 def create_invite(
     team_id: int,
     invited_user_id: int,
@@ -136,7 +136,7 @@ def create_invite(
     }
 
 
-@router.post("/teams/invites/{invite_id}/accept")
+@router.post("/teams/invites/{invite_id:int}/accept")
 def accept_invite(
     invite_id: int,
     db: Session = Depends(get_db),
@@ -147,7 +147,7 @@ def accept_invite(
     return {"id": invite.id, "status": invite.status}
 
 
-@router.post("/teams/invites/{invite_id}/reject")
+@router.post("/teams/invites/{invite_id:int}/reject")
 def reject_invite(
     invite_id: int,
     db: Session = Depends(get_db),
@@ -158,7 +158,7 @@ def reject_invite(
     return {"id": invite.id, "status": invite.status}
 
 
-@router.delete("/teams/{team_id}/invites/{invite_id}")
+@router.delete("/teams/{team_id:int}/invites/{invite_id:int}")
 def cancel_invite(
     team_id: int,
     invite_id: int,

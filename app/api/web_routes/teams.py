@@ -1,12 +1,13 @@
 """
 Team web routes — student-facing HTML flow
 
-Route order matters: static paths (/teams/invites) must come before
-path-parameterized routes (/teams/{team_id}).
+Route order matters: static paths (/teams/invite-search, /teams/invites) must
+come before path-parameterized routes (/teams/{team_id}).
 
 Student:
     GET  /tournaments/{id}/team/create   — show create-team form
     POST /tournaments/{id}/team/create   — create team (credit deduction)
+    GET  /teams/invite-search            — AJAX user search (cookie auth, JSON)
     GET  /teams/invites                  — incoming invites for current user
     POST /teams/invites/{inv_id}/accept  — accept invite
     POST /teams/invites/{inv_id}/reject  — reject invite
@@ -15,15 +16,18 @@ Student:
     POST /teams/{id}/invites/{inv_id}/cancel  — captain cancels invite
 """
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.semester import Semester
+from ...models.team import TeamMember, TeamInvite, TeamInviteStatus
 from ...models.tournament_configuration import TournamentConfiguration
 from ...models.user import User, UserRole
 from ...services.tournament import team_service
@@ -114,6 +118,46 @@ async def team_create_submit(
         )
 
     return RedirectResponse(f"/teams/{team.id}?msg=Team+created", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Invite-search (AJAX, JSON) — MUST be before /teams/{team_id}
+# ---------------------------------------------------------------------------
+
+@router.get("/teams/invite-search")
+async def invite_search_web(
+    request: Request,
+    q: str = Query(..., min_length=2),
+    team_id: Optional[int] = Query(None),
+    limit: int = Query(20, ge=1, le=50),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """
+    Cookie-auth AJAX endpoint for the team invite search box.
+    Returns JSON list of {id, name, email} matching the query string,
+    excluding the caller and existing/pending team members.
+    """
+    query = db.query(User).filter(
+        User.is_active == True,
+        User.id != user.id,
+        or_(User.name.ilike(f"%{q}%"), User.email.ilike(f"%{q}%")),
+    )
+    if team_id:
+        member_ids = db.query(TeamMember.user_id).filter(
+            TeamMember.team_id == team_id,
+            TeamMember.is_active == True,
+        ).subquery()
+        query = query.filter(User.id.notin_(member_ids))
+
+        pending_ids = db.query(TeamInvite.invited_user_id).filter(
+            TeamInvite.team_id == team_id,
+            TeamInvite.status == TeamInviteStatus.PENDING.value,
+        ).subquery()
+        query = query.filter(User.id.notin_(pending_ids))
+
+    users = query.limit(limit).all()
+    return JSONResponse([{"id": u.id, "name": u.name, "email": u.email} for u in users])
 
 
 # ---------------------------------------------------------------------------
