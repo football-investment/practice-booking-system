@@ -54,7 +54,8 @@ from .endpoints import (
     tournaments,  # 🏆 NEW: Add one-day tournament generator system
     tournament_types,  # 🎯 NEW: Add tournament type system
     game_presets,  # 🎮 P3: Add game preset system
-    teams  # 👥 NEW: Team management + invite flow
+    teams,  # 👥 NEW: Team management + invite flow
+    pitches  # 🏟️ NEW: Pitch instructor assignment system
 )
 
 from .endpoints.sandbox import run_test as sandbox  # 🧪 NEW: Add sandbox test system
@@ -366,6 +367,13 @@ api_router.include_router(
     teams.router,
     prefix="",
     tags=["teams"]
+)
+
+# 🏟️ NEW: Pitch instructor assignment system
+api_router.include_router(
+    pitches.router,
+    prefix="",
+    tags=["pitches", "pitch-instructor-assignments"]
 )
 
 # 🎯 NEW: Add tournament session generation system routes (admin only)

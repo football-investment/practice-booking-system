@@ -71,6 +71,26 @@ def get_current_admin_or_instructor_user(current_user: User = Depends(get_curren
     return current_user
 
 
+def get_current_sport_director_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current user if they are admin or sport director"""
+    if current_user.role not in {UserRole.ADMIN, UserRole.SPORT_DIRECTOR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sport Director role required"
+        )
+    return current_user
+
+
+def get_current_pitch_manager_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current user if they can manage pitch assignments (admin, sport director, or instructor)."""
+    if current_user.role not in {UserRole.ADMIN, UserRole.SPORT_DIRECTOR, UserRole.INSTRUCTOR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to manage pitch assignments"
+        )
+    return current_user
+
+
 async def get_current_user_optional(
     request: Request,
     db: Session = Depends(get_db)

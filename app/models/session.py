@@ -58,6 +58,7 @@ class Session(Base):
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)  # FIXED: Made nullable to allow sessions without groups
     instructor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     campus_id = Column(Integer, ForeignKey("campuses.id"), nullable=True, comment="Campus/venue for multi-campus tournaments")
+    pitch_id = Column(Integer, ForeignKey("pitches.id"), nullable=True, index=True, comment="Specific pitch/field within the campus")
 
     # 🎓 NEW: Specialization fields
     target_specialization = Column(
@@ -300,6 +301,7 @@ class Session(Base):
     semester = relationship("Semester", back_populates="sessions")
     group = relationship("Group", back_populates="sessions")
     instructor = relationship("User", back_populates="taught_sessions")
+    pitch = relationship("Pitch", back_populates="sessions")
     bookings = relationship("Booking", back_populates="session")
     attendances = relationship("Attendance", back_populates="session")
     feedbacks = relationship("Feedback", back_populates="session")

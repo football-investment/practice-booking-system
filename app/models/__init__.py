@@ -10,10 +10,17 @@ from .instructor_assignment import (
     PositionStatus,
     PositionApplication,
     ApplicationStatus,
-    InstructorAssignment
+    InstructorAssignment,
+    SportDirectorAssignment,
 )
 from .location import Location
 from .campus import Campus
+from .pitch import Pitch
+from .pitch_instructor_assignment import (
+    PitchInstructorAssignment,
+    PitchAssignmentType,
+    PitchAssignmentStatus,
+)
 from .semester import Semester, SemesterStatus, SemesterCategory
 from .group import Group, group_users
 from .session import Session, SessionType, EventCategory, SessionParticipantType, DeliveryMode
@@ -87,8 +94,13 @@ __all__ = [
     "PositionApplication",
     "ApplicationStatus",
     "InstructorAssignment",
+    "SportDirectorAssignment",
     "Location",
     "Campus",
+    "Pitch",
+    "PitchInstructorAssignment",
+    "PitchAssignmentType",
+    "PitchAssignmentStatus",
     "Semester",
     "SemesterStatus",
     "SemesterCategory",

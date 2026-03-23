@@ -13,7 +13,7 @@ from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
 from ..algorithms import RoundRobinPairing, GroupDistribution, KnockoutBracket
-from ..utils import get_tournament_venue
+from ..utils import get_tournament_venue, pick_pitch
 
 
 class GroupKnockoutGenerator(BaseFormatGenerator):
@@ -209,7 +209,10 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                                 'field_number': active_field_num
                             },
                             # ✅ EXPLICIT PARTICIPANTS: 2 players
-                            'participant_user_ids': [player1_id, player2_id]
+                            'participant_user_ids': [player1_id, player2_id],
+                            # ✅ Multi-campus: use group's assigned campus for pitch assignment
+                            'campus_id': _grp_campus_id,
+                            'pitch_id': pick_pitch(len(sessions), _grp_campus_id, parallel_fields, self.db),
                         })
         else:
             # ✅ INDIVIDUAL_RANKING: Multi-player ranking within each group
@@ -277,7 +280,10 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                             'field_number': active_field_num
                         },
                         # ✅ EXPLICIT PARTICIPANTS: No runtime filtering!
-                        'participant_user_ids': group_participant_ids
+                        'participant_user_ids': group_participant_ids,
+                        # ✅ Multi-campus: use group's assigned campus for pitch assignment
+                        'campus_id': _grp_campus_id,
+                        'pitch_id': pick_pitch(len(sessions), _grp_campus_id, parallel_fields, self.db),
                     })
 
         # Break between phases: advance current_time to max of ALL field slots + inter-phase break

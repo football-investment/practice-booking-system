@@ -12,7 +12,7 @@ from app.models.tournament_type import TournamentType
 from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
-from ..utils import get_tournament_venue, pick_campus
+from ..utils import get_tournament_venue, pick_campus, pick_pitch
 
 
 class KnockoutGenerator(BaseFormatGenerator):
@@ -115,6 +115,7 @@ class KnockoutGenerator(BaseFormatGenerator):
                     'participant_user_ids': participant_ids,
                     # ✅ Multi-campus: round-robin campus assignment
                     'campus_id': pick_campus(len(sessions), campus_ids),
+                    'pitch_id': pick_pitch(len(sessions), pick_campus(len(sessions), campus_ids), parallel_fields, self.db),
                 })
 
                 # Schedule parallel fields

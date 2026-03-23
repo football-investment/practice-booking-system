@@ -10,7 +10,7 @@ from app.models.semester import Semester
 from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
-from ..utils import get_tournament_venue, pick_campus
+from ..utils import get_tournament_venue, pick_campus, pick_pitch
 
 
 class IndividualRankingGenerator(BaseFormatGenerator):
@@ -164,6 +164,7 @@ class IndividualRankingGenerator(BaseFormatGenerator):
                 'rounds_data': rounds_data,
                 # ✅ Multi-campus: pick first campus (single session format)
                 'campus_id': pick_campus(0, campus_ids),
+                'pitch_id': pick_pitch(0, pick_campus(0, campus_ids), parallel_fields, self.db),
             }
 
             logger.info(f"   Session dict created successfully")
