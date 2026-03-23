@@ -155,9 +155,9 @@ def calculate_tournament_rankings(
             cfg = tournament.tournament_config_obj
             is_team = cfg and cfg.participant_type == "TEAM"
 
-            ranking_direction = "DESC"
+            ranking_direction = "ASC"
             if cfg:
-                ranking_direction = cfg.ranking_direction or "DESC"
+                ranking_direction = cfg.ranking_direction or "ASC"
 
             # Aggregate round_results across all sessions
             combined_round_results: dict = {}
