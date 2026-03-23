@@ -472,6 +472,7 @@ class TestGetTournamentRankingsHappy:
     def _ranking_row(self, user_id=10, rank=1, points=85.0):
         r = MagicMock()
         r.user_id = user_id
+        r.team_id = None
         r.rank = rank
         r.points = points
         r.wins = 2
@@ -492,7 +493,7 @@ class TestGetTournamentRankingsHappy:
     def test_response_fields_present(self):
         t = _tournament(format_="HEAD_TO_HEAD")
         r = self._ranking_row()
-        rows = [(r, "nick10", "User 10")]
+        rows = [(r, "nick10", "User 10", None)]
         db = self._make_db(t, rows)
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
         assert "tournament_id" in result
@@ -502,8 +503,8 @@ class TestGetTournamentRankingsHappy:
 
     def test_rankings_count_matches_rows(self):
         t = _tournament(format_="HEAD_TO_HEAD")
-        rows = [(self._ranking_row(user_id=10, rank=1), "n1", "U1"),
-                (self._ranking_row(user_id=20, rank=2), "n2", "U2")]
+        rows = [(self._ranking_row(user_id=10, rank=1), "n1", "U1", None),
+                (self._ranking_row(user_id=20, rank=2), "n2", "U2", None)]
         db = self._make_db(t, rows)
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
         assert result["rankings_count"] == 2
@@ -511,7 +512,7 @@ class TestGetTournamentRankingsHappy:
     def test_nickname_used_as_display_name(self):
         t = _tournament(format_="HEAD_TO_HEAD")
         r = self._ranking_row()
-        rows = [(r, "nick10", "Full Name")]
+        rows = [(r, "nick10", "Full Name", None)]
         db = self._make_db(t, rows)
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
         assert result["rankings"][0]["name"] == "nick10"
@@ -519,7 +520,7 @@ class TestGetTournamentRankingsHappy:
     def test_name_fallback_when_no_nickname(self):
         t = _tournament(format_="HEAD_TO_HEAD")
         r = self._ranking_row()
-        rows = [(r, None, "Full Name")]
+        rows = [(r, None, "Full Name", None)]
         db = self._make_db(t, rows)
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
         assert result["rankings"][0]["name"] == "Full Name"
@@ -529,7 +530,7 @@ class TestGetTournamentRankingsHappy:
         r = self._ranking_row()
         r.goals_for = 7
         r.goals_against = 3
-        rows = [(r, "n", "U")]
+        rows = [(r, "n", "U", None)]
         db = self._make_db(t, rows)
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
         assert result["rankings"][0]["goal_difference"] == 4
@@ -537,7 +538,7 @@ class TestGetTournamentRankingsHappy:
     def test_ir_tournament_adds_measured_value(self):
         t = _tournament(format_="INDIVIDUAL_RANKING")
         r = self._ranking_row(points=72.5)
-        rows = [(r, "n", "U")]
+        rows = [(r, "n", "U", None)]
         # ir_sessions query (q4) returns empty list
         db = _db(_q(first=t), _q(all_=rows), _q(all_=[]), _q(all_=[]))
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
@@ -546,7 +547,7 @@ class TestGetTournamentRankingsHappy:
     def test_non_ir_tournament_no_measured_value(self):
         t = _tournament(format_="HEAD_TO_HEAD")
         r = self._ranking_row()
-        rows = [(r, "n", "U")]
+        rows = [(r, "n", "U", None)]
         db = self._make_db(t, rows)
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
         assert "measured_value" not in result["rankings"][0]
@@ -557,6 +558,7 @@ class TestGetTournamentRankingsHappy:
 def _rrow(user_id=42, rank=1, points=80.0):
     r = MagicMock()
     r.user_id = user_id
+    r.team_id = None
     r.rank = rank
     r.points = points
     r.wins = 1
@@ -575,7 +577,7 @@ class TestGetTournamentRankingsGroupIdentifier:
         """Lines 277-282: participant_user_ids_raw is already a list → parsed directly."""
         t = _tournament(format_="HEAD_TO_HEAD")
         r = _rrow(user_id=42)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         group_sess = [("GroupA", [42], 10)]
         db = _db(_q(first=t), _q(all_=rows), _q(all_=group_sess))
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
@@ -585,7 +587,7 @@ class TestGetTournamentRankingsGroupIdentifier:
         """Lines 279: participant_user_ids_raw is a JSON string → json.loads path."""
         t = _tournament(format_="HEAD_TO_HEAD")
         r = _rrow(user_id=42)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         group_sess = [("GroupB", '[42]', 10)]
         db = _db(_q(first=t), _q(all_=rows), _q(all_=group_sess))
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
@@ -595,7 +597,7 @@ class TestGetTournamentRankingsGroupIdentifier:
         """Lines 286-290: participant_user_ids_raw is None → Booking query fallback."""
         t = _tournament(format_="HEAD_TO_HEAD")
         r = _rrow(user_id=42)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         group_sess = [("GroupC", None, 10)]
         booking_q = _q(all_=[(42,)])
         db = _db(_q(first=t), _q(all_=rows), _q(all_=group_sess), booking_q)
@@ -606,7 +608,7 @@ class TestGetTournamentRankingsGroupIdentifier:
         """Line 274: if not gid: continue — session with None gid leaves user unassigned."""
         t = _tournament(format_="HEAD_TO_HEAD")
         r = _rrow(user_id=42)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         group_sess = [(None, [42], 10)]  # gid=None → skipped by guard
         db = _db(_q(first=t), _q(all_=rows), _q(all_=group_sess))
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
@@ -630,7 +632,7 @@ class TestGetTournamentRankingsRewards:
         """Lines 295-308: REWARDS_DISTRIBUTED → participation queried, reward_map built."""
         t = _tournament(format_="HEAD_TO_HEAD", tournament_status="REWARDS_DISTRIBUTED")
         r = _rrow(user_id=42)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         p = self._part(user_id=42, xp=120, credits=60)
         db = _db(_q(first=t), _q(all_=rows), _q(all_=[]), _q(all_=[p]))
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
@@ -642,7 +644,7 @@ class TestGetTournamentRankingsRewards:
         """Lines 369-376: user not in reward_map → defaults (xp=0, credits=0) applied."""
         t = _tournament(format_="HEAD_TO_HEAD", tournament_status="REWARDS_DISTRIBUTED")
         r = _rrow(user_id=99)  # user 99 has no participation record
-        rows = [(r, "n99", "User99")]
+        rows = [(r, "n99", "User99", None)]
         p = self._part(user_id=42, xp=100, credits=50)  # different user
         db = _db(_q(first=t), _q(all_=rows), _q(all_=[]), _q(all_=[p]))
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
@@ -664,7 +666,7 @@ class TestGetTournamentRankingsIRRoundResults:
         """Lines 322-339, 365: IR session with dict round_results → entry gets round_results."""
         t = _tournament(format_="INDIVIDUAL_RANKING")
         r = _rrow(user_id=42, points=88.5)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         ir_sess = self._ir_sess({"1": {"42": "88.5"}})
         db = _db(_q(first=t), _q(all_=rows), _q(all_=[]), _q(all_=[ir_sess]))
         result = get_tournament_rankings(tournament_id=1, db=db, current_user=_user())
@@ -677,7 +679,7 @@ class TestGetTournamentRankingsIRRoundResults:
         """Lines 325-327: round_results is a list (old format) → isinstance check fails, skipped."""
         t = _tournament(format_="INDIVIDUAL_RANKING")
         r = _rrow(user_id=42, points=75.0)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         s = MagicMock()
         s.rounds_data = {"round_results": [[42, 75.0]]}  # list, not dict
         db = _db(_q(first=t), _q(all_=rows), _q(all_=[]), _q(all_=[s]))
@@ -688,7 +690,7 @@ class TestGetTournamentRankingsIRRoundResults:
         """Lines 330-331: player_values for a round is a list → isinstance check fails, skipped."""
         t = _tournament(format_="INDIVIDUAL_RANKING")
         r = _rrow(user_id=42, points=75.0)
-        rows = [(r, "n42", "User42")]
+        rows = [(r, "n42", "User42", None)]
         s = MagicMock()
         s.rounds_data = {"round_results": {"1": [42, 75.0]}}  # list pv, not dict
         db = _db(_q(first=t), _q(all_=rows), _q(all_=[]), _q(all_=[s]))

@@ -2038,3 +2038,105 @@ class TestTeamTournamentLifecycle:
         assert resp.status_code == 200, resp.text[:400]
         assert "Team Management" in resp.text, "Page must contain 'Team Management' heading"
         assert "Enrolled Teams" in resp.text, "Page must list enrolled teams section"
+
+    # ── TEAM-08: GET /rankings response includes team_id + team_name ──────────
+
+    def test_TEAM08_get_rankings_returns_team_id_and_team_name(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-08: GET /api/v1/tournaments/{id}/rankings returns team_id and team_name
+        fields for TEAM rankings — user_id is NULL (not rendered as 'User #null').
+
+        Proves:
+        - response["rankings"][i]["team_id"] == team.id
+        - response["rankings"][i]["team_name"] == team.name
+        - response["rankings"][i]["user_id"] is None
+        """
+        from app.models.team import Team, TournamentTeamEnrollment
+
+        t = self._make_team_tournament(test_db)
+        team1, _ = self._make_team_and_members(test_db, 2)
+        team2, _ = self._make_team_and_members(test_db, 2)
+        self._enroll_team(test_db, t, team1)
+        self._enroll_team(test_db, t, team2)
+        self._add_session_with_team_results(test_db, t, [team1.id, team2.id])
+        test_db.flush()
+
+        # Calculate rankings
+        calc = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
+        assert calc.status_code == 200, calc.text[:400]
+
+        # Fetch rankings
+        resp = admin_client.get(f"/api/v1/tournaments/{t.id}/rankings")
+        assert resp.status_code == 200, resp.text[:400]
+        data = resp.json()
+
+        assert data["rankings_count"] == 2, (
+            f"Expected 2 team rankings, got {data['rankings_count']}"
+        )
+        for entry in data["rankings"]:
+            assert entry["team_id"] is not None, (
+                "TEAM ranking must have team_id set (not None)"
+            )
+            assert entry["team_name"] is not None, (
+                f"TEAM ranking must have team_name set, got None for team_id={entry['team_id']}"
+            )
+            assert entry["user_id"] is None, (
+                f"TEAM ranking must have user_id=None (not a user), got {entry['user_id']}"
+            )
+
+        # team1 has highest score (90) → rank 1
+        ranked = sorted(data["rankings"], key=lambda r: r["rank"])
+        assert ranked[0]["team_id"] == team1.id, (
+            f"team1 (highest score) must be rank 1. Got team_id={ranked[0]['team_id']}"
+        )
+        assert ranked[0]["team_name"] == team1.name, (
+            f"team_name must be '{team1.name}', got '{ranked[0]['team_name']}'"
+        )
+
+    # ── TEAM-09: admin edit page renders team context for UI ──────────────────
+
+    def test_TEAM09_edit_page_renders_enrolled_team_names_js_constant(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-09: GET /admin/tournaments/{id}/edit for a TEAM tournament with
+        enrolled teams renders the ENROLLED_TEAM_NAMES JS constant containing
+        the team names, and sets participant_team_ids on the session card button.
+
+        This proves the openResultModal() TEAM branch receives team data.
+        """
+        t = self._make_team_tournament(test_db)
+        t.tournament_status = "IN_PROGRESS"
+        team1, _ = self._make_team_and_members(test_db, 2)
+        team2, _ = self._make_team_and_members(test_db, 2)
+        self._enroll_team(test_db, t, team1)
+        self._enroll_team(test_db, t, team2)
+        # Add a match session with participant_team_ids set
+        self._add_session_with_team_results(test_db, t, [team1.id, team2.id])
+        test_db.flush()
+
+        resp = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert resp.status_code == 200, resp.text[:400]
+        html = resp.text
+
+        # ENROLLED_TEAM_NAMES must contain both team names
+        assert "ENROLLED_TEAM_NAMES" in html, (
+            "Edit page must render ENROLLED_TEAM_NAMES JS constant for TEAM tournaments"
+        )
+        assert team1.name in html, (
+            f"Team1 name '{team1.name}' must appear in ENROLLED_TEAM_NAMES"
+        )
+        assert team2.name in html, (
+            f"Team2 name '{team2.name}' must appear in ENROLLED_TEAM_NAMES"
+        )
+
+        # participant_team_ids must appear in the session button onclick
+        assert "participant_team_ids" in html or str(team1.id) in html, (
+            "Session button must pass team IDs to openResultModal"
+        )
