@@ -341,3 +341,86 @@ def submit_head_to_head_match_result(
         "message": "HEAD_TO_HEAD match result submitted successfully",
         "knockout_progression": progression_result  # Include progression info
     }
+
+
+# ─── TEAM RESULTS ─────────────────────────────────────────────────────────────
+
+class TeamResultEntry(BaseModel):
+    """Single team's result for a TEAM tournament session"""
+    team_id: int
+    score: float = Field(..., description="Score for this team in this session")
+    rank: Optional[int] = Field(None, ge=1, description="Optional rank override; auto-computed if None")
+
+
+class SubmitTeamResultsRequest(BaseModel):
+    """Submit results for a TEAM tournament session (one or more rounds)"""
+    results: List[TeamResultEntry]
+    round_number: int = Field(1, ge=1, description="Round number within the session (1-based)")
+
+
+@router.patch("/{session_id}/team-results", status_code=status.HTTP_200_OK)
+def submit_team_results(
+    session_id: int,
+    request: SubmitTeamResultsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Submit results for a TEAM tournament session.
+
+    Writes team scores into rounds_data["round_results"][str(round_number)]
+    using "team_{team_id}" keys, mirroring the INDIVIDUAL format of "user_{user_id}".
+
+    Authorization: Admin or Master Instructor of the tournament.
+    Idempotent: re-submitting the same round overwrites previous results.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+    from app.models.semester import Semester
+
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify this session belongs to a TEAM tournament
+    tournament = db.query(Semester).filter(Semester.id == session.semester_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    cfg = tournament.tournament_config_obj
+    if not cfg or cfg.participant_type != "TEAM":
+        raise HTTPException(
+            status_code=400,
+            detail="This endpoint is only for TEAM tournaments. "
+                   "Use PATCH /sessions/{id}/results for INDIVIDUAL tournaments."
+        )
+
+    # Authorization
+    if current_user.role != UserRole.ADMIN and tournament.master_instructor_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the tournament's master instructor or admin can submit results"
+        )
+
+    if not request.results:
+        raise HTTPException(status_code=400, detail="No results provided")
+
+    # Build round_results dict: {"team_42": "95.5", "team_43": "82.0"}
+    round_results = {f"team_{e.team_id}": str(e.score) for e in request.results}
+
+    rd = dict(session.rounds_data) if session.rounds_data else {}
+    if "round_results" not in rd:
+        rd["round_results"] = {}
+    rd["round_results"][str(request.round_number)] = round_results
+    rd["completed_rounds"] = max(rd.get("completed_rounds", 0), request.round_number)
+
+    session.rounds_data = rd
+    flag_modified(session, "rounds_data")
+    db.commit()
+
+    return {
+        "session_id": session_id,
+        "round_number": request.round_number,
+        "teams_recorded": len(request.results),
+        "round_results": round_results,
+        "message": "Team results submitted successfully"
+    }

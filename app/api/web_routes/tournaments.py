@@ -40,6 +40,7 @@ from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel, EventCategory
 from ...models.tournament_ranking import TournamentRanking
+from ...models.team import Team, TeamMember, TournamentTeamEnrollment
 from ...models.instructor_assignment import (
     InstructorAssignment,
     InstructorAssignmentRequest,
@@ -989,4 +990,126 @@ async def admin_instructor_detail_page(
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },
+    )
+
+
+# ─── TEAM MANAGEMENT ROUTES ───────────────────────────────────────────────────
+
+@router.get("/admin/tournaments/{tournament_id}/teams", response_class=HTMLResponse)
+async def admin_tournament_teams_page(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: manage team enrollments for a TEAM tournament."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+
+    cfg = t.tournament_config_obj
+    if not cfg or cfg.participant_type != "TEAM":
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/edit?error=This+tournament+is+not+TEAM+mode",
+            status_code=303,
+        )
+
+    # Current team enrollments
+    enrollments = (
+        db.query(TournamentTeamEnrollment)
+        .filter(
+            TournamentTeamEnrollment.semester_id == tournament_id,
+            TournamentTeamEnrollment.is_active == True,
+        )
+        .all()
+    )
+    enrolled_team_ids = {e.team_id for e in enrollments}
+
+    # Enrolled teams with member counts
+    enrolled_teams = []
+    for e in enrollments:
+        team = db.query(Team).filter(Team.id == e.team_id).first()
+        if team:
+            member_count = db.query(TeamMember).filter(
+                TeamMember.team_id == team.id,
+                TeamMember.is_active == True,
+            ).count()
+            enrolled_teams.append({"enrollment": e, "team": team, "member_count": member_count})
+
+    # All available teams (not yet enrolled)
+    all_teams = db.query(Team).filter(Team.is_active == True).all()
+    available_teams = [t2 for t2 in all_teams if t2.id not in enrolled_team_ids]
+
+    return templates.TemplateResponse(
+        request,
+        "admin/tournament_teams.html",
+        {
+            "tournament": t,
+            "enrolled_teams": enrolled_teams,
+            "available_teams": available_teams,
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/enroll", response_class=RedirectResponse)
+async def admin_tournament_teams_enroll(
+    tournament_id: int,
+    team_id: int = Form(...),
+    request: Request = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Enroll a team into a TEAM tournament."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+
+    existing = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.team_id == team_id,
+    ).first()
+    if existing:
+        existing.is_active = True
+    else:
+        db.add(TournamentTeamEnrollment(
+            semester_id=tournament_id,
+            team_id=team_id,
+            is_active=True,
+            payment_verified=False,
+        ))
+    db.commit()
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Team+enrolled",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/remove", response_class=RedirectResponse)
+async def admin_tournament_teams_remove(
+    tournament_id: int,
+    team_id: int,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Remove a team from a TEAM tournament."""
+    _admin_only(user)
+
+    enrollment = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.team_id == team_id,
+        TournamentTeamEnrollment.is_active == True,
+    ).first()
+    if enrollment:
+        enrollment.is_active = False
+        db.commit()
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Team+removed",
+        status_code=303,
     )

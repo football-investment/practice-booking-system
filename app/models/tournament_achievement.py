@@ -53,6 +53,8 @@ class TournamentParticipation(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     semester_id = Column(Integer, ForeignKey("semesters.id", ondelete="CASCADE"), nullable=False, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, index=True,
+                     comment="For TEAM tournaments: which team this member's reward came from.")
     placement = Column(Integer, nullable=True)  # 1, 2, 3, or NULL for participation
     skill_points_awarded = Column(JSONB, nullable=True)  # {"agility": 4.3, "physical_fitness": 2.2}
     skill_rating_delta = Column(JSONB, nullable=True)   # {"passing": 1.2, "dribbling": -0.4} — V3 EMA per-tournament delta

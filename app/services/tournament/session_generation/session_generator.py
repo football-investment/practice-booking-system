@@ -234,31 +234,62 @@ class TournamentSessionGenerator:
 
             # ✅ CRITICAL: Check tournament format
             logger.info(f"🔀 Checking tournament format: {tournament.format}")
+
+            # Detect TEAM participant_type — overrides the default INDIVIDUAL seeding pool
+            cfg = tournament.tournament_config_obj
+            is_team_tournament = cfg and cfg.participant_type == "TEAM"
+
             if tournament.format == "INDIVIDUAL_RANKING":
-                logger.info(f"🎯 INDIVIDUAL_RANKING tournament detected")
-                # INDIVIDUAL_RANKING: No tournament type needed, simple competition
-                if player_count < 2:
-                    logger.warning(f"❌ Not enough players for INDIVIDUAL_RANKING: need 2, have {player_count}")
-                    return False, f"Not enough players. Need at least 2, have {player_count}", []
+                logger.info(f"🎯 INDIVIDUAL_RANKING tournament detected (team_mode={is_team_tournament})")
 
-                logger.info(f"🔧 Calling individual_ranking_generator.generate() with:")
-                logger.info(f"   - tournament_id: {tournament.id}")
-                logger.info(f"   - player_count: {player_count}")
-                logger.info(f"   - parallel_fields: {parallel_fields}")
-                logger.info(f"   - session_duration: {session_duration_minutes}")
-                logger.info(f"   - break_minutes: {break_minutes}")
-                logger.info(f"   - number_of_rounds: {number_of_rounds}")
+                if is_team_tournament:
+                    # TEAM mode: seed from TournamentTeamEnrollment instead of SemesterEnrollment
+                    from app.models.team import TournamentTeamEnrollment
+                    team_enrollments = self.db.query(TournamentTeamEnrollment).filter(
+                        TournamentTeamEnrollment.semester_id == tournament_id,
+                        TournamentTeamEnrollment.is_active == True,
+                    ).all()
+                    team_ids = [e.team_id for e in team_enrollments]
+                    team_count = len(team_ids)
+                    logger.info(f"   TEAM mode: {team_count} enrolled teams: {team_ids}")
+                    if team_count < 2:
+                        return False, f"Not enough teams. Need at least 2, have {team_count}", []
+                    sessions = self.individual_ranking_generator.generate(
+                        tournament=tournament,
+                        tournament_type=None,
+                        player_count=team_count,
+                        parallel_fields=parallel_fields,
+                        session_duration=session_duration_minutes,
+                        break_minutes=break_minutes,
+                        number_of_rounds=number_of_rounds,
+                        campus_ids=campus_ids,
+                        team_mode=True,
+                        team_ids=team_ids,
+                    )
+                else:
+                    # INDIVIDUAL mode: No tournament type needed, simple competition
+                    if player_count < 2:
+                        logger.warning(f"❌ Not enough players for INDIVIDUAL_RANKING: need 2, have {player_count}")
+                        return False, f"Not enough players. Need at least 2, have {player_count}", []
 
-                sessions = self.individual_ranking_generator.generate(
-                    tournament=tournament,
-                    tournament_type=None,
-                    player_count=player_count,
-                    parallel_fields=parallel_fields,
-                    session_duration=session_duration_minutes,
-                    break_minutes=break_minutes,
-                    number_of_rounds=number_of_rounds,
-                    campus_ids=campus_ids,
-                )
+                    logger.info(f"🔧 Calling individual_ranking_generator.generate() with:")
+                    logger.info(f"   - tournament_id: {tournament.id}")
+                    logger.info(f"   - player_count: {player_count}")
+                    logger.info(f"   - parallel_fields: {parallel_fields}")
+                    logger.info(f"   - session_duration: {session_duration_minutes}")
+                    logger.info(f"   - break_minutes: {break_minutes}")
+                    logger.info(f"   - number_of_rounds: {number_of_rounds}")
+
+                    sessions = self.individual_ranking_generator.generate(
+                        tournament=tournament,
+                        tournament_type=None,
+                        player_count=player_count,
+                        parallel_fields=parallel_fields,
+                        session_duration=session_duration_minutes,
+                        break_minutes=break_minutes,
+                        number_of_rounds=number_of_rounds,
+                        campus_ids=campus_ids,
+                    )
                 logger.info(f"✅ individual_ranking_generator.generate() returned {len(sessions)} sessions")
             else:
                 # HEAD_TO_HEAD: Requires tournament type (Swiss, League, Knockout, etc.)

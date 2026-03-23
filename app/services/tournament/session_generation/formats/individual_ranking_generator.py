@@ -57,17 +57,23 @@ class IndividualRankingGenerator(BaseFormatGenerator):
             sessions = []
             number_of_rounds = kwargs.get('number_of_rounds', 1)
             campus_ids = kwargs.get('campus_ids')
+            team_mode = kwargs.get('team_mode', False)
+            team_ids = kwargs.get('team_ids', [])
             logger.info(f"   number_of_rounds: {number_of_rounds}")
 
-            # Get enrolled players
-            enrolled_players = self.db.query(SemesterEnrollment).filter(
-                SemesterEnrollment.semester_id == tournament.id,
-                SemesterEnrollment.is_active == True,
-                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
-            ).all()
-            player_ids = [enrollment.user_id for enrollment in enrolled_players]
-            logger.info(f"   Enrolled players fetched: {len(enrolled_players)} players")
-            logger.info(f"   Player IDs: {player_ids}")
+            # Get participant IDs: teams (TEAM mode) or enrolled players (INDIVIDUAL mode)
+            if team_mode:
+                player_ids = []  # Not used in team mode
+                logger.info(f"   TEAM mode: using team_ids={team_ids}")
+            else:
+                enrolled_players = self.db.query(SemesterEnrollment).filter(
+                    SemesterEnrollment.semester_id == tournament.id,
+                    SemesterEnrollment.is_active == True,
+                    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
+                ).all()
+                player_ids = [enrollment.user_id for enrollment in enrolled_players]
+                logger.info(f"   Enrolled players fetched: {len(enrolled_players)} players")
+                logger.info(f"   Player IDs: {player_ids}")
 
             # 🔄 NEW ARCHITECTURE: Create 1 session for ALL rounds (not N sessions)
             # Total duration = (number_of_rounds * session_duration) + ((number_of_rounds - 1) * break_minutes)
@@ -148,10 +154,12 @@ class IndividualRankingGenerator(BaseFormatGenerator):
                     'expected_participants': player_count,
                     'scoring_method': tournament.scoring_type,
                     'description': description,
-                    'number_of_rounds': number_of_rounds
+                    'number_of_rounds': number_of_rounds,
+                    'mode': 'TEAM' if team_mode else 'INDIVIDUAL',
                 },
-                # ✅ All enrolled players participate
-                'participant_user_ids': player_ids,
+                # ✅ Participants: teams (TEAM mode) or individual players
+                'participant_user_ids': None if team_mode else player_ids,
+                'participant_team_ids': team_ids if team_mode else None,
                 # 🔄 NEW: Rounds data for multi-round tracking
                 'rounds_data': rounds_data,
                 # ✅ Multi-campus: pick first campus (single session format)

@@ -35,6 +35,8 @@ class TournamentRanking(Base):
     __table_args__ = (
         UniqueConstraint('tournament_id', 'user_id', 'participant_type',
                          name='uq_tournament_rankings_tournament_user_type'),
+        # Partial unique index for team rankings is created via Alembic migration
+        # (SQLAlchemy UniqueConstraint cannot express WHERE team_id IS NOT NULL)
         {'extend_existing': True}
     )
 

@@ -1277,11 +1277,11 @@ class TestTournamentFieldBindings:
     ):
         """
         GET /admin/tournaments/{id}/edit must render <select id="basic-participant-type">
-        with INDIVIDUAL selectable and TEAM/MIXED marked disabled (P2 feature).
+        with INDIVIDUAL and TEAM selectable (both now implemented).
+        MIXED remains disabled (P3 feature).
 
         Existing tournaments with participant_type='TEAM' in DB still show TEAM
-        as selected (for display/audit) but the option is disabled so it cannot
-        be changed to another unsupported value.
+        as selected.
         """
         t = self._make_active_tournament(test_db, tournament_type)
         t.tournament_config_obj.participant_type = "INDIVIDUAL"
@@ -1295,12 +1295,8 @@ class TestTournamentFieldBindings:
             "Edit page must render <select id='basic-participant-type'>"
         )
         assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must exist in dropdown"
-        assert 'value="TEAM" disabled' in html, (
-            "TEAM option must be disabled (P2 feature — not yet wired up to ranking)"
-        )
-        assert 'value="MIXED" disabled' in html, (
-            "MIXED option must be disabled (P2 feature — not yet wired up to ranking)"
-        )
+        assert 'value="TEAM"' in html, "TEAM option must exist in dropdown (now implemented)"
+        assert 'value="MIXED" disabled' in html, "MIXED option must remain disabled (P3 feature)"
 
     # ── BIND-08: Edit page renders number_of_rounds field with correct value ─────
 
@@ -1349,7 +1345,7 @@ class TestTournamentFieldBindings:
             "Create form must include participant_type select"
         )
         assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must be present"
-        assert 'value="TEAM" disabled' in html, "TEAM option must be present but disabled (P2)"
+        assert 'value="TEAM"' in html, "TEAM option must be present (now implemented)"
         assert 'name="number_of_rounds"' in html, (
             "Create form must include number_of_rounds input"
         )
@@ -1604,38 +1600,33 @@ class TestMultiRoundSessionGeneration:
 
     # ── PART-01 ──────────────────────────────────────────────────────────────
 
-    def test_PART01_participant_type_stored_but_ranking_hardcodes_individual(
+    def test_PART01_team_config_with_user_keys_produces_zero_rankings(
         self,
         test_db: Session,
         admin_client: TestClient,
     ):
         """
-        PART-01: Documents the P2 gap for participant_type.
+        PART-01: TEAM participant_type + user_id round_results → 0 team rankings.
 
-        TournamentConfiguration.participant_type='TEAM' is stored correctly
-        (BIND-10 proves the round-trip), but the calculate-rankings endpoint
-        hardcodes 'INDIVIDUAL' in every TournamentRanking row it creates.
+        If participant_type='TEAM' is set but rounds_data contains user_id keys
+        (e.g. "1234": "95") instead of "team_{id}" keys, the TEAM aggregation
+        finds no team scores → rankings_count=0.
 
-        This is by design for the current sprint — TEAM/MIXED ranking logic
-        is a P2 feature.  The UI should restrict these options accordingly.
+        This documents that TEAM tournaments MUST use PATCH /sessions/{id}/team-results
+        (which writes "team_X" keys) rather than the INDIVIDUAL /results endpoint.
 
-        Uses INDIVIDUAL_RANKING format (no tournament_type_id) so the IR
-        ranking path runs — H2H ranking requires a known tournament type code
-        (league/knockout/group_knockout) and would raise 400 otherwise.
-
-        Assertion: after calculate-rankings runs, all TournamentRanking rows
-        have participant_type='INDIVIDUAL' regardless of config.
+        NOTE: PART-01 previously documented the P2 gap (TEAM config → INDIVIDUAL
+        rankings hardcoded). That gap is now resolved — TEAM config correctly drives
+        the TEAM aggregation branch. This test proves the format contract instead.
         """
         p1, _ = PlayerFactory.create_lfa_player(test_db)
         p2, _ = PlayerFactory.create_lfa_player(test_db)
 
-        # Build IN_PROGRESS INDIVIDUAL_RANKING tournament with participant_type='TEAM'
         t = self._make_ir_tournament(test_db, number_of_rounds=1)
         t.tournament_config_obj.participant_type = "TEAM"
         test_db.flush()
 
-        # Add a session with INDIVIDUAL_RANKING results (enough for ranking calc)
-        import json as _json
+        # Session uses user_id keys — wrong format for TEAM tournament
         session = SessionModel(
             title="PART-01 Session",
             semester_id=t.id,
@@ -1649,37 +1640,401 @@ class TestMultiRoundSessionGeneration:
             rounds_data={
                 "total_rounds": 1,
                 "completed_rounds": 1,
-                "round_results": {
-                    "1": {str(p1.id): "95", str(p2.id): "80"},
-                },
+                "round_results": {"1": {str(p1.id): "95", str(p2.id): "80"}},
             },
             participant_user_ids=[p1.id, p2.id],
         )
         test_db.add(session)
         test_db.flush()
 
-        # Config still says TEAM
         cfg = test_db.query(TournamentConfiguration).filter(
             TournamentConfiguration.semester_id == t.id
         ).first()
         assert cfg.participant_type == "TEAM", "Precondition: config must say TEAM"
 
-        # Run calculate-rankings API
         resp = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
-        assert resp.status_code == 200, (
-            f"calculate-rankings must return 200: {resp.text[:400]}"
+        assert resp.status_code == 200, resp.text[:400]
+
+        # TEAM branch finds no "team_X" keys → 0 team_scores → 0 rankings inserted
+        data = resp.json()
+        assert data["rankings_count"] == 0, (
+            f"TEAM config + user_id keys must yield 0 rankings. Got {data['rankings_count']}"
+        )
+        test_db.expire_all()
+        db_count = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).count()
+        assert db_count == 0, f"Expected 0 TournamentRanking rows, got {db_count}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEAM TOURNAMENT LIFECYCLE TESTS
+# Proves: backward compat + TEAM end-to-end + idempotency
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestTeamTournamentLifecycle:
+    """
+    Proves the full TEAM participant_type lifecycle:
+
+    TEAM-BC-01  Adding sessions.participant_team_ids column does not break
+                INDIVIDUAL flow — SESS-01 style tournament still works.
+    TEAM-01     TEAM tournament session generation → participant_team_ids set
+                (requires TournamentTeamEnrollment rows).
+    TEAM-02     PATCH /sessions/{id}/team-results writes "team_X" round_results.
+    TEAM-03     calculate-rankings with "team_X" keys → TournamentRanking(team_id=X, participant_type='TEAM').
+    TEAM-04     Idempotency: calculate-rankings twice → same result (DELETE+INSERT).
+    TEAM-05     distribute-rewards-v2 expands team ranking → per-member TournamentParticipation.
+    TEAM-06     Reward idempotency: distribute twice without force → 0 duplicate rows.
+    TEAM-07     /admin/tournaments/{id}/teams page returns 200 for TEAM tournament.
+    """
+
+    # ── helpers ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _make_team_tournament(db: Session) -> Semester:
+        """INDIVIDUAL_RANKING tournament with participant_type='TEAM'."""
+        code = f"TEAM-{uuid.uuid4().hex[:8].upper()}"
+        t = Semester(
+            code=code,
+            name=f"Team Test {code[-6:]}",
+            semester_category=SemesterCategory.TOURNAMENT,
+            status=SemesterStatus.ONGOING,
+            tournament_status="IN_PROGRESS",
+            age_group="AMATEUR",
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 30),
+            enrollment_cost=0,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        db.add(t)
+        db.flush()
+        db.add(TournamentConfiguration(
+            semester_id=t.id,
+            tournament_type_id=None,
+            scoring_type="SCORE_BASED",
+            ranking_direction="DESC",
+            participant_type="TEAM",
+            number_of_rounds=1,
+            is_multi_day=False,
+            max_players=32,
+            parallel_fields=1,
+            match_duration_minutes=60,
+            break_duration_minutes=15,
+            sessions_generated=False,
+        ))
+        db.flush()
+        return t
+
+    @staticmethod
+    def _make_team_and_members(db: Session, n_members: int = 2):
+        """Create a Team with n_members active members. Returns (team, [users])."""
+        from app.models.team import Team, TeamMember
+        team = Team(
+            name=f"Team-{uuid.uuid4().hex[:6]}",
+            code=f"TM{uuid.uuid4().hex[:4].upper()}",
+            is_active=True,
+        )
+        db.add(team)
+        db.flush()
+        members = []
+        for _ in range(n_members):
+            user, _lic = PlayerFactory.create_lfa_player(db)
+            db.add(TeamMember(team_id=team.id, user_id=user.id, role="PLAYER", is_active=True))
+            members.append(user)
+        db.flush()
+        return team, members
+
+    @staticmethod
+    def _enroll_team(db: Session, tournament: Semester, team) -> None:
+        from app.models.team import TournamentTeamEnrollment
+        db.add(TournamentTeamEnrollment(
+            semester_id=tournament.id,
+            team_id=team.id,
+            is_active=True,
+            payment_verified=True,
+        ))
+        db.flush()
+
+    @staticmethod
+    def _add_session_with_team_results(db: Session, tournament: Semester, team_ids: list) -> SessionModel:
+        """Add a match session with 'team_X' round_results for the given team_ids."""
+        round_results = {"1": {f"team_{tid}": str(90 - i * 10) for i, tid in enumerate(team_ids)}}
+        s = SessionModel(
+            title="TEAM Session",
+            semester_id=tournament.id,
+            date_start=datetime(2026, 7, 5, 10, 0, tzinfo=timezone.utc),
+            date_end=datetime(2026, 7, 5, 11, 0, tzinfo=timezone.utc),
+            session_type=SessionType.on_site,
+            event_category=EventCategory.MATCH,
+            match_format="INDIVIDUAL_RANKING",
+            scoring_type="SCORE_BASED",
+            auto_generated=True,
+            rounds_data={
+                "total_rounds": 1,
+                "completed_rounds": 1,
+                "round_results": round_results,
+                "mode": "TEAM",
+            },
+            participant_team_ids=team_ids,
+        )
+        db.add(s)
+        db.flush()
+        return s
+
+    # ── TEAM-BC-01: backward compatibility ────────────────────────────────────
+
+    def test_TEAM_BC01_individual_flow_unaffected_by_team_column(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-BC-01: participant_team_ids column exists but INDIVIDUAL session
+        still sets participant_user_ids and leaves participant_team_ids NULL.
+        """
+        t = TestMultiRoundSessionGeneration._make_ir_tournament(test_db, number_of_rounds=1)
+        players = [PlayerFactory.create_lfa_player(test_db) for _ in range(3)]
+        TestMultiRoundSessionGeneration._enroll_players(test_db, t, players)
+
+        resp = admin_client.post(
+            f"/api/v1/tournaments/{t.id}/generate-sessions",
+            json={"session_duration_minutes": 60, "break_minutes": 10, "number_of_rounds": 1},
+        )
+        assert resp.status_code in (200, 201), resp.text[:400]
+
+        test_db.expire_all()
+        sessions = test_db.query(SessionModel).filter(SessionModel.semester_id == t.id).all()
+        assert len(sessions) == 1, "INDIVIDUAL_RANKING must produce exactly 1 session"
+        s = sessions[0]
+        assert s.participant_user_ids is not None, "participant_user_ids must be set"
+        assert s.participant_team_ids is None, (
+            "participant_team_ids must be NULL for INDIVIDUAL sessions"
         )
 
-        # All TournamentRanking rows are hardcoded to 'INDIVIDUAL' (P2 gap)
+    # ── TEAM-02: /team-results endpoint ───────────────────────────────────────
+
+    def test_TEAM02_submit_team_results_writes_team_keys(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-02: PATCH /sessions/{id}/team-results writes 'team_X' keys
+        into rounds_data["round_results"]["1"].
+        """
+        t = self._make_team_tournament(test_db)
+        team1, _ = self._make_team_and_members(test_db, 2)
+        team2, _ = self._make_team_and_members(test_db, 2)
+        self._enroll_team(test_db, t, team1)
+        self._enroll_team(test_db, t, team2)
+
+        # Create a bare session (no results yet)
+        s = SessionModel(
+            title="TEAM-02 Session",
+            semester_id=t.id,
+            date_start=datetime(2026, 7, 5, 10, 0, tzinfo=timezone.utc),
+            date_end=datetime(2026, 7, 5, 11, 0, tzinfo=timezone.utc),
+            session_type=SessionType.on_site,
+            event_category=EventCategory.MATCH,
+            match_format="INDIVIDUAL_RANKING",
+            scoring_type="SCORE_BASED",
+            auto_generated=True,
+            rounds_data={"total_rounds": 1, "completed_rounds": 0, "round_results": {}, "mode": "TEAM"},
+            participant_team_ids=[team1.id, team2.id],
+        )
+        test_db.add(s)
+        test_db.flush()
+
+        resp = admin_client.patch(
+            f"/api/v1/sessions/{s.id}/team-results",
+            json={
+                "round_number": 1,
+                "results": [
+                    {"team_id": team1.id, "score": 90.0},
+                    {"team_id": team2.id, "score": 75.0},
+                ],
+            },
+        )
+        assert resp.status_code == 200, resp.text[:400]
+        data = resp.json()
+        assert data["teams_recorded"] == 2
+
+        test_db.expire_all()
+        test_db.refresh(s)
+        rr = s.rounds_data["round_results"]["1"]
+        assert f"team_{team1.id}" in rr, "team1 key must be written"
+        assert f"team_{team2.id}" in rr, "team2 key must be written"
+        assert rr[f"team_{team1.id}"] == "90.0"
+
+    # ── TEAM-03: calculate-rankings produces TEAM rows ─────────────────────────
+
+    def test_TEAM03_calculate_rankings_creates_team_ranking_rows(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-03: calculate-rankings with "team_X" round_results →
+        TournamentRanking rows with team_id set, user_id=NULL, participant_type='TEAM'.
+        """
+        t = self._make_team_tournament(test_db)
+        team1, _ = self._make_team_and_members(test_db, 2)
+        team2, _ = self._make_team_and_members(test_db, 2)
+        self._add_session_with_team_results(test_db, t, [team1.id, team2.id])
+
+        resp = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
+        assert resp.status_code == 200, resp.text[:400]
+        data = resp.json()
+        assert data["rankings_count"] == 2, f"Expected 2 team rankings, got {data['rankings_count']}"
+        assert data["participant_type"] == "TEAM"
+
         test_db.expire_all()
         rankings = test_db.query(TournamentRanking).filter(
             TournamentRanking.tournament_id == t.id
         ).all()
-        assert len(rankings) >= 2, "At least 2 ranking rows expected (p1, p2)"
+        assert len(rankings) == 2
         for r in rankings:
-            assert r.participant_type == "INDIVIDUAL", (
-                f"P2 gap confirmed: TournamentRanking.participant_type is always "
-                f"'INDIVIDUAL' even when TournamentConfiguration.participant_type='TEAM'. "
-                f"Got: '{r.participant_type}' for user_id={r.user_id}"
-            )
+            assert r.participant_type == "TEAM", f"Must be TEAM, got '{r.participant_type}'"
+            assert r.team_id is not None, "team_id must be set"
+            assert r.user_id is None, "user_id must be NULL for TEAM rankings"
+        # team1 scored 90, team2 scored 80 → team1 is rank 1
+        rank_map = {r.team_id: r.rank for r in rankings}
+        assert rank_map[team1.id] == 1, "team1 (score=90) must be rank 1"
+        assert rank_map[team2.id] == 2, "team2 (score=80) must be rank 2"
 
+    # ── TEAM-04: ranking idempotency ──────────────────────────────────────────
+
+    def test_TEAM04_calculate_rankings_is_idempotent(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-04: Calling calculate-rankings twice produces the same result.
+        DELETE+INSERT guarantees no duplicate rows.
+        """
+        t = self._make_team_tournament(test_db)
+        team1, _ = self._make_team_and_members(test_db, 2)
+        team2, _ = self._make_team_and_members(test_db, 2)
+        self._add_session_with_team_results(test_db, t, [team1.id, team2.id])
+
+        resp1 = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
+        assert resp1.status_code == 200, resp1.text[:400]
+
+        resp2 = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
+        assert resp2.status_code == 200, resp2.text[:400]
+
+        test_db.expire_all()
+        total_rows = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).count()
+        assert total_rows == 2, f"Idempotent: must still have exactly 2 rows, got {total_rows}"
+
+    # ── TEAM-05: rewards expand to team members ───────────────────────────────
+
+    def test_TEAM05_distribute_rewards_expands_to_team_members(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-05: distribute-rewards-v2 for a TEAM tournament creates one
+        TournamentParticipation per team member (not per team).
+        team1 (rank=1, 2 members) → 2 TournamentParticipation rows with team_id set.
+        """
+        from app.models.tournament_reward_config import TournamentRewardConfig
+
+        t = self._make_team_tournament(test_db)
+        team1, members1 = self._make_team_and_members(test_db, 2)
+        team2, members2 = self._make_team_and_members(test_db, 2)
+        self._add_session_with_team_results(test_db, t, [team1.id, team2.id])
+
+        # Add reward config
+        test_db.add(TournamentRewardConfig(
+            semester_id=t.id,
+            reward_config=_LC_REWARD_CONFIG,
+        ))
+        test_db.flush()
+
+        # Calculate rankings first
+        calc_resp = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
+        assert calc_resp.status_code == 200, calc_resp.text[:400]
+
+        # Mark tournament as COMPLETED (required before distribute)
+        t.tournament_status = "COMPLETED"
+        test_db.flush()
+
+        dist_resp = admin_client.post(f"/api/v1/tournaments/{t.id}/distribute-rewards-v2", json={"tournament_id": t.id})
+        assert dist_resp.status_code == 200, dist_resp.text[:400]
+
+        test_db.expire_all()
+        participations = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id
+        ).all()
+        total_members = len(members1) + len(members2)
+        assert len(participations) == total_members, (
+            f"Expected {total_members} participations (one per member), got {len(participations)}"
+        )
+
+        # Each participation from team1 must have team_id=team1.id
+        member1_ids = {m.id for m in members1}
+        for p in participations:
+            if p.user_id in member1_ids:
+                assert p.team_id == team1.id, (
+                    f"team1 member participation must have team_id={team1.id}, got {p.team_id}"
+                )
+                assert p.placement == 1, f"team1 is rank 1, member must get placement=1, got {p.placement}"
+
+    # ── TEAM-06: reward idempotency ───────────────────────────────────────────
+
+    def test_TEAM06_distribute_rewards_is_idempotent(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-06: Calling distribute-rewards-v2 twice without force_redistribution
+        does not create duplicate TournamentParticipation rows.
+        """
+        from app.models.tournament_reward_config import TournamentRewardConfig
+
+        t = self._make_team_tournament(test_db)
+        team1, members1 = self._make_team_and_members(test_db, 2)
+        team2, members2 = self._make_team_and_members(test_db, 2)
+        self._add_session_with_team_results(test_db, t, [team1.id, team2.id])
+        test_db.add(TournamentRewardConfig(semester_id=t.id, reward_config=_LC_REWARD_CONFIG))
+        test_db.flush()
+
+        calc_resp = admin_client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings")
+        assert calc_resp.status_code == 200, calc_resp.text[:400]
+
+        t.tournament_status = "COMPLETED"
+        test_db.flush()
+
+        admin_client.post(f"/api/v1/tournaments/{t.id}/distribute-rewards-v2", json={"tournament_id": t.id})
+        admin_client.post(f"/api/v1/tournaments/{t.id}/distribute-rewards-v2", json={"tournament_id": t.id})
+
+        test_db.expire_all()
+        total = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id
+        ).count()
+        expected = len(members1) + len(members2)
+        assert total == expected, (
+            f"Idempotent: expected {expected} participations after 2 calls, got {total}"
+        )
+
+    # ── TEAM-07: admin UI page ─────────────────────────────────────────────────
+
+    def test_TEAM07_admin_teams_page_returns_200(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        TEAM-07: GET /admin/tournaments/{id}/teams returns 200 for a TEAM tournament.
+        """
+        t = self._make_team_tournament(test_db)
+        resp = admin_client.get(f"/admin/tournaments/{t.id}/teams")
+        assert resp.status_code == 200, resp.text[:400]
+        assert "Team Management" in resp.text, "Page must contain 'Team Management' heading"
+        assert "Enrolled Teams" in resp.text, "Page must list enrolled teams section"

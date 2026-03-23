@@ -371,7 +371,8 @@ def record_tournament_participation(
     skill_points: Dict[str, float],
     base_xp: int,
     credits: int,
-    assessed_by_id: Optional[int] = None
+    assessed_by_id: Optional[int] = None,
+    team_id: Optional[int] = None,
 ) -> TournamentParticipation:
     """
     Record tournament participation and update player skill assessments.
@@ -413,6 +414,7 @@ def record_tournament_participation(
         participation = TournamentParticipation(
             user_id=user_id,
             semester_id=tournament_id,
+            team_id=team_id,
             placement=placement,
             skill_points_awarded=skill_points if skill_points else None,
             xp_awarded=total_xp,

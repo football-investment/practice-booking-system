@@ -222,7 +222,8 @@ def distribute_rewards_for_user(
     reward_policy: RewardPolicy = DEFAULT_REWARD_POLICY,
     distributed_by: Optional[int] = None,
     force_redistribution: bool = False,
-    is_sandbox_mode: bool = False
+    is_sandbox_mode: bool = False,
+    team_id: Optional[int] = None,
 ) -> TournamentRewardResult:
     """
     Distribute both participation rewards and badges for a single user.
@@ -294,7 +295,8 @@ def distribute_rewards_for_user(
 
     # Record participation
     participation_record = participation_service.record_tournament_participation(
-        db, user_id, tournament_id, placement, skill_points, base_xp, credits, distributed_by
+        db, user_id, tournament_id, placement, skill_points, base_xp, credits, distributed_by,
+        team_id=team_id,
     )
 
     # ── Monitoring: log dominant/minor delta ratio (sampled: podium placements only) ──
@@ -547,12 +549,36 @@ def distribute_rewards_for_tournament(
     rewards_distributed = []
 
     # Distribute rewards for each participant
-    for ranking in rankings:
-        if ranking.user_id is None:
-            continue  # Skip team rankings (for now)
+    from app.models.tournament_achievement import TournamentParticipation
 
-        # Check if already distributed
-        from app.models.tournament_achievement import TournamentParticipation
+    for ranking in rankings:
+        if ranking.user_id is None and ranking.team_id is not None:
+            # TEAM ranking: expand to all active team members
+            from app.models.team import TeamMember
+            members = db.query(TeamMember).filter(
+                TeamMember.team_id == ranking.team_id,
+                TeamMember.is_active == True,
+            ).all()
+            for member in members:
+                existing = db.query(TournamentParticipation).filter(
+                    TournamentParticipation.user_id == member.user_id,
+                    TournamentParticipation.semester_id == tournament_id,
+                ).first()
+                if existing and not force_redistribution:
+                    continue
+                result = distribute_rewards_for_user(
+                    db, member.user_id, tournament_id, ranking.rank,
+                    total_participants, reward_policy, distributed_by,
+                    force_redistribution, is_sandbox_mode,
+                    team_id=ranking.team_id,
+                )
+                rewards_distributed.append(result)
+            continue
+
+        if ranking.user_id is None:
+            continue  # safety guard: no user_id and no team_id — skip
+
+        # INDIVIDUAL ranking
         existing = db.query(TournamentParticipation).filter(
             TournamentParticipation.user_id == ranking.user_id,
             TournamentParticipation.semester_id == tournament_id
