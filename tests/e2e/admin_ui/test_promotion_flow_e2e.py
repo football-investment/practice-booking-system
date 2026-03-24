@@ -621,7 +621,10 @@ class TestPromo00GoldenPath:
                 .all()
             )
             assert len(tournaments) == 1, f"Expected 1 tournament, found {len(tournaments)}"
-            assert tournaments[0].age_group == "U15"
+            # U15 → mapped to YOUTH by _normalize_club_age_group()
+            assert tournaments[0].age_group == "YOUTH", (
+                f"Expected Semester.age_group='YOUTH' (U15 normalized), got '{tournaments[0].age_group}'"
+            )
 
             enrollments = (
                 db_session.query(TournamentTeamEnrollment)

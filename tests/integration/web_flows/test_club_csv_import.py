@@ -429,9 +429,10 @@ class TestPromotionWizard:
         )
         assert len(tournaments) == 2
 
+        # age_group is normalized via _normalize_club_age_group(): U12→PRE, U15→YOUTH
         age_labels = {t.age_group for t in tournaments}
-        assert "U12" in age_labels
-        assert "U15" in age_labels
+        assert "PRE" in age_labels, f"Expected PRE (from U12), got: {age_labels}"
+        assert "YOUTH" in age_labels, f"Expected YOUTH (from U15), got: {age_labels}"
 
         # Each tournament has 2 teams enrolled
         for tournament in tournaments:

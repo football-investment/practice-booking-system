@@ -3517,6 +3517,25 @@ from ...models.club import Club, CsvImportLog  # noqa: E402
 from ...services.club_service import create_club, get_club, list_clubs  # noqa: E402
 from ...services import csv_import_service  # noqa: E402
 
+# Maps club team age-group labels (U15, U18, Adult…) → canonical Semester.age_group values.
+# Semester.age_group is shared with season semesters (PRE/YOUTH/AMATEUR/PRO) so promotion
+# tournaments must use the same vocabulary to stay filter-compatible.
+_CLUB_AGE_GROUP_MAP: dict[str, str] = {
+    "U6": "PRE", "U7": "PRE", "U8": "PRE", "U9": "PRE",
+    "U10": "PRE", "U11": "PRE", "U12": "PRE",
+    "U13": "YOUTH", "U14": "YOUTH", "U15": "YOUTH",
+    "U16": "YOUTH", "U17": "YOUTH", "U18": "YOUTH",
+    "U19": "AMATEUR", "U20": "AMATEUR", "U21": "AMATEUR",
+    "U22": "AMATEUR", "U23": "AMATEUR",
+    "SENIOR": "AMATEUR", "ADULT": "AMATEUR",
+    "PRE": "PRE", "YOUTH": "YOUTH", "AMATEUR": "AMATEUR", "PRO": "PRO",
+}
+
+
+def _normalize_club_age_group(label: str) -> str:
+    """Map club team age-group label to the canonical Semester.age_group vocabulary."""
+    return _CLUB_AGE_GROUP_MAP.get(label.strip().upper(), "AMATEUR")
+
 
 @router.get("/admin/clubs", response_class=HTMLResponse)
 async def admin_clubs_list(
@@ -3837,7 +3856,7 @@ async def admin_club_promotion(
             tournament_status="DRAFT",
             semester_category=SemesterCategory.TOURNAMENT,
             specialization_type="LFA_FOOTBALL_PLAYER",
-            age_group=ag,
+            age_group=_normalize_club_age_group(ag),  # U15 → YOUTH, U12 → PRE, etc.
             enrollment_cost=0,
             campus_id=int(campus_id) if campus_id.strip() else None,
         )
