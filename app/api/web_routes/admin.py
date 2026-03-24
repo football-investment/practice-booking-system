@@ -3671,6 +3671,12 @@ async def admin_club_detail(
     # Unique age_groups from teams
     age_groups = sorted({t.age_group_label for t in teams if t.age_group_label})
 
+    # Canonical age_group per team: U15 → YOUTH, U12 → PRE (for dual display in UI)
+    team_canonical = {
+        t.id: _normalize_club_age_group(t.age_group_label)
+        for t in teams if t.age_group_label
+    }
+
     return templates.TemplateResponse(
         "admin/club_detail.html",
         {
@@ -3684,6 +3690,7 @@ async def admin_club_detail(
             "tournament_types": tournament_types,
             "campuses": campuses,
             "age_groups": age_groups,
+            "team_canonical": team_canonical,
         },
     )
 
@@ -3902,4 +3909,41 @@ async def admin_club_promotion(
     return RedirectResponse(
         url=f"/admin/tournaments?flash=Promotion+tournaments+created+for+{names_enc}",
         status_code=303,
+    )
+
+
+@router.get("/admin/clubs/{club_id}/teams/{team_id}", response_class=HTMLResponse)
+async def admin_club_team_detail(
+    request: Request,
+    club_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: team member list for a club team."""
+    _admin_guard(user)
+    club = get_club(db, club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+    team = db.query(Team).filter(Team.id == team_id, Team.club_id == club_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    from ...models.team import TeamMember
+    members = (
+        db.query(TeamMember)
+        .filter(TeamMember.team_id == team_id)
+        .order_by(TeamMember.role.desc(), TeamMember.joined_at)
+        .all()
+    )
+    canonical_age = _normalize_club_age_group(team.age_group_label) if team.age_group_label else None
+    return templates.TemplateResponse(
+        "admin/club_team_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "club": club,
+            "team": team,
+            "members": members,
+            "canonical_age": canonical_age,
+        },
     )

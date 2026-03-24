@@ -51,6 +51,14 @@
     }
     .team-name { font-weight: 700; color: #2d3748; flex: 1; }
     .team-count { font-size: 0.8rem; color: #718096; }
+    .canonical-label { font-size: 0.72rem; opacity: 0.65; font-weight: 400; margin-left: 3px; }
+    .view-team-btn {
+        margin-left: auto; padding: 4px 14px;
+        background: #667eea; color: #fff;
+        border-radius: 6px; font-size: 0.78rem; font-weight: 600; text-decoration: none;
+        white-space: nowrap;
+    }
+    .view-team-btn:hover { background: #5a6fd6; }
 
     .import-log-row {
         display: flex; align-items: center; gap: 1rem; padding: 0.75rem 0;
@@ -212,11 +220,16 @@
         {% for team in teams %}
         <div class="team-row">
             {% if team.age_group_label %}
-            <span class="team-badge">{{ team.age_group_label }}</span>
+            <span class="team-badge">
+                {{ team.age_group_label }}
+                {% if team_canonical.get(team.id) %}
+                <span class="canonical-label">({{ team_canonical[team.id] }})</span>
+                {% endif %}
+            </span>
             {% endif %}
             <span class="team-name">{{ team.name }}</span>
             <span class="team-count">{{ member_counts.get(team.id, 0) }} players</span>
-            <code style="font-size:0.75rem;color:#a0aec0;">{{ team.code }}</code>
+            <a href="/admin/clubs/{{ club.id }}/teams/{{ team.id }}" class="view-team-btn">View members</a>
         </div>
         {% endfor %}
     </div>

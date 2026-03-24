@@ -644,3 +644,124 @@ class TestPromo00GoldenPath:
                 except Exception:
                     db_session.rollback()
                 _cleanup_imported_users(db_session)
+
+
+# ── PROMO-06: Team detail page shows individual members ────────────────────────
+
+class TestPromo06TeamMembers:
+    """
+    PROMO-06: After CSV import the admin clicks "View members" on the team row
+    and sees all imported players listed by name and email on the team detail page.
+
+    This validates the full audit trail:
+      CSV → User records → TeamMember rows → /admin/clubs/{id}/teams/{tid} UI
+    """
+
+    def test_PROMO_06_team_members_visible(self, page, db_session: Session):
+        club_name = f"{_E2E_PREFIX}06-{uuid.uuid4().hex[:6]}"
+        club: Club | None = None
+
+        # Two unique players for this test run
+        uid = uuid.uuid4().hex[:6]
+        p1_email = f"{_E2E_PREFIX}06{uid}a@lfa-test.com"
+        p2_email = f"{_E2E_PREFIX}06{uid}b@lfa-test.com"
+        team_name = f"PromoSix U15"
+        csv_data = (
+            "first_name,last_name,email,age_group,team_name,club_name\n"
+            f"GoldenSix,Alpha,{p1_email},U15,{team_name},{club_name}\n"
+            f"GoldenSix,Beta,{p2_email},U15,{team_name},{club_name}\n"
+        ).encode("utf-8")
+
+        try:
+            _admin_login(page)
+
+            # ── 1. Create club via modal ───────────────────────────────────
+            page.goto(f"{APP_URL}/admin/clubs")
+            page.wait_for_load_state("networkidle")
+            page.click("button:has-text('+ Create Club')")
+            page.wait_for_selector("#create-club-modal", state="visible", timeout=5_000)
+            page.fill("#create-club-modal input[name=name]", club_name)
+            page.fill("#create-club-modal input[name=city]", "Budapest")
+            page.fill("#create-club-modal input[name=country]", "HU")
+            page.evaluate("""
+                const modal = document.querySelector('#create-club-modal');
+                const form = modal.querySelector('form');
+                const csrf = (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];
+                form.querySelector('input[name=csrf_token]') && (form.querySelector('input[name=csrf_token]').value = csrf);
+            """)
+            page.locator("#create-club-modal button[type=submit]").click()
+            page.wait_for_url(
+                lambda url: "/admin/clubs/" in url and url.rstrip("/") != f"{APP_URL}/admin/clubs",
+                timeout=15_000,
+            )
+            page.wait_for_load_state("networkidle")
+
+            # Resolve club id from URL
+            club_id = int(page.url.rstrip("/").split("/admin/clubs/")[1].split("/")[0].split("?")[0])
+            db_session.expire_all()
+            club = db_session.query(Club).filter(Club.id == club_id).first()
+            assert club is not None
+
+            # ── 2. Upload CSV ─────────────────────────────────────────────
+            page.locator("#csv-file-input").set_input_files(
+                {"name": "promo06.csv", "mimeType": "text/csv", "buffer": csv_data}
+            )
+            page.wait_for_selector("#upload-submit.visible", timeout=5_000)
+            page.locator("#upload-submit").click()
+            page.wait_for_url(lambda url: "import_log=" in url, timeout=20_000)
+            page.wait_for_load_state("networkidle")
+            _ss(page, "06_after_csv")
+
+            content = page.content()
+            assert "Internal Server Error" not in content
+            assert "2 created" in content or "rows_created" in content
+
+            # ── 3. Click "View members" for the PromoSix U15 team ─────────
+            team_row = page.locator(f".team-row:has-text('{team_name}')")
+            assert team_row.count() >= 1, f"Team row '{team_name}' not visible in club detail"
+            view_btn = team_row.locator("a.view-team-btn")
+            assert view_btn.count() >= 1, "View members button not found in team row"
+            view_btn.click()
+            page.wait_for_url(
+                lambda url: f"/admin/clubs/{club_id}/teams/" in url,
+                timeout=10_000,
+            )
+            page.wait_for_load_state("networkidle")
+            _ss(page, "06a_team_detail")
+
+            # ── 4. Assert members visible by name + email + role ──────────
+            html = page.content()
+            assert "Internal Server Error" not in html
+
+            assert "GoldenSix Alpha" in html, "Player 1 name not visible on team detail page"
+            assert "GoldenSix Beta" in html,  "Player 2 name not visible on team detail page"
+            assert p1_email in html, f"Player 1 email {p1_email} not visible"
+            assert p2_email in html, f"Player 2 email {p2_email} not visible"
+            assert "PLAYER" in html, "PLAYER role badge not visible"
+
+            # ── 5. DB assertions ──────────────────────────────────────────
+            db_session.expire_all()
+            team = db_session.query(Team).filter(
+                Team.club_id == club_id,
+                Team.name == team_name,
+            ).first()
+            assert team is not None, f"Team '{team_name}' not in DB"
+            members = db_session.query(TeamMember).filter(
+                TeamMember.team_id == team.id,
+            ).all()
+            assert len(members) == 2, f"Expected 2 TeamMember rows, found {len(members)}"
+            member_emails = {
+                db_session.query(User).filter(User.id == m.user_id).first().email
+                for m in members
+            }
+            assert p1_email in member_emails, "Player 1 not in TeamMember DB"
+            assert p2_email in member_emails, "Player 2 not in TeamMember DB"
+
+        finally:
+            try:
+                target = club or db_session.query(Club).filter(Club.name == club_name).first()
+                if target:
+                    _cleanup_club(db_session, target)
+            except Exception:
+                db_session.rollback()
+            _cleanup_imported_users(db_session)

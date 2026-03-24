@@ -23272,6 +23272,58 @@
         ]
       }
     },
+    "/admin/clubs/{club_id}/teams/{team_id}": {
+      "get": {
+        "description": "Admin: team member list for a club team.",
+        "operationId": "admin_club_team_detail_admin_clubs__club_id__teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Club Team Detail",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/clubs/{club_id}/toggle": {
       "post": {
         "description": "Admin: activate or deactivate a club.",
