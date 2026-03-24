@@ -632,10 +632,12 @@ class TestPromo00GoldenPath:
             assert enrollments[0].payment_verified is True
 
         finally:
-            try:
-                target = club or db_session.query(Club).filter(Club.name == club_name).first()
-                if target:
-                    _cleanup_club(db_session, target)
-            except Exception:
-                db_session.rollback()
-            _cleanup_imported_users(db_session)
+            # Set KEEP_PROMO_DATA=1 to skip cleanup (for local UI/DB verification)
+            if not os.environ.get("KEEP_PROMO_DATA"):
+                try:
+                    target = club or db_session.query(Club).filter(Club.name == club_name).first()
+                    if target:
+                        _cleanup_club(db_session, target)
+                except Exception:
+                    db_session.rollback()
+                _cleanup_imported_users(db_session)
