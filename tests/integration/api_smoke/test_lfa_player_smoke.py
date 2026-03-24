@@ -269,7 +269,8 @@ class TestLfaplayerSmoke:
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         # 402: endpoint requires credits to unlock specialization; admin has 0 in test DB
-        assert response.status_code in [200, 201, 202, 204, 400, 401, 402, 403, 404, 405, 409, 422], (
+        # 410: endpoint deprecated — use POST /onboarding/specialization instead
+        assert response.status_code in [200, 201, 202, 204, 400, 401, 402, 403, 404, 405, 409, 410, 422], (
             f"POST /licenses failed: {response.status_code} "
             f"{response.text}"
         )
