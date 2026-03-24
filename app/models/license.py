@@ -169,6 +169,8 @@ class UserLicense(Base):
     # Format: {"heading": 75.0, "shooting": 60.0, "crossing": 55.0, "passing": 80.0, "dribbling": 70.0, "ball_control": 85.0}
     football_skills = Column(JSON, nullable=True,
                              comment="6 football skill percentages for LFA Player specializations (heading, shooting, crossing, passing, dribbling, ball_control)")
+    player_card_photo_url = Column(String(512), nullable=True,
+                                   comment="LFA Football Player spec-specific card photo URL (not global avatar)")
     skills_last_updated_at = Column(DateTime, nullable=True,
                                     comment="When skills were last updated")
     skills_updated_by = Column(Integer, ForeignKey("users.id"), nullable=True,

@@ -4065,3 +4065,57 @@ async def admin_user_profile(
             "target_position": target_position,
         },
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LFA PLAYER CARD PHOTO  (admin upload on behalf of any player)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from ...services.player_photo_service import (  # noqa: E402
+    save_player_photo,
+    delete_player_photo,
+)
+
+
+@router.post("/admin/users/{user_id}/lfa-player-photo")
+async def admin_upload_player_photo(
+    request: Request,
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    try:
+        url = save_player_photo(await file.read(), file.content_type or "", user_id)
+        lfa_license.player_card_photo_url = url
+        db.commit()
+        return JSONResponse({"ok": True, "photo_url": url})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/admin/users/{user_id}/lfa-player-photo/delete")
+async def admin_delete_player_photo(
+    request: Request,
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    delete_player_photo(user_id)
+    lfa_license.player_card_photo_url = None
+    db.commit()
+    return JSONResponse({"ok": True})

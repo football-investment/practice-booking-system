@@ -517,3 +517,56 @@ async def spec_dashboard(
             "spec_header_class": spec_header_class
         }
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LFA PLAYER CARD PHOTO  (student self-upload)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from fastapi import UploadFile, File  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from ...services.player_photo_service import (  # noqa: E402
+    save_player_photo,
+    delete_player_photo,
+)
+
+
+@router.post("/dashboard/lfa-player-photo")
+async def student_upload_player_photo(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    try:
+        url = save_player_photo(await file.read(), file.content_type or "", user.id)
+        lfa_license.player_card_photo_url = url
+        db.commit()
+        return JSONResponse({"ok": True, "photo_url": url})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/dashboard/lfa-player-photo/delete")
+async def student_delete_player_photo(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if lfa_license:
+        delete_player_photo(user.id)
+        lfa_license.player_card_photo_url = None
+        db.commit()
+    return JSONResponse({"ok": True})

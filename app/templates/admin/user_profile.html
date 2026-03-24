@@ -49,7 +49,21 @@
         border: 3px solid rgba(255,255,255,0.18);
         flex-shrink: 0;
         letter-spacing: -1px;
+        object-fit: cover; /* also applies when <img> */
     }
+    .photo-upload-actions { display:flex; flex-direction:column; gap:0.3rem; align-items:center; margin-top:0.15rem; }
+    .btn-photo-upload {
+        cursor:pointer; font-size:0.63rem; padding:3px 10px;
+        background:rgba(255,255,255,0.15); border-radius:99px; color:rgba(255,255,255,0.85);
+        border:1px solid rgba(255,255,255,0.2); transition:background 0.15s;
+    }
+    .btn-photo-upload:hover { background:rgba(255,255,255,0.25); }
+    .btn-photo-delete {
+        font-size:0.63rem; padding:3px 10px;
+        background:rgba(220,53,69,0.5); border:none; border-radius:99px;
+        color:rgba(255,255,255,0.9); cursor:pointer; transition:background 0.15s;
+    }
+    .btn-photo-delete:hover { background:rgba(220,53,69,0.8); }
     .fifa-overall-num {
         font-size: 3.2rem; font-weight: 900; line-height: 1;
         color: white; margin-top: 0.25rem;
@@ -251,7 +265,25 @@
 
     <!-- Left: dark panel -->
     <div class="fifa-left">
+        {% if lfa_license and lfa_license.player_card_photo_url %}
+        <img class="fifa-avatar" src="{{ lfa_license.player_card_photo_url }}"
+             alt="{{ _initials }}" style="background: {{ ns.avatar_bg }};">
+        {% else %}
         <div class="fifa-avatar" style="background: {{ ns.avatar_bg }};">{{ _initials }}</div>
+        {% endif %}
+
+        {% if lfa_license %}
+        <div class="photo-upload-actions">
+            <label class="btn-photo-upload">
+                📷 Fotó feltöltése
+                <input type="file" accept="image/jpeg,image/png,image/webp"
+                       onchange="uploadPlayerPhoto({{ target.id }}, this)" hidden>
+            </label>
+            {% if lfa_license.player_card_photo_url %}
+            <button class="btn-photo-delete" onclick="deletePlayerPhoto({{ target.id }})">✕ Törlés</button>
+            {% endif %}
+        </div>
+        {% endif %}
 
         {% if lfa_license %}
         <div class="fifa-overall-num">{{ _overall }}</div>
@@ -411,4 +443,30 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function uploadPlayerPhoto(userId, input) {
+    if (!input.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    const csrf = (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];
+    const r = await fetch(`/admin/users/${userId}/lfa-player-photo`, {
+        method: 'POST', body: fd, headers: { 'X-CSRF-Token': csrf }
+    });
+    const data = await r.json();
+    if (data.ok) location.reload();
+    else alert('Hiba a feltöltésnél: ' + data.error);
+}
+async function deletePlayerPhoto(userId) {
+    if (!confirm('Törli a profilképet?')) return;
+    const csrf = (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];
+    const r = await fetch(`/admin/users/${userId}/lfa-player-photo/delete`, {
+        method: 'POST', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' }
+    });
+    const data = await r.json();
+    if (data.ok) location.reload();
+}
+</script>
 {% endblock %}

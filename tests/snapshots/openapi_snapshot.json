@@ -2886,6 +2886,20 @@
         "title": "Body_admin_update_location_admin_locations__location_id__edit_post",
         "type": "object"
       },
+      "Body_admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post",
+        "type": "object"
+      },
       "Body_age_verification_submit_age_verification_post": {
         "properties": {
           "date_of_birth": {
@@ -3421,6 +3435,20 @@
           "specialization"
         ],
         "title": "Body_specialization_unlock_specialization_unlock_post",
+        "type": "object"
+      },
+      "Body_student_upload_player_photo_dashboard_lfa_player_photo_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_student_upload_player_photo_dashboard_lfa_player_photo_post",
         "type": "object"
       },
       "Body_submit_quiz_quizzes__quiz_id__submit_post": {
@@ -26069,6 +26097,96 @@
           }
         },
         "summary": "Admin Grant License",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/lfa-player-photo": {
+      "post": {
+        "operationId": "admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Upload Player Photo",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/lfa-player-photo/delete": {
+      "post": {
+        "operationId": "admin_delete_player_photo_admin_users__user_id__lfa_player_photo_delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Player Photo",
         "tags": [
           "web"
         ]
@@ -53139,6 +53257,64 @@
           }
         },
         "summary": "Dashboard",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-player-photo": {
+      "post": {
+        "operationId": "student_upload_player_photo_dashboard_lfa_player_photo_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_student_upload_player_photo_dashboard_lfa_player_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Student Upload Player Photo",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-player-photo/delete": {
+      "post": {
+        "operationId": "student_delete_player_photo_dashboard_lfa_player_photo_delete_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Student Delete Player Photo",
         "tags": [
           "web"
         ]

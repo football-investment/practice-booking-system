@@ -119,4 +119,5 @@ def public_player_card(
         "pos_color": _POS_COLORS.get(position, "#667eea"),
         "skill_categories": SKILL_CATEGORIES,
         "teams_info": teams_info,
+        "photo_url": lfa_license.player_card_photo_url,
     })

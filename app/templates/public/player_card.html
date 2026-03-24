@@ -160,7 +160,12 @@ body {
     <!-- Split header -->
     <div class="fifa-header">
         <div class="fifa-left">
+            {% if photo_url %}
+            <img class="fifa-avatar" src="{{ photo_url }}" alt="{{ initials }}"
+                 style="background: {{ avatar_bg }}; object-fit: cover;">
+            {% else %}
             <div class="fifa-avatar" style="background: {{ avatar_bg }};">{{ initials }}</div>
+            {% endif %}
             <div class="fifa-overall">{{ overall }}</div>
             <span class="fifa-tier" style="background: {{ tier_color }};">{{ tier_label }}</span>
         </div>
