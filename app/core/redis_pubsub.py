@@ -7,43 +7,47 @@ Provides:
     any synchronous FastAPI handler after db.commit().
   - subscribe_tournament_updates(tournament_id) — async generator that yields
     JSON strings; used by the WebSocket handler.
+  - get_idle_pitches(tournament_id, threshold_s) — returns pitches with no
+    recent activity; used by the WS idle-watcher background task.
 
-Both helpers fail silently when Redis is unavailable so the main app keeps
+Both I/O helpers fail silently when Redis is unavailable so the main app keeps
 running even without a live monitoring backend.
 
 ──────────────────────────────────────────────────────────────────────────────
 WebSocket event schema  (stable contract)
 ──────────────────────────────────────────────────────────────────────────────
 
-Every message published to the ``tournament:{id}:updates`` Redis channel and
-forwarded to connected WebSocket clients has the following JSON shape.  All
-fields are **mandatory** unless marked optional.
+Every message on ``tournament:{id}:updates`` and forwarded to WS clients:
 
 .. code-block:: json
 
     {
-      "type":            "session_result",   // event discriminator (always this value for now)
-      "session_id":      1234,               // integer — completed session PK
-      "campus_id":       2,                  // integer | null — campus FK (null = single-campus)
-      "pitch_id":        5,                  // integer | null — pitch FK (null = no pitch assigned)
-      "round_number":    7,                  // integer | null — tournament_round on the session
-      "status":          "completed",        // string  — always "completed" for result submissions
-      "completed_count": 423,               // integer — sessions with session_status="completed"
-      "total_count":     500500,            // integer — all sessions for this tournament
-      "progress_pct":    0.0008,            // float   — completed_count / total_count (0.0 – 1.0)
-      "completed_at":    "2026-03-24T…Z"   // string  — ISO-8601 UTC timestamp of this event
+      "type":            "session_result",
+      "session_id":      1234,
+      "campus_id":       2,
+      "pitch_id":        5,
+      "round_number":    7,
+      "status":          "completed",
+      "completed_count": 423,
+      "total_count":     500500,
+      "progress_pct":    0.0008,
+      "completed_at":    "2026-03-24T10:00:00Z"
     }
 
-Python typed representation (import from this module):
+Additional server-generated event types (not from Redis, injected by WS handler):
 
-.. code-block:: python
+  type = "throttle_stats"   — sent every 30 s per WS connection
+    { type, received, forwarded, dropped, drop_rate_pct }
 
-    from app.core.redis_pubsub import TournamentUpdateEvent
+  type = "pitch_idle_alert" — sent when a pitch has no activity > threshold
+    { type, pitch_id, campus_id, idle_seconds, tournament_id }
 """
 from __future__ import annotations
 
 import json
 import logging
+import time
+from collections import defaultdict
 from typing import AsyncIterator, Optional, TypedDict
 
 import redis
@@ -63,10 +67,10 @@ class TournamentUpdateEvent(TypedDict):
 
     Publishers: ``app.api.api_v1.endpoints.sessions.results._publish_session_result``
     Consumers:  WebSocket handler in ``app.api.web_routes.tournament_live``
-                (forwarded as-is to browser clients)
+                (forwarded as-is to browser clients after throttle)
     """
 
-    type: str              # discriminator — always "session_result"
+    type: str              # discriminator — "session_result"
     session_id: int
     campus_id: Optional[int]
     pitch_id: Optional[int]
@@ -76,6 +80,41 @@ class TournamentUpdateEvent(TypedDict):
     total_count: int
     progress_pct: float    # 0.0 – 1.0
     completed_at: str      # ISO-8601 UTC
+
+
+# ── Per-pitch activity tracking (server-side idle detection) ─────────────────
+# Single-dict per process; adequate for single-worker deployments.
+# In multi-worker setups, replace with a Redis key.
+
+_pitch_last_activity: dict[int, dict[int, float]] = defaultdict(dict)
+# Structure: {tournament_id: {pitch_id: unix_timestamp_of_last_event}}
+
+
+def _update_pitch_activity(tournament_id: int, pitch_id: Optional[int]) -> None:
+    """Record that a pitch has just had activity."""
+    if pitch_id:
+        _pitch_last_activity[tournament_id][pitch_id] = time.time()
+
+
+def get_idle_pitches(tournament_id: int, threshold_s: float) -> list[dict]:
+    """
+    Return pitches for ``tournament_id`` that have had no activity for at
+    least ``threshold_s`` seconds.
+
+    Returns a list of dicts:  [{"pitch_id": int, "idle_seconds": int}, …]
+    """
+    now = time.time()
+    result = []
+    for pid, last in _pitch_last_activity.get(tournament_id, {}).items():
+        idle = now - last
+        if idle >= threshold_s:
+            result.append({"pitch_id": pid, "idle_seconds": int(idle)})
+    return result
+
+
+def reset_pitch_activity(tournament_id: int) -> None:
+    """Clear tracking state for a tournament (used in tests)."""
+    _pitch_last_activity.pop(tournament_id, None)
 
 
 # ── Sync publish (called from HTTP handlers) ────────────────────────────────
@@ -105,16 +144,18 @@ def publish_tournament_update(tournament_id: int, payload: dict) -> None:
     """
     Publish a tournament event to Redis channel ``tournament:{id}:updates``.
 
-    Called synchronously inside HTTP result-submission handlers, after
-    db.commit().  Failures are logged and swallowed — live monitoring is
-    best-effort and must never block or break the primary result flow.
+    Also updates the server-side pitch activity tracker so the WS idle-watcher
+    can detect pitches that have gone quiet.
+
+    Called synchronously inside HTTP result-submission handlers after db.commit().
+    Failures are logged and swallowed — live monitoring must never break the
+    primary result flow.
 
     The ``payload`` dict should conform to :class:`TournamentUpdateEvent`.
-
-    Args:
-        tournament_id: Semester / tournament PK.
-        payload:       Event dict — will be JSON-serialised and broadcast.
     """
+    # Always update pitch activity tracker (even when Redis is down)
+    _update_pitch_activity(tournament_id, payload.get("pitch_id"))
+
     client = _get_sync_client()
     if client is None:
         return

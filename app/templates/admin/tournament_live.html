@@ -192,6 +192,41 @@
     border-left: 3px solid #1a6b5a;
 }
 .rate-box strong { color: #1a6b5a; }
+
+/* ── Alerts panel ────────────────────────────────────────────────────────── */
+#alerts-panel {
+    margin: 8px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.alert-item {
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn .2s ease;
+}
+@keyframes slideIn { from { opacity:0; transform:translateY(-4px) } to { opacity:1; transform:none } }
+.alert-item.idle  { background: #fff3e0; border: 1px solid #ffb74d; color: #e65100; }
+.alert-item.stats { background: #e8eaf6; border: 1px solid #9fa8da; color: #283593; }
+.alert-item button {
+    margin-left: auto; background: none; border: 1px solid currentColor;
+    border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 11px;
+    color: inherit; flex-shrink: 0;
+}
+
+/* ── Throttle stats pill in status bar ───────────────────────────────────── */
+.drop-pill {
+    background: #2a2a4e;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #ef9a9a;
+}
+.drop-pill.ok { color: #a5d6a7; }
 </style>
 {% endblock %}
 
@@ -210,11 +245,15 @@
     <button onclick="location.reload()">Reload</button>
 </div>
 
+<!-- ── Alerts panel (idle + throttle stats) ────────────────────────────── -->
+<div id="alerts-panel"></div>
+
 <!-- ── Status bar ──────────────────────────────────────────────────────── -->
 <div class="live-status-bar">
     <div class="live-dot" id="ws-dot"></div>
     <div class="ws-meta">WS: <span id="ws-status-text">Connecting…</span></div>
     <div class="rate-pill">⚡ <span id="rate-display">—</span> events/min</div>
+    <div class="drop-pill ok" id="drop-pill" title="Dropped events (throttle)">↓ drop: <span id="drop-display">—</span></div>
     <div class="ws-meta" style="margin-left:auto">
         #{{ tournament.id }} &nbsp;|&nbsp;
         <a href="/admin/tournaments/{{ tournament.id }}/edit" style="color:#7eb8f7">← Edit</a>
@@ -338,9 +377,12 @@
     const avgRateEl       = document.getElementById("avg-rate");
     const estRemainingEl  = document.getElementById("est-remaining-time");
     const rateDisplay     = document.getElementById("rate-display");
+    const dropDisplay     = document.getElementById("drop-display");
+    const dropPill        = document.getElementById("drop-pill");
     const lastEventTsEl   = document.getElementById("last-event-ts");
     const feedList        = document.getElementById("feed-list");
     const pitchesCon      = document.getElementById("pitches-container");
+    const alertsPanel     = document.getElementById("alerts-panel");
     const bannerRedis     = document.getElementById("banner-redis-down");
     const bannerStale     = document.getElementById("banner-stale");
     const staleSecsEl     = document.getElementById("stale-secs");
@@ -449,7 +491,47 @@
         while (feedList.children.length > 20) feedList.removeChild(feedList.lastChild);
     }
 
+    /* ── Alert helpers ──────────────────────────────────────────────────── */
+    function showAlert(cls, icon, text, id) {
+        // Replace existing alert with same id (dedup)
+        if (id) {
+            const existing = document.getElementById("alert-" + id);
+            if (existing) existing.remove();
+        }
+        const div = document.createElement("div");
+        div.className = "alert-item " + cls;
+        if (id) div.id = "alert-" + id;
+        div.innerHTML = `${icon} ${text} <button onclick="this.parentElement.remove()">Dismiss</button>`;
+        alertsPanel.prepend(div);
+        // Auto-dismiss after 5 min
+        setTimeout(() => { if (div.parentElement) div.remove(); }, 300000);
+    }
+
+    function handleThrottleStats(msg) {
+        const rate = msg.drop_rate_pct || 0;
+        dropDisplay.textContent = `${msg.dropped} (${rate.toFixed(1)}%)`;
+        if (rate > 50) {
+            dropPill.className = "drop-pill";
+            showAlert("stats", "📊",
+                `Throttle stats: ${msg.forwarded} delivered, ${msg.dropped} dropped (${rate.toFixed(1)}% drop rate). High drop rate means Redis is producing faster than WS can deliver — clients see latest state only, no count data lost.`,
+                "throttle-stats");
+        } else {
+            dropPill.className = "drop-pill ok";
+        }
+    }
+
+    function handlePitchIdleAlert(msg) {
+        const mins = Math.floor(msg.idle_seconds / 60);
+        const secs = msg.idle_seconds % 60;
+        const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        showAlert("idle", "⚠️",
+            `Pitch #${msg.pitch_id}${msg.campus_id ? " (Campus " + msg.campus_id + ")" : ""} idle for <strong>${timeStr}</strong> — no result submitted. Check instructor assignment.`,
+            "pitch-idle-" + msg.pitch_id);
+    }
+
     function handleMessage(msg) {
+        if (msg.type === "throttle_stats") { handleThrottleStats(msg); return; }
+        if (msg.type === "pitch_idle_alert") { handlePitchIdleAlert(msg); return; }
         if (msg.type !== "session_result") return;
 
         lastEventTs = Date.now();
