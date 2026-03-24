@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/**'
       - 'tests/e2e/admin_ui/test_promotion_flow_e2e.py'
+      - 'tests/e2e/admin_ui/conftest.py'
       - 'tests/integration/web_flows/test_club_csv_import.py'
       - 'alembic/versions/2026_03_24_1000_club_and_csv_import.py'
       - '.github/workflows/e2e-promotion-flow.yml'
@@ -85,9 +86,9 @@ jobs:
           name: junit-club-integration
           path: results/club-integration.xml
 
-  # ── PROMO-01..05 E2E Playwright tests ─────────────────────────────────────
+  # ── PROMO-00..05 E2E Playwright tests ─────────────────────────────────────
   promo-e2e:
-    name: "PROMO-01..05 E2E (create club → CSV → promotion wizard)"
+    name: "PROMO-00..05 E2E (zero-state golden path + club → CSV → promotion wizard)"
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -145,6 +146,17 @@ jobs:
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+
+      - name: "PROMO-00 Golden path (zero state: nav → create → CSV → promotion → tournament)"
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/promo
+          PYTEST_SLOW_MO: "150"
+        run: |
+          mkdir -p results test-results/videos/promo
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_promotion_flow_e2e.py \
+            -k "test_PROMO_00" \
+            --junitxml=results/promo00.xml \
+            -v --tb=short -s
 
       - name: PROMO-01 Create club via UI
         env:
@@ -216,6 +228,7 @@ jobs:
           echo "| Job | Covers | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| CLUB-01..08 Integration | Club CRUD, CSV import, idempotency, promotion wizard | ${{ needs.club-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PROMO-00 Golden Path** | Zero-state: nav→create→CSV→Teams→Promotion→Tournament (video) | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| PROMO-01 Create Club UI | Admin creates club via modal → detail page | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| PROMO-02 CSV Upload | Valid CSV → import log rows_created=2 | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| PROMO-03 CSV Error | Bad row → rows_failed=1, valid rows processed | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
@@ -229,7 +242,8 @@ jobs:
             echo "### ✅ All promotion flow tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Validated flows:**" >> $GITHUB_STEP_SUMMARY
-            echo "- 🏟️ Club entity: create, code auto-gen, toggle active" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎬 PROMO-00: full zero-state flow (video artifact in promo-e2e-artifacts)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏟️ Club entity: create via nav, code auto-gen, toggle active" >> $GITHUB_STEP_SUMMARY
             echo "- 📄 CSV import: bulk user creation, upsert, credits, idempotency" >> $GITHUB_STEP_SUMMARY
             echo "- 🚀 Promotion wizard: per-age-group tournaments + team enrollment" >> $GITHUB_STEP_SUMMARY
           else

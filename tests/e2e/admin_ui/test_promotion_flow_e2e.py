@@ -446,3 +446,196 @@ class TestPromo04And05PromotionWizard:
 
         finally:
             _cleanup_club(db_session, club)
+
+
+# ── PROMO-00: Full zero-state golden path ──────────────────────────────────────
+
+class TestPromo00GoldenPath:
+    """
+    PROMO-00: Full zero-state golden path — valós admin UX, seed nélkül.
+
+    Covers:
+      - Nav dropdown: People ▾ → 🏟️ Clubs  (CSS hover, nem hardcoded URL)
+      - Clubs list oldal (empty state vagy meglévő lista)
+      - Club létrehozás modal-on keresztül
+      - Club megjelenik a listában → View gomb kattintás
+      - CSV feltöltés → result panel (2 created, Teams megjelenik)
+      - Promotion Event gomb megjelenik (teams > 0)
+      - Promotion wizard → tournament létrejön, team enrolled
+      - DB assertion minden lépésnél
+
+    Egyetlen összefüggő videó bizonyítja a teljes flow-t. Futtatás:
+        PLAYWRIGHT_VIDEO_DIR=test-results/videos/promo \\
+        PYTEST_HEADLESS=false PYTEST_SLOW_MO=400 \\
+        PYTHONPATH=. pytest tests/e2e/admin_ui/test_promotion_flow_e2e.py \\
+          -k test_PROMO_00 -v -s
+    """
+
+    _PREFIX = "e2epromo00"
+
+    def test_PROMO_00_golden_path(self, page, db_session: Session):
+        club_name = f"{self._PREFIX}-GOLDEN-{uuid.uuid4().hex[:6]}"
+        uid = uuid.uuid4().hex[:6]
+        email1 = f"{self._PREFIX}{uid}a@lfa-test.com"
+        email2 = f"{self._PREFIX}{uid}b@lfa-test.com"
+        csv_data = (
+            "first_name,last_name,email,age_group,team_name\n"
+            f"Golden,Alpha,{email1},U15,GoldenU15\n"
+            f"Golden,Beta,{email2},U15,GoldenU15\n"
+        ).encode("utf-8")
+
+        club: Club | None = None
+        try:
+            # ── 1. Login ──────────────────────────────────────────────────────
+            _admin_login(page)
+            _ss(page, "00_login_done")
+
+            # ── 2. Nav: People ▾ → Clubs  (CSS hover dropdown, nem direct URL)
+            people_trigger = page.locator(".nav-group-trigger", has_text="People")
+            people_trigger.hover()
+            clubs_link = page.locator(".nav-dropdown-item", has_text="Clubs")
+            clubs_link.wait_for(state="visible", timeout=5_000)
+            clubs_link.click()
+            page.wait_for_url(
+                lambda url: url.rstrip("/").endswith("/admin/clubs"),
+                timeout=10_000,
+            )
+            page.wait_for_load_state("networkidle")
+            _ss(page, "00a_clubs_list_via_nav")
+
+            content = page.content()
+            assert "Internal Server Error" not in content
+            assert "Clubs" in content
+
+            # ── 3. Create club via modal ───────────────────────────────────────
+            page.click("button:has-text('+ Create Club')")
+            page.wait_for_selector("#create-club-modal", state="visible")
+            page.fill("#create-club-modal input[name=name]", club_name)
+            page.fill("#create-club-modal input[name=city]", "Budapest")
+            page.fill("#create-club-modal input[name=country]", "HU")
+            page.click("#create-club-modal button[type=submit]")
+            page.wait_for_url(
+                lambda url: "/admin/clubs/" in url
+                and not url.rstrip("/").endswith("/admin/clubs"),
+                timeout=15_000,
+            )
+            page.wait_for_load_state("networkidle")
+            _ss(page, "00b_club_created_detail")
+
+            content = page.content()
+            assert club_name in content, f"Club name not on detail page: {page.url}"
+            assert "No teams yet" in content, "Expected empty teams section"
+            assert "CSV Import" in content, "CSV Import section missing"
+            assert "Internal Server Error" not in content
+
+            # DB: club created with auto-generated code
+            club = db_session.query(Club).filter(Club.name == club_name).first()
+            assert club is not None, f"Club '{club_name}' not in DB"
+            assert club.code, "Club code not auto-generated"
+            assert club.city == "Budapest"
+
+            # ── 4. Back to list via module strip → verify club in table ────────
+            page.locator(".module-link", has_text="Clubs").click()
+            page.wait_for_url(
+                lambda url: url.rstrip("/").endswith("/admin/clubs"),
+                timeout=10_000,
+            )
+            page.wait_for_load_state("networkidle")
+            _ss(page, "00c_list_with_new_club")
+
+            assert club_name in page.content(), "Club not visible in list after creation"
+
+            # ── 5. Click "View" button in the table row ────────────────────────
+            club_row = page.locator(f"tr:has-text('{club_name}')")
+            club_row.locator("a:has-text('View')").click()
+            page.wait_for_url(
+                lambda url: f"/admin/clubs/{club.id}" in url,
+                timeout=10_000,
+            )
+            page.wait_for_load_state("networkidle")
+            _ss(page, "00d_detail_via_view_btn")
+            assert club_name in page.content()
+
+            # ── 6. CSV upload ─────────────────────────────────────────────────
+            page.locator("#csv-file-input").set_input_files(
+                {"name": "golden.csv", "mimeType": "text/csv", "buffer": csv_data}
+            )
+            page.wait_for_selector("#upload-submit.visible", timeout=5_000)
+            page.locator("#upload-submit").click()
+            page.wait_for_url(lambda url: "import_log=" in url, timeout=20_000)
+            page.wait_for_load_state("networkidle")
+            _ss(page, "00e_after_csv_upload")
+
+            content = page.content()
+            assert "Internal Server Error" not in content
+            assert "2 created" in content, "Expected '2 created' in import result panel"
+            assert "U15" in content, "Expected U15 team badge after import"
+            assert page.locator("button:has-text('Promotion Event')").count() > 0, \
+                "Promotion Event button not visible after CSV import"
+
+            # DB: import log
+            db_session.expire_all()
+            log = (
+                db_session.query(CsvImportLog)
+                .filter(CsvImportLog.club_id == club.id)
+                .order_by(CsvImportLog.id.desc())
+                .first()
+            )
+            assert log is not None, "No CsvImportLog in DB"
+            assert log.rows_created == 2
+            assert log.rows_failed == 0
+
+            # ── 7. Promotion wizard ───────────────────────────────────────────
+            page.click("button:has-text('Promotion Event')")
+            page.wait_for_selector("#promotion-modal", state="visible")
+            _ss(page, "00f_promotion_modal")
+
+            tourn_name = f"{club_name} Cup 2026"
+            page.fill("#promotion-modal input[name=tournament_name]", tourn_name)
+            page.fill("#promotion-modal input[name=start_date]", "2026-07-01")
+            page.fill("#promotion-modal input[name=end_date]", "2026-07-02")
+
+            u15_cb = page.locator('#promotion-modal input[name="age_groups"][value="U15"]')
+            assert u15_cb.count() >= 1, "U15 checkbox missing in promotion modal"
+            if not u15_cb.first.is_checked():
+                u15_cb.first.check()
+
+            page.click("#promotion-modal button[type=submit]")
+            page.wait_for_url(lambda url: "/admin/tournaments" in url, timeout=20_000)
+            page.wait_for_load_state("networkidle")
+            _ss(page, "00g_tournaments_page")
+
+            content = page.content()
+            assert "Internal Server Error" not in content
+            assert tourn_name in content or "Promotion tournaments created" in content, \
+                "Expected tournament name or success banner on /admin/tournaments"
+
+            # ── 8. DB assertions ──────────────────────────────────────────────
+            db_session.expire_all()
+            tournaments = (
+                db_session.query(Semester)
+                .filter(
+                    Semester.semester_category == SemesterCategory.TOURNAMENT,
+                    Semester.name.like(f"{club_name}%"),
+                )
+                .all()
+            )
+            assert len(tournaments) == 1, f"Expected 1 tournament, found {len(tournaments)}"
+            assert tournaments[0].age_group == "U15"
+
+            enrollments = (
+                db_session.query(TournamentTeamEnrollment)
+                .filter(TournamentTeamEnrollment.semester_id == tournaments[0].id)
+                .all()
+            )
+            assert len(enrollments) == 1, f"Expected 1 enrollment, found {len(enrollments)}"
+            assert enrollments[0].payment_verified is True
+
+        finally:
+            try:
+                target = club or db_session.query(Club).filter(Club.name == club_name).first()
+                if target:
+                    _cleanup_club(db_session, target)
+            except Exception:
+                db_session.rollback()
+            _cleanup_imported_users(db_session)
