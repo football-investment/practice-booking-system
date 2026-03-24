@@ -75,6 +75,13 @@
     .date-cell  { font-size: 0.8rem; color: #a0aec0; }
     .no-members { padding: 2.5rem; text-align: center; color: #a0aec0; font-size: 0.9rem; }
 
+    .member-link {
+        color: #667eea; font-weight: 700; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 0.25rem;
+    }
+    .member-link:hover { text-decoration: underline; color: #5a4a9a; }
+    .member-link::after { content: " ↗"; font-size: 0.7rem; opacity: 0.6; }
+
     .back-link {
         display: inline-flex; align-items: center; gap: 0.4rem;
         padding: 6px 14px; border-radius: 7px;
@@ -145,7 +152,10 @@
         <tr>
             <td style="color:#a0aec0;font-size:0.8rem;">{{ loop.index }}</td>
             <td>
-                <strong>{{ m.user.name or (m.user.first_name ~ ' ' ~ m.user.last_name) }}</strong>
+                <a href="/admin/users/{{ m.user.id }}/profile?from_club={{ club.id }}&from_team={{ team.id }}"
+                   class="member-link">
+                    {{ m.user.name or (m.user.first_name ~ ' ' ~ m.user.last_name) }}
+                </a>
             </td>
             <td class="email-cell">{{ m.user.email }}</td>
             <td>

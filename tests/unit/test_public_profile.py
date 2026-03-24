@@ -4,13 +4,14 @@ Unit tests for app/api/api_v1/endpoints/public_profile.py
 Coverage targets:
   get_lfa_player_profile() — GET /users/{user_id}/profile/lfa-player
     - 404: user not found (fetchone returns None)
-    - 404: no active LFA Player license (second fetchone returns None)
-    - happy path: returns all expected fields
+    - 404: no active LFA Player license (UserLicense ORM query returns None)
+    - happy path: returns all expected fields (29-skill system)
     - DOB-based age_group: PRE (<7), YOUTH (7-14), AMATEUR (15+)
     - no DOB → defaults to AMATEUR
     - motivation_scores dict → position_preference extracted
     - no motivation_scores → position_preference "Unknown"
     - assessments list populated from fetchall
+    - onboarding_completed=False → overall_rating=0.0, skills={}
 
   get_basic_profile() — GET /users/{user_id}/profile/basic
     - 404: user not found
@@ -27,7 +28,12 @@ Coverage targets:
     - availability_windows_count returned
 
 Mock strategy:
-  get_lfa_player_profile / get_basic_profile: db.execute().fetchone.side_effect
+  get_lfa_player_profile:
+    - db.execute().fetchone() → user row (SQL)
+    - db.query(UserLicense).filter().first() → ORM license mock
+    - patch get_skill_profile() when onboarding_completed=True
+    - db.execute().fetchall() → assessment rows
+  get_basic_profile: db.execute().fetchone + fetchall
   get_instructor_profile: sequential db.query() calls
 """
 
@@ -42,6 +48,8 @@ from app.api.api_v1.endpoints.public_profile import (
     get_instructor_profile,
 )
 
+_SKILL_PROFILE_PATH = "app.services.skill_progression_service.get_skill_profile"
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -53,19 +61,17 @@ def _user_row(user_id=10, name="Test User", dob=None, nationality="HU", credits=
     return row
 
 
-def _license_row(level=3, max_level=5, heading=75.0, overall=72.0, motivation=None):
-    """Simulates a raw SQL row for the lfa_player_licenses join query (index-based)."""
-    from datetime import datetime as dt
-    created = dt(2024, 1, 1)
-    row = MagicMock()
-    # Indices: 0=id, 1=age_group, 2=credit_balance, 3=heading, 4=shooting,
-    #          5=crossing, 6=passing, 7=dribbling, 8=ball_control, 9=defending,
-    #          10=overall, 11=created_at, 12=current_level, 13=max_level, 14=motivation
-    values = [1, "AMATEUR", 0, heading, heading, heading, heading, heading, heading, heading,
-              overall, created, level, max_level, motivation]
-    row.__getitem__ = lambda self, i: values[i]
-    row.__bool__ = lambda self: True
-    return row
+def _lfa_license(user_id=10, level=3, max_level=5, onboarding=False, motivation=None):
+    """Mock UserLicense ORM object for LFA_FOOTBALL_PLAYER."""
+    lic = MagicMock()
+    lic.id = 1
+    lic.user_id = user_id
+    lic.current_level = level
+    lic.max_achieved_level = max_level
+    lic.onboarding_completed = onboarding
+    lic.motivation_scores = motivation
+    lic.started_at = None
+    return lic
 
 
 def _assessment_row(skill="heading", pct=80.0):
@@ -77,13 +83,26 @@ def _assessment_row(skill="heading", pct=80.0):
     return row
 
 
-def _execute_db(fetchone_values=None, fetchall_value=None):
-    """db.execute().fetchone.side_effect + fetchall."""
+def _db_lfa_profile(user_row, lfa_license, assessment_rows=None):
+    """db mock for get_lfa_player_profile.
+
+    SQL execute: fetchone() → user_row, fetchall() → assessment_rows
+    ORM query:   db.query(UserLicense).filter().first() → lfa_license
+    """
     db = MagicMock()
+
+    # SQL execute mock (same object for both queries)
     ex = MagicMock()
-    ex.fetchone.side_effect = list(fetchone_values or [])
-    ex.fetchall.return_value = fetchall_value or []
+    ex.fetchone.return_value = user_row
+    ex.fetchall.return_value = assessment_rows or []
     db.execute.return_value = ex
+
+    # ORM query mock
+    q = MagicMock()
+    q.filter.return_value = q
+    q.first.return_value = lfa_license
+    db.query.return_value = q
+
     return db
 
 
@@ -112,28 +131,55 @@ def _profile_db(user=None, licenses=None, avail_count=0):
 class TestGetLfaPlayerProfile:
 
     def test_404_when_user_not_found(self):
-        db = _execute_db(fetchone_values=[None])
+        ex = MagicMock()
+        ex.fetchone.return_value = None
+        db = MagicMock()
+        db.execute.return_value = ex
         with pytest.raises(HTTPException) as exc:
             get_lfa_player_profile(user_id=99, db=db)
         assert exc.value.status_code == 404
 
     def test_404_when_no_active_license(self):
         user = _user_row()
-        db = _execute_db(fetchone_values=[user, None])
+        db = _db_lfa_profile(user_row=user, lfa_license=None)
         with pytest.raises(HTTPException) as exc:
             get_lfa_player_profile(user_id=10, db=db)
         assert exc.value.status_code == 404
 
     def test_happy_path_returns_expected_fields(self):
         user = _user_row(dob=None)
-        lic = _license_row()
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[])
+        lic = _lfa_license(onboarding=False)
+        db = _db_lfa_profile(user, lic)
         result = get_lfa_player_profile(user_id=10, db=db)
         assert result["user_id"] == 10
         assert "skills" in result
         assert "overall_rating" in result
         assert "age_group" in result
         assert "level" in result
+
+    def test_onboarding_false_returns_zero_rating_and_empty_skills(self):
+        user = _user_row(dob=None)
+        lic = _lfa_license(onboarding=False)
+        db = _db_lfa_profile(user, lic)
+        result = get_lfa_player_profile(user_id=10, db=db)
+        assert result["overall_rating"] == 0.0
+        assert result["skills"] == {}
+
+    def test_onboarding_true_uses_skill_profile(self):
+        user = _user_row(dob=None)
+        lic = _lfa_license(onboarding=True)
+        db = _db_lfa_profile(user, lic)
+        fake_profile = {
+            "skills": {"passing": {"current_level": 65.0, "tier": "COMPETENT"}},
+            "average_level": 63.5,
+            "total_tournaments": 4,
+            "total_assessments": 10,
+        }
+        with patch(_SKILL_PROFILE_PATH, return_value=fake_profile):
+            result = get_lfa_player_profile(user_id=10, db=db)
+        assert result["overall_rating"] == 63.5
+        assert "passing" in result["skills"]
+        assert result["total_tournaments"] == 4
 
     def test_age_group_pre_for_child_under_7(self):
         today = datetime.today()
@@ -143,8 +189,8 @@ class TestGetLfaPlayerProfile:
         dob.day = 1
         dob.isoformat.return_value = f"{today.year - 5}-01-01"
         user = _user_row(dob=dob)
-        lic = _license_row()
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[])
+        lic = _lfa_license(onboarding=False)
+        db = _db_lfa_profile(user, lic)
         result = get_lfa_player_profile(user_id=10, db=db)
         assert result["age_group"] == "PRE"
 
@@ -156,8 +202,8 @@ class TestGetLfaPlayerProfile:
         dob.day = 1
         dob.isoformat.return_value = f"{today.year - 10}-01-01"
         user = _user_row(dob=dob)
-        lic = _license_row()
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[])
+        lic = _lfa_license(onboarding=False)
+        db = _db_lfa_profile(user, lic)
         result = get_lfa_player_profile(user_id=10, db=db)
         assert result["age_group"] == "YOUTH"
 
@@ -169,39 +215,39 @@ class TestGetLfaPlayerProfile:
         dob.day = 1
         dob.isoformat.return_value = f"{today.year - 20}-01-01"
         user = _user_row(dob=dob)
-        lic = _license_row()
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[])
+        lic = _lfa_license(onboarding=False)
+        db = _db_lfa_profile(user, lic)
         result = get_lfa_player_profile(user_id=10, db=db)
         assert result["age_group"] == "AMATEUR"
 
     def test_no_dob_defaults_to_amateur(self):
         user = _user_row(dob=None)
-        lic = _license_row()
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[])
+        lic = _lfa_license(onboarding=False)
+        db = _db_lfa_profile(user, lic)
         result = get_lfa_player_profile(user_id=10, db=db)
         assert result["age_group"] == "AMATEUR"
 
     def test_position_from_motivation_scores(self):
-        motivation = {"preferred_position": "Striker"}
+        motivation = {"position": "Striker"}
         user = _user_row(dob=None)
-        lic = _license_row(motivation=motivation)
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[])
+        lic = _lfa_license(onboarding=False, motivation=motivation)
+        db = _db_lfa_profile(user, lic)
         result = get_lfa_player_profile(user_id=10, db=db)
         assert result["position"] == "Striker"
 
     def test_position_unknown_when_no_motivation(self):
         user = _user_row(dob=None)
-        lic = _license_row(motivation=None)
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[])
+        lic = _lfa_license(onboarding=False, motivation=None)
+        db = _db_lfa_profile(user, lic)
         result = get_lfa_player_profile(user_id=10, db=db)
         assert result["position"] == "Unknown"
 
     def test_assessments_populated_from_fetchall(self):
         user = _user_row(dob=None)
-        lic = _license_row()
+        lic = _lfa_license(onboarding=False)
         a1 = _assessment_row("heading", 80.0)
         a2 = _assessment_row("shooting", 65.0)
-        db = _execute_db(fetchone_values=[user, lic], fetchall_value=[a1, a2])
+        db = _db_lfa_profile(user, lic, assessment_rows=[a1, a2])
         result = get_lfa_player_profile(user_id=10, db=db)
         assert len(result["recent_assessments"]) == 2
         assert result["recent_assessments"][0]["skill_name"] == "heading"
@@ -219,7 +265,10 @@ class TestGetBasicProfile:
         return row
 
     def test_404_when_user_not_found(self):
-        db = _execute_db(fetchone_values=[None])
+        ex = MagicMock()
+        ex.fetchone.return_value = None
+        db = MagicMock()
+        db.execute.return_value = ex
         with pytest.raises(HTTPException) as exc:
             get_basic_profile(user_id=99, db=db)
         assert exc.value.status_code == 404

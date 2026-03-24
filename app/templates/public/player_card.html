@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ player.name }} — LFA Player Card</title>
+    <meta property="og:title" content="{{ player.name }} — LFA Player Card">
+    <meta property="og:description" content="{{ player.position }} · {{ player.nationality }} · {{ tier_label }} {{ overall }}">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0f1923;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 2rem 1rem 4rem;
+    color: #e2e8f0;
+}
+.page-brand {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; color: rgba(255,255,255,0.35);
+    margin-bottom: 1.5rem;
+}
+.card-wrap {
+    width: 100%; max-width: 640px;
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Split header ─────────────────────────────────────────── */
+.fifa-header {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+}
+.fifa-left {
+    background: linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%);
+    padding: 1.75rem 1.1rem 1.5rem;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0.55rem; text-align: center;
+}
+.fifa-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.65rem; font-weight: 900; color: white;
+    border: 3px solid rgba(255,255,255,0.18); flex-shrink: 0;
+}
+.fifa-overall { font-size: 3rem; font-weight: 900; color: white; line-height: 1; margin-top: 0.2rem; }
+.fifa-tier {
+    font-size: 0.58rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.13em; padding: 3px 10px; border-radius: 99px; color: white;
+}
+.fifa-right {
+    background: #ffffff;
+    padding: 1.5rem 1.5rem 1.25rem;
+    display: flex; flex-direction: column; gap: 0.8rem;
+}
+.fifa-name { font-size: 1.6rem; font-weight: 800; color: #1a202c; line-height: 1.1; }
+.fifa-pos-badge {
+    display: inline-block; padding: 3px 12px; border-radius: 6px;
+    font-size: 0.72rem; font-weight: 800; color: white;
+    text-transform: uppercase; letter-spacing: 0.08em;
+}
+.identity-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.6rem 1rem;
+}
+.id-field { display: flex; flex-direction: column; gap: 2px; }
+.id-label { font-size: 0.62rem; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.08em; }
+.id-value { font-size: 0.88rem; font-weight: 700; color: #2d3748; }
+.fifa-club-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.club-pill {
+    font-size: 0.72rem; font-weight: 600; color: #4a5568;
+    background: #f0f4ff; border: 1px solid #e2e8f0;
+    border-radius: 99px; padding: 3px 10px;
+}
+
+/* ── Skills section ───────────────────────────────────────── */
+.skills-section {
+    background: #1a202c;
+    padding: 1.25rem 1.5rem;
+}
+.skills-title {
+    font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.14em; color: rgba(255,255,255,0.35);
+    margin-bottom: 0.9rem;
+}
+.skill-cats {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+}
+.skill-cat { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 0.75rem; }
+.skill-cat-name {
+    font-size: 0.6rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.1em; color: rgba(255,255,255,0.4); margin-bottom: 0.5rem;
+}
+.skill-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem; }
+.skill-row:last-child { margin-bottom: 0; }
+.skill-name { font-size: 0.65rem; color: rgba(255,255,255,0.6); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skill-val { font-size: 0.7rem; font-weight: 700; width: 30px; text-align: right; flex-shrink: 0; }
+.skill-bar-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; min-width: 30px; }
+.skill-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 580px) {
+    .fifa-header { grid-template-columns: 140px 1fr; }
+    .fifa-name { font-size: 1.25rem; }
+    .skill-cats { grid-template-columns: 1fr 1fr; }
+    .identity-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 420px) {
+    .fifa-header { grid-template-columns: 1fr; }
+    .fifa-left { padding: 1.25rem; }
+    .skill-cats { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-brand">⚽ LFA Education Center — Player Card</div>
+
+<div class="card-wrap">
+
+    <!-- Split header -->
+    <div class="fifa-header">
+        <div class="fifa-left">
+            <div class="fifa-avatar" style="background: {{ avatar_bg }};">{{ initials }}</div>
+            <div class="fifa-overall">{{ overall }}</div>
+            <span class="fifa-tier" style="background: {{ tier_color }};">{{ tier_label }}</span>
+        </div>
+        <div class="fifa-right">
+            <div>
+                <h2 class="fifa-name">{{ player.name }}</h2>
+                {% if player.position and player.position != "Unknown" %}
+                <span class="fifa-pos-badge" style="background: {{ pos_color }};">{{ player.position }}</span>
+                {% endif %}
+            </div>
+
+            <div class="identity-grid">
+                <div class="id-field">
+                    <span class="id-label">Nationality</span>
+                    <span class="id-value">{{ player.nationality or "—" }}</span>
+                </div>
+                <div class="id-field">
+                    <span class="id-label">Age Group</span>
+                    <span class="id-value">{{ player.age_group or "—" }}</span>
+                </div>
+                <div class="id-field">
+                    <span class="id-label">Tournaments</span>
+                    <span class="id-value">{{ player.total_tournaments }}</span>
+                </div>
+            </div>
+
+            {% if teams_info %}
+            <div class="fifa-club-pills">
+                {% for t in teams_info %}
+                <span class="club-pill">🏟️ {{ t.team_name }}{% if t.club_name %} · {{ t.club_name }}{% endif %}{% if t.age_group_label %} · {{ t.age_group_label }}{% endif %}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Skills -->
+    {% if skill_categories %}
+    <div class="skills-section">
+        <div class="skills-title">Football Skills — {{ overall }} OVR</div>
+        <div class="skill-cats">
+            {% for cat in skill_categories %}
+            <div class="skill-cat">
+                <div class="skill-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
+                {% for skill in cat.skills %}
+                {% set sdata = player.skills.get(skill.key, {}) %}
+                {% set sval = sdata.get('current_level', 50) | round(1) %}
+                {% set fill_pct = [sval, 100] | min %}
+                {% if sval >= 90 %}{% set bar_color = '#d69e2e' %}
+                {% elif sval >= 75 %}{% set bar_color = '#48bb78' %}
+                {% elif sval >= 60 %}{% set bar_color = '#667eea' %}
+                {% elif sval >= 50 %}{% set bar_color = '#ed8936' %}
+                {% else %}{% set bar_color = '#fc8181' %}{% endif %}
+                <div class="skill-row">
+                    <span class="skill-name">{{ skill.name_en }}</span>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{{ fill_pct }}%; background:{{ bar_color }};"></div></div>
+                    <span class="skill-val" style="color:{{ bar_color }};">{{ sval }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>

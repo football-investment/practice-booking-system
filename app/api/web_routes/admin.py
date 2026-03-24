@@ -3947,3 +3947,121 @@ async def admin_club_team_detail(
             "canonical_age": canonical_age,
         },
     )
+
+
+@router.get("/admin/users/{user_id}/profile", response_class=HTMLResponse)
+async def admin_user_profile(
+    request: Request,
+    user_id: int,
+    from_club: int = None,
+    from_team: int = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: FIFA EA Sports-style user profile page (29-skill system)."""
+    _admin_guard(user)
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # LFA Player license — 29-skill system via UserLicense.football_skills JSONB
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+
+    # 29-skill profile — only meaningful when onboarding_completed=True
+    lfa_skill_profile = None
+    if lfa_license and lfa_license.onboarding_completed:
+        from ...services.skill_progression_service import get_skill_profile
+        lfa_skill_profile = get_skill_profile(db, user_id)
+
+    # Tournament participations
+    from ...models.tournament_achievement import TournamentParticipation, TournamentBadge
+    participations = (
+        db.query(TournamentParticipation)
+        .filter(TournamentParticipation.user_id == user_id)
+        .order_by(TournamentParticipation.achieved_at.desc())
+        .all()
+    )
+    best_placement = min(
+        (p.placement for p in participations if p.placement), default=None
+    )
+    total_xp = sum(p.xp_awarded or 0 for p in participations)
+
+    # Win/loss/draw aggregates from tournament_rankings
+    from sqlalchemy import text
+    ranking_agg = db.execute(
+        text("SELECT SUM(wins), SUM(losses), SUM(draws) FROM tournament_rankings WHERE user_id=:uid"),
+        {"uid": user_id},
+    ).fetchone()
+    agg_wins   = int(ranking_agg[0] or 0) if ranking_agg else 0
+    agg_losses = int(ranking_agg[1] or 0) if ranking_agg else 0
+    agg_draws  = int(ranking_agg[2] or 0) if ranking_agg else 0
+
+    # Badges (newest first, max 12)
+    badges = (
+        db.query(TournamentBadge)
+        .filter(TournamentBadge.user_id == user_id)
+        .order_by(TournamentBadge.earned_at.desc())
+        .limit(12)
+        .all()
+    )
+
+    # Back-navigation context (from club_team_detail link)
+    from ...models.club import Club
+    from ...models.team import Team, TeamMember
+    back_club = db.query(Club).filter(Club.id == from_club).first() if from_club else None
+    back_team = db.query(Team).filter(Team.id == from_team).first() if from_team else None
+
+    # Team memberships for profile display
+    target_teams_info = []
+    for tm in db.query(TeamMember).filter(TeamMember.user_id == user_id).all():
+        team = db.query(Team).filter(Team.id == tm.team_id).first()
+        club = db.query(Club).filter(Club.id == team.club_id).first() if (team and team.club_id) else None
+        target_teams_info.append({"team": team, "club": club, "role": tm.role})
+
+    # Age calculation
+    from datetime import date as _date
+    target_age = None
+    if target.date_of_birth:
+        today = _date.today()
+        dob = target.date_of_birth
+        target_age = today.year - dob.year - (
+            1 if (today.month, today.day) < (dob.month, dob.day) else 0
+        )
+
+    # Position: onboarding stores it in UserLicense.motivation_scores["position"]
+    # (STRIKER / MIDFIELDER / DEFENDER / GOALKEEPER)
+    # User.position column is only set via PATCH /api/v1/users/me — use as fallback
+    target_position = None
+    if lfa_license and lfa_license.motivation_scores:
+        target_position = lfa_license.motivation_scores.get("position")
+    if not target_position:
+        target_position = target.position
+
+    return templates.TemplateResponse(
+        "admin/user_profile.html",
+        {
+            "request": request,
+            "user": user,
+            "target": target,
+            "lfa_license": lfa_license,
+            "lfa_skill_profile": lfa_skill_profile,
+            "skill_categories": SKILL_CATEGORIES,
+            "participations": participations,
+            "best_placement": best_placement,
+            "total_xp": total_xp,
+            "agg_wins": agg_wins,
+            "agg_losses": agg_losses,
+            "agg_draws": agg_draws,
+            "badges": badges,
+            "back_club": back_club,
+            "back_team": back_team,
+            "target_teams_info": target_teams_info,
+            "target_age": target_age,
+            "target_position": target_position,
+        },
+    )

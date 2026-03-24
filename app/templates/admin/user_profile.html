@@ -1,0 +1,414 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}{{ target.name }} — Profile{% endblock %}
+{% block page_heading %}👤 {{ target.name or target.email }}{% endblock %}
+{% block page_subtitle %}Player Profile — LFA Football Player{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ── Module strip + breadcrumb ───────────────────────────────────────── */
+    .module-strip {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.75rem 0; margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0; flex-wrap: wrap;
+    }
+    .module-strip-label { font-size: 0.75rem; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.08em; padding-right: 0.5rem; border-right: 1px solid #e2e8f0; }
+    .module-link { padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; color: #718096; transition: background 0.15s; }
+    .module-link:hover { background: #f0f4ff; color: #5a4a9a; }
+    .module-link.active { background: #ece8ff; color: #5a4a9a; }
+    .breadcrumb { font-size: 0.85rem; color: #718096; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+    .breadcrumb a { color: #667eea; text-decoration: none; font-weight: 600; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .breadcrumb-sep { color: #cbd5e0; }
+
+    /* ── FIFA Split Header ───────────────────────────────────────────────── */
+    .fifa-header {
+        display: grid;
+        grid-template-columns: 210px 1fr;
+        margin-bottom: 1.25rem;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    /* Left: dark panel — avatar + overall + tier + level */
+    .fifa-left {
+        background: linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%);
+        padding: 1.75rem 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.6rem;
+        text-align: center;
+    }
+    .fifa-avatar {
+        width: 76px; height: 76px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.75rem; font-weight: 900; color: white;
+        border: 3px solid rgba(255,255,255,0.18);
+        flex-shrink: 0;
+        letter-spacing: -1px;
+    }
+    .fifa-overall-num {
+        font-size: 3.2rem; font-weight: 900; line-height: 1;
+        color: white; margin-top: 0.25rem;
+    }
+    .fifa-tier-badge {
+        font-size: 0.62rem; font-weight: 800; text-transform: uppercase;
+        letter-spacing: 0.12em; padding: 3px 11px; border-radius: 99px; color: white;
+    }
+    .fifa-no-license { font-size: 0.75rem; color: rgba(255,255,255,0.4); font-style: italic; }
+    .btn-back {
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        padding: 5px 12px; border-radius: 6px; margin-top: auto;
+        background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8);
+        font-size: 0.76rem; font-weight: 600; text-decoration: none;
+        border: 1px solid rgba(255,255,255,0.14);
+        transition: background 0.15s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.18); }
+    .btn-public-profile {
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        padding: 5px 12px; border-radius: 6px; margin-top: 0.4rem;
+        background: rgba(102,126,234,0.25); color: #a3b4f7;
+        font-size: 0.78rem; font-weight: 600; text-decoration: none;
+        border: 1px solid rgba(102,126,234,0.35);
+        transition: background 0.15s;
+    }
+    .btn-public-profile:hover { background: rgba(102,126,234,0.4); }
+
+    /* Right: white panel — identity info */
+    .fifa-right {
+        background: white;
+        padding: 1.5rem 1.75rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.85rem;
+    }
+    .fifa-name {
+        font-size: 1.85rem; font-weight: 800; color: #1a202c;
+        line-height: 1.1; margin: 0;
+    }
+    .fifa-pos-badge {
+        display: inline-block;
+        font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+        letter-spacing: 0.1em; padding: 3px 13px; border-radius: 99px;
+        background: #667eea; color: white;
+    }
+    .fifa-identity-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.6rem 1.25rem;
+    }
+    .fifa-field { display: flex; flex-direction: column; gap: 1px; }
+    .fifa-field-label {
+        font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.09em; color: #a0aec0;
+    }
+    .fifa-field-value {
+        font-size: 0.875rem; font-weight: 600; color: #2d3748;
+    }
+    .fifa-teams {
+        display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.1rem;
+    }
+    .fifa-team-pill {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        background: #f0f4ff; border: 1px solid #c3d0f8; border-radius: 6px;
+        padding: 3px 10px; font-size: 0.76rem; font-weight: 600; color: #4a5568;
+    }
+    .fifa-email {
+        font-size: 0.8rem; color: #718096; word-break: break-all;
+    }
+
+    @media (max-width: 820px) {
+        .fifa-header { grid-template-columns: 1fr; }
+        .fifa-left { flex-direction: row; flex-wrap: wrap; padding: 1.25rem 1.5rem; gap: 1rem; justify-content: center; }
+        .fifa-overall-num { font-size: 2.4rem; }
+        .fifa-identity-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+        .fifa-identity-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Alert ───────────────────────────────────────────────────────────── */
+    .alert-yellow { background: #fffbeb; border: 1px solid #fbd38d; border-radius: 8px; padding: 1rem 1.25rem; color: #92400e; font-size: 0.9rem; margin-bottom: 1.25rem; }
+
+    /* ── Skills: 4-column grid ───────────────────────────────────────────── */
+    .skills-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.1rem;
+        margin-bottom: 1.25rem;
+    }
+    @media (max-width: 1100px) { .skills-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 580px)  { .skills-grid { grid-template-columns: 1fr; } }
+
+    .skill-cat-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+    .skill-cat-header { padding: 0.6rem 1rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: 700; font-size: 0.83rem; color: #2d3748; }
+    .skill-cat-body { padding: 0.35rem 1rem 0.6rem; }
+    .skill-row { display: flex; align-items: center; gap: 0.45rem; padding: 4px 0; }
+    .skill-name { font-size: 0.73rem; font-weight: 600; color: #4a5568; min-width: 108px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .skill-bar-wrap { flex: 1; height: 6px; background: #edf2f7; border-radius: 99px; overflow: hidden; }
+    .skill-bar { height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .skill-val { font-size: 0.73rem; font-weight: 700; color: #2d3748; min-width: 26px; text-align: right; }
+
+    /* ── Stats strip: 3-col ──────────────────────────────────────────────── */
+    .stats-strip {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1.1rem;
+        margin-bottom: 1.25rem;
+    }
+    @media (max-width: 768px) { .stats-strip { grid-template-columns: 1fr; } }
+
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem 1.4rem; }
+    .stats-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #a0aec0; margin-bottom: 0.75rem; }
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.83rem; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-key { color: #718096; }
+    .stat-val { font-weight: 700; color: #2d3748; }
+
+    /* ── Badges ──────────────────────────────────────────────────────────── */
+    .badges-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    .badge-card { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 86px; text-align: center; }
+    .badge-icon { font-size: 1.4rem; }
+    .badge-title { font-size: 0.7rem; font-weight: 700; color: #2d3748; }
+    .badge-rarity { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; border-radius: 99px; padding: 1px 6px; }
+    .rarity-COMMON    { background: #e2e8f0; color: #4a5568; }
+    .rarity-UNCOMMON  { background: #c6f6d5; color: #276749; }
+    .rarity-RARE      { background: #bee3f8; color: #2b6cb0; }
+    .rarity-EPIC      { background: #e9d8fd; color: #553c9a; }
+    .rarity-LEGENDARY { background: #fefcbf; color: #744210; }
+
+    .no-data { color: #a0aec0; font-size: 0.875rem; padding: 0.75rem 0; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- Module strip -->
+<div class="module-strip">
+    <span class="module-strip-label">People</span>
+    <a href="/admin/users" class="module-link active">👥 Users</a>
+    <a href="/admin/instructors" class="module-link">👨‍🏫 Instructors</a>
+    <a href="/admin/sport-directors" class="module-link">🎯 Sport Directors</a>
+    <a href="/admin/clubs" class="module-link">🏟️ Clubs</a>
+</div>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <a href="/admin/users">Users</a>
+    {% if back_club %}
+    <span class="breadcrumb-sep">›</span>
+    <a href="/admin/clubs">Clubs</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="/admin/clubs/{{ back_club.id }}">{{ back_club.name }}</a>
+    {% if back_team %}
+    <span class="breadcrumb-sep">›</span>
+    <a href="/admin/clubs/{{ back_club.id }}/teams/{{ back_team.id }}">{{ back_team.name }}</a>
+    {% endif %}
+    {% endif %}
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ target.name or target.email }}</span>
+</div>
+
+{# ── Computed values ─────────────────────────────────────────────────────── #}
+{% set _overall = (lfa_skill_profile.average_level | round(1)) if (lfa_skill_profile and lfa_license) else 0.0 %}
+
+{# Tier + colour based on overall #}
+{% set ns = namespace(tier_color='#fc8181', tier_label='BEGINNER', avatar_bg='#c53030') %}
+{% if _overall >= 90 %}
+  {% set ns.tier_color = '#d69e2e' %}{% set ns.tier_label = 'ELITE' %}{% set ns.avatar_bg = '#b7791f' %}
+{% elif _overall >= 75 %}
+  {% set ns.tier_color = '#48bb78' %}{% set ns.tier_label = 'ADVANCED' %}{% set ns.avatar_bg = '#276749' %}
+{% elif _overall >= 60 %}
+  {% set ns.tier_color = '#667eea' %}{% set ns.tier_label = 'COMPETENT' %}{% set ns.avatar_bg = '#434190' %}
+{% elif _overall >= 50 %}
+  {% set ns.tier_color = '#ed8936' %}{% set ns.tier_label = 'DEVELOPING' %}{% set ns.avatar_bg = '#c05621' %}
+{% endif %}
+
+{# Initials from name #}
+{% set _np = (target.name or target.email or '??').split(' ') %}
+{% if _np | length > 1 and _np[-1] %}
+  {% set _initials = (_np[0][0] + _np[-1][0]) | upper %}
+{% else %}
+  {% set _initials = _np[0][0:2] | upper %}
+{% endif %}
+
+{# Position colour — based on role #}
+{% set _pos_colors = {
+    'STRIKER': '#e53e3e',
+    'MIDFIELDER': '#667eea',
+    'DEFENDER': '#38a169',
+    'GOALKEEPER': '#d69e2e'
+} %}
+{% set _pos_bg = _pos_colors.get(target_position, '#667eea') %}
+
+<!-- ── FIFA Split Header ──────────────────────────────────────────────────── -->
+<div class="fifa-header">
+
+    <!-- Left: dark panel -->
+    <div class="fifa-left">
+        <div class="fifa-avatar" style="background: {{ ns.avatar_bg }};">{{ _initials }}</div>
+
+        {% if lfa_license %}
+        <div class="fifa-overall-num">{{ _overall }}</div>
+        <span class="fifa-tier-badge" style="background: {{ ns.tier_color }};">{{ ns.tier_label }}</span>
+        {% else %}
+        <div class="fifa-no-license">No active license</div>
+        {% endif %}
+
+        <!-- Back navigation -->
+        {% if back_team and back_club %}
+        <a href="/admin/clubs/{{ back_club.id }}/teams/{{ back_team.id }}" class="btn-back">← {{ back_team.name }}</a>
+        {% elif back_club %}
+        <a href="/admin/clubs/{{ back_club.id }}" class="btn-back">← {{ back_club.name }}</a>
+        {% else %}
+        <a href="/admin/users" class="btn-back">← Users</a>
+        {% endif %}
+
+        <!-- Public profile link -->
+        {% if lfa_license %}
+        <a href="/players/{{ target.id }}/card" target="_blank" class="btn-public-profile">🌐 Public Card</a>
+        {% endif %}
+    </div>
+
+    <!-- Right: identity info -->
+    <div class="fifa-right">
+        <div>
+            <h2 class="fifa-name">{{ target.name or target.email }}</h2>
+            {% if target_position %}
+            <span class="fifa-pos-badge" style="background: {{ _pos_bg }};">{{ target_position }}</span>
+            {% endif %}
+        </div>
+
+        <div class="fifa-identity-grid">
+            <div class="fifa-field">
+                <span class="fifa-field-label">Nationality</span>
+                <span class="fifa-field-value">{{ target.nationality or "—" }}</span>
+            </div>
+            <div class="fifa-field">
+                <span class="fifa-field-label">Gender</span>
+                <span class="fifa-field-value">{{ target.gender or "—" }}</span>
+            </div>
+            <div class="fifa-field">
+                <span class="fifa-field-label">Date of Birth</span>
+                <span class="fifa-field-value">
+                    {{ target.date_of_birth.strftime('%Y-%m-%d') if target.date_of_birth else "—" }}
+                    {% if target_age %}<span style="color:#a0aec0;font-weight:500;">({{ target_age }})</span>{% endif %}
+                </span>
+            </div>
+            <div class="fifa-field">
+                <span class="fifa-field-label">Specialization</span>
+                <span class="fifa-field-value">{% if lfa_license %}{% set _spec_map = {'LFA_FOOTBALL_PLAYER': 'LFA Football Player', 'LFA_COACH': 'LFA Coach', 'INTERNSHIP': 'Internship', 'JUNIOR_INTERNSHIP': 'Junior Internship', 'SENIOR_INTERNSHIP': 'Senior Internship', 'GANCUJU_PLAYER': 'Gancuju Player'} %}{{ _spec_map.get(lfa_license.specialization_type, lfa_license.specialization_type) }}{% else %}—{% endif %}</span>
+            </div>
+            <div class="fifa-field">
+                <span class="fifa-field-label">Member since</span>
+                <span class="fifa-field-value">{{ target.created_at.strftime('%Y-%m-%d') if target.created_at else "—" }}</span>
+            </div>
+        </div>
+
+        <div class="fifa-email">📧 {{ target.email }}</div>
+
+        {% if target_teams_info %}
+        <div class="fifa-teams">
+            {% for tinfo in target_teams_info %}
+            <span class="fifa-team-pill">
+                🏟️ {{ tinfo.team.name }}{% if tinfo.club %} · {{ tinfo.club.name }}{% endif %}{% if tinfo.team.age_group_label %} · {{ tinfo.team.age_group_label }}{% endif %}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ── Skills: 4-column grid ──────────────────────────────────────────────── -->
+{% if not lfa_license %}
+<div class="alert-yellow">⚠️ No active LFA Football Player license — skill data not available.</div>
+{% elif not lfa_license.onboarding_completed %}
+<div class="alert-yellow">⏳ Onboarding not completed — skill data will appear after the first assessment session.</div>
+{% elif not lfa_skill_profile %}
+<div class="alert-yellow">⚠️ Skill profile not available.</div>
+{% else %}
+<div class="skills-grid">
+{% for cat in skill_categories %}
+<div class="skill-cat-card">
+    <div class="skill-cat-header">{{ cat.emoji }} {{ cat.name_en }}</div>
+    <div class="skill-cat-body">
+    {% for skill in cat.skills %}
+        {% set sd = lfa_skill_profile.skills.get(skill.key, {}) %}
+        {% set sv = sd.get('current_level', 50) | round(1) %}
+        <div class="skill-row">
+            <span class="skill-name">{{ skill.name_en }}</span>
+            <div class="skill-bar-wrap">
+                <div class="skill-bar" style="width:{{ sv }}%;
+                    {% if sv >= 90 %}background:#d69e2e
+                    {% elif sv >= 75 %}background:#48bb78
+                    {% elif sv >= 60 %}background:#667eea
+                    {% elif sv >= 50 %}background:#ed8936
+                    {% else %}background:#fc8181{% endif %}">
+                </div>
+            </div>
+            <span class="skill-val">{{ sv }}</span>
+        </div>
+    {% endfor %}
+    </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Stats + Account + Badges: 3-column ────────────────────────────────── -->
+<div class="stats-strip">
+    <div class="card">
+        <div class="stats-label">📊 Match Stats</div>
+        <div class="stat-row">
+            <span class="stat-key">Tournaments</span>
+            <span class="stat-val">{{ participations | length }}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-key">Best Placement</span>
+            <span class="stat-val">
+                {% if best_placement == 1 %}🥇 1st
+                {% elif best_placement == 2 %}🥈 2nd
+                {% elif best_placement == 3 %}🥉 3rd
+                {% elif best_placement %}#{{ best_placement }}
+                {% else %}—{% endif %}
+            </span>
+        </div>
+        <div class="stat-row"><span class="stat-key">Wins</span><span class="stat-val">{{ agg_wins }}</span></div>
+        <div class="stat-row"><span class="stat-key">Losses</span><span class="stat-val">{{ agg_losses }}</span></div>
+        <div class="stat-row"><span class="stat-key">Draws</span><span class="stat-val">{{ agg_draws }}</span></div>
+    </div>
+
+    <div class="card">
+        <div class="stats-label">📋 Profile</div>
+        <div class="stat-row"><span class="stat-key">XP Total</span><span class="stat-val">{{ "{:,}".format(total_xp) }}</span></div>
+        {% if lfa_license %}
+        <div class="stat-row"><span class="stat-key">License since</span><span class="stat-val">{{ lfa_license.started_at.strftime('%Y-%m-%d') if lfa_license.started_at else '—' }}</span></div>
+        {% endif %}
+        <div class="stat-row"><span class="stat-key">Member since</span><span class="stat-val">{{ target.created_at.strftime('%Y-%m-%d') if target.created_at else '—' }}</span></div>
+    </div>
+
+    <div class="card">
+        <div class="stats-label">🏅 Badges</div>
+        {% if badges %}
+        <div class="badges-grid">
+        {% for b in badges %}
+        <div class="badge-card">
+            <div class="badge-icon">{{ b.icon or '🎖️' }}</div>
+            <div class="badge-title">{{ b.title }}</div>
+            <span class="badge-rarity rarity-{{ b.rarity | default('COMMON') }}">{{ b.rarity | default('COMMON') }}</span>
+        </div>
+        {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-data">No badges earned yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

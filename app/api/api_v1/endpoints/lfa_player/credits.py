@@ -19,50 +19,6 @@ router = APIRouter()
 
 # ==================== Pydantic Schemas ====================
 
-class SkillAverages(BaseModel):
-    """Skill averages for LFA Player (7 skills)"""
-    heading_avg: Optional[float] = Field(None, ge=0, le=100)
-    shooting_avg: Optional[float] = Field(None, ge=0, le=100)
-    crossing_avg: Optional[float] = Field(None, ge=0, le=100)
-    passing_avg: Optional[float] = Field(None, ge=0, le=100)
-    dribbling_avg: Optional[float] = Field(None, ge=0, le=100)
-    ball_control_avg: Optional[float] = Field(None, ge=0, le=100)
-    defending_avg: Optional[float] = Field(None, ge=0, le=100)
-
-
-class LicenseCreate(BaseModel):
-    """Request to create LFA Player license"""
-    age_group: str = Field(..., description="Age group: PRE, YOUTH, AMATEUR, PRO")
-    initial_credits: int = Field(0, ge=0)
-    initial_skills: Optional[SkillAverages] = None
-
-
-class LicenseResponse(BaseModel):
-    """LFA Player license response"""
-    id: int
-    user_id: int
-    age_group: str
-    credit_balance: int
-    overall_avg: float
-    skills: SkillAverages
-    is_active: bool
-    created_at: str
-    updated_at: Optional[str] = None
-
-
-class SkillUpdate(BaseModel):
-    """Request to update a skill"""
-    skill_name: str = Field(..., description="heading, shooting, crossing, passing, dribbling, ball_control, defending")
-    new_avg: float = Field(..., ge=0, le=100)
-
-
-class SkillUpdateResponse(BaseModel):
-    """Response after skill update"""
-    skill_name: str
-    new_avg: float
-    overall_avg: float
-
-
 class CreditPurchase(BaseModel):
     """Request to purchase credits"""
     amount: int = Field(..., gt=0)

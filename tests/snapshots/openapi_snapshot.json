@@ -16270,104 +16270,6 @@
         "title": "SkillAuditRow",
         "type": "object"
       },
-      "SkillAverages": {
-        "description": "Skill averages for LFA Player (7 skills)",
-        "properties": {
-          "ball_control_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ball Control Avg"
-          },
-          "crossing_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Crossing Avg"
-          },
-          "defending_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Defending Avg"
-          },
-          "dribbling_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dribbling Avg"
-          },
-          "heading_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Heading Avg"
-          },
-          "passing_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Passing Avg"
-          },
-          "shooting_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Shooting Avg"
-          }
-        },
-        "title": "SkillAverages",
-        "type": "object"
-      },
       "SkillData": {
         "description": "Individual skill progression data",
         "properties": {
@@ -16623,52 +16525,6 @@
           "timeline"
         ],
         "title": "SkillTimelineResponse",
-        "type": "object"
-      },
-      "SkillUpdate": {
-        "description": "Request to update a skill",
-        "properties": {
-          "new_avg": {
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "New Avg",
-            "type": "number"
-          },
-          "skill_name": {
-            "description": "heading, shooting, crossing, passing, dribbling, ball_control, defending",
-            "title": "Skill Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "skill_name",
-          "new_avg"
-        ],
-        "title": "SkillUpdate",
-        "type": "object"
-      },
-      "SkillUpdateResponse": {
-        "description": "Response after skill update",
-        "properties": {
-          "new_avg": {
-            "title": "New Avg",
-            "type": "number"
-          },
-          "overall_avg": {
-            "title": "Overall Avg",
-            "type": "number"
-          },
-          "skill_name": {
-            "title": "Skill Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "skill_name",
-          "new_avg",
-          "overall_avg"
-        ],
-        "title": "SkillUpdateResponse",
         "type": "object"
       },
       "SpecializationRequest": {
@@ -21624,7 +21480,7 @@
         "type": "object"
       },
       "app__api__api_v1__endpoints__lfa_player__licenses__LicenseCreate": {
-        "description": "Request to create LFA Player license",
+        "description": "Request to create LFA Player license \u2014 kept for schema compat, endpoint is deprecated",
         "properties": {
           "age_group": {
             "description": "Age group: PRE, YOUTH, AMATEUR, PRO",
@@ -21636,16 +21492,6 @@
             "minimum": 0.0,
             "title": "Initial Credits",
             "type": "integer"
-          },
-          "initial_skills": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SkillAverages"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -21657,16 +21503,8 @@
       "app__api__api_v1__endpoints__lfa_player__licenses__LicenseResponse": {
         "description": "LFA Player license response",
         "properties": {
-          "age_group": {
-            "title": "Age Group",
-            "type": "string"
-          },
-          "created_at": {
-            "title": "Created At",
-            "type": "string"
-          },
-          "credit_balance": {
-            "title": "Credit Balance",
+          "current_level": {
+            "title": "Current Level",
             "type": "integer"
           },
           "id": {
@@ -21677,14 +21515,15 @@
             "title": "Is Active",
             "type": "boolean"
           },
-          "overall_avg": {
-            "title": "Overall Avg",
-            "type": "number"
+          "onboarding_completed": {
+            "title": "Onboarding Completed",
+            "type": "boolean"
           },
-          "skills": {
-            "$ref": "#/components/schemas/SkillAverages"
+          "specialization_type": {
+            "title": "Specialization Type",
+            "type": "string"
           },
-          "updated_at": {
+          "started_at": {
             "anyOf": [
               {
                 "type": "string"
@@ -21693,7 +21532,7 @@
                 "type": "null"
               }
             ],
-            "title": "Updated At"
+            "title": "Started At"
           },
           "user_id": {
             "title": "User Id",
@@ -21703,12 +21542,10 @@
         "required": [
           "id",
           "user_id",
-          "age_group",
-          "credit_balance",
-          "overall_avg",
-          "skills",
+          "specialization_type",
+          "current_level",
           "is_active",
-          "created_at"
+          "onboarding_completed"
         ],
         "title": "LicenseResponse",
         "type": "object"
@@ -26232,6 +26069,67 @@
           }
         },
         "summary": "Admin Grant License",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/profile": {
+      "get": {
+        "description": "Admin: FIFA EA Sports-style user profile page (29-skill system).",
+        "operationId": "admin_user_profile_admin_users__user_id__profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_club",
+            "required": false,
+            "schema": {
+              "title": "From Club",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_team",
+            "required": false,
+            "schema": {
+              "title": "From Team",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin User Profile",
         "tags": [
           "web"
         ]
@@ -38144,7 +38042,7 @@
     },
     "/api/v1/lfa-player/licenses": {
       "get": {
-        "description": "Get all LFA Player licenses (Admin only)\n\nReturns a list of all active LFA Player licenses in the system.",
+        "description": "Get all LFA Player licenses (Admin only)\n\nReturns a list of all active LFA_FOOTBALL_PLAYER licenses in the system.\nSkills are stored in UserLicense.football_skills JSONB (29 skills, baseline 50.0).",
         "operationId": "list_all_licenses_api_v1_lfa_player_licenses_get",
         "responses": {
           "200": {
@@ -38173,7 +38071,7 @@
         ]
       },
       "post": {
-        "description": "Create a new LFA Player license for the current user\n\n**Cost:** 100 credits (deducted from user's credit_balance)\n\n**Age Groups:**\n- PRE: Pre-academy\n- YOUTH: Youth academy\n- AMATEUR: Amateur level\n- PRO: Professional level",
+        "description": "Create a new LFA Player license \u2014 **DEPRECATED (410 Gone)**\n\nLicense creation is now handled via the specialization unlock flow.\nUse POST /onboarding/specialization to unlock LFA Football Player.",
         "operationId": "create_license_api_v1_lfa_player_licenses_post",
         "requestBody": {
           "content": {
@@ -38186,12 +38084,10 @@
           "required": true
         },
         "responses": {
-          "201": {
+          "410": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/app__api__api_v1__endpoints__lfa_player__licenses__LicenseResponse"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -38247,7 +38143,7 @@
     },
     "/api/v1/lfa-player/licenses/{license_id}/skills": {
       "put": {
-        "description": "Update a skill average for a license\n\n**Valid skill names:**\n- heading\n- shooting\n- crossing\n- passing\n- dribbling\n- ball_control\n- defending\n\n**Note:** overall_avg is auto-computed from all 7 skill averages\n\n**Permissions:**\n- Students can update their own license\n- Instructors can update assigned students' licenses\n- Admins can update any license",
+        "description": "Update a skill average \u2014 **DEPRECATED (410 Gone)**\n\nSkill updates are now handled via the 29-skill system.\nUse PUT /licenses/{license_id}/football-skills instead.",
         "operationId": "update_skill_api_v1_lfa_player_licenses__license_id__skills_put",
         "parameters": [
           {
@@ -38260,23 +38156,11 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SkillUpdate"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
-          "200": {
+          "410": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillUpdateResponse"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -43127,7 +43011,7 @@
     },
     "/api/v1/public/users/{user_id}/profile/lfa-player": {
       "get": {
-        "description": "Get FIFA-style LFA Football Player profile\n\n**Returns:**\n- User basic info (name, email, photo)\n- Position preference\n- 7 football skills with radar chart data\n- Overall rating (0-100)\n- Level & progress\n- Recent assessments\n- Achievements",
+        "description": "Get FIFA-style LFA Football Player profile\n\n**Returns:**\n- User basic info (name, email)\n- Position preference\n- 29 football skills with tier data (from UserLicense.football_skills JSONB)\n- Overall rating (0-100, average of 29 skills)\n- Level & progress\n- Recent assessments",
         "operationId": "get_lfa_player_profile_api_v1_public_users__user_id__profile_lfa_player_get",
         "parameters": [
           {
@@ -54086,6 +53970,48 @@
           }
         },
         "summary": "Onboarding Start",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/players/{user_id}/card": {
+      "get": {
+        "operationId": "public_player_card_players__user_id__card_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Player Card",
         "tags": [
           "web"
         ]
