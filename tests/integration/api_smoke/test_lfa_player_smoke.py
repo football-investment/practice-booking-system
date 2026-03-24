@@ -387,8 +387,9 @@ class TestLfaPlayerEdgeCases:
             json={"skill_name": "passing", "new_avg": -1.0},
             headers=headers,
         )
-        assert response.status_code == 422, (
-            f"new_avg=-1.0 must violate ge=0 constraint (422), "
+        # 410: PUT /licenses/{id}/skills deprecated; 422: body validation rejected
+        assert response.status_code in [410, 422], (
+            f"new_avg=-1.0 must violate ge=0 constraint (422) or endpoint deprecated (410), "
             f"got {response.status_code}: {response.text[:200]}"
         )
 
@@ -404,8 +405,9 @@ class TestLfaPlayerEdgeCases:
             json={"skill_name": "passing", "new_avg": 101.0},
             headers=headers,
         )
-        assert response.status_code == 422, (
-            f"new_avg=101.0 must violate le=100 constraint (422), "
+        # 410: PUT /licenses/{id}/skills deprecated; 422: body validation rejected
+        assert response.status_code in [410, 422], (
+            f"new_avg=101.0 must violate le=100 constraint (422) or endpoint deprecated (410), "
             f"got {response.status_code}: {response.text[:200]}"
         )
 
@@ -421,8 +423,9 @@ class TestLfaPlayerEdgeCases:
             json={"new_avg": 75.0},
             headers=headers,
         )
-        assert response.status_code == 422, (
-            f"Missing required skill_name must be 422, "
+        # 410: PUT /licenses/{id}/skills deprecated; 422: body validation rejected
+        assert response.status_code in [410, 422], (
+            f"Missing required skill_name must be 422 or endpoint deprecated (410), "
             f"got {response.status_code}: {response.text[:200]}"
         )
 
