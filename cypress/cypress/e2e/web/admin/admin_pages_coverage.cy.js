@@ -186,7 +186,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/game-presets');
       verifyAdminLayout();
-      // Note: /admin/game-presets is no longer in the nav bar (now under /admin/config hub)
+      // Note: /admin/game-presets is a flat nav link (Game Config)
       // Stats row shows preset counts
       cy.get('.stats-row').should('exist');
     });
@@ -223,7 +223,7 @@ describe('Admin Pages — Full Coverage', {
       cy.webLoginAs('admin');
       cy.visit('/admin/tournaments');
       verifyAdminLayout();
-      // Note: /admin/tournaments is no longer in the nav bar (now /admin/events)
+      // Note: /admin/tournaments is a dropdown item under Events group
       // Tab buttons (View Tournaments / Create Tournament)
       cy.get('body').then(($body) => {
         // Either tab buttons or tournament list container should exist
@@ -318,25 +318,26 @@ describe('Admin Pages — Full Coverage', {
 
   // ── ADM-NAV-01 ── Navigation completeness ─────────────────────────────────
   describe('ADM-NAV-01: unified nav completeness on every page', () => {
-    // After nav restructure (commit 3aa0414): 14 items → 9 items
-    // Current nav: users, programs, sessions, events, payments, locations, config, analytics, system-events
+    // After dropdown nav restructure: flat links + dropdown group items
+    // Key links: users, semesters, sessions, tournaments, payments, locations,
+    //   game-presets, analytics, system-events
     const NAV_SPOT_CHECK = [
       '/admin/users',
       '/admin/payments',
       '/admin/analytics',
-      '/admin/events',
+      '/admin/tournaments',
     ];
 
     NAV_SPOT_CHECK.forEach((path) => {
-      it(`ADM-NAV-01: ${path} → all 9 nav links present`, () => {
+      it(`ADM-NAV-01: ${path} → key nav links present`, () => {
         cy.webLoginAs('admin');
         cy.visit(path);
         cy.get('.admin-nav a').should('have.length.at.least', 9);
-        // Every key section link must exist (current 9-item nav)
+        // Every key section link must exist (dropdown nav)
         cy.get('.admin-nav a[href="/admin/users"]').should('exist');
         cy.get('.admin-nav a[href="/admin/sessions"]').should('exist');
         cy.get('.admin-nav a[href="/admin/payments"]').should('exist');
-        cy.get('.admin-nav a[href="/admin/events"]').should('exist');
+        cy.get('.admin-nav a[href="/admin/tournaments"]').should('exist');
         cy.get('.admin-nav a[href="/admin/analytics"]').should('exist');
       });
     });
