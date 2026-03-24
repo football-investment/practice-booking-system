@@ -28,6 +28,9 @@ class Team(Base):
     specialization_type = Column(String(50))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
+    # Club association (optional — backward compat: nullable)
+    club_id = Column(Integer, ForeignKey("clubs.id"), nullable=True, index=True)
+    age_group_label = Column(String(20), nullable=True)  # U12, U15, Adult, etc.
 
     # Relationships
     captain = relationship("User", foreign_keys=[captain_user_id])
@@ -35,6 +38,7 @@ class Team(Base):
     tournament_enrollments = relationship("TournamentTeamEnrollment", back_populates="team", cascade="all, delete-orphan")
     rankings = relationship("TournamentRanking", back_populates="team", cascade="all, delete-orphan")
     invites = relationship("TeamInvite", back_populates="team", cascade="all, delete-orphan")
+    club = relationship("Club", back_populates="teams", foreign_keys=[club_id])
 
 
 class TeamMember(Base):

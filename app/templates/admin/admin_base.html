@@ -34,7 +34,7 @@
         <a href="/dashboard"
            class="nav-item{% if p == '/dashboard' %} active{% endif %}">🏠 Dashboard</a>
 
-        <div class="nav-group{% if p.startswith('/admin/users') or p.startswith('/admin/instructors') or p.startswith('/admin/sport-directors') %} active{% endif %}">
+        <div class="nav-group{% if p.startswith('/admin/users') or p.startswith('/admin/instructors') or p.startswith('/admin/sport-directors') or p.startswith('/admin/clubs') %} active{% endif %}">
             <a href="/admin/users" class="nav-item nav-group-trigger"
                onclick="toggleNavDropdown(event,this)">👥 People ▾</a>
             <div class="nav-dropdown">
@@ -44,6 +44,8 @@
                    class="nav-dropdown-item{% if p.startswith('/admin/instructors') %} active{% endif %}">Instructors</a>
                 <a href="/admin/sport-directors"
                    class="nav-dropdown-item{% if p.startswith('/admin/sport-directors') %} active{% endif %}">Sport Directors</a>
+                <a href="/admin/clubs"
+                   class="nav-dropdown-item{% if p.startswith('/admin/clubs') %} active{% endif %}">🏟️ Clubs</a>
             </div>
         </div>
 
@@ -147,11 +149,19 @@
       var token = getCsrfToken();
       if (!token) return;
       e.preventDefault();
-      var body = new URLSearchParams(new FormData(form)).toString();
+      var isMultipart = (form.enctype || '').toLowerCase() === 'multipart/form-data';
+      var body, extraHeaders;
+      if (isMultipart) {
+        body = new FormData(form);
+        extraHeaders = {};  // browser sets Content-Type + boundary automatically
+      } else {
+        body = new URLSearchParams(new FormData(form)).toString();
+        extraHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
+      }
       var url  = form.action || window.location.href;
       fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': token },
+        headers: Object.assign({ 'X-CSRF-Token': token }, extraHeaders),
         body: body,
         credentials: 'include',
         redirect: 'follow',

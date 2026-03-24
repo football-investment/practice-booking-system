@@ -49,6 +49,7 @@ from .session_group import SessionGroupAssignment, SessionGroupStudent
 from .audit_log import AuditLog
 from .system_event import SystemEvent, SystemEventLevel, SystemEventType
 from .match_structure import MatchStructure, MatchResult, MatchFormat, ScoringType
+from .club import Club, CsvImportLog
 
 # 🎓 New Track-Based Modular Education System
 from .track import Track, Module, ModuleComponent
@@ -199,4 +200,7 @@ __all__ = [
     "TournamentBadgeCategory",
     "TournamentBadgeRarity",
     "SkillPointConversionRate",
+    # Club system
+    "Club",
+    "CsvImportLog",
 ]

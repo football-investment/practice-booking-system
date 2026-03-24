@@ -1,0 +1,200 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Clubs{% endblock %}
+{% block page_heading %}🏟️ Clubs{% endblock %}
+{% block page_subtitle %}Persistent club management — teams and promotion events{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .module-strip {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.75rem 0; margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0; flex-wrap: wrap;
+    }
+    .module-strip-label {
+        font-size: 0.75rem; font-weight: 700; color: #a0aec0;
+        text-transform: uppercase; letter-spacing: 0.08em;
+        padding-right: 0.5rem; border-right: 1px solid #e2e8f0;
+    }
+    .module-link {
+        padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem;
+        font-weight: 600; text-decoration: none; color: #718096;
+        transition: background 0.15s;
+    }
+    .module-link:hover { background: #f0f4ff; color: #5a4a9a; }
+    .module-link.active { background: #ece8ff; color: #5a4a9a; }
+
+    .stats-row {
+        display: flex; gap: 1rem; flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+    .stat-card {
+        background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 1rem 1.5rem; min-width: 130px; text-align: center;
+    }
+    .stat-card .val { font-size: 1.8rem; font-weight: 800; color: #2d3748; }
+    .stat-card .lbl { font-size: 0.75rem; color: #718096; margin-top: 0.2rem; }
+
+    .content-card {
+        background: white; border: 1px solid #e2e8f0;
+        border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem;
+    }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+        background: #f7fafc; font-size: 0.75rem; font-weight: 700;
+        color: #718096; text-transform: uppercase; letter-spacing: 0.05em;
+        padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; text-align: left;
+    }
+    .data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f0f0f0; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #f9fafb; }
+
+    .badge-active { background: #c6f6d5; color: #276749; padding: 0.2rem 0.6rem; border-radius: 99px; font-size: 0.75rem; font-weight: 700; }
+    .badge-inactive { background: #fed7d7; color: #9b2c2c; padding: 0.2rem 0.6rem; border-radius: 99px; font-size: 0.75rem; font-weight: 700; }
+    .action-btn {
+        padding: 0.3rem 0.75rem; border-radius: 6px; font-size: 0.8rem;
+        font-weight: 600; text-decoration: none; cursor: pointer;
+        border: 1px solid #e2e8f0; background: white; color: #4a5568;
+        display: inline-block;
+    }
+    .action-btn:hover { background: #f0f4ff; border-color: #667eea; color: #667eea; }
+
+    /* Modal */
+    .modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.5); z-index: 1000;
+        align-items: center; justify-content: center;
+    }
+    .modal-box {
+        background: white; border-radius: 12px; padding: 2rem;
+        width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-box h3 { margin: 0 0 1.5rem; font-size: 1.1rem; color: #2d3748; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #718096; margin-bottom: 0.3rem; }
+    .form-group input, .form-group select {
+        width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0;
+        border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;
+    }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+    .btn-primary { background: #1a6b5a; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .btn-secondary { background: white; color: #718096; border: 1px solid #e2e8f0; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; }
+    .alert-bar { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .alert-error { background: #fff5f5; border: 1px solid #feb2b2; color: #9b2c2c; }
+    .alert-success { background: #f0fff4; border: 1px solid #9ae6b4; color: #276749; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- Module strip -->
+<div class="module-strip">
+    <span class="module-strip-label">People</span>
+    <a href="/admin/users" class="module-link">👥 Users</a>
+    <a href="/admin/instructors" class="module-link">👨‍🏫 Instructors</a>
+    <a href="/admin/sport-directors" class="module-link">🎯 Sport Directors</a>
+    <a href="/admin/clubs" class="module-link active">🏟️ Clubs</a>
+    <button onclick="document.getElementById('create-club-modal').style.display='flex'"
+            style="margin-left:auto;background:#1a6b5a;color:white;border:none;padding:0.45rem 1.1rem;border-radius:6px;font-size:0.85rem;font-weight:700;cursor:pointer;">
+        + Create Club
+    </button>
+</div>
+
+{% if request.query_params.get('create_error') %}
+<div class="alert-bar alert-error">⚠️ {{ request.query_params.get('create_error') }}</div>
+{% endif %}
+
+<!-- Stats row -->
+<div class="stats-row">
+    <div class="stat-card"><div class="val">{{ total_clubs }}</div><div class="lbl">🏟️ Clubs</div></div>
+    <div class="stat-card"><div class="val">{{ total_teams }}</div><div class="lbl">👕 Teams</div></div>
+    <div class="stat-card"><div class="val">{{ total_players }}</div><div class="lbl">⚽ Players</div></div>
+</div>
+
+<!-- Clubs table -->
+<div class="content-card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Code</th>
+                <th>City</th>
+                <th>Teams</th>
+                <th>Players</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for club in clubs %}
+        <tr>
+            <td style="color:#a0aec0;font-size:0.8rem;">{{ club.id }}</td>
+            <td style="font-weight:600;">{{ club.name }}</td>
+            <td><code style="background:#f7fafc;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.8rem;">{{ club.code }}</code></td>
+            <td>{{ club.city or '—' }}</td>
+            <td>{{ team_counts.get(club.id, 0) }}</td>
+            <td>{{ member_counts.get(club.id, 0) }}</td>
+            <td>
+                {% if club.is_active %}
+                <span class="badge-active">✅ Active</span>
+                {% else %}
+                <span class="badge-inactive">❌ Inactive</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/admin/clubs/{{ club.id }}" class="action-btn">👁️ View</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="8" style="text-align:center;color:#a0aec0;padding:2rem;">
+                No clubs yet. Create your first club to get started.
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Club Modal -->
+<div id="create-club-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>🏟️ Create New Club</h3>
+        <form method="POST" action="/admin/clubs/create">
+            <input type="hidden" name="csrf_token" id="cc-csrf">
+            <div class="form-group">
+                <label>Club Name *</label>
+                <input name="name" type="text" required placeholder="e.g. FC Vasas Youth" autofocus>
+            </div>
+            <div class="form-group">
+                <label>City</label>
+                <input name="city" type="text" placeholder="e.g. Budapest">
+            </div>
+            <div class="form-group">
+                <label>Country</label>
+                <input name="country" type="text" placeholder="e.g. Hungary">
+            </div>
+            <div class="form-group">
+                <label>Contact Email</label>
+                <input name="contact_email" type="email" placeholder="e.g. contact@vasas.hu">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('create-club-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn-primary">Create Club</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    var csrf = (document.cookie.split('; ').find(function(r){ return r.startsWith('csrf_token='); }) || '').split('=')[1];
+    document.getElementById('cc-csrf').value = csrf || '';
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') document.getElementById('create-club-modal').style.display = 'none';
+    });
+})();
+</script>
+
+{% endblock %}
