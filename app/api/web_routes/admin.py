@@ -474,6 +474,68 @@ async def admin_invitation_codes_page(
 # ADMIN USER CRUD
 # ============================================================================
 
+@router.post("/admin/users/create")
+async def admin_create_user(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    role: str = Form(...),
+    password: str = Form(...),
+    credit_balance: int = Form(default=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin-only: Create a new user account directly from the admin panel."""
+    _admin_guard(user)
+
+    # Validate role
+    try:
+        new_role = UserRole(role)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    new_email = email.lower().strip()
+    if db.query(User).filter(User.email == new_email).first():
+        return RedirectResponse(
+            url=f"/admin/users?create_error=Email+{new_email}+is+already+in+use",
+            status_code=303,
+        )
+
+    new_user = User(
+        email=new_email,
+        name=name.strip(),
+        password_hash=get_password_hash(password),
+        role=new_role,
+        is_active=True,
+        credit_balance=max(0, credit_balance),
+        credit_purchased=max(0, credit_balance),
+        onboarding_completed=False,
+        payment_verified=(credit_balance > 0),
+    )
+    db.add(new_user)
+    db.flush()
+
+    if credit_balance > 0:
+        db.add(CreditTransaction(
+            user_id=new_user.id,
+            transaction_type=TransactionType.ADMIN_ADJUSTMENT,
+            amount=credit_balance,
+            balance_after=credit_balance,
+            description="Initial credit balance set by admin on account creation",
+            created_by_admin_id=user.id,
+        ))
+
+    db.commit()
+    logger.info(
+        "admin_user_created",
+        extra={"admin": user.email, "new_user": new_user.email, "role": str(new_role)},
+    )
+    return RedirectResponse(url=f"/admin/users/{new_user.id}/edit", status_code=303)
+
+
 @router.post("/admin/users/{user_id}/toggle-status")
 async def admin_toggle_user_status(
     user_id: int,

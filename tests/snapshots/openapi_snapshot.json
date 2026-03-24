@@ -2245,6 +2245,39 @@
         "title": "Body_admin_create_tournament_admin_tournaments_post",
         "type": "object"
       },
+      "Body_admin_create_user_admin_users_create_post": {
+        "properties": {
+          "credit_balance": {
+            "default": 0,
+            "title": "Credit Balance",
+            "type": "integer"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "role",
+          "password"
+        ],
+        "title": "Body_admin_create_user_admin_users_create_post",
+        "type": "object"
+      },
       "Body_admin_deduct_credit_admin_users__user_id__deduct_credit_post": {
         "properties": {
           "amount": {
@@ -24971,6 +25004,46 @@
           }
         },
         "summary": "Admin Users Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/create": {
+      "post": {
+        "description": "Admin-only: Create a new user account directly from the admin panel.",
+        "operationId": "admin_create_user_admin_users_create_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_user_admin_users_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create User",
         "tags": [
           "web"
         ]
