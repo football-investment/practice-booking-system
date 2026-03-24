@@ -127,6 +127,8 @@
     .action-btn.btn-delete:hover { background: #f56565; }
     .action-btn.btn-rollback { background: #63b3ed; color: white; border-color: #63b3ed; }
     .action-btn.btn-rollback:hover { background: #4299e1; }
+    .action-btn.btn-live  { background: #6366f1; color: white; border-color: #6366f1; }
+    .action-btn.btn-live:hover { background: #4f46e5; }
     .action-btn.btn-stub { color: #a0aec0; cursor: default; }
     .action-btn.btn-stub:hover { background: white; }
 
@@ -348,6 +350,11 @@
                     <div class="action-btns">
                         <!-- Edit → tournament edit page -->
                         <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn" style="text-decoration:none;">✏️ Edit</a>
+
+                        <!-- Live Monitoring (IN_PROGRESS, not stuck) -->
+                        {% if t.tournament_status == 'IN_PROGRESS' and not is_stuck %}
+                        <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn btn-live" style="text-decoration:none;">📡 Live</a>
+                        {% endif %}
 
                         <!-- Start (ENROLLMENT_CLOSED only) -->
                         {% if t.tournament_status == 'ENROLLMENT_CLOSED' %}

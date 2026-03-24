@@ -662,27 +662,28 @@ class TestSmoke07Navigation:
         )
 
     def test_analytics_nav_strip_present(self, admin_client):
-        """GET /admin/analytics → nav strip includes all 10 top-level links."""
+        """GET /admin/analytics → nav strip includes all top-level links (dropdown nav)."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
-        for link in ["/admin/users", "/admin/programs", "/admin/sessions",
-                     "/admin/events", "/admin/payments", "/admin/locations",
-                     "/admin/config", "/admin/analytics", "/admin/system-events"]:
+        # Dropdown nav: hub URLs replaced by primary sub-page URLs
+        for link in ["/admin/users", "/admin/semesters", "/admin/sessions",
+                     "/admin/tournaments", "/admin/payments", "/admin/locations",
+                     "/admin/game-presets", "/admin/analytics", "/admin/system-events"]:
             assert link in resp.text, f"Nav link {link} missing from analytics.html"
 
     def test_semesters_nav_strip_present(self, admin_client):
-        """GET /admin/semesters → nav strip contains Programs hub link."""
+        """GET /admin/semesters → nav strip contains Programs dropdown link."""
         resp = admin_client.get("/admin/semesters")
         assert resp.status_code == 200
-        for link in ["/admin/analytics", "/admin/sessions", "/admin/programs"]:
+        for link in ["/admin/analytics", "/admin/sessions", "/admin/semesters"]:
             assert link in resp.text, f"Nav link {link} missing from semesters.html"
 
     def test_users_page_has_analytics_and_programs_links(self, admin_client):
-        """GET /admin/users → header nav contains Analytics + Programs links."""
+        """GET /admin/users → header nav contains Analytics + Semesters links."""
         resp = admin_client.get("/admin/users")
         assert resp.status_code == 200
         assert "/admin/analytics" in resp.text
-        assert "/admin/programs" in resp.text
+        assert "/admin/semesters" in resp.text
 
     def test_pagination_on_users_page(self, admin_client):
         """GET /admin/users → page renders with valid page structure."""
@@ -3388,28 +3389,27 @@ class TestSmoke27NavHubs:
     # ── SMOKE-27c ──────────────────────────────────────────────────────────────
 
     def test_27c_nav_has_10_items(self, admin_client):
-        """GET /admin/analytics → admin nav contains exactly the 10 top-level items."""
+        """GET /admin/analytics → admin dropdown nav contains all destinations."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
         html = resp.text
-        # Verify the 10 nav destinations are all present
+        # Verify all nav destinations present (dropdown nav: hubs replaced by primary sub-pages)
         nav_links = [
             "/dashboard",
             "/admin/users",
-            "/admin/programs",
+            "/admin/semesters",    # Programs trigger now links directly to semesters
             "/admin/sessions",
-            "/admin/events",       # Events hub (replaces Tournaments nav item)
-            "/admin/payments",     # Commerce entry point
-            "/admin/locations",    # Locations module
-            "/admin/config",
+            "/admin/tournaments",  # Events trigger now links directly to tournaments
+            "/admin/payments",     # Finance entry point
+            "/admin/locations",    # Venues module
+            "/admin/game-presets", # Game Config trigger now links directly to game-presets
             "/admin/analytics",
             "/admin/system-events",
         ]
         for link in nav_links:
             assert link in html, f"Expected nav link '{link}' missing"
-        # Old direct nav links should NOT appear as nav items any more
-        # (they may appear inside page content, so we only verify Commerce label)
-        assert "🛒 Commerce" in html, "Commerce nav label missing"
+        # Dropdown labels present
+        assert "💰 Finance" in html, "Finance nav label missing"
         assert "Tier milestones reached" in html, "Tier milestone count label missing"
 
 

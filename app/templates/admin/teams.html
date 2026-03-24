@@ -1,0 +1,252 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Teams{% endblock %}
+{% block page_heading %}Teams{% endblock %}
+{% block page_subtitle %}Global team management — all tournaments{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .module-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0;
+        flex-wrap: wrap;
+    }
+    .module-link {
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: #718096;
+        transition: background 0.15s;
+    }
+    .module-link:hover { background: #f0f4ff; color: #5a4a9a; }
+    .module-link.active { background: #ece8ff; color: #5a4a9a; }
+
+    .filter-bar {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+        align-items: flex-end;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .filter-group label { font-size: 0.75rem; font-weight: 600; color: #718096; }
+    .filter-group select {
+        padding: 0.45rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: white;
+        min-width: 220px;
+    }
+    .filter-btn {
+        padding: 0.45rem 1rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        background: #667eea;
+        color: white;
+        align-self: flex-end;
+    }
+
+    .stats-strip {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .stat-pill {
+        background: white;
+        border-radius: 8px;
+        padding: 0.65rem 1.25rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        font-size: 0.875rem;
+        color: #4a5568;
+    }
+    .stat-pill strong { font-size: 1.1rem; color: #2d3748; display: block; }
+
+    .content-card {
+        background: white;
+        border-radius: 12px;
+        padding: 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+    }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+        background: #f7fafc;
+        padding: 0.65rem 1rem;
+        text-align: left;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .data-table td {
+        padding: 0.7rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #f0f4f8;
+        vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #f7fafc; }
+
+    .team-code {
+        font-family: monospace;
+        font-size: 0.78rem;
+        background: #f0f4ff;
+        color: #5a4a9a;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+    }
+    .captain-badge {
+        font-size: 0.75rem;
+        background: #feebc8;
+        color: #744210;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    .enroll-badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        background: #c6f6d5;
+        color: #276749;
+        padding: 0.12rem 0.4rem;
+        border-radius: 4px;
+        font-weight: 600;
+        margin: 0.1rem;
+    }
+    .action-btn {
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        cursor: pointer;
+        text-decoration: none;
+        background: white;
+        color: #4a5568;
+        transition: background 0.15s;
+    }
+    .action-btn:hover { background: #f7fafc; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="module-strip">
+    <a href="/admin/tournaments" class="module-link">🏆 Tournaments</a>
+    <a href="/admin/teams"       class="module-link active">👥 Teams</a>
+</div>
+
+<!-- Filter -->
+<form method="GET" action="/admin/teams">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>Filter by Tournament</label>
+            <select name="tournament_filter" onchange="this.form.submit()">
+                <option value="0">All Teams</option>
+                {% for t in tournaments %}
+                <option value="{{ t.id }}"{% if tournament_filter == t.id %} selected{% endif %}>
+                    {{ t.name }} ({{ t.status.value if t.status else '' }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <a href="/admin/teams" style="align-self:flex-end; padding:0.45rem 0.75rem; font-size:0.875rem; color:#718096; text-decoration:none;">✕ Clear</a>
+    </div>
+</form>
+
+<!-- Stats -->
+<div class="stats-strip">
+    <div class="stat-pill">
+        <strong>{{ teams | length }}</strong>
+        {% if tournament_filter %}Teams enrolled{% else %}Total Active Teams{% endif %}
+    </div>
+    <div class="stat-pill">
+        <strong>{{ teams | map(attribute='id') | list | length }}</strong>
+        Teams shown
+    </div>
+</div>
+
+<!-- Teams table -->
+<div class="content-card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Team</th>
+                <th>Code</th>
+                <th>Captain</th>
+                <th>Members</th>
+                <th>Tournaments</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for team in teams %}
+        {% set enrollments = team_enrollments.get(team.id, []) %}
+        <tr>
+            <td>{{ team.id }}</td>
+            <td>
+                <strong>{{ team.name }}</strong>
+                {% if team.specialization_type %}
+                <br><small style="color:#a0aec0;">{{ team.specialization_type }}</small>
+                {% endif %}
+            </td>
+            <td><span class="team-code">{{ team.code or '—' }}</span></td>
+            <td>
+                {% if team.captain %}
+                <span class="captain-badge">👑 {{ team.captain.name }}</span>
+                {% else %}
+                <span style="color:#a0aec0;">—</span>
+                {% endif %}
+            </td>
+            <td>
+                <strong>{{ member_counts.get(team.id, 0) }}</strong>
+                <span style="color:#a0aec0; font-size:0.82rem;"> players</span>
+            </td>
+            <td>
+                {% if enrollments %}
+                    {% for enr in enrollments %}
+                    <span class="enroll-badge">🏆 {{ enr.semester.name if enr.semester else 'T#' + enr.semester_id|string }}</span>
+                    {% endfor %}
+                {% else %}
+                    <span style="color:#a0aec0; font-size:0.82rem;">Not enrolled</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if enrollments %}
+                {% for enr in enrollments %}
+                <a href="/admin/tournaments/{{ enr.semester_id }}/teams"
+                   class="action-btn" style="text-decoration:none;">
+                    👁️ Manage
+                </a>
+                {% endfor %}
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" style="text-align:center; color:#a0aec0; padding:1.5rem;">
+                {% if tournament_filter %}
+                No teams enrolled in this tournament.
+                <a href="/admin/tournaments/{{ tournament_filter }}/teams"
+                   style="color:#667eea;">Manage tournament teams →</a>
+                {% else %}
+                No active teams found.
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

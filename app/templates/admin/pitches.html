@@ -1,0 +1,471 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Pitches{% endblock %}
+{% block page_heading %}Pitches{% endblock %}
+{% block page_subtitle %}Campus pitch management & instructor assignment{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .module-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0;
+        flex-wrap: wrap;
+    }
+    .module-link {
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: #718096;
+        transition: background 0.15s;
+    }
+    .module-link:hover { background: #f0f4ff; color: #5a4a9a; }
+    .module-link.active { background: #ece8ff; color: #5a4a9a; }
+    .module-link.btn-primary {
+        margin-left: auto;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 0.4rem 1.1rem;
+    }
+    .module-link.btn-primary:hover { opacity: 0.9; }
+
+    .filter-bar {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+        align-items: flex-end;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .filter-group label { font-size: 0.75rem; font-weight: 600; color: #718096; }
+    .filter-group select {
+        padding: 0.45rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: white;
+    }
+    .filter-btn {
+        padding: 0.45rem 1rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        background: #667eea;
+        color: white;
+        align-self: flex-end;
+    }
+
+    .alert-bar {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.25rem;
+        font-size: 0.9rem;
+    }
+    .alert-bar.success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+    .alert-bar.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+
+    .campus-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .campus-header {
+        background: linear-gradient(135deg, #5a4a9a 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .campus-header h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+    .campus-header .loc-badge {
+        background: rgba(255,255,255,0.2);
+        border-radius: 4px;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.78rem;
+    }
+    .campus-header .pitch-count {
+        margin-left: auto;
+        background: rgba(255,255,255,0.15);
+        border-radius: 12px;
+        padding: 0.2rem 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .pitches-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .pitches-table th {
+        background: #f7fafc;
+        padding: 0.65rem 1rem;
+        text-align: left;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .pitches-table td {
+        padding: 0.7rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #f0f4f8;
+        vertical-align: middle;
+    }
+    .pitches-table tr:last-child td { border-bottom: none; }
+    .pitches-table tr.inactive td { color: #a0aec0; }
+
+    .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+    .dot-active { background: #48bb78; }
+    .dot-pending { background: #f6ad55; }
+    .dot-inactive { background: #e2e8f0; }
+
+    .assignment-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 0.25rem;
+    }
+    .badge-active  { background: #c6f6d5; color: #276749; }
+    .badge-pending { background: #feebc8; color: #744210; }
+    .badge-master  { background: #e9d8fd; color: #553c9a; }
+
+    .action-btn {
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        cursor: pointer;
+        text-decoration: none;
+        background: white;
+        color: #4a5568;
+        transition: background 0.15s;
+    }
+    .action-btn:hover { background: #f7fafc; }
+    .btn-assign { background: #6366f1; color: white; border-color: #6366f1; }
+    .btn-assign:hover { background: #4f46e5; }
+    .btn-toggle-off { background: #fc8181; color: white; border-color: #fc8181; }
+    .btn-toggle-off:hover { background: #f56565; }
+    .btn-toggle-on { background: #48bb78; color: white; border-color: #48bb78; }
+    .btn-toggle-on:hover { background: #38a169; }
+
+    .no-pitches {
+        padding: 1.5rem;
+        text-align: center;
+        color: #a0aec0;
+        font-size: 0.9rem;
+    }
+
+    /* Create pitch inline form */
+    .create-form-row td {
+        background: #f7fafc;
+        padding: 0.75rem 1rem;
+    }
+    .inline-form {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .inline-form input, .inline-form select {
+        padding: 0.35rem 0.6rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        font-size: 0.82rem;
+        width: auto;
+    }
+    .inline-form input[name="pitch_number"] { width: 60px; }
+    .inline-form input[name="capacity"]     { width: 60px; }
+    .inline-form input[name="name"]         { width: 160px; }
+
+    /* Assign modal */
+    .modal-overlay {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+        background: white;
+        border-radius: 12px;
+        padding: 1.75rem;
+        width: 400px;
+        max-width: 95vw;
+    }
+    .modal-box h3 { margin: 0 0 1rem; font-size: 1.1rem; }
+    .modal-field { margin-bottom: 0.9rem; }
+    .modal-field label { display: block; font-size: 0.8rem; font-weight: 600; color: #718096; margin-bottom: 0.3rem; }
+    .modal-field select, .modal-field input {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        box-sizing: border-box;
+    }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+    .btn-modal-cancel {
+        padding: 0.5rem 1.25rem;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+    .btn-modal-submit {
+        padding: 0.5rem 1.25rem;
+        background: #6366f1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    .btn-modal-submit:hover { background: #4f46e5; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="module-strip">
+    <a href="/admin/locations" class="module-link">📍 Locations</a>
+    <a href="/admin/pitches"   class="module-link active">⚽ Pitches</a>
+    <button onclick="document.getElementById('create-pitch-modal').classList.add('open')"
+            class="module-link btn-primary">+ Create Pitch</button>
+</div>
+
+{% set msg   = request.query_params.get('msg') %}
+{% set error = request.query_params.get('error') %}
+{% if msg %}
+<div class="alert-bar success">✅ {{ msg }}</div>
+{% endif %}
+{% if error %}
+<div class="alert-bar error">❌ {{ error }}</div>
+{% endif %}
+
+<!-- Filters -->
+<form method="GET" action="/admin/pitches">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>Location</label>
+            <select name="location_filter" onchange="this.form.submit()">
+                <option value="0">All Locations</option>
+                {% for loc in locations %}
+                <option value="{{ loc.id }}"{% if location_filter == loc.id %} selected{% endif %}>
+                    {{ loc.name }} ({{ loc.city }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Campus</label>
+            <select name="campus_filter" onchange="this.form.submit()">
+                <option value="0">All Campuses</option>
+                {% for campus in all_campuses %}
+                <option value="{{ campus.id }}"{% if campus_filter == campus.id %} selected{% endif %}>
+                    {{ campus.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="filter-btn">🔍 Filter</button>
+        <a href="/admin/pitches" style="align-self:flex-end; padding:0.45rem 0.75rem; font-size:0.875rem; color:#718096; text-decoration:none;">✕ Clear</a>
+    </div>
+</form>
+
+<!-- Pitches grouped by campus -->
+{% set pitches_by_campus = {} %}
+{% for pitch in pitches %}
+    {% if pitch.campus_id not in pitches_by_campus %}
+        {% set _ = pitches_by_campus.update({pitch.campus_id: []}) %}
+    {% endif %}
+    {% set _ = pitches_by_campus[pitch.campus_id].append(pitch) %}
+{% endfor %}
+
+{% if not pitches %}
+<div class="campus-section">
+    <div class="no-pitches">No pitches found. Create one using the + Create Pitch button above.</div>
+</div>
+{% endif %}
+
+{% for campus_id_key, campus_pitches in pitches_by_campus.items() %}
+{% set campus = campus_map.get(campus_id_key) %}
+{% set location = location_map.get(campus.location_id) if campus else None %}
+<div class="campus-section">
+    <div class="campus-header">
+        <span>🏟️</span>
+        <h3>{{ campus.name if campus else 'Unknown Campus' }}</h3>
+        {% if location %}
+        <span class="loc-badge">📍 {{ location.name }}, {{ location.city }}</span>
+        {% endif %}
+        <span class="pitch-count">{{ campus_pitches | length }} pitch{{ 'es' if campus_pitches | length != 1 else '' }}</span>
+    </div>
+    <table class="pitches-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Capacity</th>
+                <th>Status</th>
+                <th>Instructor(s)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for pitch in campus_pitches %}
+        {% set assignments = active_assignments.get(pitch.id, []) %}
+        <tr{% if not pitch.is_active %} class="inactive"{% endif %}>
+            <td><strong>{{ pitch.pitch_number }}</strong></td>
+            <td>{{ pitch.name }}</td>
+            <td>{{ pitch.capacity }}</td>
+            <td>
+                {% if pitch.is_active %}
+                <span class="status-dot dot-active"></span> Active
+                {% else %}
+                <span class="status-dot dot-inactive"></span> Inactive
+                {% endif %}
+            </td>
+            <td>
+                {% if assignments %}
+                    {% for a in assignments %}
+                    <span class="assignment-badge {% if a.status == 'ACTIVE' %}badge-active{% else %}badge-pending{% endif %}">
+                        {% if a.is_master %}<span class="assignment-badge badge-master">★ Master</span>{% endif %}
+                        {{ a.instructor.name if a.instructor else '?' }}
+                        ({{ a.status }})
+                    </span>
+                    {% endfor %}
+                {% else %}
+                    <span style="color:#a0aec0; font-size:0.82rem;">— No instructor assigned</span>
+                {% endif %}
+            </td>
+            <td style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                {% if pitch.is_active %}
+                <button class="action-btn btn-assign"
+                        onclick="openAssignModal({{ pitch.id }}, '{{ pitch.name }}')">
+                    👤 Assign
+                </button>
+                {% endif %}
+                <form method="POST" action="/admin/pitches/{{ pitch.id }}/toggle" style="display:inline;">
+                    <button class="action-btn {% if pitch.is_active %}btn-toggle-off{% else %}btn-toggle-on{% endif %}">
+                        {% if pitch.is_active %}Deactivate{% else %}Activate{% endif %}
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+
+
+<!-- ── Create Pitch Modal ─────────────────────────────────────────────── -->
+<div id="create-pitch-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>➕ Create Pitch</h3>
+        <form method="POST" action="/admin/pitches/create">
+            <div class="modal-field">
+                <label>Campus *</label>
+                <select name="campus_id" required>
+                    <option value="">Select campus…</option>
+                    {% for campus in all_campuses %}
+                    <option value="{{ campus.id }}">{{ campus.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-field">
+                <label>Pitch Number * (unique per campus)</label>
+                <input type="number" name="pitch_number" min="1" max="99" placeholder="1" required>
+            </div>
+            <div class="modal-field">
+                <label>Display Name *</label>
+                <input type="text" name="name" placeholder="Pálya 1 / North Field" maxlength="100" required>
+            </div>
+            <div class="modal-field">
+                <label>Capacity (players at once)</label>
+                <input type="number" name="capacity" min="1" max="50" value="2">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel"
+                        onclick="document.getElementById('create-pitch-modal').classList.remove('open')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-modal-submit">➕ Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Assign Instructor Modal ───────────────────────────────────────── -->
+<div id="assign-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>👤 Assign Instructor</h3>
+        <p id="assign-pitch-label" style="font-size:0.85rem; color:#718096; margin-bottom:1rem;"></p>
+        <form id="assign-form" method="POST" action="">
+            <div class="modal-field">
+                <label>Instructor *</label>
+                <select name="instructor_id" required>
+                    <option value="">Select instructor…</option>
+                    {% for instr in instructors %}
+                    <option value="{{ instr.id }}">{{ instr.name }} ({{ instr.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-field">
+                <label>Tournament / Semester (optional)</label>
+                <input type="number" name="semester_id" placeholder="Semester ID (leave 0 for campus-wide)" min="0" value="0">
+            </div>
+            <div class="modal-field" style="display:flex; align-items:center; gap:0.5rem;">
+                <input type="checkbox" name="is_master" id="is_master_chk" value="true" style="width:auto;">
+                <label for="is_master_chk" style="margin:0; font-size:0.85rem; font-weight:500; color:#2d3748;">
+                    ★ Master Instructor (responsible for results entry on this pitch)
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel"
+                        onclick="document.getElementById('assign-modal').classList.remove('open')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-modal-submit">Assign</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openAssignModal(pitchId, pitchName) {
+    document.getElementById('assign-pitch-label').textContent = 'Pitch: ' + pitchName + ' (ID: ' + pitchId + ')';
+    document.getElementById('assign-form').action = '/admin/pitches/' + pitchId + '/assign-instructor';
+    document.getElementById('assign-modal').classList.add('open');
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay').forEach(function(m) {
+            m.classList.remove('open');
+        });
+    }
+});
+</script>
+{% endblock %}

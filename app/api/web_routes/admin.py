@@ -3186,3 +3186,323 @@ async def admin_booking_attendance(
     booking.update_attendance_status()
     db.commit()
     return JSONResponse({"success": True, "message": f"Attendance marked: {attendance_status}"})
+
+
+# ── Pitches Management ──────────────────────────────────────────────────────
+
+from ...models.pitch import Pitch  # noqa: E402
+from ...models.pitch_instructor_assignment import (  # noqa: E402
+    PitchInstructorAssignment,
+    PitchAssignmentType,
+    PitchAssignmentStatus,
+)
+from ...services.tournament.pitch_instructor_service import (  # noqa: E402
+    assign_instructor_to_pitch_direct,
+)
+
+
+@router.get("/admin/pitches", response_class=HTMLResponse)
+async def admin_pitches_page(
+    request: Request,
+    campus_filter: int = 0,
+    location_filter: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: all pitches grouped by campus, with instructor assignment status."""
+    _admin_guard(user)
+
+    locations = db.query(Location).filter(Location.is_active == True).order_by(Location.name).all()  # noqa: E712
+    all_campuses = db.query(Campus).filter(Campus.is_active == True).order_by(Campus.name).all()  # noqa: E712
+
+    q = db.query(Pitch)
+    if campus_filter:
+        q = q.filter(Pitch.campus_id == campus_filter)
+    elif location_filter:
+        campus_ids = [c.id for c in db.query(Campus).filter(Campus.location_id == location_filter).all()]
+        q = q.filter(Pitch.campus_id.in_(campus_ids)) if campus_ids else q.filter(False)
+    pitches = q.order_by(Pitch.campus_id, Pitch.pitch_number).all()
+
+    # Batch-load active/pending assignments per pitch
+    pitch_ids = [p.id for p in pitches]
+    active_assignments: dict = defaultdict(list)
+    if pitch_ids:
+        for a in db.query(PitchInstructorAssignment).filter(
+            PitchInstructorAssignment.pitch_id.in_(pitch_ids),
+            PitchInstructorAssignment.status.in_([
+                PitchAssignmentStatus.ACTIVE.value,
+                PitchAssignmentStatus.PENDING.value,
+            ]),
+        ).all():
+            active_assignments[a.pitch_id].append(a)
+
+    campus_map = {c.id: c for c in all_campuses}
+    location_map = {loc.id: loc for loc in locations}
+
+    instructors = db.query(User).filter(
+        User.role == UserRole.INSTRUCTOR,
+        User.is_active == True,  # noqa: E712
+    ).order_by(User.name).all()
+
+    return templates.TemplateResponse(
+        "admin/pitches.html",
+        {
+            "request": request,
+            "user": user,
+            "pitches": pitches,
+            "active_assignments": active_assignments,
+            "campus_map": campus_map,
+            "location_map": location_map,
+            "locations": locations,
+            "all_campuses": all_campuses,
+            "instructors": instructors,
+            "campus_filter": campus_filter,
+            "location_filter": location_filter,
+        },
+    )
+
+
+@router.post("/admin/pitches/create")
+async def admin_create_pitch(
+    request: Request,
+    campus_id: int = Form(...),
+    pitch_number: int = Form(...),
+    name: str = Form(...),
+    capacity: int = Form(default=2),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: create a new pitch under a campus."""
+    _admin_guard(user)
+    campus = db.query(Campus).filter(Campus.id == campus_id).first()
+    if not campus:
+        return RedirectResponse(url="/admin/pitches?error=Campus+not+found", status_code=303)
+
+    existing = db.query(Pitch).filter(
+        Pitch.campus_id == campus_id,
+        Pitch.pitch_number == pitch_number,
+    ).first()
+    if existing:
+        return RedirectResponse(
+            url=f"/admin/pitches?error=Pitch+{pitch_number}+already+exists+on+this+campus",
+            status_code=303,
+        )
+
+    pitch = Pitch(
+        campus_id=campus_id,
+        pitch_number=pitch_number,
+        name=name.strip(),
+        capacity=max(1, capacity),
+        is_active=True,
+    )
+    db.add(pitch)
+    db.commit()
+    return RedirectResponse(
+        url=f"/admin/pitches?campus_filter={campus_id}&msg=Pitch+created",
+        status_code=303,
+    )
+
+
+@router.post("/admin/pitches/{pitch_id}/toggle")
+async def admin_toggle_pitch(
+    pitch_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: activate or deactivate a pitch."""
+    _admin_guard(user)
+    pitch = db.query(Pitch).filter(Pitch.id == pitch_id).first()
+    if not pitch:
+        raise HTTPException(status_code=404, detail="Pitch not found")
+    pitch.is_active = not pitch.is_active
+    db.commit()
+    return RedirectResponse(url="/admin/pitches", status_code=303)
+
+
+@router.post("/admin/pitches/{pitch_id}/assign-instructor")
+async def admin_assign_instructor_to_pitch(
+    request: Request,
+    pitch_id: int,
+    instructor_id: int = Form(...),
+    semester_id: int = Form(default=0),
+    is_master: bool = Form(default=False),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: directly assign an instructor to a pitch (DIRECT mode)."""
+    _admin_guard(user)
+    try:
+        assign_instructor_to_pitch_direct(
+            db=db,
+            pitch_id=pitch_id,
+            instructor_id=instructor_id,
+            assigned_by_id=user.id,
+            semester_id=semester_id if semester_id else None,
+            is_master=is_master,
+        )
+        db.commit()
+        return RedirectResponse(url="/admin/pitches?msg=Instructor+assigned", status_code=303)
+    except HTTPException as e:
+        return RedirectResponse(url=f"/admin/pitches?error={e.detail}", status_code=303)
+
+
+# ── Sport Directors Management ──────────────────────────────────────────────
+
+from ...models.instructor_assignment import SportDirectorAssignment  # noqa: E402
+
+
+@router.get("/admin/sport-directors", response_class=HTMLResponse)
+async def admin_sport_directors_page(
+    request: Request,
+    location_filter: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: list and manage sport director assignments per location."""
+    _admin_guard(user)
+
+    locations = db.query(Location).filter(Location.is_active == True).order_by(Location.name).all()  # noqa: E712
+
+    q = db.query(SportDirectorAssignment)
+    if location_filter:
+        q = q.filter(SportDirectorAssignment.location_id == location_filter)
+    assignments = q.order_by(SportDirectorAssignment.location_id, SportDirectorAssignment.is_active.desc()).all()
+
+    # Eligible candidates: users with SPORT_DIRECTOR role OR ADMIN (for assignment dropdown)
+    candidates = db.query(User).filter(
+        User.role.in_([UserRole.SPORT_DIRECTOR, UserRole.ADMIN]),
+        User.is_active == True,  # noqa: E712
+    ).order_by(User.name).all()
+
+    location_map = {loc.id: loc for loc in locations}
+
+    return templates.TemplateResponse(
+        "admin/sport_directors.html",
+        {
+            "request": request,
+            "user": user,
+            "assignments": assignments,
+            "locations": locations,
+            "candidates": candidates,
+            "location_map": location_map,
+            "location_filter": location_filter,
+        },
+    )
+
+
+@router.post("/admin/sport-directors/assign")
+async def admin_assign_sport_director(
+    request: Request,
+    user_id: int = Form(...),
+    location_id: int = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: assign a user as Sport Director for a location."""
+    _admin_guard(user)
+
+    # Deactivate existing active SD for this location
+    existing = db.query(SportDirectorAssignment).filter(
+        SportDirectorAssignment.location_id == location_id,
+        SportDirectorAssignment.is_active == True,  # noqa: E712
+    ).first()
+    if existing:
+        existing.is_active = False
+        existing.deactivated_at = datetime.now(timezone.utc)
+
+    assignment = SportDirectorAssignment(
+        user_id=user_id,
+        location_id=location_id,
+        is_active=True,
+        assigned_by=user.id,
+    )
+    db.add(assignment)
+    db.commit()
+    return RedirectResponse(url="/admin/sport-directors?msg=Sport+Director+assigned", status_code=303)
+
+
+@router.post("/admin/sport-directors/{assignment_id}/deactivate")
+async def admin_deactivate_sport_director(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: deactivate a sport director assignment."""
+    _admin_guard(user)
+    a = db.query(SportDirectorAssignment).filter(SportDirectorAssignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    a.is_active = False
+    a.deactivated_at = datetime.now(timezone.utc)
+    db.commit()
+    return RedirectResponse(url="/admin/sport-directors?msg=Assignment+deactivated", status_code=303)
+
+
+# ── Teams Management ────────────────────────────────────────────────────────
+
+from ...models.team import Team, TeamMember, TournamentTeamEnrollment  # noqa: E402
+
+
+@router.get("/admin/teams", response_class=HTMLResponse)
+async def admin_teams_page(
+    request: Request,
+    tournament_filter: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: global teams list, filterable by tournament."""
+    _admin_guard(user)
+
+    # All tournaments for filter dropdown (TEAM participant type)
+    tournaments = db.query(Semester).filter(
+        Semester.semester_category == SemesterCategory.TOURNAMENT,
+    ).order_by(Semester.start_date.desc()).all()
+
+    if tournament_filter:
+        enrolled_team_ids = [
+            e.team_id for e in db.query(TournamentTeamEnrollment).filter(
+                TournamentTeamEnrollment.semester_id == tournament_filter,
+                TournamentTeamEnrollment.is_active == True,  # noqa: E712
+            ).all()
+        ]
+        teams = db.query(Team).filter(
+            Team.id.in_(enrolled_team_ids),
+            Team.is_active == True,  # noqa: E712
+        ).order_by(Team.name).all() if enrolled_team_ids else []
+    else:
+        teams = db.query(Team).filter(Team.is_active == True).order_by(Team.name).all()  # noqa: E712
+
+    # Batch-load member counts
+    member_counts: dict = {}
+    if teams:
+        team_ids = [t.id for t in teams]
+        for row in db.query(
+            TeamMember.team_id,
+            sqlfunc.count(TeamMember.id),
+        ).filter(
+            TeamMember.team_id.in_(team_ids),
+            TeamMember.is_active == True,  # noqa: E712
+        ).group_by(TeamMember.team_id).all():
+            member_counts[row[0]] = row[1]
+
+    # Batch-load tournament enrollments per team
+    team_enrollments: dict = defaultdict(list)
+    if teams:
+        for enr in db.query(TournamentTeamEnrollment).filter(
+            TournamentTeamEnrollment.team_id.in_([t.id for t in teams]),
+            TournamentTeamEnrollment.is_active == True,  # noqa: E712
+        ).all():
+            team_enrollments[enr.team_id].append(enr)
+
+    return templates.TemplateResponse(
+        "admin/teams.html",
+        {
+            "request": request,
+            "user": user,
+            "teams": teams,
+            "tournaments": tournaments,
+            "member_counts": member_counts,
+            "team_enrollments": team_enrollments,
+            "tournament_filter": tournament_filter,
+        },
+    )

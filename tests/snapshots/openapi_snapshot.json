@@ -1938,6 +1938,47 @@
         "title": "Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post",
         "type": "object"
       },
+      "Body_admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post": {
+        "properties": {
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "is_master": {
+            "default": false,
+            "title": "Is Master",
+            "type": "boolean"
+          },
+          "semester_id": {
+            "default": 0,
+            "title": "Semester Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "instructor_id"
+        ],
+        "title": "Body_admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post",
+        "type": "object"
+      },
+      "Body_admin_assign_sport_director_admin_sport_directors_assign_post": {
+        "properties": {
+          "location_id": {
+            "title": "Location Id",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "location_id"
+        ],
+        "title": "Body_admin_assign_sport_director_admin_sport_directors_assign_post",
+        "type": "object"
+      },
       "Body_admin_booking_attendance_admin_bookings__booking_id__attendance_post": {
         "properties": {
           "attendance_status": {
@@ -2175,6 +2216,34 @@
           "country"
         ],
         "title": "Body_admin_create_location_admin_locations_post",
+        "type": "object"
+      },
+      "Body_admin_create_pitch_admin_pitches_create_post": {
+        "properties": {
+          "campus_id": {
+            "title": "Campus Id",
+            "type": "integer"
+          },
+          "capacity": {
+            "default": 2,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pitch_number": {
+            "title": "Pitch Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "campus_id",
+          "pitch_number",
+          "name"
+        ],
+        "title": "Body_admin_create_pitch_admin_pitches_create_post",
         "type": "object"
       },
       "Body_admin_create_tournament_admin_tournaments_post": {
@@ -23859,6 +23928,192 @@
         ]
       }
     },
+    "/admin/pitches": {
+      "get": {
+        "description": "Admin: all pitches grouped by campus, with instructor assignment status.",
+        "operationId": "admin_pitches_page_admin_pitches_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "campus_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Campus Filter",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Location Filter",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Pitches Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/pitches/create": {
+      "post": {
+        "description": "Admin: create a new pitch under a campus.",
+        "operationId": "admin_create_pitch_admin_pitches_create_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_pitch_admin_pitches_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Pitch",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/pitches/{pitch_id}/assign-instructor": {
+      "post": {
+        "description": "Admin: directly assign an instructor to a pitch (DIRECT mode).",
+        "operationId": "admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Assign Instructor To Pitch",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/pitches/{pitch_id}/toggle": {
+      "post": {
+        "description": "Admin: activate or deactivate a pitch.",
+        "operationId": "admin_toggle_pitch_admin_pitches__pitch_id__toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle Pitch",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/programs": {
       "get": {
         "description": "Admin-only: Programs operational hub (Semesters + Enrollments)",
@@ -24146,6 +24401,131 @@
           }
         },
         "summary": "Admin Sessions Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sport-directors": {
+      "get": {
+        "description": "Admin: list and manage sport director assignments per location.",
+        "operationId": "admin_sport_directors_page_admin_sport_directors_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "location_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Location Filter",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Sport Directors Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sport-directors/assign": {
+      "post": {
+        "description": "Admin: assign a user as Sport Director for a location.",
+        "operationId": "admin_assign_sport_director_admin_sport_directors_assign_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_assign_sport_director_admin_sport_directors_assign_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Assign Sport Director",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sport-directors/{assignment_id}/deactivate": {
+      "post": {
+        "description": "Admin: deactivate a sport director assignment.",
+        "operationId": "admin_deactivate_sport_director_admin_sport_directors__assignment_id__deactivate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Deactivate Sport Director",
         "tags": [
           "web"
         ]
@@ -24456,6 +24836,50 @@
           }
         },
         "summary": "Admin Unresolve System Event",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/teams": {
+      "get": {
+        "description": "Admin: global teams list, filterable by tournament.",
+        "operationId": "admin_teams_page_admin_teams_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tournament_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Tournament Filter",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Teams Page",
         "tags": [
           "web"
         ]

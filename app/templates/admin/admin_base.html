@@ -30,26 +30,89 @@
     <button class="nav-hamburger" id="nav-hamburger-btn"
             onclick="toggleAdminNav()" aria-label="Toggle navigation" aria-expanded="false">☰</button>
     <nav class="admin-nav" id="admin-nav" aria-label="Admin navigation">
+
         <a href="/dashboard"
            class="nav-item{% if p == '/dashboard' %} active{% endif %}">🏠 Dashboard</a>
-        <a href="/admin/users"
-           class="nav-item{% if p.startswith('/admin/users') or p.startswith('/admin/instructors') %} active{% endif %}">👥 Users</a>
-        <a href="/admin/programs"
-           class="nav-item{% if p.startswith('/admin/programs') or p.startswith('/admin/semesters') or p.startswith('/admin/enrollments') %} active{% endif %}">📚 Programs</a>
-        <a href="/admin/sessions"
-           class="nav-item{% if p.startswith('/admin/sessions') or p.startswith('/admin/bookings') %} active{% endif %}">📅 Sessions</a>
-        <a href="/admin/events"
-           class="nav-item{% if p.startswith('/admin/events') or p.startswith('/admin/tournaments') or p.startswith('/admin/camps') %} active{% endif %}">🎯 Events</a>
-        <a href="/admin/payments"
-           class="nav-item{% if p.startswith('/admin/payments') or p.startswith('/admin/coupons') or p.startswith('/admin/invitation-codes') %} active{% endif %}">🛒 Commerce</a>
-        <a href="/admin/locations"
-           class="nav-item{% if p.startswith('/admin/locations') or p.startswith('/admin/campuses') %} active{% endif %}">📍 Locations</a>
-        <a href="/admin/config"
-           class="nav-item{% if p.startswith('/admin/config') or p.startswith('/admin/game-presets') %} active{% endif %}">🎮 Game Config</a>
+
+        <div class="nav-group{% if p.startswith('/admin/users') or p.startswith('/admin/instructors') or p.startswith('/admin/sport-directors') %} active{% endif %}">
+            <a href="/admin/users" class="nav-item nav-group-trigger"
+               onclick="toggleNavDropdown(event,this)">👥 People ▾</a>
+            <div class="nav-dropdown">
+                <a href="/admin/users"
+                   class="nav-dropdown-item{% if p.startswith('/admin/users') %} active{% endif %}">Users</a>
+                <a href="/admin/instructors"
+                   class="nav-dropdown-item{% if p.startswith('/admin/instructors') %} active{% endif %}">Instructors</a>
+                <a href="/admin/sport-directors"
+                   class="nav-dropdown-item{% if p.startswith('/admin/sport-directors') %} active{% endif %}">Sport Directors</a>
+            </div>
+        </div>
+
+        <div class="nav-group{% if p.startswith('/admin/locations') or p.startswith('/admin/campuses') or p.startswith('/admin/pitches') %} active{% endif %}">
+            <a href="/admin/locations" class="nav-item nav-group-trigger"
+               onclick="toggleNavDropdown(event,this)">📍 Venues ▾</a>
+            <div class="nav-dropdown">
+                <a href="/admin/locations"
+                   class="nav-dropdown-item{% if p.startswith('/admin/locations') %} active{% endif %}">Locations</a>
+                <a href="/admin/pitches"
+                   class="nav-dropdown-item{% if p.startswith('/admin/pitches') %} active{% endif %}">Pitches</a>
+            </div>
+        </div>
+
+        <div class="nav-group{% if p.startswith('/admin/programs') or p.startswith('/admin/semesters') or p.startswith('/admin/enrollments') %} active{% endif %}">
+            <a href="/admin/semesters" class="nav-item nav-group-trigger"
+               onclick="toggleNavDropdown(event,this)">📚 Programs ▾</a>
+            <div class="nav-dropdown">
+                <a href="/admin/semesters"
+                   class="nav-dropdown-item{% if p.startswith('/admin/semesters') or p.startswith('/admin/programs') %} active{% endif %}">Semesters</a>
+                <a href="/admin/enrollments"
+                   class="nav-dropdown-item{% if p.startswith('/admin/enrollments') %} active{% endif %}">Enrollments</a>
+            </div>
+        </div>
+
+        <div class="nav-group{% if p.startswith('/admin/events') or p.startswith('/admin/tournaments') or p.startswith('/admin/camps') %} active{% endif %}">
+            <a href="/admin/tournaments" class="nav-item nav-group-trigger"
+               onclick="toggleNavDropdown(event,this)">🎯 Events ▾</a>
+            <div class="nav-dropdown">
+                <a href="/admin/tournaments"
+                   class="nav-dropdown-item{% if p.startswith('/admin/tournaments') or p.startswith('/admin/events') %} active{% endif %}">Tournaments</a>
+                <a href="/admin/camps"
+                   class="nav-dropdown-item{% if p.startswith('/admin/camps') %} active{% endif %}">Camps</a>
+            </div>
+        </div>
+
+        <div class="nav-group{% if p.startswith('/admin/sessions') or p.startswith('/admin/bookings') %} active{% endif %}">
+            <a href="/admin/sessions" class="nav-item nav-group-trigger"
+               onclick="toggleNavDropdown(event,this)">📅 Sessions ▾</a>
+            <div class="nav-dropdown">
+                <a href="/admin/sessions"
+                   class="nav-dropdown-item{% if p.startswith('/admin/sessions') %} active{% endif %}">Sessions</a>
+                <a href="/admin/bookings"
+                   class="nav-dropdown-item{% if p.startswith('/admin/bookings') %} active{% endif %}">Bookings</a>
+            </div>
+        </div>
+
+        <div class="nav-group{% if p.startswith('/admin/payments') or p.startswith('/admin/coupons') or p.startswith('/admin/invitation-codes') %} active{% endif %}">
+            <a href="/admin/payments" class="nav-item nav-group-trigger"
+               onclick="toggleNavDropdown(event,this)">💰 Finance ▾</a>
+            <div class="nav-dropdown">
+                <a href="/admin/payments"
+                   class="nav-dropdown-item{% if p.startswith('/admin/payments') %} active{% endif %}">Payments</a>
+                <a href="/admin/coupons"
+                   class="nav-dropdown-item{% if p.startswith('/admin/coupons') %} active{% endif %}">Coupons</a>
+                <a href="/admin/invitation-codes"
+                   class="nav-dropdown-item{% if p.startswith('/admin/invitation-codes') %} active{% endif %}">Invitation Codes</a>
+            </div>
+        </div>
+
         <a href="/admin/analytics"
-           class="nav-item{% if p == '/admin/analytics' %} active{% endif %}">📊 Analytics</a>
+           class="nav-item{% if p.startswith('/admin/analytics') %} active{% endif %}">📊 Analytics</a>
+
+        <a href="/admin/game-presets"
+           class="nav-item{% if p.startswith('/admin/config') or p.startswith('/admin/game-presets') %} active{% endif %}">🎮 Game Config</a>
+
         <a href="/admin/system-events"
            class="nav-item{% if p.startswith('/admin/system-events') %} active{% endif %}">⚙️ System</a>
+
     </nav>
 </div>
 
@@ -114,6 +177,23 @@ function toggleAdminNav() {
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     btn.textContent = open ? '✕' : '☰';
 }
+function toggleNavDropdown(evt, trigger) {
+    if (window.innerWidth >= 640) return; // desktop: CSS hover handles it
+    evt.preventDefault();
+    var group = trigger.closest('.nav-group');
+    var wasOpen = group.classList.contains('dropdown-open');
+    document.querySelectorAll('.nav-group.dropdown-open').forEach(function(g) {
+        g.classList.remove('dropdown-open');
+    });
+    if (!wasOpen) group.classList.add('dropdown-open');
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.nav-group')) {
+        document.querySelectorAll('.nav-group.dropdown-open').forEach(function(g) {
+            g.classList.remove('dropdown-open');
+        });
+    }
+});
 </script>
 {% block scripts %}{% endblock %}
 </body>
