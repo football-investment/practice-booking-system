@@ -134,6 +134,7 @@ tests_cypress/cypress/screenshots/
 tests_cypress/cypress/results/
 tests/playwright/screenshots/
 tests/e2e/screenshots/
+tests/e2e/admin_ui/screenshots/
 tests/e2e_frontend/screenshots/
 *.pyc
 __pycache__/
