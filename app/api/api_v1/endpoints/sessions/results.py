@@ -21,7 +21,13 @@ router = APIRouter()
 
 
 def _publish_session_result(db, session: SessionModel) -> None:
-    """Publish a session_result event to Redis after db.commit()."""
+    """
+    Publish a session_result event to Redis after db.commit().
+
+    Payload conforms to TournamentUpdateEvent (see app.core.redis_pubsub).
+    Failures are swallowed — live monitoring must never break the HTTP flow.
+    """
+    import datetime
     try:
         tournament_id = session.semester_id
         if tournament_id is None:
@@ -52,6 +58,7 @@ def _publish_session_result(db, session: SessionModel) -> None:
                 "completed_count": completed,
                 "total_count": total,
                 "progress_pct": progress,
+                "completed_at": datetime.datetime.utcnow().isoformat() + "Z",
             },
         )
     except Exception:

@@ -17,18 +17,35 @@ Auth notes
 * The WebSocket uses a Bearer token in the query-string (`?token=…`) because
   WebSocket upgrade requests cannot carry custom headers in most browsers.
 * Allowed roles for both: ADMIN, SPORT_DIRECTOR, INSTRUCTOR.
+
+Rate limiting / throttle
+------------------------
+The WebSocket handler applies a server-side send-throttle of
+``WS_THROTTLE_INTERVAL`` seconds between successive frames.  Under high-volume
+conditions (e.g. 500 000-session tournaments with batch result imports) Redis
+may produce thousands of events per second.  The throttle:
+
+  1. Uses a ``maxsize=1`` asyncio.Queue to buffer the Redis stream.
+  2. When the queue is already full the *old* item is dropped and replaced with
+     the newest event so the client always sees the latest aggregate state.
+  3. After each send the consumer sleeps for ``WS_THROTTLE_INTERVAL`` before
+     reading the next item, capping throughput at ≤ 1 / WS_THROTTLE_INTERVAL
+     frames per second.
+
+Result: at 1000+ events/s the WebSocket client receives at most 5 frames/s
+(200 ms default), each showing the current completed/total counters.
 """
 from __future__ import annotations
 
-import json
+import asyncio
 import logging
-from typing import Optional
+from pathlib import Path
+from typing import AsyncIterator, Optional
 
 from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from pathlib import Path
 
 from app.database import get_db
 from app.dependencies import get_current_user_web
@@ -46,6 +63,73 @@ _BASE = Path(__file__).resolve().parent.parent.parent  # app/
 templates = Jinja2Templates(directory=str(_BASE / "templates"))
 
 _ALLOWED_ROLES = {UserRole.ADMIN, UserRole.SPORT_DIRECTOR, UserRole.INSTRUCTOR}
+
+# ── Rate-limit constant (override in tests via monkeypatch) ──────────────────
+WS_THROTTLE_INTERVAL: float = 0.2  # 200 ms → max 5 frames/sec per connection
+
+
+# ── Throttle helper (testable standalone) ────────────────────────────────────
+
+async def _throttled_stream(
+    source: AsyncIterator[str],
+    interval: float = WS_THROTTLE_INTERVAL,
+) -> AsyncIterator[str]:
+    """
+    Async generator that rate-limits a message stream.
+
+    Wraps *source* so that at most one message is yielded per *interval*
+    seconds.  When messages arrive faster than the interval, only the *latest*
+    is kept; stale intermediate messages are discarded.
+
+    This is the core of the WS send-throttle.  It is a standalone function so
+    it can be unit-tested without a real WebSocket or Redis connection.
+
+    Args:
+        source:   Async iterable of raw message strings (e.g. from Redis).
+        interval: Minimum seconds between successive yields.  0.0 disables
+                  throttling (useful in tests).
+
+    Yields:
+        str — the latest buffered message, at most once per ``interval``.
+    """
+    # Single-slot queue: always holds the most-recent message
+    queue: asyncio.Queue[object] = asyncio.Queue(maxsize=1)
+    _DONE = object()  # sentinel to signal source exhaustion
+
+    async def _producer() -> None:
+        try:
+            async for item in source:
+                if queue.full():
+                    try:
+                        queue.get_nowait()  # Drop stale item
+                    except asyncio.QueueEmpty:
+                        pass
+                try:
+                    queue.put_nowait(item)
+                except asyncio.QueueFull:
+                    # Consumer removed it between our checks — harmless
+                    pass
+        finally:
+            # Signal consumer that the source is exhausted
+            # (May block briefly if queue is full; that's fine)
+            await queue.put(_DONE)
+
+    producer_task = asyncio.create_task(_producer())
+
+    try:
+        while True:
+            item = await queue.get()
+            if item is _DONE:
+                break
+            yield item  # type: ignore[misc]
+            if interval > 0:
+                await asyncio.sleep(interval)
+    finally:
+        producer_task.cancel()
+        try:
+            await asyncio.shield(producer_task)
+        except (asyncio.CancelledError, Exception):
+            pass
 
 
 # ── Admin HTML page ────────────────────────────────────────────────────────
@@ -72,7 +156,6 @@ async def tournament_live_dashboard(
         from fastapi.responses import PlainTextResponse
         return PlainTextResponse("Tournament not found", status_code=404)
 
-    # Aggregate stats for initial page render
     total_sessions = (
         db.query(SessionModel)
         .filter(SessionModel.semester_id == tournament_id)
@@ -111,22 +194,16 @@ async def tournament_live_ws(
     """
     WebSocket stream for tournament live monitoring.
 
-    Clients authenticate via the `token` query parameter (the same JWT used
-    for Bearer auth).  The connection is rejected with 4001 if the token is
-    invalid or the user lacks permission.
+    **Authentication**: Bearer JWT in the ``token`` query parameter.
+    Connection is rejected with close-code 4001 for invalid tokens and
+    4003 for insufficient role.
 
-    Each message sent by the server is a JSON object:
-    {
-      "type": "session_result",
-      "session_id": <int>,
-      "campus_id": <int|null>,
-      "pitch_id": <int|null>,
-      "round_number": <int|null>,
-      "status": "completed",
-      "completed_count": <int>,
-      "total_count": <int>,
-      "progress_pct": <float>
-    }
+    **Throttle**: at most ``WS_THROTTLE_INTERVAL`` seconds between frames;
+    stale intermediate events are dropped so the client always sees the
+    latest aggregate state.
+
+    **Payload**: each text frame is a JSON object conforming to
+    :class:`~app.core.redis_pubsub.TournamentUpdateEvent`.
     """
     # ── Authenticate ────────────────────────────────────────────────────────
     username = verify_token(token, "access")
@@ -145,10 +222,15 @@ async def tournament_live_ws(
         tournament_id, user.id, user.role,
     )
 
-    # ── Stream ──────────────────────────────────────────────────────────────
+    # ── Stream (throttled) ──────────────────────────────────────────────────
     try:
-        async for message in subscribe_tournament_updates(tournament_id):
+        throttled = _throttled_stream(
+            subscribe_tournament_updates(tournament_id),
+            interval=WS_THROTTLE_INTERVAL,
+        )
+        async for message in throttled:
             await websocket.send_text(message)
+
     except WebSocketDisconnect:
         logger.info("WS disconnected: tournament=%d user=%d", tournament_id, user.id)
     except Exception as exc:
