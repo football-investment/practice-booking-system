@@ -24562,7 +24562,7 @@
     },
     "/admin/promotion-events": {
       "get": {
-        "description": "Admin: list all promotion events (PROMO-* code pattern).",
+        "description": "Admin: list all team-format promotion tournaments.",
         "operationId": "admin_promotion_events_list_admin_promotion_events_get",
         "responses": {
           "200": {
