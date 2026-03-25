@@ -1,0 +1,256 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Promotion Events{% endblock %}
+{% block page_heading %}🚀 Promotion Events{% endblock %}
+{% block page_subtitle %}Club team promotion tournaments (PROMO-*){% endblock %}
+
+{% block extra_styles %}
+<style>
+    .promo-table-wrap {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        overflow: hidden;
+    }
+    .promo-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+    .promo-table thead th {
+        background: #f7fafc;
+        padding: 0.85rem 1.1rem;
+        text-align: left;
+        font-weight: 700;
+        color: #4a5568;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
+    }
+    .promo-table tbody td {
+        padding: 0.85rem 1.1rem;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+        color: #2d3748;
+    }
+    .promo-table tbody tr:last-child td { border-bottom: none; }
+    .promo-table tbody tr:hover td { background: #f7fafc; }
+
+    .badge {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 99px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+    .badge-draft      { background: #edf2f7; color: #4a5568; }
+    .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
+    .badge-progress   { background: #c6f6d5; color: #22543d; }
+    .badge-completed  { background: #e9d8fd; color: #553c9a; }
+    .badge-cancelled  { background: #fed7d7; color: #742a2a; }
+    .badge-rewards    { background: #fef3c7; color: #78350f; }
+    .badge-ag         { background: #bee3f8; color: #2a4365; font-size: 0.7rem; }
+
+    .club-link { color: #667eea; font-weight: 600; text-decoration: none; }
+    .club-link:hover { text-decoration: underline; }
+
+    .action-btn {
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: white;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition: background 0.15s;
+        color: #2d3748;
+    }
+    .action-btn:hover { background: #edf2f7; }
+    .action-btn-primary { background: #667eea; color: white; border-color: #667eea; }
+    .action-btn-primary:hover { background: #5a67d8; }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #718096;
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.1rem; color: #4a5568; margin-bottom: 0.5rem; }
+
+    .filter-bar {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .filter-bar select, .filter-bar input {
+        padding: 0.45rem 0.9rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        background: white;
+    }
+    .filter-count { margin-left: auto; color: #718096; font-size: 0.88rem; }
+
+    .alert-success {
+        padding: 0.85rem 1.25rem;
+        background: #d4edda;
+        color: #155724;
+        border-left: 4px solid #28a745;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if flash %}
+<div class="alert-success">✅ {{ flash }}</div>
+{% endif %}
+
+<!-- Filter bar -->
+<div class="filter-bar">
+    <select id="statusFilter" onchange="applyFilters()">
+        <option value="all">All statuses</option>
+        <option value="DRAFT">DRAFT</option>
+        <option value="ENROLLMENT_OPEN">ENROLLMENT_OPEN</option>
+        <option value="IN_PROGRESS">IN_PROGRESS</option>
+        <option value="COMPLETED">COMPLETED</option>
+        <option value="REWARDS_DISTRIBUTED">REWARDS_DISTRIBUTED</option>
+        <option value="CANCELLED">CANCELLED</option>
+    </select>
+    <select id="agFilter" onchange="applyFilters()">
+        <option value="all">All age groups</option>
+        <option value="PRE">PRE (U12)</option>
+        <option value="YOUTH">YOUTH (U15)</option>
+        <option value="JUNIOR">JUNIOR (U18)</option>
+        <option value="ADULT">ADULT</option>
+        <option value="AMATEUR">AMATEUR</option>
+    </select>
+    <span class="filter-count" id="filterCount">{{ promo_info|length }} promotion events</span>
+</div>
+
+{% if promo_info %}
+<div class="promo-table-wrap">
+    <table class="promo-table" id="promoTable">
+        <thead>
+            <tr>
+                <th>Tournament</th>
+                <th>Club</th>
+                <th>Age group</th>
+                <th>Dates</th>
+                <th>Campus</th>
+                <th>Teams</th>
+                <th>Sessions</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for info in promo_info %}
+            {% set t = info.tournament %}
+            {% set status = t.tournament_status or 'DRAFT' %}
+            <tr data-status="{{ status }}" data-ag="{{ t.age_group or '' }}">
+                <td>
+                    <div style="font-weight:700; color:#2d3748;">{{ t.name }}</div>
+                    <code style="font-size:0.75rem; color:#a0aec0;">{{ t.code }}</code>
+                </td>
+                <td>
+                    {% if info.source_club %}
+                    <a href="/admin/clubs/{{ info.source_club.id }}" class="club-link">
+                        {{ info.source_club.name }}
+                    </a>
+                    {% else %}
+                    <span style="color:#a0aec0;">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if t.age_group %}
+                    <span class="badge badge-ag">{{ t.age_group }}</span>
+                    {% else %}
+                    <span style="color:#a0aec0;">—</span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap; color:#4a5568; font-size:0.88rem;">
+                    {{ t.start_date.strftime('%Y-%m-%d') if t.start_date else '—' }}<br>
+                    <span style="color:#a0aec0;">→ {{ t.end_date.strftime('%Y-%m-%d') if t.end_date else '—' }}</span>
+                </td>
+                <td style="color:#4a5568; font-size:0.88rem;">
+                    {{ info.campus.name if info.campus else '—' }}
+                </td>
+                <td style="text-align:center; font-weight:700;">
+                    {{ info.team_count }}
+                </td>
+                <td style="text-align:center; color:#718096;">
+                    {{ info.session_count }}
+                </td>
+                <td>
+                    {% if status == 'DRAFT' %}
+                        <span class="badge badge-draft">DRAFT</span>
+                    {% elif status == 'ENROLLMENT_OPEN' %}
+                        <span class="badge badge-enrollment">ENROLLMENT</span>
+                    {% elif status == 'IN_PROGRESS' %}
+                        <span class="badge badge-progress">IN PROGRESS</span>
+                    {% elif status == 'COMPLETED' %}
+                        <span class="badge badge-completed">COMPLETED</span>
+                    {% elif status == 'REWARDS_DISTRIBUTED' %}
+                        <span class="badge badge-rewards">REWARDS ✓</span>
+                    {% elif status == 'CANCELLED' %}
+                        <span class="badge badge-cancelled">CANCELLED</span>
+                    {% else %}
+                        <span class="badge badge-draft">{{ status }}</span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap;">
+                    <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn action-btn-primary">
+                        ✏️ Edit
+                    </a>
+                    {% if status == 'IN_PROGRESS' %}
+                    <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn">
+                        📡 Live
+                    </a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">🚀</div>
+    <h3>No promotion events yet</h3>
+    <p>Create one from a <a href="/admin/clubs" style="color:#667eea;">club detail page</a> using the Promotion Event wizard.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+    const statusVal = document.getElementById('statusFilter').value;
+    const agVal     = document.getElementById('agFilter').value;
+    const rows      = document.querySelectorAll('#promoTable tbody tr');
+    let visible = 0;
+    rows.forEach(row => {
+        const status = row.dataset.status;
+        const ag     = row.dataset.ag;
+        const statusOk = statusVal === 'all' || status === statusVal;
+        const agOk     = agVal === 'all' || ag === agVal;
+        const show = statusOk && agOk;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('filterCount').textContent =
+        visible + ' / {{ promo_info|length }} promotion events';
+}
+</script>
+{% endblock %}

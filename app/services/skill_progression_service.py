@@ -1118,3 +1118,74 @@ def get_skill_tier(level: float) -> tuple[str, str]:
         return ("DEVELOPING", "📈")
     else:
         return ("BEGINNER", "🌱")
+
+
+def get_avg_skill_level_checkpoints(
+    db: Session,
+    user_id: int,
+) -> Dict[int, float]:
+    """
+    Single-pass EMA replay returning the average skill level AFTER each tournament.
+
+    Returns:
+        {tournament_id: avg_level_after}  — one entry per participated tournament.
+        Uses the same algorithm as calculate_tournament_skill_contribution()
+        but captures intermediate averages at each step instead of only the final state.
+    """
+    baseline_skills = get_baseline_skills(db, user_id)
+    all_skill_keys = get_all_skill_keys()
+    all_baseline_vals = list(baseline_skills.values())
+    player_baseline_avg = (
+        sum(all_baseline_vals) / len(all_baseline_vals)
+        if all_baseline_vals else DEFAULT_BASELINE
+    )
+    participations = (
+        db.query(TournamentParticipation)
+        .filter(TournamentParticipation.user_id == user_id)
+        .order_by(
+            TournamentParticipation.achieved_at.asc(),
+            TournamentParticipation.id.asc(),
+        )
+        .all()
+    )
+    skill_prev: Dict[str, float] = {
+        sk: baseline_skills.get(sk, DEFAULT_BASELINE) for sk in all_skill_keys
+    }
+    skill_counts: Dict[str, int] = {sk: 0 for sk in all_skill_keys}
+    checkpoints: Dict[int, float] = {}
+
+    for participation in participations:
+        tournament = participation.tournament
+        if not tournament or not participation.placement:
+            continue
+        skills_w = _extract_tournament_skills(db, tournament, all_skill_keys)
+        if not skills_w:
+            continue
+        total_players = (
+            db.query(TournamentParticipation)
+            .filter(TournamentParticipation.semester_id == tournament.id)
+            .count()
+        )
+        if not total_players:
+            continue
+        opp = _compute_opponent_factor(db, tournament.id, user_id, player_baseline_avg)
+        mod = _compute_match_performance_modifier(db, tournament.id, user_id)
+        for sk, w in skills_w.items():
+            if sk not in skill_prev:
+                continue
+            new_val = calculate_skill_value_from_placement(
+                baseline=baseline_skills.get(sk, DEFAULT_BASELINE),
+                placement=participation.placement,
+                total_players=total_players,
+                tournament_count=skill_counts[sk] + 1,
+                skill_weight=w,
+                prev_value=skill_prev[sk],
+                opponent_factor=opp,
+                match_performance_modifier=mod,
+            )
+            skill_prev[sk] = new_val
+            skill_counts[sk] += 1
+        checkpoints[tournament.id] = round(
+            sum(skill_prev.values()) / len(skill_prev), 1
+        )
+    return checkpoints

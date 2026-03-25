@@ -4010,6 +4010,45 @@ async def admin_user_profile(
         .all()
     )
 
+    # ── Progression chart data (chronological, for Chart.js) ─────────────────
+    from ...models.semester import Semester as _SemModel
+    from ...services.skill_progression_service import get_avg_skill_level_checkpoints as _get_checkpoints
+    _checkpoints = _get_checkpoints(db, user_id)
+    progression_chart_data = []
+    _chart_rows = (
+        db.query(TournamentParticipation, _SemModel)
+        .join(_SemModel, TournamentParticipation.semester_id == _SemModel.id)
+        .filter(TournamentParticipation.user_id == user_id)
+        .filter(TournamentParticipation.skill_rating_delta.isnot(None))
+        .order_by(_SemModel.start_date.asc(), TournamentParticipation.id.asc())
+        .all()
+    )
+    if _chart_rows:
+        _PODIUM = {"CHAMPION", "RUNNER_UP", "THIRD_PLACE"}
+        _badge_by_sem = {b.semester_id: b for b in badges if b.badge_type in _PODIUM}
+        for _tp, _sem in _chart_rows:
+            _b = _badge_by_sem.get(_sem.id)
+            progression_chart_data.append({
+                "code": _sem.code or "",
+                "name": _sem.name or "",
+                "date": _sem.start_date.isoformat() if _sem.start_date else None,
+                "placement": _tp.placement,
+                "skill_delta": _tp.skill_rating_delta,
+                "badge_type": _b.badge_type if _b else None,
+                "is_champion": _tp.placement == 1,
+                "avg_level": _checkpoints.get(_sem.id),
+            })
+
+    # ── Average skill baseline for chart Y-axis origin ───────────────────────
+    avg_skill_baseline = 50.0
+    if lfa_license and isinstance(lfa_license.football_skills, dict):
+        _baselines = [
+            v.get("baseline", 50.0) if isinstance(v, dict) else float(v)
+            for v in lfa_license.football_skills.values()
+        ]
+        if _baselines:
+            avg_skill_baseline = round(sum(_baselines) / len(_baselines), 1)
+
     # Back-navigation context (from club_team_detail link)
     from ...models.club import Club
     from ...models.team import Team, TeamMember
@@ -4063,6 +4102,8 @@ async def admin_user_profile(
             "target_teams_info": target_teams_info,
             "target_age": target_age,
             "target_position": target_position,
+            "progression_chart_data": progression_chart_data,
+            "avg_skill_baseline": avg_skill_baseline,
         },
     )
 

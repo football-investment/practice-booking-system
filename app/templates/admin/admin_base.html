@@ -71,12 +71,14 @@
             </div>
         </div>
 
-        <div class="nav-group{% if p.startswith('/admin/events') or p.startswith('/admin/tournaments') or p.startswith('/admin/camps') %} active{% endif %}">
+        <div class="nav-group{% if p.startswith('/admin/events') or p.startswith('/admin/tournaments') or p.startswith('/admin/camps') or p.startswith('/admin/promotion-events') %} active{% endif %}">
             <a href="/admin/tournaments" class="nav-item nav-group-trigger"
                onclick="toggleNavDropdown(event,this)">🎯 Events ▾</a>
             <div class="nav-dropdown">
                 <a href="/admin/tournaments"
                    class="nav-dropdown-item{% if p.startswith('/admin/tournaments') or p.startswith('/admin/events') %} active{% endif %}">Tournaments</a>
+                <a href="/admin/promotion-events"
+                   class="nav-dropdown-item{% if p.startswith('/admin/promotion-events') %} active{% endif %}">Promotion Events</a>
                 <a href="/admin/camps"
                    class="nav-dropdown-item{% if p.startswith('/admin/camps') %} active{% endif %}">Camps</a>
             </div>

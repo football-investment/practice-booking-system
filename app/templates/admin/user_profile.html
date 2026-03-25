@@ -443,9 +443,58 @@
     </div>
 </div>
 
+{% if progression_chart_data %}
+<style>
+.progression-card { margin-top: 16px; }
+.progression-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.prog-controls { display:flex; gap:16px; align-items:center; }
+.prog-toggle { display:flex; gap:8px; }
+.prog-btn { padding:4px 14px; border:1px solid #667eea; border-radius:20px; background:transparent;
+            color:#667eea; cursor:pointer; font-size:.8rem; font-weight:600; transition:all .15s; }
+.prog-btn.active { background:#667eea; color:#fff; }
+.prog-scale-toggle { display:flex; gap:6px; border-left:1px solid #e5e7eb; padding-left:14px; }
+.prog-scale-btn { padding:3px 11px; border:1px solid #9ca3af; border-radius:20px; background:transparent;
+                  color:#6b7280; cursor:pointer; font-size:.75rem; font-weight:600; transition:all .15s; }
+.prog-scale-btn.active { background:#6b7280; color:#fff; border-color:#6b7280; }
+.prog-subtitle { font-size:.72rem; color:#9ca3af; margin-top:2px; cursor:default; }
+.skill-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.skill-chip { padding:3px 11px; border:1px solid #e5e7eb; border-radius:12px; cursor:pointer;
+              font-size:.72rem; background:#f9fafb; color:#6b7280; user-select:none; transition:all .12s; }
+.skill-chip.selected { background:#667eea20; border-color:#667eea; color:#667eea; font-weight:600; }
+</style>
+<div class="card progression-card">
+  <div class="progression-header">
+    <div>
+      <div class="stats-label">📈 Skill Progression</div>
+      <div class="prog-subtitle" title="Overall mode: per-tournament EMA delta averaged across 29 skills — approximated average skill level, not a stored snapshot">Average skill level per tournament · EMA-based estimate</div>
+    </div>
+    <div class="prog-controls">
+      <div class="prog-toggle">
+        <button id="btn-overall" class="prog-btn active" onclick="setProgMode('overall')">Overall</button>
+        <button id="btn-skills" class="prog-btn" onclick="setProgMode('skills')">Skills</button>
+      </div>
+      <div class="prog-scale-toggle">
+        <button id="btn-zoomed" class="prog-scale-btn active" onclick="setScaleMode('zoomed')" title="Zoomed in — shows detail">🔍 Zoomed</button>
+        <button id="btn-full" class="prog-scale-btn" onclick="setScaleMode('full')" title="Full 0–100 scale — shows context">⬜ Full</button>
+      </div>
+    </div>
+  </div>
+  <div id="skill-selector" style="display:none;" class="skill-chips"></div>
+  <div style="position:relative; height:260px;">
+    <canvas id="progression-chart"></canvas>
+  </div>
+  <div id="prog-empty" style="display:none; color:#9ca3af; text-align:center; padding:32px;">
+    No skill data available.
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
+{% if progression_chart_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+{% endif %}
 <script>
 async function uploadPlayerPhoto(userId, input) {
     if (!input.files[0]) return;
@@ -468,5 +517,167 @@ async function deletePlayerPhoto(userId) {
     const data = await r.json();
     if (data.ok) location.reload();
 }
+
+{% if progression_chart_data %}
+const PROG_DATA = {{ progression_chart_data | tojson }};
+const allSkillKeys = [...new Set(PROG_DATA.flatMap(t => Object.keys(t.skill_delta||{})))].sort();
+
+let progMode = 'overall';
+let scaleMode = 'zoomed';
+let selectedSkills = new Set(allSkillKeys.slice(0, 3));
+let progChart = null;
+
+const SKILL_COLORS = ['#667eea','#27ae60','#e53e3e','#ed8936','#3b82f6','#805ad5','#d69e2e','#e91e8c'];
+
+function getOverallSeries() {
+    // Server-computed EMA checkpoint — exact match with profile/card average_level.
+    return PROG_DATA.map(function(t) {
+        return (t.avg_level !== null && t.avg_level !== undefined) ? t.avg_level : null;
+    });
+}
+function getSkillSeries(skill) {
+    let running = 0;
+    return PROG_DATA.map(function(t) {
+        running += (t.skill_delta[skill] || 0);
+        return Math.round(running * 10) / 10;
+    });
+}
+function getYAxisOptions() {
+    if (scaleMode === 'full') {
+        return { min: 0, max: 100 };
+    }
+    // Zoomed: compute data range + 10% padding
+    var allValues = [];
+    if (progMode === 'overall') {
+        allValues = getOverallSeries();
+    } else {
+        var skills = selectedSkills.size ? [...selectedSkills] : allSkillKeys.slice(0,3);
+        skills.forEach(function(sk) { allValues = allValues.concat(getSkillSeries(sk)); });
+    }
+    if (!allValues.length) return {};
+    var dataMin = Math.min.apply(null, allValues);
+    var dataMax = Math.max.apply(null, allValues);
+    var pad = Math.max((dataMax - dataMin) * 0.15, 1.0);
+    return {
+        min: Math.max(0, Math.floor((dataMin - pad) * 10) / 10),
+        max: Math.min(100, Math.ceil((dataMax + pad) * 10) / 10),
+    };
+}
+
+function buildProgChart() {
+    var labels = PROG_DATA.map(function(t) { return t.date ? t.date.slice(0,10) : t.code; });
+    var datasets;
+    if (progMode === 'overall') {
+        datasets = [{
+            label: 'Avg. level',
+            data: getOverallSeries(),
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102,126,234,0.1)',
+            fill: true, tension: 0.35, borderWidth: 2.5,
+            pointRadius: 7, pointHoverRadius: 10,
+            pointBackgroundColor: PROG_DATA.map(function(t){ return t.is_champion ? '#d69e2e' : '#667eea'; }),
+            pointBorderWidth: PROG_DATA.map(function(t){ return t.is_champion ? 3 : 1; }),
+        }];
+    } else {
+        var skills = selectedSkills.size ? [...selectedSkills] : allSkillKeys.slice(0,3);
+        datasets = skills.map(function(sk, i) {
+            return {
+                label: sk.replace(/_/g,' '),
+                data: getSkillSeries(sk),
+                borderColor: SKILL_COLORS[i % SKILL_COLORS.length],
+                backgroundColor: 'transparent',
+                fill: false, tension: 0.3, borderWidth: 2,
+                pointRadius: 5, pointHoverRadius: 8,
+            };
+        });
+    }
+    if (progChart) { progChart.destroy(); progChart = null; }
+    if (!PROG_DATA.length) {
+        document.getElementById('prog-empty').style.display = 'block';
+        return;
+    }
+    var yOpts = getYAxisOptions();
+    progChart = new Chart(document.getElementById('progression-chart'), {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: Object.assign({
+                    title: { display:true, text: progMode === 'overall' ? 'Average skill level' : 'Cumulative Δ', color:'#6b7280', font:{size:11} },
+                    ticks: { color:'#6b7280' }, grid: { color:'#f3f4f6' },
+                }, yOpts),
+                x: {
+                    title: { display:true, text:'Tournament date', color:'#6b7280', font:{size:11} },
+                    ticks: { color:'#6b7280', maxRotation:45 }, grid: { display:false },
+                },
+            },
+            plugins: {
+                legend: { display: progMode === 'skills', position:'top' },
+                tooltip: { callbacks: {
+                    title: function(ctx) {
+                        var t = PROG_DATA[ctx[0].dataIndex];
+                        return (t.is_champion ? '🥇 ' : '') + t.name;
+                    },
+                    afterTitle: function(ctx) {
+                        var t = PROG_DATA[ctx[0].dataIndex];
+                        return t.code + ' | #' + t.placement + ' place' + (t.badge_type ? ' | ' + t.badge_type : '');
+                    },
+                    footer: function(ctx) {
+                        if (progMode !== 'overall') return '';
+                        var t = PROG_DATA[ctx[0].dataIndex];
+                        var lines = [];
+                        if (t.avg_level !== null && t.avg_level !== undefined) {
+                            lines.push('Avg. level: ' + t.avg_level.toFixed(1));
+                        }
+                        var skillLines = Object.entries(t.skill_delta||{})
+                            .filter(function(e){ return e[1] !== 0; })
+                            .map(function(e){ return e[0] + ': ' + (e[1]>0?'+':'') + e[1].toFixed(1); })
+                            .slice(0, 4);
+                        if (skillLines.length) lines.push(skillLines.join('  ·  '));
+                        return lines;
+                    }
+                }}
+            }
+        }
+    });
+}
+
+function setProgMode(mode) {
+    progMode = mode;
+    document.getElementById('btn-overall').classList.toggle('active', mode==='overall');
+    document.getElementById('btn-skills').classList.toggle('active', mode==='skills');
+    document.getElementById('skill-selector').style.display = mode==='skills' ? 'flex' : 'none';
+    buildProgChart();
+}
+function setScaleMode(mode) {
+    scaleMode = mode;
+    document.getElementById('btn-zoomed').classList.toggle('active', mode==='zoomed');
+    document.getElementById('btn-full').classList.toggle('active', mode==='full');
+    buildProgChart();
+}
+function toggleSkillChip(sk) {
+    if (selectedSkills.has(sk)) selectedSkills.delete(sk);
+    else selectedSkills.add(sk);
+    document.querySelectorAll('.skill-chip').forEach(function(c) {
+        c.classList.toggle('selected', selectedSkills.has(c.dataset.skill));
+    });
+    buildProgChart();
+}
+
+// Build skill chips
+var chipContainer = document.getElementById('skill-selector');
+allSkillKeys.forEach(function(sk) {
+    var chip = document.createElement('span');
+    chip.className = 'skill-chip' + (selectedSkills.has(sk) ? ' selected' : '');
+    chip.dataset.skill = sk;
+    chip.textContent = sk.replace(/_/g,' ');
+    chip.onclick = function(){ toggleSkillChip(sk); };
+    chipContainer.appendChild(chip);
+});
+
+buildProgChart();
+{% endif %}
 </script>
 {% endblock %}

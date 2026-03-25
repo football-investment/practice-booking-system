@@ -41,6 +41,7 @@ from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel, EventCategory
 from ...models.tournament_ranking import TournamentRanking
 from ...models.team import Team, TeamMember, TournamentTeamEnrollment
+from ...models.club import Club
 from ...models.instructor_assignment import (
     InstructorAssignment,
     InstructorAssignmentRequest,
@@ -419,6 +420,71 @@ def _admin_only(user: User):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
+@router.get("/admin/promotion-events", response_class=HTMLResponse)
+async def admin_promotion_events_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: list all promotion events (PROMO-* code pattern)."""
+    _admin_only(user)
+
+    promotions = (
+        db.query(Semester)
+        .filter(Semester.code.like("PROMO-%"))
+        .order_by(Semester.start_date.desc())
+        .all()
+    )
+
+    promo_info = []
+    for t in promotions:
+        # Team enrollment count
+        team_count = (
+            db.query(TournamentTeamEnrollment)
+            .filter(
+                TournamentTeamEnrollment.semester_id == t.id,
+                TournamentTeamEnrollment.is_active == True,
+            )
+            .count()
+        )
+        session_count = (
+            db.query(SessionModel)
+            .filter(SessionModel.semester_id == t.id)
+            .count()
+        )
+        # Resolve campus name
+        campus = db.query(Campus).filter(Campus.id == t.campus_id).first() if t.campus_id else None
+        # Resolve source club via one enrolled team's club_id
+        first_enrollment = (
+            db.query(TournamentTeamEnrollment)
+            .filter(TournamentTeamEnrollment.semester_id == t.id)
+            .first()
+        )
+        source_club = None
+        if first_enrollment:
+            team = db.query(Team).filter(Team.id == first_enrollment.team_id).first()
+            if team and team.club_id:
+                source_club = db.query(Club).filter(Club.id == team.club_id).first()
+
+        promo_info.append({
+            "tournament": t,
+            "team_count": team_count,
+            "session_count": session_count,
+            "campus": campus,
+            "source_club": source_club,
+        })
+
+    return templates.TemplateResponse(
+        "admin/promotion_events.html",
+        {
+            "request": request,
+            "user": user,
+            "promo_info": promo_info,
+            "flash": request.query_params.get("flash"),
+        },
+    )
+
+
 @router.get("/admin/tournaments", response_class=HTMLResponse)
 async def admin_tournaments_list(
     request: Request,
@@ -430,6 +496,7 @@ async def admin_tournaments_list(
 
     # Include both code-pattern records (legacy, semester_category=NULL)
     # and records explicitly categorised as TOURNAMENT (new creates).
+    # PROMO-* rows are shown separately at /admin/promotion-events.
     tournaments = (
         db.query(Semester)
         .filter(
@@ -437,7 +504,8 @@ async def admin_tournaments_list(
                 Semester.code.like("TOURN-%"),
                 Semester.code.like("OPS-%"),
                 Semester.semester_category == SemesterCategory.TOURNAMENT,
-            )
+            ),
+            ~Semester.code.like("PROMO-%"),
         )
         .order_by(Semester.start_date.desc())
         .all()
@@ -760,23 +828,23 @@ async def admin_tournament_edit_page(
         .order_by(SessionModel.date_start)
         .all()
     )
-    sessions_result_status = [
-        {
-            "id": s.id,
-            "title": s.title or f"Session #{s.id}",
-            "date_start": s.date_start.strftime("%Y-%m-%d %H:%M") if s.date_start else "",
-            "match_format": s.match_format or "INDIVIDUAL_RANKING",
-            "has_results": bool(
-                (s.rounds_data and s.rounds_data.get("round_results"))
-                or s.game_results
-            ),
-            "participant_user_ids": s.participant_user_ids or [],
-            "participant_team_ids": s.participant_team_ids or [],
-        }
-        for s in all_match_sessions
-    ]
 
-    # Team name map for TEAM tournaments (team_id → name)
+    def _matchup_label(s, teams_dict: dict, users_dict: dict):
+        """Return 'Team A vs Team B' / 'Player X vs Player Y' / 'N participants' / None."""
+        if s.participant_team_ids:
+            names = [teams_dict.get(tid, f"Team #{tid}") for tid in s.participant_team_ids[:2]]
+            return " vs ".join(names) if len(names) >= 2 else names[0]
+        if s.participant_user_ids:
+            if s.match_format == "HEAD_TO_HEAD" and len(s.participant_user_ids) >= 2:
+                u1 = users_dict.get(s.participant_user_ids[0])
+                u2 = users_dict.get(s.participant_user_ids[1])
+                n1 = u1.name if u1 else f"Player #{s.participant_user_ids[0]}"
+                n2 = u2.name if u2 else f"Player #{s.participant_user_ids[1]}"
+                return f"{n1} vs {n2}"
+            return f"{len(s.participant_user_ids)} participants"
+        return None
+
+    # Team name map for TEAM tournaments (team_id → name) — built first for matchup_label
     enrolled_teams: dict = {}
     team_enrollments = (
         db.query(TournamentTeamEnrollment)
@@ -791,6 +859,25 @@ async def admin_tournament_edit_page(
         teams = db.query(Team).filter(Team.id.in_(team_ids)).all()
         enrolled_teams = {t.id: t.name for t in teams}
 
+    sessions_result_status = [
+        {
+            "id": s.id,
+            "title": s.title or f"Session #{s.id}",
+            "date_start": s.date_start.strftime("%Y-%m-%d %H:%M") if s.date_start else "",
+            "match_format": s.match_format or "INDIVIDUAL_RANKING",
+            "has_results": bool(
+                (s.rounds_data and s.rounds_data.get("round_results"))
+                or s.game_results
+            ),
+            "participant_user_ids": s.participant_user_ids or [],
+            "participant_team_ids": s.participant_team_ids or [],
+            "tournament_round": s.tournament_round,
+            "group_identifier": s.group_identifier,
+            "matchup_label": _matchup_label(s, enrolled_teams, enrolled_users),
+        }
+        for s in all_match_sessions
+    ]
+
     # Existing rankings (for Section 8 — rankings panel)
     existing_rankings = (
         db.query(TournamentRanking)
@@ -799,6 +886,35 @@ async def admin_tournament_edit_page(
         .all()
     )
     ranking_users = {r.user_id: enrolled_users.get(r.user_id) for r in existing_rankings}
+
+    # Group standings: sessions with group_identifier → per-group TournamentRanking rows
+    from collections import defaultdict as _defaultdict
+    _group_participants: dict = _defaultdict(set)
+    for s in all_match_sessions:
+        if not s.group_identifier:
+            continue
+        for tid in (s.participant_team_ids or []):
+            _group_participants[s.group_identifier].add(("team", tid))
+        for uid in (s.participant_user_ids or []):
+            _group_participants[s.group_identifier].add(("user", uid))
+
+    group_standings: dict = {}
+    for grp in sorted(_group_participants.keys()):
+        parts = _group_participants[grp]
+        grp_rows = [
+            r for r in existing_rankings
+            if ("team", r.team_id) in parts or ("user", r.user_id) in parts
+        ]
+        grp_rows.sort(key=lambda r: r.rank or 999)
+        if grp_rows:
+            group_standings[grp] = grp_rows
+
+    # ranking_teams: team_id → Team object (parallel to ranking_users)
+    _team_ids_in_rankings = {r.team_id for r in existing_rankings if r.team_id}
+    ranking_teams = (
+        {t.id: t for t in db.query(Team).filter(Team.id.in_(_team_ids_in_rankings)).all()}
+        if _team_ids_in_rankings else {}
+    )
 
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
@@ -821,6 +937,8 @@ async def admin_tournament_edit_page(
             "enrolled_teams": enrolled_teams,
             "existing_rankings": existing_rankings,
             "ranking_users": ranking_users,
+            "group_standings": group_standings,
+            "ranking_teams": ranking_teams,
             "game_presets": game_presets,
             "tournament_types": tournament_types,
             "campuses": campuses,

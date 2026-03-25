@@ -53,22 +53,29 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    def _extract_user_id(self, request: Request) -> Optional[int]:
-        """Extract user ID from JWT token"""
+    def _extract_user_id(self, request: Request) -> Optional[str]:
+        """Extract user email from JWT — checks Bearer header first, then access_token cookie."""
+        raw_token = None
+
+        # 1. Bearer Authorization header (API clients)
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            raw_token = auth_header[len("Bearer "):]
+
+        # 2. access_token cookie (browser / admin UI session)
+        if not raw_token:
+            cookie_val = request.cookies.get("access_token", "")
+            if cookie_val.startswith("Bearer "):
+                raw_token = cookie_val[len("Bearer "):]
+            elif cookie_val:
+                raw_token = cookie_val
+
+        if not raw_token:
+            return None
+
         try:
-            auth_header = request.headers.get("Authorization", "")
-            if auth_header.startswith("Bearer "):
-                token = auth_header.replace("Bearer ", "")
-                payload = jwt.decode(
-                    token,
-                    settings.SECRET_KEY,
-                    algorithms=["HS256"]
-                )
-                # Extract user email/identifier from token
-                user_email = payload.get("sub")
-                # We'll need to look up user_id from email in the database
-                # For now, return None and handle user_id lookup in _log_request
-                return user_email
+            payload = jwt.decode(raw_token, settings.SECRET_KEY, algorithms=["HS256"])
+            return payload.get("sub")   # email — resolved to user_id in _log_request
         except Exception:
             pass
         return None

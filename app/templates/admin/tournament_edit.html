@@ -552,8 +552,20 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         {% for sess in sessions_result_status %}
         <div class="session-list-row" style="justify-content:space-between;padding:0.65rem 0;">
             <div style="flex:1;min-width:0;">
-                <span class="sess-time">{{ sess.date_start }}</span>
-                <span style="margin-left:0.5rem;font-size:0.88rem;">{{ sess.title }}</span>
+                <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.15rem;">
+                    <span class="sess-time">{{ sess.date_start }}</span>
+                    {% if sess.tournament_round %}
+                    <span style="background:#e2e8f0;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#4a5568;">R{{ sess.tournament_round }}</span>
+                    {% endif %}
+                    {% if sess.group_identifier %}
+                    <span style="background:#bee3f8;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#2b6cb0;">Group {{ sess.group_identifier }}</span>
+                    {% endif %}
+                </div>
+                {% if sess.matchup_label %}
+                <span style="font-weight:700;font-size:0.95rem;color:#2d3748;">{{ sess.matchup_label }}</span>
+                {% else %}
+                <span style="font-size:0.85rem;color:#718096;">{{ sess.title }}</span>
+                {% endif %}
                 <span class="sess-type" style="margin-left:0.4rem;">{{ sess.match_format }}</span>
             </div>
             <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
@@ -601,6 +613,58 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </button>
         <span id="ranking-status" style="font-size:0.85rem;color:#718096;"></span>
     </div>
+
+    {% if group_standings %}
+    <div style="margin-bottom:1.5rem;">
+        <h4 style="font-size:0.9rem;font-weight:700;color:#4a5568;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">
+            Group Stage Standings
+        </h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+            {% for grp, grp_rows in group_standings.items() %}
+            <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                <div style="background:#667eea;color:white;padding:0.4rem 0.75rem;font-weight:700;font-size:0.85rem;">
+                    Group {{ grp }}
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                    <thead>
+                        <tr style="background:#f7fafc;">
+                            <th style="padding:0.35rem 0.5rem;text-align:left;">#</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:left;">Team / Player</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:right;">Pts</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:right;">W/D/L</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:right;">GF/GA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in grp_rows %}
+                        <tr style="border-top:1px solid #f0f0f0;">
+                            <td style="padding:0.35rem 0.5rem;">
+                                {% if r.rank == 1 %}🥇{% elif r.rank == 2 %}🥈{% elif r.rank == 3 %}🥉{% else %}{{ r.rank }}{% endif %}
+                            </td>
+                            <td style="padding:0.35rem 0.5rem;font-weight:600;">
+                                {% if r.team_id %}
+                                    🏆 {{ ranking_teams[r.team_id].name if r.team_id in ranking_teams else 'Team #' ~ r.team_id }}
+                                {% else %}
+                                    {% set p = ranking_users.get(r.user_id) %}
+                                    {{ p.full_name if p else 'Player #' ~ r.user_id }}
+                                {% endif %}
+                            </td>
+                            <td style="padding:0.35rem 0.5rem;text-align:right;font-weight:700;">{{ r.points | int }}</td>
+                            <td style="padding:0.35rem 0.5rem;text-align:right;color:#718096;">{{ r.wins }}/{{ r.draws }}/{{ r.losses }}</td>
+                            <td style="padding:0.35rem 0.5rem;text-align:right;color:#718096;">{{ r.goals_for }}/{{ r.goals_against }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin-bottom:1rem;">
+    <h4 style="font-size:0.9rem;font-weight:700;color:#4a5568;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">
+        Overall Rankings
+    </h4>
+    {% endif %}
 
     <div id="rankings-table-container">
         {% if existing_rankings %}
