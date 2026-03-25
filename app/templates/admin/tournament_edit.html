@@ -165,6 +165,18 @@
 .btn-start:hover { background: #219a52; }
 .btn-success { background: #27ae60; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.25rem; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: background 0.15s; }
 .btn-success:hover { background: #219a52; }
+/* ── Instructor Roster ─────────────────────────────────────────────────── */
+.instructor-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; }
+.instructor-row:last-child { border-bottom: none; }
+.slot-badge { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+.slot-planned    { background: #edf2f7; color: #4a5568; }
+.slot-confirmed  { background: #ebf8ff; color: #2b6cb0; }
+.slot-checked_in { background: #c6f6d5; color: #22543d; }
+.slot-absent     { background: #fed7d7; color: #742a2a; }
+.action-btn-green { background: #c6f6d5; color: #22543d; border-color: #9ae6b4; }
+.action-btn-green:hover { background: #9ae6b4; }
+.action-btn-red { background: #fed7d7; color: #742a2a; border-color: #feb2b2; }
+.action-btn-red:hover { background: #feb2b2; }
 </style>
 {% endblock %}
 
@@ -462,6 +474,105 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
     {% else %}
         <p style="color:#718096;font-style:italic;">No enrollments yet.</p>
+    {% endif %}
+</div>
+
+{# ── SECTION 4.5: Instructor Roster ───────────────────────────────────────── #}
+<div class="card" id="section-instructors">
+    <div class="section-header">
+        <span class="section-icon">🧑‍🏫</span>
+        <h2>Instructor Roster</h2>
+    </div>
+
+    {% set master_slot = instructor_roster | selectattr("role","equalto","MASTER") | list | first %}
+    {% set field_slots = instructor_roster | selectattr("role","equalto","FIELD") | list %}
+
+    {# ── Master Instructor ── #}
+    <div style="margin-bottom:1.5rem;">
+        <div style="font-weight:700; color:#4a5568; margin-bottom:0.6rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em;">Master Instructor</div>
+        {% if master_slot %}
+        <div class="instructor-row" id="slot-row-{{ master_slot.slot_id }}">
+            <div style="flex:1;">
+                <span style="font-weight:600;">{{ master_slot.instructor_name }}</span>
+                {% if master_slot.notes %}<span style="color:#a0aec0; font-size:0.82rem;"> — {{ master_slot.notes }}</span>{% endif %}
+            </div>
+            <span class="slot-badge slot-{{ master_slot.status | lower }}">{{ master_slot.status }}</span>
+            {% if master_slot.status != "CHECKED_IN" %}
+            <button class="action-btn action-btn-green" onclick="slotCheckin({{ t.id }}, {{ master_slot.slot_id }})">✅ Check-in</button>
+            {% endif %}
+            {% if master_slot.status != "ABSENT" %}
+            <button class="action-btn action-btn-red" onclick="slotAbsent({{ t.id }}, {{ master_slot.slot_id }})">❌ Absent</button>
+            {% endif %}
+            <button class="action-btn" onclick="slotRemove({{ t.id }}, {{ master_slot.slot_id }})">🗑</button>
+        </div>
+        {% else %}
+        <div style="color:#a0aec0; font-style:italic; margin-bottom:0.8rem;">No master instructor assigned.</div>
+        {% endif %}
+
+        <form id="add-master-form" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+            <select name="instructor_id" style="flex:2; min-width:180px;" required>
+                <option value="">— Select instructor —</option>
+                {% for inst in eligible_instructors %}
+                <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.email }})</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="role" value="MASTER">
+            <input type="text" name="notes" placeholder="Notes (optional)" style="flex:2; min-width:150px;">
+            <button type="button" class="action-btn action-btn-primary" onclick="addSlot({{ t.id }}, 'add-master-form')">+ Assign Master</button>
+        </form>
+    </div>
+
+    {# ── Field Instructors ── #}
+    <div>
+        <div style="font-weight:700; color:#4a5568; margin-bottom:0.6rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em;">Field Instructors</div>
+        <div id="field-slots-container">
+            {% for slot in field_slots %}
+            <div class="instructor-row" id="slot-row-{{ slot.slot_id }}">
+                <div style="flex:1;">
+                    <span style="font-weight:600;">{{ slot.instructor_name }}</span>
+                    {% if slot.pitch_name %}<span style="color:#667eea; font-size:0.82rem; margin-left:0.4rem;">📍 {{ slot.pitch_name }}</span>{% endif %}
+                    {% if slot.notes %}<span style="color:#a0aec0; font-size:0.82rem;"> — {{ slot.notes }}</span>{% endif %}
+                </div>
+                <span class="slot-badge slot-{{ slot.status | lower }}">{{ slot.status }}</span>
+                {% if slot.status != "CHECKED_IN" %}
+                <button class="action-btn action-btn-green" onclick="slotCheckin({{ t.id }}, {{ slot.slot_id }})">✅ Check-in</button>
+                {% endif %}
+                {% if slot.status != "ABSENT" %}
+                <button class="action-btn action-btn-red" onclick="slotAbsent({{ t.id }}, {{ slot.slot_id }})">❌ Absent</button>
+                {% endif %}
+                <button class="action-btn" onclick="slotRemove({{ t.id }}, {{ slot.slot_id }})">🗑</button>
+            </div>
+            {% else %}
+            <div style="color:#a0aec0; font-style:italic; margin-bottom:0.8rem;" id="no-field-slots">No field instructors assigned.</div>
+            {% endfor %}
+        </div>
+
+        <form id="add-field-form" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.8rem;">
+            <select name="instructor_id" style="flex:2; min-width:180px;" required>
+                <option value="">— Select instructor —</option>
+                {% for inst in eligible_instructors %}
+                <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.email }})</option>
+                {% endfor %}
+            </select>
+            <select name="pitch_id" style="flex:1; min-width:150px;" required>
+                <option value="">— Select pitch —</option>
+                {% for p in pitches_for_roster %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="role" value="FIELD">
+            <input type="text" name="notes" placeholder="Notes (optional)" style="flex:2; min-width:150px;">
+            <button type="button" class="action-btn action-btn-primary" onclick="addSlot({{ t.id }}, 'add-field-form')">+ Add Field Instructor</button>
+        </form>
+    </div>
+
+    {# ── Fallback Panel ── #}
+    {% if has_absent_field %}
+    <div id="fallback-panel" style="margin-top:1.5rem; padding:1rem 1.25rem; background:#fffbeb; border-left:4px solid #f6ad55; border-radius:8px;">
+        <div style="font-weight:700; color:#92400e; margin-bottom:0.4rem;">⚠️ Fallback available</div>
+        <div id="fallback-summary" style="color:#78350f; font-size:0.9rem; margin-bottom:0.8rem;">Loading fallback plan…</div>
+        <button class="action-btn action-btn-primary" onclick="loadAndApplyFallback({{ t.id }})">Fallback alkalmazása →</button>
+    </div>
     {% endif %}
 </div>
 
@@ -1242,5 +1353,106 @@ async function submitResults() {
 
 document.addEventListener('DOMContentLoaded', initRewardForm);
 document.addEventListener('DOMContentLoaded', filterEditCampuses);
+
+// ── Instructor Roster JS ────────────────────────────────────────────────────
+
+const _csrf = () => (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];
+
+async function addSlot(tournId, formId) {
+    const form = document.getElementById(formId);
+    const fd = new FormData(form);
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots`, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Failed to add slot'), 'error');
+    }
+    toast('Instructor added to roster');
+    setTimeout(() => location.reload(), 800);
+}
+
+async function slotCheckin(tournId, slotId) {
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots/${slotId}/checkin`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Check-in failed'), 'error');
+    }
+    toast('Instructor checked in ✅');
+    setTimeout(() => location.reload(), 600);
+}
+
+async function slotAbsent(tournId, slotId) {
+    if (!confirm('Mark this instructor as ABSENT?')) return;
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots/${slotId}/absent`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Failed'), 'error');
+    }
+    toast('Instructor marked absent ❌');
+    setTimeout(() => location.reload(), 600);
+}
+
+async function slotRemove(tournId, slotId) {
+    if (!confirm('Remove this instructor from the roster?')) return;
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots/${slotId}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Remove failed'), 'error');
+    }
+    toast('Instructor removed');
+    setTimeout(() => location.reload(), 600);
+}
+
+async function loadAndApplyFallback(tournId) {
+    // Fetch plan
+    const r = await fetch(`/admin/tournaments/${tournId}/fallback-plan`, {
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!r.ok) return toast('Could not load fallback plan', 'error');
+    const plan = await r.json();
+
+    const msg = `Fallback plan:\n` +
+        `  • Absent field instructors: ${plan.absent_field_count}\n` +
+        `  • Suggested parallel_fields: ${plan.suggested_parallel_fields}\n` +
+        `  • Sessions to reassign: ${plan.affected_sessions_count}\n\nApply now?`;
+    if (!confirm(msg)) return;
+
+    const resp = await fetch(`/admin/tournaments/${tournId}/apply-fallback`, {
+        method: 'POST',
+        body: JSON.stringify(plan),
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) return toast('Fallback apply failed', 'error');
+    const result = await resp.json();
+    toast(`Fallback applied — ${result.updated_sessions} sessions reassigned ✅`);
+    setTimeout(() => location.reload(), 1200);
+}
+
+// Auto-load fallback summary if panel is visible
+document.addEventListener('DOMContentLoaded', async () => {
+    const panel = document.getElementById('fallback-panel');
+    if (!panel) return;
+    const summary = document.getElementById('fallback-summary');
+    try {
+        const r = await fetch(`/admin/tournaments/${TOURN_ID}/fallback-plan`);
+        const plan = await r.json();
+        summary.textContent =
+            `${plan.absent_field_count} field instructor(s) absent — ` +
+            `suggested parallel_fields=${plan.suggested_parallel_fields}, ` +
+            `${plan.affected_sessions_count} session(s) would be reassigned.`;
+    } catch { summary.textContent = 'Could not load fallback details.'; }
+});
 </script>
 {% endblock %}

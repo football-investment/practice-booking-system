@@ -1925,6 +1925,46 @@
         "title": "BatchEnrollResponse",
         "type": "object"
       },
+      "Body_admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post": {
+        "properties": {
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pitch_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch Id"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instructor_id",
+          "role"
+        ],
+        "title": "Body_admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post",
+        "type": "object"
+      },
       "Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post": {
         "properties": {
           "user_id": {
@@ -25346,6 +25386,47 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/apply-fallback": {
+      "post": {
+        "description": "Apply the fallback plan \u2014 reassign sessions + update parallel_fields.",
+        "operationId": "admin_apply_fallback_admin_tournaments__tournament_id__apply_fallback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Apply Fallback",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/cancel": {
       "post": {
         "description": "Admin: cancel tournament.",
@@ -25456,6 +25537,287 @@
           }
         },
         "summary": "Admin Tournament Edit Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/fallback-plan": {
+      "get": {
+        "description": "Get the semi-automatic fallback plan for absent field instructors (JSON).",
+        "operationId": "admin_get_fallback_plan_admin_tournaments__tournament_id__fallback_plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Get Fallback Plan",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots": {
+      "get": {
+        "description": "Return the instructor roster for a tournament (JSON).",
+        "operationId": "admin_get_instructor_slots_admin_tournaments__tournament_id__instructor_slots_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Get Instructor Slots",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Add an instructor slot to the tournament roster.",
+        "operationId": "admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Add Instructor Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}": {
+      "delete": {
+        "description": "Remove an instructor slot.",
+        "operationId": "admin_remove_instructor_slot_admin_tournaments__tournament_id__instructor_slots__slot_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Remove Instructor Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/absent": {
+      "post": {
+        "description": "Mark an instructor slot as ABSENT.",
+        "operationId": "admin_absent_instructor_slot_admin_tournaments__tournament_id__instructor_slots__slot_id__absent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Absent Instructor Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/checkin": {
+      "post": {
+        "description": "Mark an instructor slot as CHECKED_IN.",
+        "operationId": "admin_checkin_instructor_slot_admin_tournaments__tournament_id__instructor_slots__slot_id__checkin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Checkin Instructor Slot",
         "tags": [
           "web"
         ]

@@ -194,6 +194,9 @@ async def tournament_live_dashboard(
         .count()
     )
 
+    import app.services.tournament.instructor_planning_service as _ip_svc
+    instructor_roster = _ip_svc.get_roster(db, tournament_id)
+
     return templates.TemplateResponse(
         "admin/tournament_live.html",
         {
@@ -202,6 +205,7 @@ async def tournament_live_dashboard(
             "tournament": tournament,
             "total_sessions": total_sessions,
             "completed_sessions": completed_sessions,
+            "instructor_roster": instructor_roster,
         },
     )
 

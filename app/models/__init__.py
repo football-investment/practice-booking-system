@@ -50,6 +50,7 @@ from .audit_log import AuditLog
 from .system_event import SystemEvent, SystemEventLevel, SystemEventType
 from .match_structure import MatchStructure, MatchResult, MatchFormat, ScoringType
 from .club import Club, CsvImportLog
+from .tournament_instructor_slot import TournamentInstructorSlot, SlotRole, SlotStatus
 
 # 🎓 New Track-Based Modular Education System
 from .track import Track, Module, ModuleComponent
@@ -203,4 +204,8 @@ __all__ = [
     # Club system
     "Club",
     "CsvImportLog",
+    # Instructor planning
+    "TournamentInstructorSlot",
+    "SlotRole",
+    "SlotStatus",
 ]

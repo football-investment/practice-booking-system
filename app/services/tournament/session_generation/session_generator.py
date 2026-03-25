@@ -356,6 +356,22 @@ class TournamentSessionGenerator:
             ).all()
             logger.info(f"👥 Fetched {len(enrolled_players)} players in seeding pool from database")
 
+            # Build pitch → instructor map from TournamentInstructorSlot (FIELD slots)
+            # Fallback priority: CHECKED_IN > CONFIRMED > PLANNED > master_instructor_id
+            from app.models.tournament_instructor_slot import TournamentInstructorSlot
+            _slot_priority = {"CHECKED_IN": 0, "CONFIRMED": 1, "PLANNED": 2}
+            _field_slots = self.db.query(TournamentInstructorSlot).filter(
+                TournamentInstructorSlot.semester_id == tournament_id,
+                TournamentInstructorSlot.role == "FIELD",
+                TournamentInstructorSlot.pitch_id.isnot(None),
+            ).all()
+            # Keep highest-priority slot per pitch (in case of data inconsistency)
+            _pitch_instructor_map: dict = {}
+            for _s in sorted(_field_slots, key=lambda s: _slot_priority.get(s.status, 99)):
+                if _s.pitch_id not in _pitch_instructor_map:
+                    _pitch_instructor_map[_s.pitch_id] = _s.instructor_id
+            logger.info(f"🧑‍🏫 Pitch→instructor map: {_pitch_instructor_map} (master fallback: {tournament.master_instructor_id})")
+
             # Create session records in database (bulk insert — no per-session flush)
             created_sessions = []
             logger.info(f"🔨 Creating {len(sessions)} session records in database (bulk)...")
@@ -367,9 +383,16 @@ class TournamentSessionGenerator:
                     logger.info(f"🔍 DEBUG: group_identifier value: {session_data.get('group_identifier')}")
                     logger.info(f"🔍 DEBUG: tournament_phase value: {session_data.get('tournament_phase')}")
                 try:
+                    # Use field instructor for the session's pitch; fall back to master
+                    _session_pitch_id = session_data.get("pitch_id")
+                    _instructor_id = (
+                        _pitch_instructor_map.get(_session_pitch_id)
+                        if _session_pitch_id
+                        else None
+                    ) or tournament.master_instructor_id
                     session = SessionModel(
                         semester_id=tournament_id,
-                        instructor_id=tournament.master_instructor_id,
+                        instructor_id=_instructor_id,
                         event_category=EventCategory.MATCH,
                         auto_generated=True,
                         capacity=player_count,  # Tournament sessions support all enrolled players

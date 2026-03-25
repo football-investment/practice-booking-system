@@ -20,6 +20,7 @@ Admin routes:
 """
 from datetime import datetime, date
 from pathlib import Path
+from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
@@ -52,8 +53,10 @@ from ...models.instructor_assignment import (
 )
 from ...models.tournament_type import TournamentType
 from ...models.tournament_configuration import TournamentConfiguration
+from ...models.tournament_instructor_slot import TournamentInstructorSlot, SlotRole, SlotStatus
 from ...models.user import User, UserRole
 from ...services.tournament import team_service as _team_service
+import app.services.tournament.instructor_planning_service as _ip_service
 from ...services.age_category_service import (
     calculate_age_at_season_start,
     get_automatic_age_category,
@@ -916,6 +919,26 @@ async def admin_tournament_edit_page(
         if _team_ids_in_rankings else {}
     )
 
+    # Instructor roster (Section 4.5)
+    from app.models.pitch import Pitch as PitchModel
+    instructor_roster = _ip_service.get_roster(db, tournament_id)
+    eligible_instructors = (
+        db.query(User)
+        .filter(User.role == UserRole.INSTRUCTOR, User.is_active == True)
+        .order_by(User.name)
+        .all()
+    )
+    pitches_for_roster = (
+        db.query(PitchModel)
+        .filter(PitchModel.is_active == True)
+        .order_by(PitchModel.name)
+        .all()
+    )
+    has_absent_field = any(
+        s["role"] == "FIELD" and s["status"] == "ABSENT"
+        for s in instructor_roster
+    )
+
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
         {
@@ -943,6 +966,10 @@ async def admin_tournament_edit_page(
             "tournament_types": tournament_types,
             "campuses": campuses,
             "locations": locations,
+            "instructor_roster": instructor_roster,
+            "eligible_instructors": eligible_instructors,
+            "pitches_for_roster": pitches_for_roster,
+            "has_absent_field": has_absent_field,
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },
@@ -1279,3 +1306,150 @@ async def admin_add_team_member_direct(
         url=f"/admin/tournaments/{tournament_id}/teams?flash=Member+added",
         status_code=303,
     )
+
+
+# ── Instructor Planning (IP-*) ────────────────────────────────────────────────
+
+from fastapi.responses import JSONResponse
+
+
+@router.get("/admin/tournaments/{tournament_id}/instructor-slots")
+async def admin_get_instructor_slots(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Return the instructor roster for a tournament (JSON)."""
+    _admin_only(user)
+    roster = _ip_service.get_roster(db, tournament_id)
+    return JSONResponse({"slots": roster})
+
+
+@router.post("/admin/tournaments/{tournament_id}/instructor-slots")
+async def admin_add_instructor_slot(
+    tournament_id: int,
+    instructor_id: int = Form(...),
+    role: str = Form(...),
+    pitch_id: Optional[int] = Form(None),
+    notes: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Add an instructor slot to the tournament roster."""
+    _admin_only(user)
+    slot = _ip_service.add_slot(
+        db=db,
+        semester_id=tournament_id,
+        instructor_id=instructor_id,
+        role=role,
+        pitch_id=pitch_id,
+        assigned_by_id=user.id,
+        notes=notes,
+    )
+    db.commit()
+    return JSONResponse({"slot_id": slot.id, "status": slot.status}, status_code=201)
+
+
+@router.delete("/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}")
+async def admin_remove_instructor_slot(
+    tournament_id: int,
+    slot_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Remove an instructor slot."""
+    _admin_only(user)
+    _ip_service.remove_slot(db, slot_id=slot_id, by_user=user)
+    db.commit()
+    return JSONResponse({"deleted": slot_id})
+
+
+@router.post("/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/checkin")
+async def admin_checkin_instructor_slot(
+    tournament_id: int,
+    slot_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Mark an instructor slot as CHECKED_IN."""
+    _admin_only(user)
+    slot = _ip_service.mark_checkin(db, slot_id=slot_id, requester=user)
+    db.commit()
+    _publish_instructor_change(tournament_id, slot, db)
+    return JSONResponse({"slot_id": slot.id, "status": slot.status})
+
+
+@router.post("/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/absent")
+async def admin_absent_instructor_slot(
+    tournament_id: int,
+    slot_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Mark an instructor slot as ABSENT."""
+    _admin_only(user)
+    slot = _ip_service.mark_absent(db, slot_id=slot_id, requester=user)
+    db.commit()
+    _publish_instructor_change(tournament_id, slot, db)
+    return JSONResponse({"slot_id": slot.id, "status": slot.status})
+
+
+@router.get("/admin/tournaments/{tournament_id}/fallback-plan")
+async def admin_get_fallback_plan(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Get the semi-automatic fallback plan for absent field instructors (JSON)."""
+    _admin_only(user)
+    plan = _ip_service.get_fallback_plan(db, semester_id=tournament_id)
+    return JSONResponse(plan)
+
+
+@router.post("/admin/tournaments/{tournament_id}/apply-fallback")
+async def admin_apply_fallback(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Apply the fallback plan — reassign sessions + update parallel_fields."""
+    _admin_only(user)
+    body = await request.json()
+    updated = _ip_service.apply_fallback(
+        db=db,
+        semester_id=tournament_id,
+        admin_user=user,
+        plan=body,
+    )
+    db.commit()
+    return JSONResponse({"updated_sessions": updated})
+
+
+# ── Helper: publish WS instructor change event ─────────────────────────────
+
+def _publish_instructor_change(
+    tournament_id: int,
+    slot: TournamentInstructorSlot,
+    db: Session,
+) -> None:
+    """Best-effort WS broadcast of instructor status change."""
+    try:
+        from app.core.redis_pubsub import publish_tournament_update
+        instructor_name = slot.instructor.name if slot.instructor else f"User #{slot.instructor_id}"
+        absent_field_slots = db.query(TournamentInstructorSlot).filter(
+            TournamentInstructorSlot.semester_id == slot.semester_id,
+            TournamentInstructorSlot.role == SlotRole.FIELD.value,
+            TournamentInstructorSlot.status == SlotStatus.ABSENT.value,
+        ).count()
+        publish_tournament_update(tournament_id, {
+            "type":               "instructor_status_change",
+            "slot_id":            slot.id,
+            "instructor_name":    instructor_name,
+            "role":               slot.role,
+            "pitch_id":           slot.pitch_id,
+            "new_status":         slot.status,
+            "fallback_available": absent_field_slots > 0,
+        })
+    except Exception:
+        pass  # Redis down — silent fail

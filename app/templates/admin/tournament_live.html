@@ -227,6 +227,18 @@
     color: #ef9a9a;
 }
 .drop-pill.ok { color: #a5d6a7; }
+/* ── Instructor live panel ───────────────────────────────────────────── */
+.instructor-live-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid #2d3748; }
+.instructor-live-row:last-child { border-bottom: none; }
+.instr-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.instr-green  { background: #48bb78; }
+.instr-red    { background: #fc8181; }
+.instr-yellow { background: #f6e05e; }
+.instr-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.7rem; font-weight: 700; }
+.instr-badge-planned    { background: #4a5568; color: #e2e8f0; }
+.instr-badge-confirmed  { background: #2b6cb0; color: #ebf8ff; }
+.instr-badge-checked_in { background: #276749; color: #c6f6d5; }
+.instr-badge-absent     { background: #742a2a; color: #fed7d7; }
 </style>
 {% endblock %}
 
@@ -327,18 +339,49 @@
         </div>
     </div>
 
-    <!-- ── Right: live feed ───────────────────────────────────────────── -->
-    <div class="feed-card">
-        <h3>Live feed
-            <span style="font-weight:400;font-size:11px;color:#bbb">latest 20</span>
-        </h3>
-        <ul id="feed-list">
-            <li>
-                <span class="f-time">—</span>
-                <span class="f-badge" style="background:#f5f5f5;color:#aaa">—</span>
-                <span class="f-txt" style="color:#bbb">No events yet</span>
-            </li>
-        </ul>
+    <!-- ── Right: live feed + instructor status ──────────────────────── -->
+    <div>
+        <!-- Instructor Status Panel -->
+        {% if instructor_roster %}
+        <div class="card" id="instructor-status-card" style="margin-bottom:1rem;">
+            <h3 style="margin-bottom:0.8rem;">🧑‍🏫 Instructors</h3>
+            <div id="instructor-grid">
+                {% for slot in instructor_roster %}
+                <div class="instructor-live-row"
+                     id="instr-slot-{{ slot.slot_id }}"
+                     data-slot="{{ slot.slot_id }}"
+                     data-status="{{ slot.status }}">
+                    <div class="instr-dot
+                        {% if slot.status == 'CHECKED_IN' %}instr-green
+                        {% elif slot.status == 'ABSENT' %}instr-red
+                        {% else %}instr-yellow{% endif %}">
+                    </div>
+                    <div style="flex:1; font-size:0.85rem;">
+                        <div style="font-weight:600;">{{ slot.instructor_name }}</div>
+                        <div style="color:#aaa; font-size:0.75rem;">
+                            {{ slot.role }}{% if slot.pitch_name %} · {{ slot.pitch_name }}{% endif %}
+                        </div>
+                    </div>
+                    <span class="instr-badge instr-badge-{{ slot.status | lower }}">{{ slot.status }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Live feed -->
+        <div class="feed-card">
+            <h3>Live feed
+                <span style="font-weight:400;font-size:11px;color:#bbb">latest 20</span>
+            </h3>
+            <ul id="feed-list">
+                <li>
+                    <span class="f-time">—</span>
+                    <span class="f-badge" style="background:#f5f5f5;color:#aaa">—</span>
+                    <span class="f-txt" style="color:#bbb">No events yet</span>
+                </li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -529,9 +572,37 @@
             "pitch-idle-" + msg.pitch_id);
     }
 
+    function handleInstructorStatusChange(msg) {
+        // Update the instructor row in real-time
+        const row = document.getElementById("instr-slot-" + msg.slot_id);
+        if (!row) return;
+        row.dataset.status = msg.new_status;
+        // Update dot colour
+        const dot = row.querySelector(".instr-dot");
+        if (dot) {
+            dot.className = "instr-dot " + (
+                msg.new_status === "CHECKED_IN" ? "instr-green" :
+                msg.new_status === "ABSENT"     ? "instr-red"   : "instr-yellow"
+            );
+        }
+        // Update badge
+        const badge = row.querySelector(".instr-badge");
+        if (badge) {
+            badge.className = "instr-badge instr-badge-" + msg.new_status.toLowerCase();
+            badge.textContent = msg.new_status;
+        }
+        // Show alert if absent + fallback available
+        if (msg.new_status === "ABSENT" && msg.fallback_available) {
+            showAlert("absent", "❌",
+                `<strong>${msg.instructor_name}</strong> (${msg.role}${msg.pitch_id ? " · Pitch #" + msg.pitch_id : ""}) marked absent. <a href="/admin/tournaments/${TOURNAMENT_ID}/edit#section-instructors" style="color:#f6e05e">Apply fallback →</a>`,
+                "instructor-absent-" + msg.slot_id);
+        }
+    }
+
     function handleMessage(msg) {
         if (msg.type === "throttle_stats") { handleThrottleStats(msg); return; }
         if (msg.type === "pitch_idle_alert") { handlePitchIdleAlert(msg); return; }
+        if (msg.type === "instructor_status_change") { handleInstructorStatusChange(msg); return; }
         if (msg.type !== "session_result") return;
 
         lastEventTs = Date.now();
