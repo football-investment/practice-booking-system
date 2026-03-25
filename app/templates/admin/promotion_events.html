@@ -150,6 +150,7 @@
                 <th>Campus</th>
                 <th>Teams</th>
                 <th>Sessions</th>
+                <th>Instructors</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -191,6 +192,17 @@
                 </td>
                 <td style="text-align:center; color:#718096;">
                     {{ info.session_count }}
+                </td>
+                <td style="text-align:center;">
+                    {% if info.slot_total == 0 %}
+                        <span style="color:#a0aec0; font-size:0.85rem;">–</span>
+                    {% elif info.has_absent_field %}
+                        <span class="badge" style="background:#fed7d7;color:#c53030;">⚠️ Hiányzó</span>
+                    {% elif info.slot_checked > 0 %}
+                        <span class="badge" style="background:#c6f6d5;color:#276749;">✅ {{ info.slot_checked }}/{{ info.slot_total }}</span>
+                    {% else %}
+                        <span class="badge" style="background:#ebf8ff;color:#2b6cb0;">{{ info.slot_total }} tervezett</span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if status == 'DRAFT' %}

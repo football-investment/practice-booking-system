@@ -429,12 +429,19 @@ async def admin_promotion_events_list(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Admin: list all promotion events (PROMO-* code pattern)."""
+    """Admin: list all team-format promotion tournaments."""
     _admin_only(user)
 
+    # All TOURNAMENT-category semesters with TEAM participant_type.
+    # This covers both PROMO-* (club wizard) and manually-created team tournaments.
     promotions = (
         db.query(Semester)
-        .filter(Semester.code.like("PROMO-%"))
+        .join(TournamentConfiguration,
+              TournamentConfiguration.semester_id == Semester.id)
+        .filter(
+            Semester.semester_category == SemesterCategory.TOURNAMENT,
+            TournamentConfiguration.participant_type == "TEAM",
+        )
         .order_by(Semester.start_date.desc())
         .all()
     )
@@ -469,12 +476,26 @@ async def admin_promotion_events_list(
             if team and team.club_id:
                 source_club = db.query(Club).filter(Club.id == team.club_id).first()
 
+        # Instructor planning status
+        slots = (
+            db.query(TournamentInstructorSlot)
+            .filter(TournamentInstructorSlot.semester_id == t.id)
+            .all()
+        )
         promo_info.append({
-            "tournament": t,
-            "team_count": team_count,
-            "session_count": session_count,
-            "campus": campus,
-            "source_club": source_club,
+            "tournament":       t,
+            "team_count":       team_count,
+            "session_count":    session_count,
+            "campus":           campus,
+            "source_club":      source_club,
+            "slot_total":       len(slots),
+            "slot_planned":     sum(1 for s in slots if s.status == SlotStatus.PLANNED.value),
+            "slot_checked":     sum(1 for s in slots if s.status == SlotStatus.CHECKED_IN.value),
+            "slot_absent":      sum(1 for s in slots if s.status == SlotStatus.ABSENT.value),
+            "has_absent_field": any(
+                s.status == SlotStatus.ABSENT.value and s.role == SlotRole.FIELD.value
+                for s in slots
+            ),
         })
 
     return templates.TemplateResponse(
@@ -499,7 +520,8 @@ async def admin_tournaments_list(
 
     # Include both code-pattern records (legacy, semester_category=NULL)
     # and records explicitly categorised as TOURNAMENT (new creates).
-    # PROMO-* rows are shown separately at /admin/promotion-events.
+    # TEAM participant_type rows are shown separately at /admin/promotion-events.
+    from sqlalchemy import exists as _sq_exists
     tournaments = (
         db.query(Semester)
         .filter(
@@ -508,7 +530,10 @@ async def admin_tournaments_list(
                 Semester.code.like("OPS-%"),
                 Semester.semester_category == SemesterCategory.TOURNAMENT,
             ),
-            ~Semester.code.like("PROMO-%"),
+            ~_sq_exists().where(
+                (TournamentConfiguration.semester_id == Semester.id)
+                & (TournamentConfiguration.participant_type == "TEAM")
+            ),
         )
         .order_by(Semester.start_date.desc())
         .all()
