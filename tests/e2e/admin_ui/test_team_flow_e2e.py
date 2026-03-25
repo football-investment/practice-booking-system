@@ -283,8 +283,10 @@ class TestTeamFlowE2E:
         page.wait_for_load_state("networkidle")
         _ss(page, "TM01_07_after_invite_sent")
 
+        assert "msg=" in page.url  # URL check without page.content()
+        # Wait for specific element to avoid "page is navigating" race on content()
+        page.wait_for_selector(f"text={invitee.name}", timeout=5_000)
         content = page.content()
-        assert "msg=Invited" in page.url or "Invited" in content
         assert invitee.name in content, "Invitee must appear in Pending Invites"
 
         # TM01-08: Captain logs out
