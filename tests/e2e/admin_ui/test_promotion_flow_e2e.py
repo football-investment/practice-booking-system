@@ -426,8 +426,9 @@ class TestPromo04And05PromotionWizard:
                 f"Expected 2 promotion tournaments, found {len(tournaments)}"
             )
             age_labels = {t.age_group for t in tournaments}
-            assert "U12" in age_labels, "U12 tournament not created"
-            assert "U15" in age_labels, "U15 tournament not created"
+            # U12 → PRE, U15 → YOUTH via _normalize_club_age_group()
+            assert "PRE" in age_labels, f"U12→PRE tournament not created, got: {age_labels}"
+            assert "YOUTH" in age_labels, f"U15→YOUTH tournament not created, got: {age_labels}"
 
             # ── PROMO-05: each tournament has 2 teams enrolled ────────────────
             for tournament in tournaments:
