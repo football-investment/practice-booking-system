@@ -381,7 +381,7 @@ def update_tournament(
                 detail=f"Game preset {request.game_preset_id} not found or inactive",
             )
         game_cfg = db.query(GameConfiguration).filter(
-            GameConfiguration.tournament_id == tournament_id
+            GameConfiguration.semester_id == tournament_id
         ).first()
         if game_cfg:
             updates["game_preset_id"] = {"old": game_cfg.game_preset_id, "new": request.game_preset_id}
