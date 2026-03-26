@@ -93,14 +93,7 @@ def save_tournament_reward_config(
     # Get tournament
     tournament = TournamentRepository(db).get_or_404(tournament_id)
 
-    # 🔒 VALIDATION GUARD: Check enabled skills (bypass when game preset set — preset.skill_weights used)
-    if not tournament.game_preset_id:
-        is_valid, error_message = reward_config.validate_enabled_skills()
-        if not is_valid:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid skill configuration: {error_message}. You must select at least 1 skill for this tournament."
-            )
+    # Skill validation skipped — game preset (mandatory) drives skill_weights in reward distribution
 
     # Validate and serialize config
     try:
