@@ -200,11 +200,6 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     <div class="section-header">
         <span class="section-icon">📋</span>
         <h2>Basic Info</h2>
-        {% if t.format == 'HEAD_TO_HEAD' %}
-        <span style="background:#ebf4ff;color:#2b6cb0;border:1px solid #bee3f8;border-radius:4px;padding:2px 8px;font-size:0.78rem;font-weight:600;margin-left:8px;">⚔️ Head-to-Head</span>
-        {% else %}
-        <span style="background:#f0fff4;color:#276749;border:1px solid #9ae6b4;border-radius:4px;padding:2px 8px;font-size:0.78rem;font-weight:600;margin-left:8px;">🏅 Individual Ranking</span>
-        {% endif %}
         {% set ts = t.tournament_status or '' %}
         {% if ts == 'DRAFT' %}<span class="status-badge-inline status-draft">DRAFT</span>
         {% elif ts == 'ENROLLMENT_OPEN' %}<span class="status-badge-inline status-open">ENROLLMENT OPEN</span>
@@ -271,8 +266,28 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             </select>
         </div>
     </div>
-    <div class="form-row">
-        {% if t.format == 'HEAD_TO_HEAD' %}
+    {# ── Format selector (interactive toggle) ── #}
+    <div class="form-row" style="margin-bottom:0.5rem;">
+        <div class="form-group" style="flex:0 0 auto;">
+            <label>Tournament Format</label>
+            <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
+                <button type="button" id="btn-fmt-h2h"
+                        onclick="setTournamentFormat('HEAD_TO_HEAD')"
+                        style="padding:0.5rem 1rem;border-radius:6px;border:2px solid #bee3f8;background:#ebf4ff;color:#2b6cb0;font-weight:600;cursor:pointer;transition:all 0.15s;">
+                    ⚔️ Head-to-Head
+                </button>
+                <button type="button" id="btn-fmt-ir"
+                        onclick="setTournamentFormat('INDIVIDUAL_RANKING')"
+                        style="padding:0.5rem 1rem;border-radius:6px;border:2px solid #9ae6b4;background:#f0fff4;color:#276749;font-weight:600;cursor:pointer;transition:all 0.15s;">
+                    🏅 Individual Ranking
+                </button>
+            </div>
+            <span class="field-hint" id="fmt-hint"></span>
+        </div>
+    </div>
+
+    {# ── HEAD_TO_HEAD fields ── #}
+    <div class="form-row" id="group-h2h-fields">
         <div class="form-group">
             <label>Tournament Type</label>
             <select id="basic-tournament-type">
@@ -285,10 +300,9 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             </select>
             <span class="field-hint">⚠️ Changing type auto-deletes existing sessions</span>
         </div>
-        {% endif %}
         <div class="form-group">
             <label>Participant Type</label>
-            <select id="basic-participant-type">
+            <select id="basic-participant-type-h2h">
                 <option value="INDIVIDUAL" {% if not cfg or cfg.participant_type == 'INDIVIDUAL' %}selected{% endif %}>👤 Individual</option>
                 <option value="TEAM" {% if cfg and cfg.participant_type == 'TEAM' %}selected{% endif %}>👥 Team</option>
                 <option value="MIXED" disabled {% if cfg and cfg.participant_type == 'MIXED' %}selected{% endif %}>🔀 Mixed (coming soon)</option>
@@ -296,16 +310,10 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             {% if cfg and cfg.participant_type == 'TEAM' %}
             <a href="/admin/tournaments/{{ t.id }}/teams" class="btn btn-sm btn-outline" style="margin-top:6px">👥 Manage Teams →</a>
             {% endif %}
-            <span class="field-hint">MIXED ranking stays a P3 feature — not yet wired up</span>
-        </div>
-        <div class="form-group">
-            <label>Number of Rounds</label>
-            <input type="number" id="basic-rounds" value="{{ cfg.number_of_rounds if cfg else 1 }}" min="1" max="10">
-            <span class="field-hint">1–10 · INDIVIDUAL_RANKING only</span>
         </div>
         <div class="form-group">
             <label>Game Preset</label>
-            <select id="basic-game-preset-id">
+            <select id="basic-game-preset-id-h2h">
                 <option value="">— No preset —</option>
                 {% for gp in game_presets %}
                 <option value="{{ gp.id }}" {% if preset and gp.id == preset.id %}selected{% endif %}>{{ gp.name }}</option>
@@ -313,8 +321,9 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             </select>
         </div>
     </div>
-    {% if t.format == 'INDIVIDUAL_RANKING' %}
-    <div class="form-row">
+
+    {# ── INDIVIDUAL_RANKING fields ── #}
+    <div class="form-row" id="group-ir-fields">
         <div class="form-group">
             <label>Scoring Type</label>
             <select id="basic-scoring-type">
@@ -338,8 +347,28 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
                 <option value="ASC"  {% if cfg and cfg.ranking_direction == 'ASC'    %}selected{% endif %}>ASC — lowest wins (time: sprint)</option>
             </select>
         </div>
+        <div class="form-group">
+            <label>Participant Type</label>
+            <select id="basic-participant-type-ir">
+                <option value="INDIVIDUAL" {% if not cfg or cfg.participant_type == 'INDIVIDUAL' %}selected{% endif %}>👤 Individual</option>
+                <option value="TEAM" {% if cfg and cfg.participant_type == 'TEAM' %}selected{% endif %}>👥 Team</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Number of Rounds</label>
+            <input type="number" id="basic-rounds" value="{{ cfg.number_of_rounds if cfg else 1 }}" min="1" max="10">
+            <span class="field-hint">1–10 rounds per session</span>
+        </div>
+        <div class="form-group">
+            <label>Game Preset</label>
+            <select id="basic-game-preset-id-ir">
+                <option value="">— No preset —</option>
+                {% for gp in game_presets %}
+                <option value="{{ gp.id }}" {% if preset and gp.id == preset.id %}selected{% endif %}>{{ gp.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
     </div>
-    {% endif %}
 
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveBasicInfo()">💾 Save Basic Info</button>
@@ -990,6 +1019,39 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 <script>
 const TOURN_ID = {{ t.id }};
 
+// ── Format toggle ─────────────────────────────────────────────────────────────
+let _currentFormat = '{{ t.format }}';
+
+function setTournamentFormat(fmt) {
+    _currentFormat = fmt;
+    const h2h = document.getElementById('group-h2h-fields');
+    const ir  = document.getElementById('group-ir-fields');
+    const btnH2H = document.getElementById('btn-fmt-h2h');
+    const btnIR  = document.getElementById('btn-fmt-ir');
+    const hint   = document.getElementById('fmt-hint');
+
+    if (fmt === 'HEAD_TO_HEAD') {
+        h2h.style.display = '';
+        ir.style.display  = 'none';
+        btnH2H.style.outline = '3px solid #2b6cb0';
+        btnH2H.style.boxShadow = '0 0 0 3px rgba(43,108,176,0.2)';
+        btnIR.style.outline = '';
+        btnIR.style.boxShadow = '';
+        hint.textContent = '⚔️ 1-vs-1 matches — bracket, league, or swiss system';
+    } else {
+        h2h.style.display = 'none';
+        ir.style.display  = '';
+        btnIR.style.outline = '3px solid #276749';
+        btnIR.style.boxShadow = '0 0 0 3px rgba(39,103,73,0.2)';
+        btnH2H.style.outline = '';
+        btnH2H.style.boxShadow = '';
+        hint.textContent = '🏅 All players compete individually — ranked by score, time, distance or placement';
+    }
+}
+
+// Initialise on page load
+document.addEventListener('DOMContentLoaded', () => setTournamentFormat(_currentFormat));
+
 // ── Section 1: Basic Info ─────────────────────────────────────────────────────
 async function saveBasicInfo() {
     const body = {
@@ -1003,21 +1065,28 @@ async function saveBasicInfo() {
     };
     const maxP = document.getElementById('basic-max-players').value;
     if (maxP) body.max_players = parseInt(maxP);
-    const ttId = document.getElementById('basic-tournament-type').value;
-    if (ttId) body.tournament_type_id = parseInt(ttId);
-    const ptVal = document.getElementById('basic-participant-type').value;
-    if (ptVal) body.participant_type = ptVal;
-    const roundsVal = document.getElementById('basic-rounds').value;
-    if (roundsVal) body.number_of_rounds = parseInt(roundsVal);
-    const gpVal = document.getElementById('basic-game-preset-id').value;
-    if (gpVal) body.game_preset_id = parseInt(gpVal);
-    // INDIVIDUAL_RANKING fields (only present when format == INDIVIDUAL_RANKING)
-    const scoringEl = document.getElementById('basic-scoring-type');
-    if (scoringEl) body.scoring_type = scoringEl.value;
-    const muEl = document.getElementById('basic-measurement-unit');
-    if (muEl && muEl.value.trim()) body.measurement_unit = muEl.value.trim();
-    const rdEl = document.getElementById('basic-ranking-direction');
-    if (rdEl) body.ranking_direction = rdEl.value;
+
+    if (_currentFormat === 'HEAD_TO_HEAD') {
+        const ttId = document.getElementById('basic-tournament-type').value;
+        if (ttId) body.tournament_type_id = parseInt(ttId);
+        const ptVal = document.getElementById('basic-participant-type-h2h').value;
+        if (ptVal) body.participant_type = ptVal;
+        const gpVal = document.getElementById('basic-game-preset-id-h2h').value;
+        if (gpVal) body.game_preset_id = parseInt(gpVal);
+    } else {
+        // INDIVIDUAL_RANKING: clear tournament_type_id, send scoring config
+        body.tournament_type_id = null;
+        body.scoring_type    = document.getElementById('basic-scoring-type').value;
+        body.ranking_direction = document.getElementById('basic-ranking-direction').value;
+        const muEl = document.getElementById('basic-measurement-unit');
+        if (muEl && muEl.value.trim()) body.measurement_unit = muEl.value.trim();
+        const ptVal = document.getElementById('basic-participant-type-ir').value;
+        if (ptVal) body.participant_type = ptVal;
+        const roundsVal = document.getElementById('basic-rounds').value;
+        if (roundsVal) body.number_of_rounds = parseInt(roundsVal);
+        const gpVal = document.getElementById('basic-game-preset-id-ir').value;
+        if (gpVal) body.game_preset_id = parseInt(gpVal);
+    }
 
     const statusEl = document.getElementById('basic-save-status');
     statusEl.textContent = 'Saving…';

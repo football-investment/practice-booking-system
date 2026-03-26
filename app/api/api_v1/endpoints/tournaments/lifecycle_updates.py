@@ -211,27 +211,40 @@ def update_tournament(
         tournament.campus_id = request.campus_id
 
     # Update tournament_type_id (lives in TournamentConfiguration — ⚠️ auto-deletes sessions on change)
-    if request.tournament_type_id is not None:
-        from app.models.tournament_type import TournamentType
-        tournament_type = db.query(TournamentType).filter(TournamentType.id == request.tournament_type_id).first()
-        if not tournament_type:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tournament type {request.tournament_type_id} not found"
-            )
-
-        # Auto-delete existing sessions if type changes
-        if tournament.sessions_generated and tournament.tournament_type_id != request.tournament_type_id:
-            from app.models.session import Session as SessionModel
-            deleted_count = db.query(SessionModel).filter(SessionModel.semester_id == tournament.id).delete()
+    # Use model_fields_set to detect explicit null (IR switch) vs omitted field
+    if 'tournament_type_id' in request.model_fields_set:
+        old_type_id = tournament.tournament_type_id
+        if request.tournament_type_id is None:
+            # Switching to INDIVIDUAL_RANKING: clear tournament_type_id
+            if tournament.sessions_generated:
+                from app.models.session import Session as SessionModel
+                deleted_count = db.query(SessionModel).filter(SessionModel.semester_id == tournament.id).delete()
+                if tournament.tournament_config_obj:
+                    tournament.tournament_config_obj.sessions_generated = False
+                    tournament.tournament_config_obj.sessions_generated_at = None
+                updates["sessions_deleted"] = {"count": deleted_count, "reason": "format_switched_to_individual_ranking"}
+            updates["tournament_type_id"] = {"old": old_type_id, "new": None, "format_switch": "INDIVIDUAL_RANKING"}
             if tournament.tournament_config_obj:
-                tournament.tournament_config_obj.sessions_generated = False
-                tournament.tournament_config_obj.sessions_generated_at = None
-            updates["sessions_deleted"] = {"count": deleted_count, "reason": "tournament_type_changed"}
-
-        updates["tournament_type_id"] = {"old": tournament.tournament_type_id, "new": request.tournament_type_id}
-        if tournament.tournament_config_obj:
-            tournament.tournament_config_obj.tournament_type_id = request.tournament_type_id
+                tournament.tournament_config_obj.tournament_type_id = None
+        else:
+            from app.models.tournament_type import TournamentType
+            tournament_type = db.query(TournamentType).filter(TournamentType.id == request.tournament_type_id).first()
+            if not tournament_type:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Tournament type {request.tournament_type_id} not found"
+                )
+            # Auto-delete existing sessions if type changes
+            if tournament.sessions_generated and old_type_id != request.tournament_type_id:
+                from app.models.session import Session as SessionModel
+                deleted_count = db.query(SessionModel).filter(SessionModel.semester_id == tournament.id).delete()
+                if tournament.tournament_config_obj:
+                    tournament.tournament_config_obj.sessions_generated = False
+                    tournament.tournament_config_obj.sessions_generated_at = None
+                updates["sessions_deleted"] = {"count": deleted_count, "reason": "tournament_type_changed"}
+            updates["tournament_type_id"] = {"old": old_type_id, "new": request.tournament_type_id}
+            if tournament.tournament_config_obj:
+                tournament.tournament_config_obj.tournament_type_id = request.tournament_type_id
 
     # ⚠️ ADMIN OVERRIDE: Update tournament_status (bypasses state machine validation)
     if request.tournament_status is not None:

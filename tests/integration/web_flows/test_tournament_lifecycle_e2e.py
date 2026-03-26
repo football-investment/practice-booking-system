@@ -1292,8 +1292,9 @@ class TestTournamentFieldBindings:
         assert resp.status_code == 200, resp.text
         html = resp.text
 
-        assert 'id="basic-participant-type"' in html, (
-            "Edit page must render <select id='basic-participant-type'>"
+        # H2H tournaments render basic-participant-type-h2h
+        assert 'id="basic-participant-type-h2h"' in html, (
+            "Edit page must render <select id='basic-participant-type-h2h'> for HEAD_TO_HEAD"
         )
         assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must exist in dropdown"
         assert 'value="TEAM"' in html, "TEAM option must exist in dropdown (now implemented)"
@@ -1473,19 +1474,22 @@ class TestFormatBranching:
         assert page.status_code == 200, page.text
         html = page.text
 
-        # IR badge látszik
-        assert "Individual Ranking" in html, "IR badge must be present"
-        # Tournament type dropdown NEM szerepel (conditional Jinja2 blokk)
-        assert 'id="basic-tournament-type"' not in html, (
-            "tournament-type dropdown must NOT be rendered for INDIVIDUAL_RANKING"
+        # Format toggle gombok jelen vannak
+        assert 'id="btn-fmt-h2h"' in html, "H2H toggle button must be present"
+        assert 'id="btn-fmt-ir"' in html, "IR toggle button must be present"
+        # JS init: _currentFormat = 'INDIVIDUAL_RANKING'
+        assert "_currentFormat = 'INDIVIDUAL_RANKING'" in html, (
+            "JS _currentFormat must be initialised to INDIVIDUAL_RANKING"
         )
-        # scoring_type selector látszik és SCORE_BASED selected
+        # Mindkét mező-csoport jelen van (JS toggle kezeli a láthatóságot)
+        assert 'id="group-h2h-fields"' in html, "H2H field group must exist in DOM"
+        assert 'id="group-ir-fields"' in html, "IR field group must exist in DOM"
+        # IR-specifikus mezők jelen vannak
         assert 'id="basic-scoring-type"' in html, "scoring_type selector must be present"
-        assert 'value="SCORE_BASED"' in html or "SCORE_BASED" in html, (
-            "SCORE_BASED must appear as selected option"
-        )
-        # measurement_unit field
         assert 'id="basic-measurement-unit"' in html, "measurement_unit field must be present"
+        assert 'id="basic-ranking-direction"' in html, "ranking_direction selector must be present"
+        # SCORE_BASED selected (PATCH után)
+        assert 'value="SCORE_BASED"' in html, "SCORE_BASED must appear as selected option"
 
     def test_FORMAT02_head_to_head_edit_page_shows_h2h_fields(
         self,
@@ -1495,9 +1499,10 @@ class TestFormatBranching:
     ):
         """
         HEAD_TO_HEAD torna (tournament_type_id=league):
-        - Edit oldal mutatja a 'Head-to-Head' badge-et
-        - Tournament Type dropdown LÁTHATÓ és a helyes típus selected
-        - scoring_type selector NEM szerepel
+        - JS _currentFormat = 'HEAD_TO_HEAD' inicializálva
+        - Format toggle gombok jelen vannak
+        - Tournament Type dropdown (group-h2h-fields) jelen van
+        - scoring_type/IR mezők is jelen vannak (JS elrejti őket)
         """
         from app.models.semester import Semester as _Sem
 
@@ -1527,15 +1532,19 @@ class TestFormatBranching:
         assert page.status_code == 200, page.text
         html = page.text
 
-        # H2H badge látszik
-        assert "Head-to-Head" in html, "H2H badge must be present"
-        # Tournament type dropdown LÁTHATÓ
-        assert 'id="basic-tournament-type"' in html, (
-            "tournament-type dropdown must be rendered for HEAD_TO_HEAD"
+        # Format toggle gombok jelen vannak
+        assert 'id="btn-fmt-h2h"' in html, "H2H toggle button must be present"
+        assert 'id="btn-fmt-ir"' in html, "IR toggle button must be present"
+        # JS init: _currentFormat = 'HEAD_TO_HEAD'
+        assert "_currentFormat = 'HEAD_TO_HEAD'" in html, (
+            "JS _currentFormat must be initialised to HEAD_TO_HEAD"
         )
-        # scoring_type selector NEM szerepel
-        assert 'id="basic-scoring-type"' not in html, (
-            "scoring_type selector must NOT be rendered for HEAD_TO_HEAD"
+        # Mindkét mező-csoport jelen van
+        assert 'id="group-h2h-fields"' in html, "H2H field group must exist in DOM"
+        assert 'id="group-ir-fields"' in html, "IR field group must exist in DOM"
+        # Tournament type dropdown jelen van
+        assert 'id="basic-tournament-type"' in html, (
+            "tournament-type dropdown must be present in DOM for HEAD_TO_HEAD"
         )
 
 
