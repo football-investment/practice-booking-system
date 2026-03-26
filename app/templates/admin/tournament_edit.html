@@ -200,6 +200,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     <div class="section-header">
         <span class="section-icon">📋</span>
         <h2>Basic Info</h2>
+        {% if t.format == 'HEAD_TO_HEAD' %}
+        <span style="background:#ebf4ff;color:#2b6cb0;border:1px solid #bee3f8;border-radius:4px;padding:2px 8px;font-size:0.78rem;font-weight:600;margin-left:8px;">⚔️ Head-to-Head</span>
+        {% else %}
+        <span style="background:#f0fff4;color:#276749;border:1px solid #9ae6b4;border-radius:4px;padding:2px 8px;font-size:0.78rem;font-weight:600;margin-left:8px;">🏅 Individual Ranking</span>
+        {% endif %}
         {% set ts = t.tournament_status or '' %}
         {% if ts == 'DRAFT' %}<span class="status-badge-inline status-draft">DRAFT</span>
         {% elif ts == 'ENROLLMENT_OPEN' %}<span class="status-badge-inline status-open">ENROLLMENT OPEN</span>
@@ -267,18 +272,20 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </div>
     </div>
     <div class="form-row">
+        {% if t.format == 'HEAD_TO_HEAD' %}
         <div class="form-group">
             <label>Tournament Type</label>
             <select id="basic-tournament-type">
                 <option value="">— Not set —</option>
                 {% for tt in tournament_types %}
                 <option value="{{ tt.id }}" {% if cfg and cfg.tournament_type_id == tt.id %}selected{% endif %}>
-                    {{ tt.display_name }} ({{ tt.format }})
+                    {{ tt.display_name }}
                 </option>
                 {% endfor %}
             </select>
             <span class="field-hint">⚠️ Changing type auto-deletes existing sessions</span>
         </div>
+        {% endif %}
         <div class="form-group">
             <label>Participant Type</label>
             <select id="basic-participant-type">
@@ -306,6 +313,33 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             </select>
         </div>
     </div>
+    {% if t.format == 'INDIVIDUAL_RANKING' %}
+    <div class="form-row">
+        <div class="form-group">
+            <label>Scoring Type</label>
+            <select id="basic-scoring-type">
+                <option value="PLACEMENT"      {% if cfg and cfg.scoring_type == 'PLACEMENT'      %}selected{% endif %}>Placement — ranked by position</option>
+                <option value="TIME_BASED"     {% if cfg and cfg.scoring_type == 'TIME_BASED'     %}selected{% endif %}>Time-based — e.g. 100m sprint</option>
+                <option value="SCORE_BASED"    {% if cfg and cfg.scoring_type == 'SCORE_BASED'    %}selected{% endif %}>Score-based — e.g. points, goals</option>
+                <option value="DISTANCE_BASED" {% if cfg and cfg.scoring_type == 'DISTANCE_BASED' %}selected{% endif %}>Distance-based — e.g. long jump</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Measurement Unit <span style="color:#a0aec0">(optional)</span></label>
+            <input type="text" id="basic-measurement-unit"
+                   value="{{ cfg.measurement_unit or '' }}"
+                   placeholder="e.g. seconds, meters, points">
+            <span class="field-hint">Displayed with results</span>
+        </div>
+        <div class="form-group">
+            <label>Ranking Direction</label>
+            <select id="basic-ranking-direction">
+                <option value="DESC" {% if not cfg or cfg.ranking_direction != 'ASC' %}selected{% endif %}>DESC — highest wins (score, distance)</option>
+                <option value="ASC"  {% if cfg and cfg.ranking_direction == 'ASC'    %}selected{% endif %}>ASC — lowest wins (time: sprint)</option>
+            </select>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveBasicInfo()">💾 Save Basic Info</button>
@@ -977,6 +1011,13 @@ async function saveBasicInfo() {
     if (roundsVal) body.number_of_rounds = parseInt(roundsVal);
     const gpVal = document.getElementById('basic-game-preset-id').value;
     if (gpVal) body.game_preset_id = parseInt(gpVal);
+    // INDIVIDUAL_RANKING fields (only present when format == INDIVIDUAL_RANKING)
+    const scoringEl = document.getElementById('basic-scoring-type');
+    if (scoringEl) body.scoring_type = scoringEl.value;
+    const muEl = document.getElementById('basic-measurement-unit');
+    if (muEl && muEl.value.trim()) body.measurement_unit = muEl.value.trim();
+    const rdEl = document.getElementById('basic-ranking-direction');
+    if (rdEl) body.ranking_direction = rdEl.value;
 
     const statusEl = document.getElementById('basic-save-status');
     statusEl.textContent = 'Saving…';

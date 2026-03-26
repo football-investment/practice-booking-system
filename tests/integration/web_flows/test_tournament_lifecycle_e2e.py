@@ -1397,6 +1397,148 @@ class TestTournamentFieldBindings:
         )
 
 
+# ── Format Branching (HEAD_TO_HEAD vs INDIVIDUAL_RANKING) ────────────────────
+
+
+class TestFormatBranching:
+    """
+    FORMAT-01  INDIVIDUAL_RANKING torna:
+               - POST /admin/tournaments (tournament_type üresen)
+               - PATCH scoring_type=SCORE_BASED, measurement_unit="points", ranking_direction=DESC
+               - GET edit page → IR badge, tournament_type dropdown HIÁNYZIK,
+                 scoring_type selector LÁTHATÓ és értéke SCORE_BASED
+
+    FORMAT-02  HEAD_TO_HEAD torna:
+               - POST /admin/tournaments (tournament_type=league)
+               - GET edit page → H2H badge, tournament_type dropdown LÁTHATÓ,
+                 scoring_type selector HIÁNYZIK
+    """
+
+    def test_FORMAT01_individual_ranking_edit_page_shows_ir_fields(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        INDIVIDUAL_RANKING torna (tournament_type_id=None):
+        - Edit oldal mutatja az 'Individual Ranking' badge-et
+        - Tournament Type dropdown NEM szerepel az oldalon
+        - scoring_type selector LÁTHATÓ
+        - PATCH scoring_type=SCORE_BASED + measurement_unit + ranking_direction → persists
+        """
+        from app.models.semester import Semester as _Sem
+        from app.models.tournament_configuration import TournamentConfiguration as _Cfg
+
+        # 1. Létrehozás tournament_type nélkül → INDIVIDUAL_RANKING
+        payload = {
+            "name": f"FORMAT01-IR-{uuid.uuid4().hex[:6]}",
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-31",
+            "age_group": "AMATEUR",
+            "enrollment_cost": "0",
+            "location_id": "",
+            "campus_id": "",
+            "assignment_type": "OPEN_ASSIGNMENT",
+            "tournament_type_id": "",   # ← üres → INDIVIDUAL_RANKING
+            "game_preset_id": "",
+            "participant_type": "INDIVIDUAL",
+            "number_of_rounds": "1",
+        }
+        resp = admin_client.post("/admin/tournaments", data=payload)
+        assert resp.status_code in (200, 303), resp.text
+
+        t = test_db.query(_Sem).filter(_Sem.name == payload["name"]).first()
+        assert t is not None, "Tournament must be created"
+        assert t.format == "INDIVIDUAL_RANKING", f"Expected INDIVIDUAL_RANKING, got {t.format}"
+
+        # 2. PATCH scoring mezők
+        patch_resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={
+                "scoring_type": "SCORE_BASED",
+                "measurement_unit": "points",
+                "ranking_direction": "DESC",
+            },
+        )
+        assert patch_resp.status_code == 200, patch_resp.text
+
+        test_db.refresh(t)
+        cfg = test_db.query(_Cfg).filter(_Cfg.semester_id == t.id).first()
+        assert cfg.scoring_type == "SCORE_BASED", f"scoring_type={cfg.scoring_type}"
+        assert cfg.measurement_unit == "points", f"measurement_unit={cfg.measurement_unit}"
+        assert cfg.ranking_direction == "DESC", f"ranking_direction={cfg.ranking_direction}"
+
+        # 3. Edit page tartalom
+        page = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert page.status_code == 200, page.text
+        html = page.text
+
+        # IR badge látszik
+        assert "Individual Ranking" in html, "IR badge must be present"
+        # Tournament type dropdown NEM szerepel (conditional Jinja2 blokk)
+        assert 'id="basic-tournament-type"' not in html, (
+            "tournament-type dropdown must NOT be rendered for INDIVIDUAL_RANKING"
+        )
+        # scoring_type selector látszik és SCORE_BASED selected
+        assert 'id="basic-scoring-type"' in html, "scoring_type selector must be present"
+        assert 'value="SCORE_BASED"' in html or "SCORE_BASED" in html, (
+            "SCORE_BASED must appear as selected option"
+        )
+        # measurement_unit field
+        assert 'id="basic-measurement-unit"' in html, "measurement_unit field must be present"
+
+    def test_FORMAT02_head_to_head_edit_page_shows_h2h_fields(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        HEAD_TO_HEAD torna (tournament_type_id=league):
+        - Edit oldal mutatja a 'Head-to-Head' badge-et
+        - Tournament Type dropdown LÁTHATÓ és a helyes típus selected
+        - scoring_type selector NEM szerepel
+        """
+        from app.models.semester import Semester as _Sem
+
+        payload = {
+            "name": f"FORMAT02-H2H-{uuid.uuid4().hex[:6]}",
+            "start_date": "2026-08-01",
+            "end_date": "2026-08-31",
+            "age_group": "AMATEUR",
+            "enrollment_cost": "0",
+            "location_id": "",
+            "campus_id": "",
+            "assignment_type": "OPEN_ASSIGNMENT",
+            "tournament_type_id": str(tournament_type.id),
+            "game_preset_id": "",
+            "participant_type": "INDIVIDUAL",
+            "number_of_rounds": "1",
+        }
+        resp = admin_client.post("/admin/tournaments", data=payload)
+        assert resp.status_code in (200, 303), resp.text
+
+        t = test_db.query(_Sem).filter(_Sem.name == payload["name"]).first()
+        assert t is not None, "Tournament must be created"
+        assert t.format == "HEAD_TO_HEAD", f"Expected HEAD_TO_HEAD, got {t.format}"
+
+        # Edit page tartalom
+        page = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert page.status_code == 200, page.text
+        html = page.text
+
+        # H2H badge látszik
+        assert "Head-to-Head" in html, "H2H badge must be present"
+        # Tournament type dropdown LÁTHATÓ
+        assert 'id="basic-tournament-type"' in html, (
+            "tournament-type dropdown must be rendered for HEAD_TO_HEAD"
+        )
+        # scoring_type selector NEM szerepel
+        assert 'id="basic-scoring-type"' not in html, (
+            "scoring_type selector must NOT be rendered for HEAD_TO_HEAD"
+        )
+
+
 # ── Multi-round Session Generation Validation ────────────────────────────────
 
 
