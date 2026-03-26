@@ -89,6 +89,11 @@ class Session(Base):
         default="scheduled",
         comment="Session status: scheduled, in_progress, completed"
     )
+    postponed_reason = Column(
+        String(500),
+        nullable=True,
+        comment="Reason for postponing this match (set by admin; NULL = not postponed)",
+    )
 
     # 🔓 Quiz Access Control (HYBRID sessions only)
     quiz_unlocked = Column(

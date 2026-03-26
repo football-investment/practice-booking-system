@@ -24,13 +24,13 @@ from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import and_, or_, update as sql_update
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...dependencies import get_current_user_web
+from ...dependencies import get_current_user_web, get_current_admin_user_hybrid
 from ...models.booking import Booking, BookingStatus
 from ...models.campus import Campus
 from ...models.credit_transaction import CreditTransaction
@@ -41,7 +41,7 @@ from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel, EventCategory
 from ...models.tournament_ranking import TournamentRanking
-from ...models.team import Team, TeamMember, TournamentTeamEnrollment
+from ...models.team import Team, TeamMember, TournamentTeamEnrollment, TournamentPlayerCheckin
 from ...models.club import Club
 from ...models.instructor_assignment import (
     InstructorAssignment,
@@ -57,6 +57,7 @@ from ...models.tournament_instructor_slot import TournamentInstructorSlot, SlotR
 from ...models.user import User, UserRole
 from ...services.tournament import team_service as _team_service
 import app.services.tournament.instructor_planning_service as _ip_service
+import app.services.tournament.attendance_service as _att_service
 from ...services.age_category_service import (
     calculate_age_at_season_start,
     get_automatic_age_category,
@@ -902,6 +903,7 @@ async def admin_tournament_edit_page(
             "tournament_round": s.tournament_round,
             "group_identifier": s.group_identifier,
             "matchup_label": _matchup_label(s, enrolled_teams, enrolled_users),
+            "postponed_reason": s.postponed_reason,
         }
         for s in all_match_sessions
     ]
@@ -1528,6 +1530,112 @@ async def admin_apply_fallback(
     )
     db.commit()
     return JSONResponse({"updated_sessions": updated})
+
+
+# ── Attendance page + check-in endpoints ──────────────────────────────────────
+
+
+@router.get("/admin/tournaments/{tournament_id}/attendance", response_class=HTMLResponse)
+async def admin_tournament_attendance(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Attendance management page: instructor status + team/player check-in."""
+    _admin_only(user)
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    summary_data = _att_service.get_attendance_summary(db, tournament_id)
+    return templates.TemplateResponse(
+        "admin/tournament_attendance.html",
+        {
+            "request": request,
+            "user": user,
+            "t": t,
+            "instructors": summary_data["instructors"],
+            "teams": summary_data["teams"],
+            "summary": summary_data["summary"],
+        },
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/checkin")
+async def admin_team_checkin(
+    tournament_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Mark a team as checked-in for the tournament."""
+    enrollment = _att_service.checkin_team(db, tournament_id, team_id, by_user_id=user.id)
+    db.commit()
+    return JSONResponse({
+        "ok": True,
+        "checked_in_at": enrollment.checked_in_at.isoformat() if enrollment.checked_in_at else None,
+    })
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/uncheckin")
+async def admin_team_uncheckin(
+    tournament_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Remove check-in for a team."""
+    _att_service.uncheckin_team(db, tournament_id, team_id, by_user_id=user.id)
+    db.commit()
+    return JSONResponse({"ok": True, "checked_in_at": None})
+
+
+@router.post("/admin/tournaments/{tournament_id}/players/{player_user_id}/checkin")
+async def admin_player_checkin(
+    tournament_id: int,
+    player_user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Check in an individual player for the tournament."""
+    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    team_id = body.get("team_id") if body else None
+    checkin = _att_service.checkin_player(db, tournament_id, player_user_id, team_id, by_user_id=user.id)
+    db.commit()
+    return JSONResponse({
+        "ok": True,
+        "checked_in_at": checkin.checked_in_at.isoformat() if checkin.checked_in_at else None,
+    })
+
+
+@router.post("/admin/tournaments/{tournament_id}/players/{player_user_id}/uncheckin")
+async def admin_player_uncheckin(
+    tournament_id: int,
+    player_user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Remove pre-tournament check-in for a player."""
+    _att_service.uncheckin_player(db, tournament_id, player_user_id)
+    db.commit()
+    return JSONResponse({"ok": True, "checked_in_at": None})
+
+
+@router.patch("/admin/sessions/{session_id}/postpone")
+async def admin_session_postpone(
+    session_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Set or clear a postponement reason for a session/match."""
+    body = await request.json()
+    reason = body.get("reason", "")
+    session = _att_service.postpone_session(db, session_id, reason)
+    db.commit()
+    return JSONResponse({"ok": True, "postponed_reason": session.postponed_reason})
 
 
 # ── Helper: publish WS instructor change event ─────────────────────────────

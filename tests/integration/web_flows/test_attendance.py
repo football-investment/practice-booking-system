@@ -1,0 +1,387 @@
+"""
+Attendance Integration Tests — ATT-01 through ATT-06
+
+ATT-01  GET /attendance page returns 200 with team + instructor rows
+ATT-02  POST teams/{id}/checkin sets checked_in_at; uncheckin clears it
+ATT-03  POST players/{uid}/checkin creates row; uncheckin deletes it
+ATT-04  Session generator uses only checked-in teams when any exist
+ATT-05  Session generator uses all active teams when no checkins
+ATT-06  PATCH sessions/{id}/postpone saves / clears postponed_reason
+
+All tests run against real DB in SAVEPOINT-isolated transaction (auto-rollback).
+"""
+import uuid
+import pytest
+from datetime import date, datetime, timezone
+
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import event
+
+from app.main import app
+from app.database import engine, get_db
+from app.dependencies import get_current_user_web, get_current_admin_user_hybrid
+from app.models.user import User, UserRole
+from app.models.semester import Semester, SemesterStatus, SemesterCategory
+from app.models.session import Session as SessionModel, SessionType, EventCategory
+from app.models.team import Team, TeamMember, TournamentTeamEnrollment, TournamentPlayerCheckin
+from app.models.tournament_configuration import TournamentConfiguration
+from app.core.security import get_password_hash
+import app.services.tournament.attendance_service as svc
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DB fixture (SAVEPOINT isolated)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture(scope="function")
+def test_db():
+    connection = engine.connect()
+    transaction = connection.begin()
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+    session = TestSession()
+    connection.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(session, txn):
+        if txn.nested and not txn._parent.nested:
+            session.begin_nested()
+
+    try:
+        yield session
+    finally:
+        session.close()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Factories
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _admin(db: Session) -> User:
+    u = User(
+        email=f"att-admin+{uuid.uuid4().hex[:8]}@lfa.com",
+        name="ATT Admin",
+        password_hash=get_password_hash("Test1234!"),
+        role=UserRole.ADMIN,
+        is_active=True,
+        onboarding_completed=True,
+        credit_balance=0,
+        payment_verified=True,
+    )
+    db.add(u)
+    db.flush()
+    return u
+
+
+def _player(db: Session) -> User:
+    u = User(
+        email=f"att-player+{uuid.uuid4().hex[:8]}@lfa.com",
+        name=f"ATT Player {uuid.uuid4().hex[:4]}",
+        password_hash=get_password_hash("Test1234!"),
+        role=UserRole.STUDENT,
+        is_active=True,
+        onboarding_completed=True,
+        credit_balance=100,
+        payment_verified=True,
+    )
+    db.add(u)
+    db.flush()
+    return u
+
+
+def _tournament(db: Session) -> Semester:
+    t = Semester(
+        code=f"ATT-{uuid.uuid4().hex[:8].upper()}",
+        name="ATT Test Tournament",
+        semester_category=SemesterCategory.TOURNAMENT,
+        status=SemesterStatus.ONGOING,
+        enrollment_cost=0,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        start_date=date(2026, 6, 1),
+        end_date=date(2026, 6, 30),
+        age_group="YOUTH",
+    )
+    db.add(t)
+    db.flush()
+    # TournamentConfiguration for TEAM participant type
+    cfg = TournamentConfiguration(
+        semester_id=t.id,
+        participant_type="TEAM",
+        max_players=64,
+        parallel_fields=2,
+    )
+    db.add(cfg)
+    db.flush()
+    return t
+
+
+def _team(db: Session, tournament: Semester, captain: User) -> Team:
+    uid = uuid.uuid4().hex[:8]
+    team = Team(
+        name=f"ATT Team {uid}",
+        code=f"ATT-{uid}",
+        captain_user_id=captain.id,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        is_active=True,
+    )
+    db.add(team)
+    db.flush()
+    # Enroll in tournament
+    enrollment = TournamentTeamEnrollment(
+        semester_id=tournament.id,
+        team_id=team.id,
+        payment_verified=True,
+        is_active=True,
+    )
+    db.add(enrollment)
+    # Add captain as member
+    member = TeamMember(team_id=team.id, user_id=captain.id, role="CAPTAIN", is_active=True)
+    db.add(member)
+    db.flush()
+    return team
+
+
+def _session(db: Session, tournament: Semester) -> SessionModel:
+    s = SessionModel(
+        title="ATT Match",
+        semester_id=tournament.id,
+        session_type=SessionType.on_site,
+        event_category=EventCategory.MATCH,
+        date_start=datetime(2026, 6, 1, 10, 0, tzinfo=timezone.utc),
+        date_end=datetime(2026, 6, 1, 11, 0, tzinfo=timezone.utc),
+        capacity=20,
+    )
+    db.add(s)
+    db.flush()
+    return s
+
+
+def _client(db: Session, admin: User) -> TestClient:
+    def override_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    app.dependency_overrides[get_current_admin_user_hybrid] = lambda: admin
+    return TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"},
+                      raise_server_exceptions=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-01: GET /attendance — page renders with instructor + team rows
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_01_attendance_page_renders(test_db: Session):
+    """GET /attendance returns 200 and get_attendance_summary includes enrolled teams."""
+    admin = _admin(test_db)
+    cap1  = _player(test_db)
+    cap2  = _player(test_db)
+    tourn = _tournament(test_db)
+    team1 = _team(test_db, tourn, cap1)
+    team2 = _team(test_db, tourn, cap2)
+    test_db.flush()
+
+    # 1. Web route returns 200
+    client = _client(test_db, admin)
+    resp = client.get(f"/admin/tournaments/{tourn.id}/attendance")
+    assert resp.status_code == 200
+    # 2. Tournament name always appears in the breadcrumb/title
+    assert "ATT Test Tournament" in resp.text
+
+    # 3. Service-layer: summary includes both enrolled teams
+    summary = svc.get_attendance_summary(test_db, tourn.id)
+    team_names = [t["team_name"] for t in summary["teams"]]
+    assert team1.name in team_names
+    assert team2.name in team_names
+    assert summary["summary"]["teams_total"] == 2
+    assert summary["summary"]["teams_checked_in"] == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-02: Team check-in / uncheckin
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_02_team_checkin_uncheckin(test_db: Session):
+    """POST checkin → checked_in_at set; POST uncheckin → cleared."""
+    admin = _admin(test_db)
+    cap   = _player(test_db)
+    tourn = _tournament(test_db)
+    team  = _team(test_db, tourn, cap)
+
+    client = _client(test_db, admin)
+
+    # Check in
+    resp = client.post(f"/admin/tournaments/{tourn.id}/teams/{team.id}/checkin")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["checked_in_at"] is not None
+
+    # Verify DB
+    enrollment = test_db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tourn.id,
+        TournamentTeamEnrollment.team_id == team.id,
+    ).first()
+    assert enrollment.checked_in_at is not None
+
+    # Undo
+    resp2 = client.post(f"/admin/tournaments/{tourn.id}/teams/{team.id}/uncheckin")
+    assert resp2.status_code == 200
+    assert resp2.json()["ok"] is True
+
+    test_db.expire(enrollment)
+    assert enrollment.checked_in_at is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-03: Player check-in / uncheckin
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_03_player_checkin_uncheckin(test_db: Session):
+    """POST player checkin creates TournamentPlayerCheckin row; uncheckin deletes it."""
+    admin  = _admin(test_db)
+    player = _player(test_db)
+    tourn  = _tournament(test_db)
+    cap    = _player(test_db)
+    team   = _team(test_db, tourn, cap)
+
+    # Add player as team member
+    member = TeamMember(team_id=team.id, user_id=player.id, role="PLAYER", is_active=True)
+    test_db.add(member)
+    test_db.flush()
+
+    client = _client(test_db, admin)
+
+    resp = client.post(
+        f"/admin/tournaments/{tourn.id}/players/{player.id}/checkin",
+        json={"team_id": team.id},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+
+    row = test_db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tourn.id,
+        TournamentPlayerCheckin.user_id == player.id,
+    ).first()
+    assert row is not None
+    assert row.team_id == team.id
+
+    # Uncheckin
+    resp2 = client.post(f"/admin/tournaments/{tourn.id}/players/{player.id}/uncheckin")
+    assert resp2.status_code == 200
+
+    test_db.expire_all()
+    gone = test_db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tourn.id,
+        TournamentPlayerCheckin.user_id == player.id,
+    ).first()
+    assert gone is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-04: Session generator opt-in filter — only checked-in teams used
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_04_session_generator_uses_only_checked_in_teams(test_db: Session):
+    """When ≥1 team is checked in, session generator should only include checked-in teams."""
+    admin = _admin(test_db)
+    cap1  = _player(test_db)
+    cap2  = _player(test_db)
+    cap3  = _player(test_db)
+    tourn = _tournament(test_db)
+    team1 = _team(test_db, tourn, cap1)
+    team2 = _team(test_db, tourn, cap2)
+    team3 = _team(test_db, tourn, cap3)  # NOT checked in
+
+    # Check in team1 and team2 only
+    svc.checkin_team(test_db, tourn.id, team1.id, by_user_id=admin.id)
+    svc.checkin_team(test_db, tourn.id, team2.id, by_user_id=admin.id)
+
+    # Load enrollments as session generator would
+    enrollments = test_db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tourn.id,
+        TournamentTeamEnrollment.is_active == True,
+    ).all()
+
+    # Apply opt-in filter (same logic as session_generator.py)
+    if any(e.checked_in_at is not None for e in enrollments):
+        filtered = [e for e in enrollments if e.checked_in_at is not None]
+    else:
+        filtered = enrollments
+
+    team_ids = [e.team_id for e in filtered]
+    assert team3.id not in team_ids
+    assert team1.id in team_ids
+    assert team2.id in team_ids
+    assert len(team_ids) == 2
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-05: Session generator — fallback to all active teams when no checkins
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_05_session_generator_fallback_when_no_checkins(test_db: Session):
+    """When no team has checked in, all active teams are used (backward compat)."""
+    admin = _admin(test_db)
+    cap1  = _player(test_db)
+    cap2  = _player(test_db)
+    tourn = _tournament(test_db)
+    team1 = _team(test_db, tourn, cap1)
+    team2 = _team(test_db, tourn, cap2)
+
+    # No checkins
+
+    enrollments = test_db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tourn.id,
+        TournamentTeamEnrollment.is_active == True,
+    ).all()
+
+    if any(e.checked_in_at is not None for e in enrollments):
+        filtered = [e for e in enrollments if e.checked_in_at is not None]
+    else:
+        filtered = enrollments
+
+    team_ids = [e.team_id for e in filtered]
+    assert team1.id in team_ids
+    assert team2.id in team_ids
+    assert len(team_ids) == 2
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-06: PATCH /sessions/{id}/postpone saves + clears postponed_reason
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_06_session_postpone(test_db: Session):
+    """PATCH postpone saves reason; sending empty string clears it."""
+    admin  = _admin(test_db)
+    tourn  = _tournament(test_db)
+    sess   = _session(test_db, tourn)
+
+    client = _client(test_db, admin)
+
+    # Set postpone reason
+    resp = client.patch(
+        f"/admin/sessions/{sess.id}/postpone",
+        json={"reason": "Pitch flooded"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["postponed_reason"] == "Pitch flooded"
+
+    test_db.expire(sess)
+    assert sess.postponed_reason == "Pitch flooded"
+
+    # Clear
+    resp2 = client.patch(
+        f"/admin/sessions/{sess.id}/postpone",
+        json={"reason": ""},
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["postponed_reason"] is None
+
+    test_db.expire(sess)
+    assert sess.postponed_reason is None

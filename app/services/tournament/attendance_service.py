@@ -1,0 +1,300 @@
+"""
+Attendance Service
+
+Pre-tournament check-in management for promotion events.
+
+Workflow:
+  1. Admin marks instructors CHECKED_IN (via TournamentInstructorSlot system)
+  2. Admin checks in teams (TournamentTeamEnrollment.checked_in_at)
+  3. Admin checks in individual players (TournamentPlayerCheckin table)
+  4. Session generator uses only checked-in participants (opt-in mode)
+  5. During sessions: admin can postpone a match with a reason
+
+All functions assume the caller is authenticated as admin (auth enforced at route layer).
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
+
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+
+from app.models.team import Team, TeamMember, TournamentTeamEnrollment, TournamentPlayerCheckin
+from app.models.session import Session as SessionModel
+from app.models.semester import Semester
+from app.models.user import User
+from app.models.tournament_instructor_slot import TournamentInstructorSlot
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Team check-in
+# ─────────────────────────────────────────────────────────────────────────────
+
+def checkin_team(
+    db: Session,
+    tournament_id: int,
+    team_id: int,
+    by_user_id: int,
+) -> TournamentTeamEnrollment:
+    """Mark a team as checked-in for the tournament."""
+    enrollment = _get_enrollment_or_404(db, tournament_id, team_id)
+    enrollment.checked_in_at = datetime.now(timezone.utc)
+    enrollment.checked_in_by_id = by_user_id
+    db.flush()
+    return enrollment
+
+
+def uncheckin_team(
+    db: Session,
+    tournament_id: int,
+    team_id: int,
+    by_user_id: int,
+) -> TournamentTeamEnrollment:
+    """Remove check-in for a team."""
+    enrollment = _get_enrollment_or_404(db, tournament_id, team_id)
+    enrollment.checked_in_at = None
+    enrollment.checked_in_by_id = None
+    db.flush()
+    return enrollment
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Player check-in
+# ─────────────────────────────────────────────────────────────────────────────
+
+def checkin_player(
+    db: Session,
+    tournament_id: int,
+    user_id: int,
+    team_id: Optional[int],
+    by_user_id: int,
+) -> TournamentPlayerCheckin:
+    """Check in an individual player for the tournament (upsert)."""
+    # Verify tournament exists
+    _get_tournament_or_404(db, tournament_id)
+
+    existing = db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tournament_id,
+        TournamentPlayerCheckin.user_id == user_id,
+    ).first()
+
+    if existing:
+        existing.checked_in_at = datetime.now(timezone.utc)
+        existing.checked_in_by_id = by_user_id
+        existing.team_id = team_id
+        db.flush()
+        return existing
+
+    checkin = TournamentPlayerCheckin(
+        tournament_id=tournament_id,
+        user_id=user_id,
+        team_id=team_id,
+        checked_in_by_id=by_user_id,
+    )
+    db.add(checkin)
+    db.flush()
+    return checkin
+
+
+def uncheckin_player(
+    db: Session,
+    tournament_id: int,
+    user_id: int,
+) -> None:
+    """Remove pre-tournament check-in for a player."""
+    checkin = db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tournament_id,
+        TournamentPlayerCheckin.user_id == user_id,
+    ).first()
+    if checkin:
+        db.delete(checkin)
+        db.flush()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session postpone
+# ─────────────────────────────────────────────────────────────────────────────
+
+def postpone_session(
+    db: Session,
+    session_id: int,
+    reason: str,
+) -> SessionModel:
+    """Record a postponement reason for a session/match."""
+    session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    session.postponed_reason = reason.strip() if reason else None
+    db.flush()
+    return session
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Attendance summary
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
+    """
+    Build the full attendance picture for the attendance page.
+
+    Returns:
+        {
+          instructors: [{slot_id, instructor_id, instructor_name, role, status, checked_in_at}],
+          teams: [
+            {
+              team_id, team_name, enrollment_id, checked_in_at, checked_in_by_name,
+              player_count, players_checked_in,
+              players: [{user_id, name, checked_in_at}],
+            }
+          ],
+          summary: {
+            instructors_total, instructors_checked_in,
+            teams_total, teams_checked_in,
+            players_total, players_checked_in,
+            sessions_generated, sessions_postponed,
+          },
+        }
+    """
+    _get_tournament_or_404(db, tournament_id)
+
+    # ── Instructors ─────────────────────────────────────────────────────────
+    slots = (
+        db.query(TournamentInstructorSlot)
+        .filter(TournamentInstructorSlot.semester_id == tournament_id)
+        .order_by(TournamentInstructorSlot.role, TournamentInstructorSlot.id)
+        .all()
+    )
+    instructors_data: List[Dict] = []
+    for slot in slots:
+        instructors_data.append({
+            "slot_id": slot.id,
+            "instructor_id": slot.instructor_id,
+            "instructor_name": slot.instructor.name if slot.instructor else None,
+            "role": slot.role,
+            "pitch_name": slot.pitch.name if slot.pitch else None,
+            "status": slot.status,
+            "checked_in_at": slot.checked_in_at.isoformat() if slot.checked_in_at else None,
+        })
+
+    instructors_checked_in = sum(1 for s in slots if s.status == "CHECKED_IN")
+
+    # ── Teams ────────────────────────────────────────────────────────────────
+    enrollments = (
+        db.query(TournamentTeamEnrollment)
+        .filter(
+            TournamentTeamEnrollment.semester_id == tournament_id,
+            TournamentTeamEnrollment.is_active == True,
+        )
+        .all()
+    )
+
+    # Pre-load player checkins for this tournament
+    player_checkins = db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tournament_id
+    ).all()
+    checkin_by_user: Dict[int, TournamentPlayerCheckin] = {c.user_id: c for c in player_checkins}
+
+    teams_data: List[Dict] = []
+    total_players = 0
+    total_players_checked_in = 0
+
+    for enrollment in enrollments:
+        team = enrollment.team
+        if not team:
+            continue
+
+        # All active team members
+        members = (
+            db.query(TeamMember)
+            .filter(TeamMember.team_id == team.id, TeamMember.is_active == True)
+            .all()
+        )
+
+        players: List[Dict] = []
+        for member in members:
+            user = member.user
+            pc = checkin_by_user.get(member.user_id)
+            players.append({
+                "user_id": member.user_id,
+                "name": user.name if user else f"User #{member.user_id}",
+                "checked_in_at": pc.checked_in_at.isoformat() if pc and pc.checked_in_at else None,
+            })
+
+        players_in = sum(1 for p in players if p["checked_in_at"])
+        total_players += len(players)
+        total_players_checked_in += players_in
+
+        # checked_in_by user name
+        by_name = None
+        if enrollment.checked_in_by_id:
+            by_user = db.query(User).filter(User.id == enrollment.checked_in_by_id).first()
+            by_name = by_user.name if by_user else None
+
+        teams_data.append({
+            "team_id": team.id,
+            "team_name": team.name,
+            "enrollment_id": enrollment.id,
+            "checked_in_at": enrollment.checked_in_at.isoformat() if enrollment.checked_in_at else None,
+            "checked_in_by_name": by_name,
+            "player_count": len(players),
+            "players_checked_in": players_in,
+            "players": players,
+        })
+
+    # ── Session stats ────────────────────────────────────────────────────────
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.semester_id == tournament_id)
+        .all()
+    )
+    sessions_generated = len(sessions)
+    sessions_postponed = sum(1 for s in sessions if s.postponed_reason)
+
+    # ── Summary ──────────────────────────────────────────────────────────────
+    summary = {
+        "instructors_total": len(slots),
+        "instructors_checked_in": instructors_checked_in,
+        "teams_total": len(enrollments),
+        "teams_checked_in": sum(1 for e in enrollments if e.checked_in_at),
+        "players_total": total_players,
+        "players_checked_in": total_players_checked_in,
+        "sessions_generated": sessions_generated,
+        "sessions_postponed": sessions_postponed,
+    }
+
+    return {
+        "instructors": instructors_data,
+        "teams": teams_data,
+        "summary": summary,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_tournament_or_404(db: Session, tournament_id: int) -> Semester:
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Tournament {tournament_id} not found")
+    return t
+
+
+def _get_enrollment_or_404(
+    db: Session,
+    tournament_id: int,
+    team_id: int,
+) -> TournamentTeamEnrollment:
+    enrollment = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.team_id == team_id,
+        TournamentTeamEnrollment.is_active == True,
+    ).first()
+    if not enrollment:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Team {team_id} is not enrolled in tournament {tournament_id}",
+        )
+    return enrollment

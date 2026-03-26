@@ -4,7 +4,7 @@ Team Models
 Models for team-based tournaments.
 """
 import enum
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -73,6 +73,8 @@ class TournamentTeamEnrollment(Base):
     payment_verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     payment_verified_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
+    checked_in_at = Column(DateTime(timezone=True), nullable=True)
+    checked_in_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
     semester = relationship("Semester")
@@ -99,3 +101,24 @@ class TeamInvite(Base):
     team = relationship("Team", back_populates="invites")
     invited_user = relationship("User", foreign_keys=[invited_user_id])
     invited_by = relationship("User", foreign_keys=[invited_by_id])
+
+
+class TournamentPlayerCheckin(Base):
+    """Pre-tournament player check-in record (separate from per-session Attendance)."""
+    __tablename__ = "tournament_player_checkins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tournament_id = Column(Integer, ForeignKey("semesters.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    checked_in_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    checked_in_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    team = relationship("Team", foreign_keys=[team_id])
+    checked_in_by = relationship("User", foreign_keys=[checked_in_by_id])
+
+    __table_args__ = (
+        UniqueConstraint("tournament_id", "user_id", name="uq_player_checkin"),
+    )

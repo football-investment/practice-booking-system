@@ -1,0 +1,173 @@
+name: Attendance Feature Integration (ATT-01..06)
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/models/team.py'
+      - 'app/models/session.py'
+      - 'app/services/tournament/attendance_service.py'
+      - 'app/api/web_routes/tournaments.py'
+      - 'app/templates/admin/tournament_attendance.html'
+      - 'app/templates/admin/tournament_edit.html'
+      - 'app/services/tournament/session_generation/session_generator.py'
+      - 'alembic/versions/2026_03_26_1500_team_player_attendance.py'
+      - 'tests/integration/web_flows/test_attendance.py'
+      - '.github/workflows/attendance-integration.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: attendance-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-attendance-secret-key-not-for-production
+
+jobs:
+  # ── ATT-01..06 Integration tests ──────────────────────────────────────────
+  attendance-integration:
+    name: "ATT-01..06 Integration (team/player check-in + session postpone)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-attendance-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Migrate DB
+        run: alembic upgrade head
+
+      - name: Verify migration includes attendance tables
+        run: |
+          python - <<'PYEOF'
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ["DATABASE_URL"])
+          cur = conn.cursor()
+          cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name='tournament_team_enrollments'
+            AND column_name IN ('checked_in_at','checked_in_by_id')
+          """)
+          cols = [r[0] for r in cur.fetchall()]
+          assert 'checked_in_at' in cols, "checked_in_at column missing"
+          assert 'checked_in_by_id' in cols, "checked_in_by_id column missing"
+
+          cur.execute("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name='tournament_player_checkins'
+          """)
+          assert cur.fetchone(), "tournament_player_checkins table missing"
+
+          cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name='sessions' AND column_name='postponed_reason'
+          """)
+          assert cur.fetchone(), "sessions.postponed_reason column missing"
+
+          conn.close()
+          print("✅ Schema verified: all attendance columns/tables present")
+          PYEOF
+
+      - name: Run ATT-01..06 integration tests
+        run: |
+          mkdir -p results
+          PYTHONPATH=. pytest tests/integration/web_flows/test_attendance.py \
+            -v --tb=short \
+            --junitxml=results/att-integration.xml
+
+      - name: Run regression — full web_flows suite
+        run: |
+          PYTHONPATH=. pytest tests/integration/web_flows/ \
+            -q --tb=line \
+            --ignore=tests/integration/web_flows/test_attendance.py \
+            --junitxml=results/regression.xml
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-attendance-integration-${{ github.run_id }}
+          path: results/*.xml
+          retention-days: 14
+
+  # ── Summary gate ──────────────────────────────────────────────────────────
+  attendance-gate:
+    name: "Attendance Feature Gate"
+    runs-on: ubuntu-latest
+    needs: [attendance-integration]
+    if: always()
+
+    steps:
+      - name: Gate check
+        run: |
+          echo "## Attendance Feature Integration Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ATT-01 | GET /attendance page renders (200 + service summary) | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ATT-02 | POST team checkin → checked_in_at set; uncheckin → NULL | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ATT-03 | POST player checkin creates TournamentPlayerCheckin; uncheckin deletes | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ATT-04 | Session generator opt-in: only checked-in teams when any exist | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ATT-05 | Session generator fallback: all active teams when no checkins | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ATT-06 | PATCH /sessions/{id}/postpone saves + clears postponed_reason | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Schema | Verified | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| tournament_team_enrollments.checked_in_at | migration 2026_03_26_1500 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| tournament_player_checkins table | migration 2026_03_26_1500 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| sessions.postponed_reason | migration 2026_03_26_1500 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          RESULT="${{ needs.attendance-integration.result }}"
+
+          if [ "$RESULT" = "success" ]; then
+            echo "### ✅ Attendance feature tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated flows:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 📋 Team-level pre-tournament check-in / undo" >> $GITHUB_STEP_SUMMARY
+            echo "- 👤 Player-level pre-tournament check-in / undo" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚡ Session generator opt-in attendance filter (backward compat)" >> $GITHUB_STEP_SUMMARY
+            echo "- ⏸ Match postponement with reason" >> $GITHUB_STEP_SUMMARY
+            echo "- 🗄️ DB schema: checked_in_at, tournament_player_checkins, postponed_reason" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Attendance feature gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

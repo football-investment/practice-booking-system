@@ -730,6 +730,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
                 {% endif %}>
             ⚡ Generate Sessions
         </button>
+        <a href="/admin/tournaments/{{ t.id }}/attendance" class="btn btn-secondary">📋 Attendance</a>
         {% if session_count > 0 %}
         <a href="/admin/sessions?semester_id={{ t.id }}" class="btn btn-secondary">📋 View All Sessions</a>
         {% endif %}
@@ -770,7 +771,9 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
                 <span class="sess-type" style="margin-left:0.4rem;">{{ sess.match_format }}</span>
             </div>
             <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
-                {% if sess.has_results %}
+                {% if sess.postponed_reason %}
+                    <span style="color:#c05621;font-weight:600;font-size:0.85rem;" title="{{ sess.postponed_reason }}">⏸ Postponed</span>
+                {% elif sess.has_results %}
                     <span style="color:#27ae60;font-weight:600;font-size:0.85rem;">✅ Results entered</span>
                 {% else %}
                     <span style="color:#a0aec0;font-size:0.85rem;">⬜ No results</span>
@@ -780,6 +783,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
                         style="font-size:0.78rem;padding:0.3rem 0.75rem;"
                         onclick="openResultModal({{ sess.id }}, '{{ sess.match_format }}', {{ sess.participant_user_ids | tojson }}, {{ sess.participant_team_ids | tojson }})">
                     ✏️ Enter Results
+                </button>
+                <button class="btn btn-secondary"
+                        style="font-size:0.78rem;padding:0.3rem 0.75rem;{% if sess.postponed_reason %}background:#fffaf0;border-color:#fed7aa;color:#c05621;{% endif %}"
+                        onclick="openPostponeModal({{ sess.id }}, {{ sess.postponed_reason | tojson }})">
+                    ⏸ {% if sess.postponed_reason %}Edit Postpone{% else %}Postpone{% endif %}
                 </button>
                 {% endif %}
             </div>
@@ -1004,6 +1012,24 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     <div id="sgw-body"></div>
     <div id="sgw-nav"></div>
   </div>
+</div>
+
+{# ── Postpone modal ────────────────────────────────────────────────────────── #}
+<div id="postpone-overlay" onclick="if(event.target===this)closePostponeModal()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:12px;padding:1.5rem 2rem;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <h3 style="margin:0 0 1rem;font-size:1.1rem;color:#2d3748;">⏸ Postpone Match</h3>
+        <p style="font-size:0.875rem;color:#718096;margin-bottom:0.75rem;">Provide a reason for postponing this match.</p>
+        <textarea id="postpone-reason-input"
+                  rows="3"
+                  placeholder="e.g. Pitch unavailable, weather conditions…"
+                  style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.75rem;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+        <div style="display:flex;gap:0.75rem;margin-top:1rem;justify-content:flex-end;">
+            <button onclick="closePostponeModal()" style="padding:0.5rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:white;color:#718096;cursor:pointer;font-weight:600;">Cancel</button>
+            <button onclick="submitPostpone()" style="padding:0.5rem 1.25rem;border:none;border-radius:8px;background:#ed8936;color:white;cursor:pointer;font-weight:700;">Save Postpone</button>
+            <button onclick="clearPostpone()" id="postpone-clear-btn" style="display:none;padding:0.5rem 1.25rem;border:1px solid #fed7aa;border-radius:8px;background:#fffaf0;color:#c05621;cursor:pointer;font-weight:600;">✗ Clear</button>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -1580,6 +1606,50 @@ async function loadAndApplyFallback(tournId) {
     const result = await resp.json();
     toast(`Fallback applied — ${result.updated_sessions} sessions reassigned ✅`);
     setTimeout(() => location.reload(), 1200);
+}
+
+// ── Postpone modal ────────────────────────────────────────────────────────────
+let _postponeSessionId = null;
+
+function openPostponeModal(sessionId, currentReason) {
+    _postponeSessionId = sessionId;
+    const overlay = document.getElementById('postpone-overlay');
+    const textarea = document.getElementById('postpone-reason-input');
+    const clearBtn = document.getElementById('postpone-clear-btn');
+    textarea.value = currentReason || '';
+    clearBtn.style.display = currentReason ? 'inline-block' : 'none';
+    overlay.style.display = 'flex';
+    textarea.focus();
+}
+
+function closePostponeModal() {
+    document.getElementById('postpone-overlay').style.display = 'none';
+    _postponeSessionId = null;
+}
+
+async function submitPostpone() {
+    const reason = document.getElementById('postpone-reason-input').value.trim();
+    if (!reason) { toast('Please enter a reason', 'warning'); return; }
+    try {
+        await AdminAPI.patch(`/admin/sessions/${_postponeSessionId}/postpone`, { reason });
+        toast('Match postponed');
+        closePostponeModal();
+        setTimeout(() => location.reload(), 800);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function clearPostpone() {
+    if (!confirm('Remove postponement and restore this match?')) return;
+    try {
+        await AdminAPI.patch(`/admin/sessions/${_postponeSessionId}/postpone`, { reason: '' });
+        toast('Postponement cleared');
+        closePostponeModal();
+        setTimeout(() => location.reload(), 800);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
 }
 
 // Auto-load fallback summary if panel is visible

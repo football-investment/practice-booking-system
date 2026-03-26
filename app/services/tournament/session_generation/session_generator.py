@@ -249,6 +249,14 @@ class TournamentSessionGenerator:
                         TournamentTeamEnrollment.semester_id == tournament_id,
                         TournamentTeamEnrollment.is_active == True,
                     ).all()
+                    # Opt-in attendance filter: if ANY team has checked in, use only checked-in teams
+                    if any(e.checked_in_at is not None for e in team_enrollments):
+                        checked_in = [e for e in team_enrollments if e.checked_in_at is not None]
+                        logger.info(
+                            f"   Attendance filter active: {len(checked_in)}/{len(team_enrollments)} "
+                            f"checked-in teams selected"
+                        )
+                        team_enrollments = checked_in
                     team_ids = [e.team_id for e in team_enrollments]
                     team_count = len(team_ids)
                     logger.info(f"   TEAM mode: {team_count} enrolled teams: {team_ids}")
