@@ -1224,7 +1224,15 @@ async def admin_tournament_teams_page(
                 TeamMember.team_id == team.id,
                 TeamMember.is_active == True,
             ).count()
-            enrolled_teams.append({"enrollment": e, "team": team, "member_count": member_count})
+            verifier = None
+            if e.payment_verified_by:
+                verifier = db.query(User).filter(User.id == e.payment_verified_by).first()
+            enrolled_teams.append({
+                "enrollment": e,
+                "team": team,
+                "member_count": member_count,
+                "verifier": verifier,
+            })
 
     # All available teams (not yet enrolled)
     all_teams = db.query(Team).filter(Team.is_active == True).all()
@@ -1269,7 +1277,7 @@ async def admin_tournament_teams_enroll(
             semester_id=tournament_id,
             team_id=team_id,
             is_active=True,
-            payment_verified=False,
+            payment_verified=True,  # admin bypass — no payment required
         ))
     db.commit()
     return RedirectResponse(
@@ -1299,6 +1307,77 @@ async def admin_tournament_teams_remove(
         db.commit()
     return RedirectResponse(
         url=f"/admin/tournaments/{tournament_id}/teams?flash=Team+removed",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/verify", response_class=RedirectResponse)
+async def admin_tournament_team_verify(
+    tournament_id: int,
+    team_id: int,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Mark a team's enrollment payment as verified (admin only)."""
+    _admin_only(user)
+
+    enrollment = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.team_id == team_id,
+        TournamentTeamEnrollment.is_active == True,
+    ).first()
+    if not enrollment:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error=Enrollment+not+found",
+            status_code=303,
+        )
+    from datetime import datetime, timezone
+    enrollment.payment_verified = True
+    enrollment.payment_verified_by = user.id
+    enrollment.payment_verified_at = datetime.now(timezone.utc)
+    db.commit()
+    import logging
+    logging.getLogger(__name__).info(
+        "Payment verified: tournament=%d team=%d by=%d", tournament_id, team_id, user.id
+    )
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Payment+verified",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/unverify", response_class=RedirectResponse)
+async def admin_tournament_team_unverify(
+    tournament_id: int,
+    team_id: int,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Revoke payment verification for a team enrollment (admin only)."""
+    _admin_only(user)
+
+    enrollment = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.team_id == team_id,
+        TournamentTeamEnrollment.is_active == True,
+    ).first()
+    if not enrollment:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error=Enrollment+not+found",
+            status_code=303,
+        )
+    enrollment.payment_verified = False
+    enrollment.payment_verified_by = None
+    enrollment.payment_verified_at = None
+    db.commit()
+    import logging
+    logging.getLogger(__name__).info(
+        "Payment unverified: tournament=%d team=%d by=%d", tournament_id, team_id, user.id
+    )
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Payment+verification+revoked",
         status_code=303,
     )
 

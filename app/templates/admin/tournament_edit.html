@@ -404,11 +404,17 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </tbody>
     </table>
 
-    {# ── Skills ── #}
+    {# ── Skills — only for INDIVIDUAL tournaments (TEAM: game preset defines skills) ── #}
+    {% if not cfg or cfg.participant_type != 'TEAM' %}
     <p style="font-size:0.85rem;font-weight:700;color:#4a5568;margin-bottom:0.6rem;">
         Skills (at least 1 must be enabled for reward distribution)
     </p>
     <div id="reward-skills-form" style="columns:2;column-gap:1.5rem;margin-bottom:1.25rem;"></div>
+    {% else %}
+    <div class="info-banner" style="margin-bottom:1.25rem;">
+        ℹ️ Skill rewards are determined by the tournament's <strong>game preset</strong> — per-tournament skill mapping is not applicable for team tournaments.
+    </div>
+    {% endif %}
 
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveRewardConfig()">💾 Save Reward Config</button>
@@ -416,7 +422,22 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
 </div>
 
-{# ── SECTION 4: Enrolled Players / Check-in Status ────────────────────────── #}
+{# ── SECTION 4: Enrolled Players (INDIVIDUAL) / Teams (TEAM) ───────────────── #}
+{% if cfg and cfg.participant_type == 'TEAM' %}
+<div class="card" id="section-checkin">
+    <div class="section-header">
+        <span class="section-icon">👥</span>
+        <h2>Enrolled Teams</h2>
+    </div>
+    <div class="stats-row" style="margin-bottom:1rem;">
+        <div class="stat-card">
+            <div class="val">{{ enrolled_teams|length }}</div>
+            <div class="lbl">Enrolled Teams</div>
+        </div>
+    </div>
+    <a href="/admin/tournaments/{{ t.id }}/teams" class="btn btn-primary" style="display:inline-block;">👥 Manage Teams →</a>
+</div>
+{% else %}
 <div class="card" id="section-checkin">
     <div class="section-header">
         <span class="section-icon">✅</span>
@@ -476,12 +497,22 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         <p style="color:#718096;font-style:italic;">No enrollments yet.</p>
     {% endif %}
 </div>
+{% endif %}
 
 {# ── SECTION 4.5: Instructor Roster ───────────────────────────────────────── #}
 <div class="card" id="section-instructors">
     <div class="section-header">
         <span class="section-icon">🧑‍🏫</span>
         <h2>Instructor Roster</h2>
+        {% set _field_slots_count = instructor_roster | selectattr("role","equalto","FIELD") | list | length %}
+        {% set _parallel = schedule.parallel_fields or 1 %}
+        {% if _field_slots_count != _parallel %}
+        <span id="instructor-mismatch-badge" style="margin-left:0.75rem; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:0.4rem; padding:0.2rem 0.6rem; font-size:0.8rem; font-weight:600;">
+            ⚠️ {{ _field_slots_count }}/{{ _parallel }} field instructors
+        </span>
+        {% else %}
+        <span id="instructor-mismatch-badge" style="display:none;"></span>
+        {% endif %}
     </div>
 
     {% set master_slot = instructor_roster | selectattr("role","equalto","MASTER") | list | first %}
@@ -986,9 +1017,22 @@ async function saveScheduleConfig() {
         statusEl.textContent = '✅ Saved';
         toast('Schedule config updated');
         setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        if (parallelVal) _updateInstructorMismatchBadge(parseInt(parallelVal));
     } catch (err) {
         statusEl.textContent = '❌ ' + err.message;
         toast(err.message, 'error');
+    }
+}
+
+function _updateInstructorMismatchBadge(newParallel) {
+    const badge = document.getElementById('instructor-mismatch-badge');
+    if (!badge) return;
+    const fieldSlotCount = document.querySelectorAll('#field-slots-container .instructor-row').length;
+    if (fieldSlotCount !== newParallel) {
+        badge.textContent = `⚠️ ${fieldSlotCount}/${newParallel} field instructors`;
+        badge.style.display = '';
+    } else {
+        badge.style.display = 'none';
     }
 }
 

@@ -70,6 +70,8 @@ class TournamentTeamEnrollment(Base):
     team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
     enrollment_date = Column(DateTime(timezone=True), server_default=func.now())
     payment_verified = Column(Boolean, default=False)
+    payment_verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    payment_verified_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
 
     # Relationships

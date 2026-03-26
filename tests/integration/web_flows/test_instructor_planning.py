@@ -459,3 +459,107 @@ def test_IP_08_http_routes_add_checkin_absent(test_db: Session):
     assert resp6.json()["slots"] == []
 
     app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IP-09: add_slot FIELD cap — cannot exceed parallel_fields
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_IP_09_field_slot_capped_by_parallel_fields(test_db: Session):
+    """
+    When TournamentConfiguration.parallel_fields=2, only 2 FIELD slots may be added.
+    Adding a 3rd FIELD slot must raise HTTP 400.
+    """
+    from fastapi import HTTPException
+
+    admin  = _user(test_db, UserRole.ADMIN)
+    inst1  = _user(test_db)
+    inst2  = _user(test_db)
+    inst3  = _user(test_db)
+    pitch1 = _pitch(test_db)
+    pitch2 = _pitch(test_db)
+    pitch3 = _pitch(test_db)
+    tourn  = _tournament(test_db)
+
+    # Create config with parallel_fields=2
+    cfg = TournamentConfiguration(
+        semester_id=tourn.id,
+        parallel_fields=2,
+        max_players=20,
+    )
+    test_db.add(cfg)
+    test_db.flush()
+
+    # First two FIELD slots succeed
+    svc.add_slot(test_db, tourn.id, inst1.id, SlotRole.FIELD.value, pitch_id=pitch1.id, assigned_by_id=admin.id)
+    svc.add_slot(test_db, tourn.id, inst2.id, SlotRole.FIELD.value, pitch_id=pitch2.id, assigned_by_id=admin.id)
+
+    # Third FIELD slot must be rejected
+    with pytest.raises(HTTPException) as exc:
+        svc.add_slot(test_db, tourn.id, inst3.id, SlotRole.FIELD.value, pitch_id=pitch3.id, assigned_by_id=admin.id)
+    assert exc.value.status_code == 400
+    assert "parallel fields" in exc.value.detail.lower()
+
+    # Confirm only 2 FIELD slots in roster
+    roster = svc.get_roster(test_db, tourn.id)
+    field_slots = [s for s in roster if s["role"] == "FIELD"]
+    assert len(field_slots) == 2
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IP-10: PATCH /schedule-config rejects parallel_fields < existing field slot count
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_IP_10_schedule_config_cannot_reduce_below_field_slots(test_db: Session):
+    """
+    If 2 FIELD instructor slots exist, PATCH parallel_fields=1 must return 400.
+    PATCH parallel_fields=2 (same value) must succeed.
+    """
+    from app.dependencies import get_current_admin_user_hybrid
+
+    admin  = _user(test_db, UserRole.ADMIN)
+    inst1  = _user(test_db)
+    inst2  = _user(test_db)
+    pitch1 = _pitch(test_db)
+    pitch2 = _pitch(test_db)
+    tourn  = _tournament(test_db)
+
+    cfg = TournamentConfiguration(
+        semester_id=tourn.id,
+        parallel_fields=2,
+        max_players=20,
+    )
+    test_db.add(cfg)
+    test_db.flush()
+
+    svc.add_slot(test_db, tourn.id, inst1.id, SlotRole.FIELD.value, pitch_id=pitch1.id, assigned_by_id=admin.id)
+    svc.add_slot(test_db, tourn.id, inst2.id, SlotRole.FIELD.value, pitch_id=pitch2.id, assigned_by_id=admin.id)
+
+    def override_db():
+        yield test_db
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_admin_user_hybrid] = lambda: admin
+
+    client = TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"},
+                        raise_server_exceptions=False)
+
+    # parallel_fields=1 with 2 existing FIELD slots → 400
+    resp = client.patch(
+        f"/api/v1/tournaments/{tourn.id}/schedule-config",
+        json={"parallel_fields": 1},
+    )
+    assert resp.status_code == 400, resp.text
+    body = resp.json()
+    detail = body.get("detail") or (body.get("error") or {}).get("message") or ""
+    assert "field instructor" in detail.lower() or "parallel_fields" in detail.lower()
+
+    # parallel_fields=2 (same as current, matching slot count) → 200
+    resp2 = client.patch(
+        f"/api/v1/tournaments/{tourn.id}/schedule-config",
+        json={"parallel_fields": 2},
+    )
+    assert resp2.status_code == 200, resp2.text
+    assert resp2.json()["parallel_fields"] == 2
+
+    app.dependency_overrides.clear()

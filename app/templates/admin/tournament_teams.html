@@ -40,9 +40,31 @@
                 <tr>
                     <td><strong>{{ item.team.name }}</strong> <code>{{ item.team.code }}</code></td>
                     <td>{{ item.member_count }} players</td>
-                    <td>{% if item.enrollment.payment_verified %}✅ Verified{% else %}⏳ Pending{% endif %}</td>
-                    <td>{{ item.enrollment.enrollment_date.strftime('%Y-%m-%d') if item.enrollment.enrollment_date else '—' }}</td>
                     <td>
+                        {% if item.enrollment.payment_verified %}
+                            <span style="color:#276749; font-weight:600;">✅ Verified</span>
+                            {% if item.verifier and item.enrollment.payment_verified_at %}
+                            <br><small style="color:#718096;">
+                                by {{ item.verifier.name or item.verifier.email }}<br>
+                                {{ item.enrollment.payment_verified_at.strftime('%Y-%m-%d %H:%M') }}
+                            </small>
+                            {% endif %}
+                        {% else %}
+                            <span style="color:#c05621; font-weight:600;">⏳ Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.enrollment.enrollment_date.strftime('%Y-%m-%d') if item.enrollment.enrollment_date else '—' }}</td>
+                    <td style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                        {% if not item.enrollment.payment_verified %}
+                        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/{{ item.team.id }}/verify">
+                            <button type="submit" class="btn btn-sm btn-success">✅ Verify</button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/{{ item.team.id }}/unverify"
+                              onsubmit="return confirm('Revoke payment verification for {{ item.team.name }}?')">
+                            <button type="submit" class="btn btn-sm btn-secondary">↩ Unverify</button>
+                        </form>
+                        {% endif %}
                         <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/{{ item.team.id }}/remove"
                               onsubmit="return confirm('Remove team {{ item.team.name }} from this tournament?')">
                             <button type="submit" class="btn btn-sm btn-danger">❌ Remove</button>

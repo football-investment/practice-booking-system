@@ -6,44 +6,89 @@
 
 {% block extra_styles %}
 <style>
+    /* ── Table card wrapper ────────────────────────────────────────── */
     .promo-table-wrap {
         background: white;
         border-radius: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        overflow: hidden;
     }
     .promo-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.92rem;
+        font-size: 0.88rem;
+        table-layout: fixed;
     }
+    /* Column widths: Tournament(auto) Club(15%) AG(7%) Dates(11%) Stats(10%) Status(10%) Actions(9%) */
+    .promo-table col.c-tournament { width: auto; }
+    .promo-table col.c-club       { width: 15%; }
+    .promo-table col.c-ag         { width: 7%; }
+    .promo-table col.c-dates      { width: 11%; }
+    .promo-table col.c-stats      { width: 10%; }
+    .promo-table col.c-status     { width: 10%; }
+    .promo-table col.c-actions    { width: 9%; }
+
     .promo-table thead th {
         background: #f7fafc;
-        padding: 0.85rem 1.1rem;
+        padding: 0.75rem 0.85rem;
         text-align: left;
         font-weight: 700;
         color: #4a5568;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
         border-bottom: 2px solid #e2e8f0;
         white-space: nowrap;
+        overflow: hidden;
     }
     .promo-table tbody td {
-        padding: 0.85rem 1.1rem;
+        padding: 0.75rem 0.85rem;
         border-bottom: 1px solid #e2e8f0;
         vertical-align: middle;
         color: #2d3748;
+        overflow: hidden;
     }
     .promo-table tbody tr:last-child td { border-bottom: none; }
     .promo-table tbody tr:hover td { background: #f7fafc; }
 
+    /* tournament name: truncate if too long */
+    .promo-name {
+        font-weight: 700;
+        color: #2d3748;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        display: block;
+    }
+    .promo-code {
+        font-size: 0.7rem;
+        color: #a0aec0;
+        font-family: monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+
+    /* ── Stats cell: Teams · Sessions · Instructors ────────────────── */
+    .stats-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        font-size: 0.8rem;
+        color: #4a5568;
+    }
+    .stats-cell .stat-row { display: flex; align-items: center; gap: 0.3rem; }
+    .stats-cell .stat-label { color: #a0aec0; font-size: 0.72rem; width: 1.6rem; flex-shrink: 0; }
+
+    /* ── Badges ────────────────────────────────────────────────────── */
     .badge {
         display: inline-block;
-        padding: 0.2rem 0.6rem;
+        padding: 0.18rem 0.5rem;
         border-radius: 99px;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-weight: 700;
+        white-space: nowrap;
     }
     .badge-draft      { background: #edf2f7; color: #4a5568; }
     .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
@@ -51,54 +96,59 @@
     .badge-completed  { background: #e9d8fd; color: #553c9a; }
     .badge-cancelled  { background: #fed7d7; color: #742a2a; }
     .badge-rewards    { background: #fef3c7; color: #78350f; }
-    .badge-ag         { background: #bee3f8; color: #2a4365; font-size: 0.7rem; }
+    .badge-ag         { background: #bee3f8; color: #2a4365; font-size: 0.68rem; }
 
-    .club-link { color: #667eea; font-weight: 600; text-decoration: none; }
+    .club-link {
+        color: #667eea; font-weight: 600; text-decoration: none;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+    }
     .club-link:hover { text-decoration: underline; }
 
+    /* ── Action buttons ────────────────────────────────────────────── */
     .action-btn {
-        padding: 0.3rem 0.7rem;
+        padding: 0.25rem 0.55rem;
         border: 1px solid #e2e8f0;
         border-radius: 6px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         font-weight: 600;
         cursor: pointer;
         background: white;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: 0.2rem;
         transition: background 0.15s;
         color: #2d3748;
+        white-space: nowrap;
     }
     .action-btn:hover { background: #edf2f7; }
     .action-btn-primary { background: #667eea; color: white; border-color: #667eea; }
     .action-btn-primary:hover { background: #5a67d8; }
+    .action-cell { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: #718096;
-    }
+    /* ── Empty state ───────────────────────────────────────────────── */
+    .empty-state { text-align: center; padding: 4rem 2rem; color: #718096; }
     .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
     .empty-state h3 { font-size: 1.1rem; color: #4a5568; margin-bottom: 0.5rem; }
 
+    /* ── Filter bar ────────────────────────────────────────────────── */
     .filter-bar {
         display: flex;
-        gap: 1rem;
+        gap: 0.75rem;
         align-items: center;
         margin-bottom: 1.5rem;
         flex-wrap: wrap;
     }
-    .filter-bar select, .filter-bar input {
-        padding: 0.45rem 0.9rem;
+    .filter-bar select {
+        padding: 0.4rem 0.8rem;
         border: 1px solid #e2e8f0;
         border-radius: 8px;
-        font-size: 0.9rem;
+        font-size: 0.88rem;
         background: white;
     }
-    .filter-count { margin-left: auto; color: #718096; font-size: 0.88rem; }
+    .filter-count { margin-left: auto; color: #718096; font-size: 0.85rem; white-space: nowrap; }
 
+    /* ── Flash ─────────────────────────────────────────────────────── */
     .alert-success {
         padding: 0.85rem 1.25rem;
         background: #d4edda;
@@ -108,10 +158,43 @@
         margin-bottom: 1.5rem;
         font-weight: 500;
     }
+
+    /* ── Mobile: stack filter, card rows ───────────────────────────── */
+    @media (max-width: 639px) {
+        .filter-bar { flex-direction: column; align-items: stretch; }
+        .filter-bar select { width: 100%; }
+        .filter-count { margin-left: 0; }
+
+        .promo-table, .promo-table thead, .promo-table tbody,
+        .promo-table th, .promo-table td, .promo-table tr { display: block; }
+        .promo-table thead { display: none; }
+        .promo-table tbody tr {
+            border-bottom: 2px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .promo-table tbody td {
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+        }
+        .promo-table tbody td::before {
+            content: attr(data-label);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #a0aec0;
+            letter-spacing: 0.04em;
+            display: block;
+            margin-bottom: 0.15rem;
+        }
+    }
 </style>
 {% endblock %}
 
-{% block content %}
+{% block admin_content %}
 {% if flash %}
 <div class="alert-success">✅ {{ flash }}</div>
 {% endif %}
@@ -141,16 +224,22 @@
 {% if promo_info %}
 <div class="promo-table-wrap">
     <table class="promo-table" id="promoTable">
+        <colgroup>
+            <col class="c-tournament">
+            <col class="c-club">
+            <col class="c-ag">
+            <col class="c-dates">
+            <col class="c-stats">
+            <col class="c-status">
+            <col class="c-actions">
+        </colgroup>
         <thead>
             <tr>
                 <th>Tournament</th>
                 <th>Club</th>
-                <th>Age group</th>
+                <th>AG</th>
                 <th>Dates</th>
-                <th>Campus</th>
-                <th>Teams</th>
-                <th>Sessions</th>
-                <th>Instructors</th>
+                <th>Teams / Sessions / Instr.</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -160,76 +249,76 @@
             {% set t = info.tournament %}
             {% set status = t.tournament_status or 'DRAFT' %}
             <tr data-status="{{ status }}" data-ag="{{ t.age_group or '' }}">
-                <td>
-                    <div style="font-weight:700; color:#2d3748;">{{ t.name }}</div>
-                    <code style="font-size:0.75rem; color:#a0aec0;">{{ t.code }}</code>
+                <td data-label="Tournament">
+                    <span class="promo-name">{{ t.name }}</span>
+                    <span class="promo-code">{{ t.code }}</span>
                 </td>
-                <td>
+                <td data-label="Club">
                     {% if info.source_club %}
-                    <a href="/admin/clubs/{{ info.source_club.id }}" class="club-link">
-                        {{ info.source_club.name }}
-                    </a>
+                    <a href="/admin/clubs/{{ info.source_club.id }}" class="club-link">{{ info.source_club.name }}</a>
                     {% else %}
                     <span style="color:#a0aec0;">—</span>
                     {% endif %}
                 </td>
-                <td>
+                <td data-label="Age group">
                     {% if t.age_group %}
                     <span class="badge badge-ag">{{ t.age_group }}</span>
                     {% else %}
                     <span style="color:#a0aec0;">—</span>
                     {% endif %}
                 </td>
-                <td style="white-space:nowrap; color:#4a5568; font-size:0.88rem;">
-                    {{ t.start_date.strftime('%Y-%m-%d') if t.start_date else '—' }}<br>
-                    <span style="color:#a0aec0;">→ {{ t.end_date.strftime('%Y-%m-%d') if t.end_date else '—' }}</span>
+                <td data-label="Dates" style="color:#4a5568; font-size:0.82rem; white-space:nowrap;">
+                    {{ t.start_date.strftime('%m-%d') if t.start_date else '—' }}<br>
+                    <span style="color:#a0aec0;">→ {{ t.end_date.strftime('%m-%d') if t.end_date else '—' }}</span>
                 </td>
-                <td style="color:#4a5568; font-size:0.88rem;">
-                    {{ info.campus.name if info.campus else '—' }}
+                <td data-label="Teams / Sessions / Instr.">
+                    <div class="stats-cell">
+                        <div class="stat-row">
+                            <span class="stat-label">T</span>
+                            <strong>{{ info.team_count }}</strong>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">S</span>
+                            <span style="color:#718096;">{{ info.session_count }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">I</span>
+                            {% if info.slot_total == 0 %}
+                                <span style="color:#a0aec0;">–</span>
+                            {% elif info.has_absent_field %}
+                                <span style="color:#c53030; font-weight:700;">⚠️ {{ info.slot_absent }} absent</span>
+                            {% elif info.slot_checked > 0 %}
+                                <span style="color:#276749;">✅ {{ info.slot_checked }}/{{ info.slot_total }}</span>
+                            {% else %}
+                                <span style="color:#2b6cb0;">{{ info.slot_total }} planned</span>
+                            {% endif %}
+                        </div>
+                    </div>
                 </td>
-                <td style="text-align:center; font-weight:700;">
-                    {{ info.team_count }}
-                </td>
-                <td style="text-align:center; color:#718096;">
-                    {{ info.session_count }}
-                </td>
-                <td style="text-align:center;">
-                    {% if info.slot_total == 0 %}
-                        <span style="color:#a0aec0; font-size:0.85rem;">–</span>
-                    {% elif info.has_absent_field %}
-                        <span class="badge" style="background:#fed7d7;color:#c53030;">⚠️ Hiányzó</span>
-                    {% elif info.slot_checked > 0 %}
-                        <span class="badge" style="background:#c6f6d5;color:#276749;">✅ {{ info.slot_checked }}/{{ info.slot_total }}</span>
-                    {% else %}
-                        <span class="badge" style="background:#ebf8ff;color:#2b6cb0;">{{ info.slot_total }} tervezett</span>
-                    {% endif %}
-                </td>
-                <td>
+                <td data-label="Status">
                     {% if status == 'DRAFT' %}
                         <span class="badge badge-draft">DRAFT</span>
                     {% elif status == 'ENROLLMENT_OPEN' %}
-                        <span class="badge badge-enrollment">ENROLLMENT</span>
+                        <span class="badge badge-enrollment">ENROLL</span>
                     {% elif status == 'IN_PROGRESS' %}
-                        <span class="badge badge-progress">IN PROGRESS</span>
+                        <span class="badge badge-progress">LIVE</span>
                     {% elif status == 'COMPLETED' %}
-                        <span class="badge badge-completed">COMPLETED</span>
+                        <span class="badge badge-completed">DONE</span>
                     {% elif status == 'REWARDS_DISTRIBUTED' %}
-                        <span class="badge badge-rewards">REWARDS ✓</span>
+                        <span class="badge badge-rewards">REWARDS</span>
                     {% elif status == 'CANCELLED' %}
-                        <span class="badge badge-cancelled">CANCELLED</span>
+                        <span class="badge badge-cancelled">CANCEL</span>
                     {% else %}
                         <span class="badge badge-draft">{{ status }}</span>
                     {% endif %}
                 </td>
-                <td style="white-space:nowrap;">
-                    <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn action-btn-primary">
-                        ✏️ Edit
-                    </a>
-                    {% if status == 'IN_PROGRESS' %}
-                    <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn">
-                        📡 Live
-                    </a>
-                    {% endif %}
+                <td data-label="Actions">
+                    <div class="action-cell">
+                        <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn action-btn-primary">✏️ Edit</a>
+                        {% if status == 'IN_PROGRESS' %}
+                        <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn">📡 Live</a>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -243,7 +332,7 @@
     <p>Create one from a <a href="/admin/clubs" style="color:#667eea;">club detail page</a> using the Promotion Event wizard.</p>
 </div>
 {% endif %}
-{% endblock %}
+{% endblock admin_content %}
 
 {% block scripts %}
 <script>

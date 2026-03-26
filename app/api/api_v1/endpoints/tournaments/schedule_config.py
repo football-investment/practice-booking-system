@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.dependencies import get_current_admin_user
+from app.dependencies import get_current_admin_user_hybrid
 from app.models.user import User
 from app.models.semester import Semester
 from app.models.tournament_configuration import TournamentConfiguration
@@ -91,7 +91,7 @@ def _get_or_404(tournament_id: int, db: Session) -> Semester:
 def get_schedule_config(
     tournament_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_admin_user_hybrid),
 ) -> Dict[str, Any]:
     """
     Get the global schedule configuration for a tournament.
@@ -137,7 +137,7 @@ def update_schedule_config(
     tournament_id: int,
     request: MatchDurationConfig,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_admin_user_hybrid),
 ) -> Dict[str, Any]:
     """
     Update the global schedule configuration for a tournament.
@@ -166,6 +166,20 @@ def update_schedule_config(
     if request.break_duration_minutes is not None:
         cfg.break_duration_minutes = request.break_duration_minutes
     if request.parallel_fields is not None:
+        from app.models.tournament_instructor_slot import TournamentInstructorSlot, SlotRole
+        field_slot_count = db.query(TournamentInstructorSlot).filter(
+            TournamentInstructorSlot.semester_id == tournament_id,
+            TournamentInstructorSlot.role == SlotRole.FIELD.value,
+        ).count()
+        if request.parallel_fields < field_slot_count:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Cannot set parallel_fields to {request.parallel_fields}: "
+                    f"{field_slot_count} field instructor slot(s) are already configured. "
+                    f"Remove excess field instructor slots first."
+                ),
+            )
         cfg.parallel_fields = request.parallel_fields
 
     db.commit()

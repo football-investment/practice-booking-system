@@ -87,7 +87,7 @@ def add_slot(
     notes: Optional[str] = None,
 ) -> TournamentInstructorSlot:
     """Add an instructor to the tournament roster."""
-    _get_tournament_or_404(db, semester_id)
+    tournament = _get_tournament_or_404(db, semester_id)
 
     # Validate instructor exists
     instructor = db.query(User).filter(User.id == instructor_id).first()
@@ -140,6 +140,24 @@ def add_slot(
                 status_code=409,
                 detail=f"Pitch {pitch_id} already has a field instructor assigned.",
             )
+
+    # Pre-flight check: FIELD slot count must not exceed parallel_fields
+    if role == SlotRole.FIELD.value:
+        cfg = tournament.tournament_config_obj
+        if cfg is not None:
+            existing_field_count = db.query(TournamentInstructorSlot).filter(
+                TournamentInstructorSlot.semester_id == semester_id,
+                TournamentInstructorSlot.role == SlotRole.FIELD.value,
+            ).count()
+            if existing_field_count >= cfg.parallel_fields:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Cannot add more field instructors than configured parallel fields "
+                        f"({cfg.parallel_fields}). Increase parallel fields in Schedule "
+                        f"Configuration first."
+                    ),
+                )
 
     slot = TournamentInstructorSlot(
         semester_id=semester_id,

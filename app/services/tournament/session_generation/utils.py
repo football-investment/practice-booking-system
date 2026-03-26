@@ -39,8 +39,8 @@ def pick_pitch(
     Round-robin pitch selection within a campus based on parallel_fields.
 
     For each session on a campus, assigns a pitch in rotating order:
-      parallel_fields=1 → always Pálya 1
-      parallel_fields=2 → Pálya 1, Pálya 2, Pálya 1, Pálya 2, ...
+      parallel_fields=1 → always Field 1
+      parallel_fields=2 → Field 1, Field 2, Field 1, Field 2, ...
 
     Pitches are auto-created if they don't exist yet (idempotent flush, no commit).
     Returns None when campus_id is None (single-campus mode without explicit campus).
@@ -65,7 +65,7 @@ def _get_or_create_pitch(db: "DBSession", campus_id: int, pitch_number: int):
     """
     Get existing Pitch or create a new one (flush-only, SAVEPOINT-safe).
 
-    Auto-generated name follows the pattern: "Pálya {pitch_number}"
+    Auto-generated name follows the pattern: "Field {pitch_number}"
     (admin can rename via the pitches API later).
     """
     from app.models.pitch import Pitch
@@ -79,7 +79,7 @@ def _get_or_create_pitch(db: "DBSession", campus_id: int, pitch_number: int):
         pitch = Pitch(
             campus_id=campus_id,
             pitch_number=pitch_number,
-            name=f"Pálya {pitch_number}",
+            name=f"Field {pitch_number}",
             capacity=2,
         )
         db.add(pitch)
