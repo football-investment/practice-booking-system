@@ -13,7 +13,7 @@ from typing import Dict, Any, List
 from .....database import get_db
 from .....models.tournament_reward_config import TournamentRewardConfig as TournamentRewardConfigModel
 from .....models.user import User, UserRole
-from .....dependencies import get_current_active_user
+from .....dependencies import get_current_active_user, get_current_admin_user_hybrid
 from .....repositories import TournamentRepository
 from .....schemas.reward_config import TournamentRewardConfig, REWARD_CONFIG_TEMPLATES
 
@@ -63,11 +63,11 @@ def get_tournament_reward_config(
 
 
 @router.post("/{tournament_id}/reward-config", response_model=Dict[str, Any])
-def save_tournament_reward_config(
+async def save_tournament_reward_config(
     tournament_id: int,
     reward_config: TournamentRewardConfig,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ):
     """
     Save reward configuration for a tournament.

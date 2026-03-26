@@ -471,8 +471,8 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 
     {# ── Skills — always driven by game preset (mandatory) ── #}
     <div class="info-banner" style="margin-bottom:1.25rem;">
-        ℹ️ Skill rewards are automatically determined by the
-        <strong>{{ t.game_preset.name if t.game_preset else 'game preset' }}</strong> game preset.
+        ℹ️ Skill rewards are automatically determined by the game preset
+        {% if t.game_preset %}<strong>({{ t.game_preset.name }})</strong>{% endif %}.
     </div>
 
     <div class="save-row">
