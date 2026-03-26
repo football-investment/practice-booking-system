@@ -95,9 +95,19 @@ def calculate_skill_points_for_placement(
             logger.error(f"Failed to parse skill mappings from reward_config for tournament {tournament_id}: {e}")
             skill_mappings_data = []
 
-    # Fallback: Use legacy TournamentSkillMapping table if no config found
+    # Priority 2: Game preset skill_weights (when no reward_config skill_mappings set)
+    if not skill_mappings_data and tournament and tournament.game_preset:
+        preset_weights = tournament.game_preset.skill_weights or {}
+        if preset_weights:
+            skill_mappings_data = [
+                {'skill_name': skill, 'weight': float(weight), 'skill_category': None}
+                for skill, weight in preset_weights.items()
+            ]
+            logger.info(f"Loaded {len(skill_mappings_data)} skill weights from game preset '{tournament.game_preset.name}' for tournament {tournament_id}")
+
+    # Priority 3: Legacy TournamentSkillMapping table
     if not skill_mappings_data:
-        logger.info(f"No reward config found, using TournamentSkillMapping table for tournament {tournament_id}")
+        logger.info(f"No reward config or game preset found, using TournamentSkillMapping table for tournament {tournament_id}")
         skill_mappings = db.query(TournamentSkillMapping).filter(
             TournamentSkillMapping.semester_id == tournament_id
         ).all()
