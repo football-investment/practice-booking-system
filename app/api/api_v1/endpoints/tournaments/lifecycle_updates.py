@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.api.api_v1.endpoints.auth import get_current_user
+from app.dependencies import get_current_admin_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.specialization import SpecializationType
@@ -49,6 +49,7 @@ class TournamentUpdateRequest(BaseModel):
     number_of_rounds: Optional[int] = Field(None, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (⚠️ WARNING: Triggers session regeneration if changed)")
     campus_id: Optional[int] = Field(None, description="Campus ID where tournament will be held")
     location_id: Optional[int] = Field(None, description="Location ID where tournament will be held")
+    game_preset_id: Optional[int] = Field(None, description="Game preset ID (updates GameConfiguration)")
 
 
 # ============================================================================
@@ -60,7 +61,7 @@ def update_tournament(
     tournament_id: int,
     request: TournamentUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ):
     """
     Update tournament fields (Admin only)
@@ -352,6 +353,26 @@ def update_tournament(
             )
         updates["location_id"] = {"old": tournament.location_id, "new": request.location_id}
         tournament.location_id = request.location_id
+
+    # Update game_preset_id (lives in GameConfiguration)
+    if request.game_preset_id is not None:
+        from app.models.game_preset import GamePreset
+        from app.models.game_configuration import GameConfiguration
+        preset = db.query(GamePreset).filter(
+            GamePreset.id == request.game_preset_id,
+            GamePreset.is_active == True,
+        ).first()
+        if not preset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Game preset {request.game_preset_id} not found or inactive",
+            )
+        game_cfg = db.query(GameConfiguration).filter(
+            GameConfiguration.tournament_id == tournament_id
+        ).first()
+        if game_cfg:
+            updates["game_preset_id"] = {"old": game_cfg.game_preset_id, "new": request.game_preset_id}
+            game_cfg.game_preset_id = request.game_preset_id
 
     # If no updates, return early
     if not updates:

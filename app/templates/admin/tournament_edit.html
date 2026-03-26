@@ -297,11 +297,13 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <span class="field-hint">1–10 · INDIVIDUAL_RANKING only</span>
         </div>
         <div class="form-group">
-            <label>Game Preset <span style="color:#a0aec0">(read-only — set at creation)</span></label>
-            <input type="text" value="{{ preset.name if preset else '— No preset —' }}" disabled style="background:#f7fafc;color:#718096;">
-            {% if preset %}
-            <span class="field-hint">Skills: {{ preset.game_config.get('metadata', {}).get('skills', '') if preset.game_config else '' }}</span>
-            {% endif %}
+            <label>Game Preset</label>
+            <select id="basic-game-preset-id">
+                <option value="">— No preset —</option>
+                {% for gp in game_presets %}
+                <option value="{{ gp.id }}" {% if preset and gp.id == preset.id %}selected{% endif %}>{{ gp.name }}</option>
+                {% endfor %}
+            </select>
         </div>
     </div>
 
@@ -973,6 +975,8 @@ async function saveBasicInfo() {
     if (ptVal) body.participant_type = ptVal;
     const roundsVal = document.getElementById('basic-rounds').value;
     if (roundsVal) body.number_of_rounds = parseInt(roundsVal);
+    const gpVal = document.getElementById('basic-game-preset-id').value;
+    if (gpVal) body.game_preset_id = parseInt(gpVal);
 
     const statusEl = document.getElementById('basic-save-status');
     statusEl.textContent = 'Saving…';
