@@ -18076,6 +18076,18 @@
             "description": "Tournament format (HEAD_TO_HEAD or INDIVIDUAL_RANKING)",
             "title": "Format"
           },
+          "game_preset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Game preset ID (updates GameConfiguration)",
+            "title": "Game Preset Id"
+          },
           "location_id": {
             "anyOf": [
               {
