@@ -469,17 +469,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </tbody>
     </table>
 
-    {# ── Skills — only for INDIVIDUAL tournaments (TEAM: game preset defines skills) ── #}
-    {% if not cfg or cfg.participant_type != 'TEAM' %}
+    {# ── Skills — all tournaments (TEAM members also receive individual skill_rating_delta) ── #}
     <p style="font-size:0.85rem;font-weight:700;color:#4a5568;margin-bottom:0.6rem;">
         Skills (at least 1 must be enabled for reward distribution)
     </p>
     <div id="reward-skills-form" style="columns:2;column-gap:1.5rem;margin-bottom:1.25rem;"></div>
-    {% else %}
-    <div class="info-banner" style="margin-bottom:1.25rem;">
-        ℹ️ Skill rewards are determined by the tournament's <strong>game preset</strong> — per-tournament skill mapping is not applicable for team tournaments.
-    </div>
-    {% endif %}
 
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveRewardConfig()">💾 Save Reward Config</button>
@@ -1170,7 +1164,6 @@ const _SKILL_OPTS = [
 ];
 
 const _CURRENT_REWARD_CFG = {{ reward_cfg | tojson }};
-const IS_TEAM_TOURNAMENT = {{ 'true' if cfg and cfg.participant_type == 'TEAM' else 'false' }};
 
 function initRewardForm() {
     const container = document.getElementById('reward-skills-form');
@@ -1214,19 +1207,17 @@ async function saveRewardConfig() {
             badges:         tierBadges[tier],
         };
     });
-    if (!IS_TEAM_TOURNAMENT) {
-        _SKILL_OPTS.forEach(opt => {
-            body.skill_mappings.push({
-                skill:    opt.skill,
-                category: opt.category,
-                weight:   parseFloat(document.getElementById(`sk-wt-${opt.skill}`)?.value) || 1.0,
-                enabled:  document.getElementById(`sk-en-${opt.skill}`)?.checked || false,
-            });
+    _SKILL_OPTS.forEach(opt => {
+        body.skill_mappings.push({
+            skill:    opt.skill,
+            category: opt.category,
+            weight:   parseFloat(document.getElementById(`sk-wt-${opt.skill}`)?.value) || 1.0,
+            enabled:  document.getElementById(`sk-en-${opt.skill}`)?.checked || false,
         });
-        if (!body.skill_mappings.some(s => s.enabled)) {
-            toast('At least 1 skill must be enabled', 'error');
-            return;
-        }
+    });
+    if (!body.skill_mappings.some(s => s.enabled)) {
+        toast('At least 1 skill must be enabled', 'error');
+        return;
     }
     const statusEl = document.getElementById('reward-save-status');
     statusEl.textContent = 'Saving…';
