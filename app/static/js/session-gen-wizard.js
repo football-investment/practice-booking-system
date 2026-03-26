@@ -31,7 +31,7 @@ const SessionGenWizard = (() => {
   let _pollCount = 0;     // number of polls fired
   const MAX_POLLS = 80;   // 80 × 1.5s = 120s timeout
 
-  const STEPS = ['init', 'schedule', 'confirm', 'progress', 'result'];
+  const STEPS = ['init', 'confirm', 'progress', 'result'];
 
   // ── Open / Close ────────────────────────────────────────────────────────────
   function open(ctx) {
@@ -72,10 +72,9 @@ const SessionGenWizard = (() => {
   function _stepTitle(step) {
     return {
       init:     '⚡ Generate Sessions — Step 1: Eligibility Check',
-      schedule: '⚡ Generate Sessions — Step 2: Schedule Parameters',
-      confirm:  '⚡ Generate Sessions — Step 3: Confirm',
-      progress: '⚡ Generate Sessions — Step 4: Generating…',
-      result:   '⚡ Generate Sessions — Step 5: Complete',
+      confirm:  '⚡ Generate Sessions — Step 2: Confirm',
+      progress: '⚡ Generate Sessions — Step 3: Generating…',
+      result:   '⚡ Generate Sessions — Step 4: Complete',
     }[step];
   }
 
@@ -198,13 +197,13 @@ const SessionGenWizard = (() => {
   }
 
   function _bodyConfirm() {
-    const matchVal    = _readRadio('sgw-match') || 90;
-    const breakVal    = _readRadio('sgw-break') ?? 15;
-    const parallelVal = parseInt(document.getElementById('sgw-parallel')?.value || '1');
-    const roundsEl    = document.getElementById('sgw-rounds');
-    const roundsVal   = roundsEl ? parseInt(roundsEl.value) : 1;
+    const s = _ctx.schedule || {};
+    const matchVal    = s.match_duration_minutes || 90;
+    const breakVal    = s.break_duration_minutes ?? 15;
+    const parallelVal = s.parallel_fields || 1;
+    const roundsVal   = s.number_of_rounds || 1;
 
-    // Store for actual submit
+    // Store for actual submit (read from already-saved Schedule Config)
     _params.session_duration_minutes = matchVal;
     _params.break_minutes            = breakVal;
     _params.parallel_fields          = parallelVal;
@@ -291,14 +290,9 @@ const SessionGenWizard = (() => {
             Next →
           </button>`;
 
-      case 'schedule':
-        return `
-          <button class="btn btn-secondary" onclick="SessionGenWizard._goto('init')">← Back</button>
-          <button class="btn btn-primary" onclick="SessionGenWizard._goto('confirm')">Next →</button>`;
-
       case 'confirm':
         return `
-          <button class="btn btn-secondary" onclick="SessionGenWizard._goto('schedule')">← Back</button>
+          <button class="btn btn-secondary" onclick="SessionGenWizard._goto('init')">← Back</button>
           <button class="btn btn-primary" id="sgw-btn-generate" onclick="SessionGenWizard._generate()">
             ⚡ Generate Sessions
           </button>`;
@@ -310,7 +304,7 @@ const SessionGenWizard = (() => {
         const r = _params._result || {};
         if (r.error) {
           return `
-            <button class="btn btn-secondary" onclick="SessionGenWizard._goto('schedule')">← Try Again</button>
+            <button class="btn btn-secondary" onclick="SessionGenWizard._goto('init')">← Try Again</button>
             <button class="btn btn-secondary" onclick="SessionGenWizard.close()">Close</button>`;
         }
         return `<button class="btn btn-primary" onclick="SessionGenWizard.close();location.reload()">✅ Done — Reload</button>`;
@@ -321,7 +315,7 @@ const SessionGenWizard = (() => {
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   function _nextFromInit() {
-    _goto('schedule');
+    _goto('confirm');
   }
 
   async function _generate() {

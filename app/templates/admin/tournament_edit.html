@@ -1233,6 +1233,7 @@ function openSessionGenWizard() {
             match_duration_minutes: {{ schedule.match_duration_minutes | tojson }},
             break_duration_minutes: {{ schedule.break_duration_minutes | tojson }},
             parallel_fields:        {{ schedule.parallel_fields or 1 }},
+            number_of_rounds:       {{ cfg.number_of_rounds if cfg and cfg.number_of_rounds else 1 }},
         },
     });
 }
