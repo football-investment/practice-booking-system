@@ -2,17 +2,34 @@
 
 {% block title %}Login - LFA Education Center{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Full-screen override: neutralise base.html layout constraints */
+    html, body {
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) !important;
+    }
+    .main-content {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+    footer.footer { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <style>
     /* Modern Login Page Styling */
     .login-container {
-        min-height: calc(100vh - 100px);
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 2rem;
-        margin: -2rem -2rem 0 -2rem;
+        margin: 0;
     }
 
     .login-card {
