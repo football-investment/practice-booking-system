@@ -1170,6 +1170,7 @@ const _SKILL_OPTS = [
 ];
 
 const _CURRENT_REWARD_CFG = {{ reward_cfg | tojson }};
+const IS_TEAM_TOURNAMENT = {{ 'true' if cfg and cfg.participant_type == 'TEAM' else 'false' }};
 
 function initRewardForm() {
     const container = document.getElementById('reward-skills-form');
@@ -1213,17 +1214,19 @@ async function saveRewardConfig() {
             badges:         tierBadges[tier],
         };
     });
-    _SKILL_OPTS.forEach(opt => {
-        body.skill_mappings.push({
-            skill:    opt.skill,
-            category: opt.category,
-            weight:   parseFloat(document.getElementById(`sk-wt-${opt.skill}`)?.value) || 1.0,
-            enabled:  document.getElementById(`sk-en-${opt.skill}`)?.checked || false,
+    if (!IS_TEAM_TOURNAMENT) {
+        _SKILL_OPTS.forEach(opt => {
+            body.skill_mappings.push({
+                skill:    opt.skill,
+                category: opt.category,
+                weight:   parseFloat(document.getElementById(`sk-wt-${opt.skill}`)?.value) || 1.0,
+                enabled:  document.getElementById(`sk-en-${opt.skill}`)?.checked || false,
+            });
         });
-    });
-    if (!body.skill_mappings.some(s => s.enabled)) {
-        toast('At least 1 skill must be enabled', 'error');
-        return;
+        if (!body.skill_mappings.some(s => s.enabled)) {
+            toast('At least 1 skill must be enabled', 'error');
+            return;
+        }
     }
     const statusEl = document.getElementById('reward-save-status');
     statusEl.textContent = 'Saving…';
