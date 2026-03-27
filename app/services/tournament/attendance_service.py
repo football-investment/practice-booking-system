@@ -24,6 +24,7 @@ from fastapi import HTTPException
 from app.models.team import Team, TeamMember, TournamentTeamEnrollment, TournamentPlayerCheckin
 from app.models.session import Session as SessionModel
 from app.models.semester import Semester
+from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.user import User
 from app.models.tournament_instructor_slot import TournamentInstructorSlot
 
@@ -139,15 +140,23 @@ def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
     """
     Build the full attendance picture for the attendance page.
 
+    Branches on participant_type:
+      TEAM      → teams list (with nested players per team)
+      INDIVIDUAL → flat individual_players list (SemesterEnrollment-based)
+
     Returns:
         {
+          participant_type: "TEAM" | "INDIVIDUAL",
           instructors: [{slot_id, instructor_id, instructor_name, role, status, checked_in_at}],
-          teams: [
+          teams: [                   # non-empty only for TEAM tournaments
             {
               team_id, team_name, enrollment_id, checked_in_at, checked_in_by_name,
               player_count, players_checked_in,
               players: [{user_id, name, checked_in_at}],
             }
+          ],
+          individual_players: [     # non-empty only for INDIVIDUAL tournaments
+            {user_id, name, email, checked_in_at}
           ],
           summary: {
             instructors_total, instructors_checked_in,
@@ -157,7 +166,8 @@ def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
           },
         }
     """
-    _get_tournament_or_404(db, tournament_id)
+    tournament = _get_tournament_or_404(db, tournament_id)
+    participant_type = getattr(tournament, "participant_type", "INDIVIDUAL") or "INDIVIDUAL"
 
     # ── Instructors ─────────────────────────────────────────────────────────
     slots = (
@@ -180,68 +190,106 @@ def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
 
     instructors_checked_in = sum(1 for s in slots if s.status == "CHECKED_IN")
 
-    # ── Teams ────────────────────────────────────────────────────────────────
-    enrollments = (
-        db.query(TournamentTeamEnrollment)
-        .filter(
-            TournamentTeamEnrollment.semester_id == tournament_id,
-            TournamentTeamEnrollment.is_active == True,
-        )
-        .all()
-    )
-
-    # Pre-load player checkins for this tournament
-    player_checkins = db.query(TournamentPlayerCheckin).filter(
-        TournamentPlayerCheckin.tournament_id == tournament_id
-    ).all()
-    checkin_by_user: Dict[int, TournamentPlayerCheckin] = {c.user_id: c for c in player_checkins}
-
     teams_data: List[Dict] = []
+    individual_players_data: List[Dict] = []
     total_players = 0
     total_players_checked_in = 0
 
-    for enrollment in enrollments:
-        team = enrollment.team
-        if not team:
-            continue
-
-        # All active team members
-        members = (
-            db.query(TeamMember)
-            .filter(TeamMember.team_id == team.id, TeamMember.is_active == True)
+    if participant_type == "TEAM":
+        # ── Teams ─────────────────────────────────────────────────────────
+        team_enrollments = (
+            db.query(TournamentTeamEnrollment)
+            .filter(
+                TournamentTeamEnrollment.semester_id == tournament_id,
+                TournamentTeamEnrollment.is_active == True,
+            )
             .all()
         )
 
-        players: List[Dict] = []
-        for member in members:
-            user = member.user
-            pc = checkin_by_user.get(member.user_id)
-            players.append({
-                "user_id": member.user_id,
-                "name": user.name if user else f"User #{member.user_id}",
+        # Pre-load player checkins for this tournament
+        player_checkins = db.query(TournamentPlayerCheckin).filter(
+            TournamentPlayerCheckin.tournament_id == tournament_id
+        ).all()
+        checkin_by_user: Dict[int, TournamentPlayerCheckin] = {
+            c.user_id: c for c in player_checkins
+        }
+
+        for enrollment in team_enrollments:
+            team = enrollment.team
+            if not team:
+                continue
+
+            members = (
+                db.query(TeamMember)
+                .filter(TeamMember.team_id == team.id, TeamMember.is_active == True)
+                .all()
+            )
+
+            players: List[Dict] = []
+            for member in members:
+                user = member.user
+                pc = checkin_by_user.get(member.user_id)
+                players.append({
+                    "user_id": member.user_id,
+                    "name": user.name if user else f"User #{member.user_id}",
+                    "checked_in_at": pc.checked_in_at.isoformat() if pc and pc.checked_in_at else None,
+                })
+
+            players_in = sum(1 for p in players if p["checked_in_at"])
+            total_players += len(players)
+            total_players_checked_in += players_in
+
+            by_name = None
+            if enrollment.checked_in_by_id:
+                by_user = db.query(User).filter(User.id == enrollment.checked_in_by_id).first()
+                by_name = by_user.name if by_user else None
+
+            teams_data.append({
+                "team_id": team.id,
+                "team_name": team.name,
+                "enrollment_id": enrollment.id,
+                "checked_in_at": enrollment.checked_in_at.isoformat() if enrollment.checked_in_at else None,
+                "checked_in_by_name": by_name,
+                "player_count": len(players),
+                "players_checked_in": players_in,
+                "players": players,
+            })
+
+    else:
+        # ── Individual players ─────────────────────────────────────────────
+        ind_enrollments = (
+            db.query(SemesterEnrollment)
+            .filter(
+                SemesterEnrollment.semester_id == tournament_id,
+                SemesterEnrollment.is_active == True,
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+            )
+            .order_by(SemesterEnrollment.user_id)
+            .all()
+        )
+
+        # Pre-load player checkins (TournamentPlayerCheckin, team_id=NULL for individual)
+        player_checkins = db.query(TournamentPlayerCheckin).filter(
+            TournamentPlayerCheckin.tournament_id == tournament_id
+        ).all()
+        checkin_by_user_ind: Dict[int, TournamentPlayerCheckin] = {
+            c.user_id: c for c in player_checkins
+        }
+
+        for enrollment in ind_enrollments:
+            user = enrollment.user
+            pc = checkin_by_user_ind.get(enrollment.user_id)
+            individual_players_data.append({
+                "user_id": enrollment.user_id,
+                "name": user.name if user else f"User #{enrollment.user_id}",
+                "email": user.email if user else None,
                 "checked_in_at": pc.checked_in_at.isoformat() if pc and pc.checked_in_at else None,
             })
 
-        players_in = sum(1 for p in players if p["checked_in_at"])
-        total_players += len(players)
-        total_players_checked_in += players_in
-
-        # checked_in_by user name
-        by_name = None
-        if enrollment.checked_in_by_id:
-            by_user = db.query(User).filter(User.id == enrollment.checked_in_by_id).first()
-            by_name = by_user.name if by_user else None
-
-        teams_data.append({
-            "team_id": team.id,
-            "team_name": team.name,
-            "enrollment_id": enrollment.id,
-            "checked_in_at": enrollment.checked_in_at.isoformat() if enrollment.checked_in_at else None,
-            "checked_in_by_name": by_name,
-            "player_count": len(players),
-            "players_checked_in": players_in,
-            "players": players,
-        })
+        total_players = len(individual_players_data)
+        total_players_checked_in = sum(
+            1 for p in individual_players_data if p["checked_in_at"]
+        )
 
     # ── Session stats ────────────────────────────────────────────────────────
     sessions = (
@@ -256,8 +304,8 @@ def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
     summary = {
         "instructors_total": len(slots),
         "instructors_checked_in": instructors_checked_in,
-        "teams_total": len(enrollments),
-        "teams_checked_in": sum(1 for e in enrollments if e.checked_in_at),
+        "teams_total": len(teams_data),
+        "teams_checked_in": sum(1 for t in teams_data if t["checked_in_at"]),
         "players_total": total_players,
         "players_checked_in": total_players_checked_in,
         "sessions_generated": sessions_generated,
@@ -265,8 +313,10 @@ def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
     }
 
     return {
+        "participant_type": participant_type,
         "instructors": instructors_data,
         "teams": teams_data,
+        "individual_players": individual_players_data,
         "summary": summary,
     }
 

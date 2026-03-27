@@ -188,7 +188,9 @@
     </div>
 </div>
 
-<!-- ── Section 2: Team Check-In ─────────────────────────────────────── -->
+{% if participant_type == 'TEAM' %}
+
+<!-- ── Section 2: Team Check-In (TEAM tournaments) ──────────────────── -->
 <div class="section-card">
     <div class="section-header">
         <h3>🏆 Team Check-In</h3>
@@ -241,7 +243,7 @@
     </div>
 </div>
 
-<!-- ── Section 3: Player Check-In ───────────────────────────────────── -->
+<!-- ── Section 3: Player Check-In per team (TEAM tournaments) ──────── -->
 <div class="section-card">
     <div class="section-header">
         <h3>👤 Player Check-In</h3>
@@ -310,6 +312,66 @@
         {% endif %}
     </div>
 </div>
+
+{% else %}
+
+<!-- ── Section 2+3: Individual Player Check-In (INDIVIDUAL tournaments) -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>👤 Player Check-In</h3>
+        <span class="badge badge-grey">{{ summary.players_checked_in }}/{{ summary.players_total }} checked in</span>
+    </div>
+    <div class="section-body">
+        {% if individual_players %}
+        <table class="att-table">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Checked In At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="individual-players-tbody">
+                {% for player in individual_players %}
+                <tr id="ind-player-row-{{ player.user_id }}">
+                    <td><strong>{{ player.name }}</strong></td>
+                    <td style="color:#718096;font-size:0.85rem;">{{ player.email or '—' }}</td>
+                    <td id="ind-player-status-{{ player.user_id }}">
+                        {% if player.checked_in_at %}
+                            <span class="badge badge-green">✓ Present</span>
+                        {% else %}
+                            <span class="badge badge-grey">Not checked in</span>
+                        {% endif %}
+                    </td>
+                    <td class="ts" id="ind-player-ts-{{ player.user_id }}">
+                        {{ player.checked_in_at or '—' }}
+                    </td>
+                    <td>
+                        {% if player.checked_in_at %}
+                        <button class="btn-uncheckin"
+                                onclick="indPlayerUncheckin({{ player.user_id }})">
+                            Undo
+                        </button>
+                        {% else %}
+                        <button class="btn-checkin"
+                                onclick="indPlayerCheckin({{ player.user_id }})">
+                            Check In
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No enrolled players found.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
 
 <!-- ── Back to edit page ─────────────────────────────────────────────── -->
 <div style="margin-top:1rem">
@@ -420,6 +482,52 @@ function _updatePlayerRow(teamId, userId, checkedInAt, isCheckedIn) {
         actionTd.innerHTML = isCheckedIn
             ? `<button class="btn-uncheckin" onclick="playerUncheckin(${teamId}, ${userId})">Undo</button>`
             : `<button class="btn-checkin" onclick="playerCheckin(${teamId}, ${userId})">Check In</button>`;
+    }
+}
+
+/* ── Individual player check-in (INDIVIDUAL tournaments) ──────────── */
+async function indPlayerCheckin(userId) {
+    try {
+        const data = await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/players/${userId}/checkin`,
+            {}
+        );
+        _updateIndPlayerRow(userId, data.checked_in_at, true);
+        toast('Player checked in');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function indPlayerUncheckin(userId) {
+    try {
+        await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/players/${userId}/uncheckin`
+        );
+        _updateIndPlayerRow(userId, null, false);
+        toast('Check-in removed');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function _updateIndPlayerRow(userId, checkedInAt, isCheckedIn) {
+    const statusEl = document.getElementById(`ind-player-status-${userId}`);
+    const tsEl     = document.getElementById(`ind-player-ts-${userId}`);
+    const row      = document.getElementById(`ind-player-row-${userId}`);
+
+    if (statusEl) {
+        statusEl.innerHTML = isCheckedIn
+            ? '<span class="badge badge-green">✓ Present</span>'
+            : '<span class="badge badge-grey">Not checked in</span>';
+    }
+    if (tsEl) tsEl.textContent = checkedInAt ? _formatTs(checkedInAt) : '—';
+
+    const actionTd = row ? row.querySelector('td:last-child') : null;
+    if (actionTd) {
+        actionTd.innerHTML = isCheckedIn
+            ? `<button class="btn-uncheckin" onclick="indPlayerUncheckin(${userId})">Undo</button>`
+            : `<button class="btn-checkin" onclick="indPlayerCheckin(${userId})">Check In</button>`;
     }
 }
 

@@ -153,19 +153,19 @@ class TestEnrollmentClosedWithTournamentType:
 
 
 class TestInProgressWithTournamentType:
-    """Lines 132-140: ENROLLMENT_CLOSED→IN_PROGRESS when type_id is set."""
+    """CHECK_IN_OPEN→IN_PROGRESS when type_id is set (formerly ENROLLMENT_CLOSED→IN_PROGRESS)."""
 
     def test_loads_type_min_players_enough(self):
         """Type min_players=3; 4 enrolled → valid."""
         db = _type_db(min_players=3)
         enrollments = [_active_enrollment() for _ in range(4)]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=10, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=10, enrollments=enrollments
         )
         t.__dict__["_sa_instance_state"] = _sa_state(db)
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is True
@@ -175,12 +175,12 @@ class TestInProgressWithTournamentType:
         db = _type_db(min_players=5)
         enrollments = [_active_enrollment(), _active_enrollment()]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=10, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=10, enrollments=enrollments
         )
         t.__dict__["_sa_instance_state"] = _sa_state(db)
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is False
@@ -191,12 +191,12 @@ class TestInProgressWithTournamentType:
         db = _type_db(min_players=2, found=False)
         enrollments = [_active_enrollment(), _active_enrollment()]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=5, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=5, enrollments=enrollments
         )
         t.__dict__["_sa_instance_state"] = _sa_state(db)
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is True
@@ -205,14 +205,14 @@ class TestInProgressWithTournamentType:
         """session=None in _sa_instance_state → fallback min=2."""
         enrollments = [_active_enrollment(), _active_enrollment()]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=5, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=5, enrollments=enrollments
         )
         state = MagicMock()
         state.session = None
         t.__dict__["_sa_instance_state"] = state
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is True
@@ -220,11 +220,11 @@ class TestInProgressWithTournamentType:
     def test_no_instructor_blocks_in_progress(self):
         """No master_instructor_id → fails before type lookup."""
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=10, master_id=None, enrollments=[]
+            status="CHECK_IN_OPEN", type_id=10, master_id=None, enrollments=[]
         )
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is False

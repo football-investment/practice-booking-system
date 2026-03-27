@@ -1555,8 +1555,10 @@ async def admin_tournament_attendance(
             "request": request,
             "user": user,
             "t": t,
+            "participant_type": summary_data["participant_type"],
             "instructors": summary_data["instructors"],
             "teams": summary_data["teams"],
+            "individual_players": summary_data["individual_players"],
             "summary": summary_data["summary"],
         },
     )

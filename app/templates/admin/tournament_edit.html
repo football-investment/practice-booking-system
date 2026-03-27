@@ -204,6 +204,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         {% if ts == 'DRAFT' %}<span class="status-badge-inline status-draft">DRAFT</span>
         {% elif ts == 'ENROLLMENT_OPEN' %}<span class="status-badge-inline status-open">ENROLLMENT OPEN</span>
         {% elif ts == 'ENROLLMENT_CLOSED' %}<span class="status-badge-inline status-closed">ENROLLMENT CLOSED</span>
+        {% elif ts == 'CHECK_IN_OPEN' %}<span class="status-badge-inline" style="background:#fed7aa;color:#7c3b00;border-radius:4px;padding:.15rem .5rem;font-size:.78rem;font-weight:700;">CHECK-IN OPEN</span>
         {% elif ts == 'IN_PROGRESS' %}<span class="status-badge-inline status-progress">IN PROGRESS</span>
         {% elif ts == 'COMPLETED' %}<span class="status-badge-inline status-completed">COMPLETED</span>
         {% elif ts == 'CANCELLED' %}<span class="status-badge-inline status-cancelled">CANCELLED</span>
@@ -407,6 +408,15 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
                    value="{{ schedule.parallel_fields or 1 }}"
                    min="1" max="20">
             <span class="field-hint">Number of simultaneous pitches/boards</span>
+        </div>
+    </div>
+
+    <div class="form-row" style="margin-top:1rem;">
+        <div class="form-group">
+            <label>Check-In Opens At (UTC)</label>
+            <input type="datetime-local" id="sched-checkin-opens-at"
+                   value="{{ schedule.checkin_opens_at[:16] if schedule.checkin_opens_at else '' }}">
+            <span class="field-hint">Scheduler auto-transitions ENROLLMENT_CLOSED → CHECK_IN_OPEN at this time. Leave blank for manual only.</span>
         </div>
     </div>
 
@@ -975,6 +985,10 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             🔒 Close Enrollment
         </button>
         {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
+        <button class="btn btn-warning" onclick="transitionStatus('CHECK_IN_OPEN')">
+            ⏰ Open Check-In
+        </button>
+        {% elif t.tournament_status == 'CHECK_IN_OPEN' %}
         <button class="btn btn-start" onclick="transitionStatus('IN_PROGRESS')">
             🚀 Start Tournament
         </button>
@@ -1139,11 +1153,14 @@ async function saveScheduleConfig() {
     const matchVal = document.getElementById('sched-match-duration').value;
     const breakVal = document.getElementById('sched-break-duration').value;
     const parallelVal = document.getElementById('sched-parallel-fields').value;
+    const checkinVal = document.getElementById('sched-checkin-opens-at').value;
 
     const body = {};
     if (matchVal)   body.match_duration_minutes  = parseInt(matchVal);
     if (breakVal)   body.break_duration_minutes  = parseInt(breakVal);
     if (parallelVal) body.parallel_fields = parseInt(parallelVal);
+    // Send checkin_opens_at as ISO string (or null to clear)
+    body.checkin_opens_at = checkinVal ? checkinVal + ':00' : null;
 
     const statusEl = document.getElementById('sched-save-status');
     statusEl.textContent = 'Saving…';

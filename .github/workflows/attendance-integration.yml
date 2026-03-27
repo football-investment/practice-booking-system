@@ -1,4 +1,4 @@
-name: Attendance Feature Integration (ATT-01..06)
+name: Attendance Feature Integration (ATT-01..06 + IND-ATT-01..04)
 
 on:
   pull_request:
@@ -6,13 +6,20 @@ on:
     paths:
       - 'app/models/team.py'
       - 'app/models/session.py'
+      - 'app/models/semester.py'
       - 'app/services/tournament/attendance_service.py'
+      - 'app/services/tournament/status_validator.py'
       - 'app/api/web_routes/tournaments.py'
+      - 'app/background/scheduler.py'
+      - 'app/api/api_v1/endpoints/tournaments/schedule_config.py'
       - 'app/templates/admin/tournament_attendance.html'
       - 'app/templates/admin/tournament_edit.html'
       - 'app/services/tournament/session_generation/session_generator.py'
       - 'alembic/versions/2026_03_26_1500_team_player_attendance.py'
+      - 'alembic/versions/2026_03_27_1000_checkin_opens_at.py'
       - 'tests/integration/web_flows/test_attendance.py'
+      - 'tests/unit/tournament/test_state_machine.py'
+      - 'tests/unit/tournament/test_status_validator_service.py'
       - '.github/workflows/attendance-integration.yml'
   workflow_dispatch:
 
@@ -25,11 +32,11 @@ env:
   SECRET_KEY: ci-attendance-secret-key-not-for-production
 
 jobs:
-  # ── ATT-01..06 Integration tests ──────────────────────────────────────────
+  # ── ATT-01..06 + IND-ATT-01..04 Integration tests ─────────────────────────
   attendance-integration:
-    name: "ATT-01..06 Integration (team/player check-in + session postpone)"
+    name: "ATT-01..06 + IND-ATT-01..04 (team/player/individual check-in + CHECK_IN_OPEN state)"
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -75,20 +82,22 @@ jobs:
       - name: Migrate DB
         run: alembic upgrade head
 
-      - name: Verify migration includes attendance tables
+      - name: Verify migration — attendance + CHECK_IN_OPEN schema
         run: |
           python - <<'PYEOF'
           import os, psycopg2
           conn = psycopg2.connect(os.environ["DATABASE_URL"])
           cur = conn.cursor()
+
+          # 2026_03_26_1500: attendance columns
           cur.execute("""
             SELECT column_name FROM information_schema.columns
             WHERE table_name='tournament_team_enrollments'
             AND column_name IN ('checked_in_at','checked_in_by_id')
           """)
           cols = [r[0] for r in cur.fetchall()]
-          assert 'checked_in_at' in cols, "checked_in_at column missing"
-          assert 'checked_in_by_id' in cols, "checked_in_by_id column missing"
+          assert 'checked_in_at' in cols, "checked_in_at column missing from tournament_team_enrollments"
+          assert 'checked_in_by_id' in cols, "checked_in_by_id column missing from tournament_team_enrollments"
 
           cur.execute("""
             SELECT table_name FROM information_schema.tables
@@ -102,16 +111,39 @@ jobs:
           """)
           assert cur.fetchone(), "sessions.postponed_reason column missing"
 
+          # 2026_03_27_1000: CHECK_IN_OPEN / checkin_opens_at
+          cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name='semesters' AND column_name='checkin_opens_at'
+          """)
+          assert cur.fetchone(), "semesters.checkin_opens_at column missing"
+
+          cur.execute("""
+            SELECT is_nullable FROM information_schema.columns
+            WHERE table_name='tournament_status_history' AND column_name='changed_by'
+          """)
+          row = cur.fetchone()
+          assert row, "tournament_status_history.changed_by column missing"
+          assert row[0] == 'YES', f"tournament_status_history.changed_by must be nullable, got {row[0]}"
+
           conn.close()
-          print("✅ Schema verified: all attendance columns/tables present")
+          print("✅ Schema verified: all attendance + CHECK_IN_OPEN columns/tables present")
           PYEOF
 
-      - name: Run ATT-01..06 integration tests
+      - name: Run ATT-01..06 + IND-ATT-01..04 integration tests
         run: |
           mkdir -p results
           PYTHONPATH=. pytest tests/integration/web_flows/test_attendance.py \
             -v --tb=short \
             --junitxml=results/att-integration.xml
+
+      - name: Run CHECK_IN_OPEN state machine unit tests
+        run: |
+          PYTHONPATH=. pytest \
+            tests/unit/tournament/test_state_machine.py \
+            tests/unit/tournament/test_status_validator_service.py \
+            -v --tb=short \
+            --junitxml=results/state-machine-unit.xml
 
       - name: Run regression — full web_flows suite
         run: |
@@ -130,7 +162,7 @@ jobs:
 
   # ── Summary gate ──────────────────────────────────────────────────────────
   attendance-gate:
-    name: "Attendance Feature Gate"
+    name: "Attendance + CHECK_IN_OPEN Feature Gate"
     runs-on: ubuntu-latest
     needs: [attendance-integration]
     if: always()
@@ -138,7 +170,7 @@ jobs:
     steps:
       - name: Gate check
         run: |
-          echo "## Attendance Feature Integration Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Attendance + CHECK_IN_OPEN Integration Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Test | Covers | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
@@ -148,26 +180,34 @@ jobs:
           echo "| ATT-04 | Session generator opt-in: only checked-in teams when any exist | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ATT-05 | Session generator fallback: all active teams when no checkins | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ATT-06 | PATCH /sessions/{id}/postpone saves + clears postponed_reason | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IND-ATT-01 | INDIVIDUAL tournament: attendance page shows flat player list | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IND-ATT-02 | INDIVIDUAL: POST player checkin (team_id=null) | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IND-ATT-03 | INDIVIDUAL: POST player uncheckin removes row | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IND-ATT-04 | TEAM regression: branching doesn't break TEAM attendance | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Schema | Verified | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| tournament_team_enrollments.checked_in_at | migration 2026_03_26_1500 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| tournament_player_checkins table | migration 2026_03_26_1500 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| sessions.postponed_reason | migration 2026_03_26_1500 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| semesters.checkin_opens_at | migration 2026_03_27_1000 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| tournament_status_history.changed_by NULLABLE | migration 2026_03_27_1000 | ${{ needs.attendance-integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           RESULT="${{ needs.attendance-integration.result }}"
 
           if [ "$RESULT" = "success" ]; then
-            echo "### ✅ Attendance feature tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Attendance + CHECK_IN_OPEN feature tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Validated flows:**" >> $GITHUB_STEP_SUMMARY
-            echo "- 📋 Team-level pre-tournament check-in / undo" >> $GITHUB_STEP_SUMMARY
-            echo "- 👤 Player-level pre-tournament check-in / undo" >> $GITHUB_STEP_SUMMARY
+            echo "- 📋 Team-level pre-tournament check-in / undo (TEAM)" >> $GITHUB_STEP_SUMMARY
+            echo "- 👤 Player-level pre-tournament check-in / undo (TEAM member)" >> $GITHUB_STEP_SUMMARY
+            echo "- 👤 Individual player check-in / undo (INDIVIDUAL tournament)" >> $GITHUB_STEP_SUMMARY
             echo "- ⚡ Session generator opt-in attendance filter (backward compat)" >> $GITHUB_STEP_SUMMARY
             echo "- ⏸ Match postponement with reason" >> $GITHUB_STEP_SUMMARY
-            echo "- 🗄️ DB schema: checked_in_at, tournament_player_checkins, postponed_reason" >> $GITHUB_STEP_SUMMARY
+            echo "- ⏰ CHECK_IN_OPEN state: ENROLLMENT_CLOSED → CHECK_IN_OPEN → IN_PROGRESS" >> $GITHUB_STEP_SUMMARY
+            echo "- 🗄️ DB schema: checked_in_at, tournament_player_checkins, postponed_reason, checkin_opens_at" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ Attendance feature gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Attendance + CHECK_IN_OPEN gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi

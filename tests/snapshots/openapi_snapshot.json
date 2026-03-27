@@ -9574,6 +9574,19 @@
             "description": "Break between consecutive matches in minutes. 0 = back-to-back.",
             "title": "Break Duration Minutes"
           },
+          "checkin_opens_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "UTC datetime when check-in auto-opens. The scheduler transitions ENROLLMENT_CLOSED \u2192 CHECK_IN_OPEN at this time. Null = manual-only (admin must press 'Open Check-In').",
+            "title": "Checkin Opens At"
+          },
           "match_duration_minutes": {
             "anyOf": [
               {

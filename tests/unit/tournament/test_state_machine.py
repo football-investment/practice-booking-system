@@ -5,7 +5,7 @@ Tournament State Machine Unit Tests
 Covers every edge of the VALID_TRANSITIONS graph plus all guard conditions
 in validate_status_transition().  All tests are DB-free (SimpleNamespace).
 
-Transition graph (11 states, 21 allowed edges):
+Transition graph (12 states, 22 allowed edges):
 
     NULL  ──────────────────────────────────────► DRAFT
     DRAFT ──────────────────────────────────────► SEEKING_INSTRUCTOR   ← full workflow
@@ -20,8 +20,11 @@ Transition graph (11 states, 21 allowed edges):
                          └───────────────────────► CANCELLED
     ENROLLMENT_OPEN ─────────────────────────────► ENROLLMENT_CLOSED
                     └────────────────────────────► CANCELLED
-    ENROLLMENT_CLOSED ───────────────────────────► IN_PROGRESS
+    ENROLLMENT_CLOSED ───────────────────────────► CHECK_IN_OPEN       ← check-in mandatory
                       └──────────────────────────► CANCELLED
+    CHECK_IN_OPEN ───────────────────────────────► IN_PROGRESS         ← "Start Tournament"
+                  ├──────────────────────────────► ENROLLMENT_CLOSED   ← admin revert
+                  └──────────────────────────────► CANCELLED
     IN_PROGRESS ─────────────────────────────────► COMPLETED
                 ├────────────────────────────────► CANCELLED
                 └────────────────────────────────► ENROLLMENT_CLOSED  ← rollback
@@ -404,29 +407,36 @@ class TestEnrollmentClosedGuards:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestInProgressGuards:
-    """ENROLLMENT_CLOSED → IN_PROGRESS guards: instructor + player count."""
+    """CHECK_IN_OPEN → IN_PROGRESS guards: instructor + player count."""
 
     def test_all_guards_satisfied(self):
         t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(4))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is True
 
     def test_no_instructor_blocked(self):
         t = _tournament(master_instructor_id=None, enrollments=_active_enrollments(4))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is False
         assert "instructor" in err.lower()
 
     def test_insufficient_players_blocked(self):
         t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(1))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is False
         assert "minimum" in err.lower() or "participant" in err.lower()
 
     def test_exactly_minimum_ok(self):
         t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(2))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is True
+
+    def test_enrollment_closed_to_in_progress_now_invalid(self):
+        """ENROLLMENT_CLOSED → IN_PROGRESS is no longer a valid transition (CHECK_IN_OPEN is required)."""
+        t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(4))
+        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        assert ok is False
+        assert "not allowed" in err.lower() or "invalid" in err.lower()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -657,7 +667,7 @@ class TestGraphCompleteness:
     EXPECTED_STATES = {
         "DRAFT", "SEEKING_INSTRUCTOR", "PENDING_INSTRUCTOR_ACCEPTANCE",
         "INSTRUCTOR_CONFIRMED", "ENROLLMENT_OPEN", "ENROLLMENT_CLOSED",
-        "IN_PROGRESS", "COMPLETED", "REWARDS_DISTRIBUTED",
+        "CHECK_IN_OPEN", "IN_PROGRESS", "COMPLETED", "REWARDS_DISTRIBUTED",
         "CANCELLED", "ARCHIVED",
     }
 
@@ -684,12 +694,13 @@ class TestGraphCompleteness:
         Manual count:
           DRAFT(3) + SEEKING_INSTRUCTOR(2) + PENDING_INSTRUCTOR_ACCEPTANCE(3)
           + INSTRUCTOR_CONFIRMED(2) + ENROLLMENT_OPEN(2) + ENROLLMENT_CLOSED(2)
-          + IN_PROGRESS(3) + COMPLETED(2) + REWARDS_DISTRIBUTED(1)
-          + CANCELLED(1) + ARCHIVED(0) = 21
-          (+1 vs previous: DRAFT → ENROLLMENT_OPEN fast-path added)
+          + CHECK_IN_OPEN(3) + IN_PROGRESS(3) + COMPLETED(2) + REWARDS_DISTRIBUTED(1)
+          + CANCELLED(1) + ARCHIVED(0) = 24
+          (+3 vs previous: CHECK_IN_OPEN state added with 3 outgoing edges;
+           ENROLLMENT_CLOSED → IN_PROGRESS removed, CHECK_IN_OPEN → {IN_PROGRESS, ENROLLMENT_CLOSED, CANCELLED} added)
         """
         total = sum(len(v) for v in VALID_TRANSITIONS.values())
-        assert total == 21, (
-            f"Expected 21 allowed edges in VALID_TRANSITIONS, found {total}. "
+        assert total == 24, (
+            f"Expected 24 allowed edges in VALID_TRANSITIONS, found {total}. "
             "Update this test if a new edge is intentionally added."
         )

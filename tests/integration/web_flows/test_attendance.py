@@ -1,5 +1,5 @@
 """
-Attendance Integration Tests — ATT-01 through ATT-06
+Attendance Integration Tests — ATT-01 through ATT-06, IND-ATT-01 through IND-ATT-04
 
 ATT-01  GET /attendance page returns 200 with team + instructor rows
 ATT-02  POST teams/{id}/checkin sets checked_in_at; uncheckin clears it
@@ -7,6 +7,11 @@ ATT-03  POST players/{uid}/checkin creates row; uncheckin deletes it
 ATT-04  Session generator uses only checked-in teams when any exist
 ATT-05  Session generator uses all active teams when no checkins
 ATT-06  PATCH sessions/{id}/postpone saves / clears postponed_reason
+
+IND-ATT-01  GET /attendance for INDIVIDUAL tournament shows player list (no teams)
+IND-ATT-02  POST players/{uid}/checkin for INDIVIDUAL (team_id=null)
+IND-ATT-03  POST players/{uid}/uncheckin for INDIVIDUAL removes row
+IND-ATT-04  TEAM regression — get_attendance_summary still works for TEAM tournaments
 
 All tests run against real DB in SAVEPOINT-isolated transaction (auto-rollback).
 """
@@ -26,6 +31,9 @@ from app.models.semester import Semester, SemesterStatus, SemesterCategory
 from app.models.session import Session as SessionModel, SessionType, EventCategory
 from app.models.team import Team, TeamMember, TournamentTeamEnrollment, TournamentPlayerCheckin
 from app.models.tournament_configuration import TournamentConfiguration
+from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from app.models.license import UserLicense
+from app.models.specialization import SpecializationType
 from app.core.security import get_password_hash
 import app.services.tournament.attendance_service as svc
 
@@ -385,3 +393,188 @@ def test_ATT_06_session_postpone(test_db: Session):
 
     test_db.expire(sess)
     assert sess.postponed_reason is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INDIVIDUAL tournament helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ind_tournament(db: Session) -> Semester:
+    t = Semester(
+        code=f"IND-{uuid.uuid4().hex[:8].upper()}",
+        name="IND Test Tournament",
+        semester_category=SemesterCategory.TOURNAMENT,
+        status=SemesterStatus.ONGOING,
+        enrollment_cost=0,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        start_date=date(2026, 7, 1),
+        end_date=date(2026, 7, 31),
+        age_group="ADULT",
+    )
+    db.add(t)
+    db.flush()
+    cfg = TournamentConfiguration(
+        semester_id=t.id,
+        participant_type="INDIVIDUAL",
+        max_players=32,
+        parallel_fields=1,
+    )
+    db.add(cfg)
+    db.flush()
+    return t
+
+
+def _enroll_player(db: Session, tournament: Semester, user: User) -> SemesterEnrollment:
+    lic = UserLicense(
+        user_id=user.id,
+        specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+        started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        is_active=True,
+        onboarding_completed=True,
+    )
+    db.add(lic)
+    db.flush()
+    enr = SemesterEnrollment(
+        user_id=user.id,
+        semester_id=tournament.id,
+        user_license_id=lic.id,
+        request_status=EnrollmentStatus.APPROVED,
+        is_active=True,
+    )
+    db.add(enr)
+    db.flush()
+    return enr
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IND-ATT-01: attendance page renders flat player list for INDIVIDUAL tournament
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_IND_ATT_01_individual_attendance_page(test_db: Session):
+    """GET /attendance for INDIVIDUAL tournament returns 200 and shows enrolled players."""
+    admin   = _admin(test_db)
+    player1 = _player(test_db)
+    player2 = _player(test_db)
+    tourn   = _ind_tournament(test_db)
+    _enroll_player(test_db, tourn, player1)
+    _enroll_player(test_db, tourn, player2)
+    test_db.flush()
+
+    # HTTP page renders
+    client = _client(test_db, admin)
+    resp = client.get(f"/admin/tournaments/{tourn.id}/attendance")
+    assert resp.status_code == 200
+    assert "IND Test Tournament" in resp.text
+
+    # Service returns individual_players, no teams
+    summary = svc.get_attendance_summary(test_db, tourn.id)
+    assert summary["participant_type"] == "INDIVIDUAL"
+    assert summary["teams"] == []
+    ind_ids = [p["user_id"] for p in summary["individual_players"]]
+    assert player1.id in ind_ids
+    assert player2.id in ind_ids
+    assert summary["summary"]["players_total"] == 2
+    assert summary["summary"]["players_checked_in"] == 0
+    assert summary["summary"]["teams_total"] == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IND-ATT-02: check-in individual player (team_id = null)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_IND_ATT_02_individual_player_checkin(test_db: Session):
+    """POST players/{uid}/checkin for INDIVIDUAL tournament creates TournamentPlayerCheckin with team_id=None."""
+    admin  = _admin(test_db)
+    player = _player(test_db)
+    tourn  = _ind_tournament(test_db)
+    _enroll_player(test_db, tourn, player)
+    test_db.flush()
+
+    client = _client(test_db, admin)
+
+    # Check in without team_id
+    resp = client.post(
+        f"/admin/tournaments/{tourn.id}/players/{player.id}/checkin",
+        json={},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["checked_in_at"] is not None
+
+    # DB row created with team_id = None
+    row = test_db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tourn.id,
+        TournamentPlayerCheckin.user_id == player.id,
+    ).first()
+    assert row is not None
+    assert row.team_id is None
+
+    # Summary reflects check-in
+    summary = svc.get_attendance_summary(test_db, tourn.id)
+    player_entry = next(p for p in summary["individual_players"] if p["user_id"] == player.id)
+    assert player_entry["checked_in_at"] is not None
+    assert summary["summary"]["players_checked_in"] == 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IND-ATT-03: uncheckin individual player removes the row
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_IND_ATT_03_individual_player_uncheckin(test_db: Session):
+    """POST players/{uid}/uncheckin for INDIVIDUAL tournament removes TournamentPlayerCheckin row."""
+    admin  = _admin(test_db)
+    player = _player(test_db)
+    tourn  = _ind_tournament(test_db)
+    _enroll_player(test_db, tourn, player)
+    test_db.flush()
+
+    client = _client(test_db, admin)
+
+    # Check in first
+    client.post(f"/admin/tournaments/{tourn.id}/players/{player.id}/checkin", json={})
+
+    row = test_db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tourn.id,
+        TournamentPlayerCheckin.user_id == player.id,
+    ).first()
+    assert row is not None
+
+    # Uncheckin
+    resp = client.post(f"/admin/tournaments/{tourn.id}/players/{player.id}/uncheckin")
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+
+    test_db.expire_all()
+    gone = test_db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tourn.id,
+        TournamentPlayerCheckin.user_id == player.id,
+    ).first()
+    assert gone is None
+
+    # Summary reflects removal
+    summary = svc.get_attendance_summary(test_db, tourn.id)
+    assert summary["summary"]["players_checked_in"] == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IND-ATT-04: TEAM regression — branching doesn't break existing TEAM behavior
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_IND_ATT_04_team_regression(test_db: Session):
+    """TEAM tournament: get_attendance_summary still returns teams list and empty individual_players."""
+    admin = _admin(test_db)
+    cap1  = _player(test_db)
+    cap2  = _player(test_db)
+    tourn = _tournament(test_db)  # TEAM type
+    team1 = _team(test_db, tourn, cap1)
+    team2 = _team(test_db, tourn, cap2)
+    test_db.flush()
+
+    summary = svc.get_attendance_summary(test_db, tourn.id)
+    assert summary["participant_type"] == "TEAM"
+    assert summary["individual_players"] == []
+    team_ids = [t["team_id"] for t in summary["teams"]]
+    assert team1.id in team_ids
+    assert team2.id in team_ids
+    assert summary["summary"]["teams_total"] == 2

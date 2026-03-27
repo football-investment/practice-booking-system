@@ -14,6 +14,7 @@ Precedence (already implemented in session generation):
 All values are persisted to the database.
 """
 from typing import Optional, Dict, Any
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -59,6 +60,14 @@ class MatchDurationConfig(BaseModel):
         description=(
             "Number of pitches/courts/boards available simultaneously across the tournament. "
             "Per-campus overrides in CampusScheduleConfig take priority."
+        ),
+    )
+    checkin_opens_at: Optional[datetime] = Field(
+        default=None,
+        description=(
+            "UTC datetime when check-in auto-opens. "
+            "The scheduler transitions ENROLLMENT_CLOSED → CHECK_IN_OPEN at this time. "
+            "Null = manual-only (admin must press 'Open Check-In')."
         ),
     )
 
@@ -129,6 +138,8 @@ def get_schedule_config(
         # Type defaults for reference
         "type_match_default": type_match_default,
         "type_break_default": type_break_default,
+        # Check-in scheduling
+        "checkin_opens_at": tournament.checkin_opens_at.isoformat() if tournament.checkin_opens_at else None,
     }
 
 
@@ -182,8 +193,12 @@ def update_schedule_config(
             )
         cfg.parallel_fields = request.parallel_fields
 
+    if request.checkin_opens_at is not None:
+        tournament.checkin_opens_at = request.checkin_opens_at
+
     db.commit()
     db.refresh(cfg)
+    db.refresh(tournament)
 
     return {
         "success": True,
@@ -192,6 +207,7 @@ def update_schedule_config(
         "match_duration_minutes": cfg.match_duration_minutes,
         "break_duration_minutes": cfg.break_duration_minutes,
         "parallel_fields": cfg.parallel_fields,
+        "checkin_opens_at": tournament.checkin_opens_at.isoformat() if tournament.checkin_opens_at else None,
         "message": (
             f"Schedule config updated: match_duration={cfg.match_duration_minutes}min, "
             f"break={cfg.break_duration_minutes}min, parallel_fields={cfg.parallel_fields}"
