@@ -316,3 +316,81 @@ class TestSessionGenTeamMatrix:
             f"Error should mention 'teams', not 'players'. Got: {msg!r}"
         assert "players" not in msg.lower(), \
             f"Error must NOT say 'players' for a TEAM tournament. Got: {msg!r}"
+
+    # ── SGM-07: INDIVIDUAL + KNOCKOUT ────────────────────────────────────────
+    def test_SGM_07_individual_knockout_generates_sessions(self, test_db: Session):
+        """INDIVIDUAL KNOCKOUT with 4 enrolled players → R1 sessions have participant_user_ids."""
+        tt = _tournament_type(test_db, "knockout", min_players=4)
+        t = _tournament(test_db, tt, participant_type="INDIVIDUAL")
+        for _ in range(4):
+            _enroll_player(test_db, t)
+
+        success, msg, sessions = self._run_gen(test_db, t)
+
+        assert success, f"Expected success, got: {msg}"
+        assert len(sessions) >= 1
+        round1_sessions = [s for s in sessions if s.get("tournament_round") == 1]
+        for s in round1_sessions:
+            user_ids = s.get("participant_user_ids")
+            team_ids = s.get("participant_team_ids")
+            assert user_ids, f"R1 session missing participant_user_ids: {s}"
+            assert not team_ids, f"participant_team_ids must be None for INDIVIDUAL, got: {team_ids}"
+
+    # ── SGM-08: INDIVIDUAL + SWISS ───────────────────────────────────────────
+    def test_SGM_08_individual_swiss_generates_sessions(self, test_db: Session):
+        """INDIVIDUAL SWISS with 4 enrolled players → sessions have participant_user_ids."""
+        tt = _tournament_type(test_db, "swiss", min_players=4)
+        t = _tournament(test_db, tt, participant_type="INDIVIDUAL")
+        for _ in range(4):
+            _enroll_player(test_db, t)
+
+        success, msg, sessions = self._run_gen(test_db, t)
+
+        assert success, f"Expected success, got: {msg}"
+        assert len(sessions) >= 1
+        h2h_sessions = [s for s in sessions if s.get("participant_user_ids")]
+        assert h2h_sessions, "Expected sessions with participant_user_ids"
+        for s in h2h_sessions:
+            assert not s.get("participant_team_ids"), \
+                f"participant_team_ids must be None for INDIVIDUAL, got: {s.get('participant_team_ids')}"
+
+    # ── SGM-09: INDIVIDUAL + GROUP_KNOCKOUT ──────────────────────────────────
+    def test_SGM_09_individual_group_knockout_generates_sessions(self, test_db: Session):
+        """INDIVIDUAL GROUP_KNOCKOUT with 8 enrolled players → group stage has participant_user_ids."""
+        tt = _tournament_type(test_db, "group_knockout", min_players=8)
+        t = _tournament(test_db, tt, participant_type="INDIVIDUAL")
+        for _ in range(8):
+            _enroll_player(test_db, t)
+
+        success, msg, sessions = self._run_gen(test_db, t)
+
+        assert success, f"Expected success, got: {msg}"
+        assert len(sessions) >= 1
+        # Group stage sessions have group_identifier set (e.g. "A", "B")
+        group_sessions = [s for s in sessions if s.get("group_identifier") is not None]
+        assert group_sessions, "Expected group stage sessions with group_identifier"
+        h2h_group_sessions = [s for s in group_sessions if s.get("participant_user_ids")]
+        assert h2h_group_sessions, "Expected group stage H2H sessions with participant_user_ids"
+        for s in h2h_group_sessions:
+            assert not s.get("participant_team_ids"), \
+                f"participant_team_ids must be None for INDIVIDUAL, got: {s.get('participant_team_ids')}"
+
+    # ── SGM-10: INDIVIDUAL + SWISS, odd player count (bye handling) ──────────
+    def test_SGM_10_individual_swiss_odd_count_bye_handling(self, test_db: Session):
+        """INDIVIDUAL SWISS with 5 players (odd) → 5th player gets bye, sessions still generated."""
+        tt = _tournament_type(test_db, "swiss", min_players=4)
+        t = _tournament(test_db, tt, participant_type="INDIVIDUAL")
+        for _ in range(5):  # odd: 5th player gets BYE each round
+            _enroll_player(test_db, t)
+
+        success, msg, sessions = self._run_gen(test_db, t)
+
+        assert success, f"Expected success with odd player count, got: {msg}"
+        # 5 players: ceil(log2(5))=3 rounds, 2 matches/round (player[4] BYE) → 6 sessions
+        assert len(sessions) >= 1, f"Expected sessions even with odd player count, got {len(sessions)}"
+        for s in sessions:
+            user_ids = s.get("participant_user_ids")
+            assert user_ids and len(user_ids) == 2, \
+                f"Each session must have exactly 2 participant_user_ids, got: {user_ids}"
+            assert not s.get("participant_team_ids"), \
+                f"participant_team_ids must be None for INDIVIDUAL, got: {s.get('participant_team_ids')}"
