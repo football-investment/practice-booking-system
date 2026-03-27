@@ -6,7 +6,21 @@
 <div class="page-header">
     <div>
         <h1>👥 Team Management</h1>
-        <p class="subtitle">{{ tournament.name }}</p>
+        <p class="subtitle">
+            {{ tournament.name }}
+            {% set ts = tournament.tournament_status %}
+            {% if ts == 'ENROLLMENT_OPEN' %}
+            <span class="badge" style="background:#c6f6d5;color:#276749;margin-left:.5rem;">Enrollment Open</span>
+            {% elif ts == 'ENROLLMENT_CLOSED' %}
+            <span class="badge" style="background:#fed7d7;color:#c53030;margin-left:.5rem;">Enrollment Closed</span>
+            {% elif ts == 'IN_PROGRESS' %}
+            <span class="badge" style="background:#bee3f8;color:#2b6cb0;margin-left:.5rem;">In Progress</span>
+            {% elif ts == 'COMPLETED' %}
+            <span class="badge" style="background:#e9d8fd;color:#553c9a;margin-left:.5rem;">Completed</span>
+            {% elif ts %}
+            <span class="badge" style="background:#e2e8f0;color:#4a5568;margin-left:.5rem;">{{ ts }}</span>
+            {% endif %}
+        </p>
     </div>
     <a href="/admin/tournaments/{{ tournament.id }}/edit" class="btn btn-secondary">← Back to Tournament</a>
 </div>
@@ -38,7 +52,7 @@
             <tbody>
             {% for item in enrolled_teams %}
                 <tr>
-                    <td><strong>{{ item.team.name }}</strong> <code>{{ item.team.code }}</code></td>
+                    <td><strong>{{ item.team.name }}</strong>{% if item.team.code %} <code>{{ item.team.code }}</code>{% endif %}</td>
                     <td>{{ item.member_count }} players</td>
                     <td>
                         {% if item.enrollment.payment_verified %}

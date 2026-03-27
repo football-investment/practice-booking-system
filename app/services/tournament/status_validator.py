@@ -6,6 +6,28 @@ from typing import Optional, Tuple
 from app.models.semester import Semester
 
 
+def _count_active_participants(tournament) -> int:
+    """Count active enrollments for the tournament, respecting participant type.
+
+    TEAM tournaments store enrollments in TournamentTeamEnrollment (tournament_team_enrollments).
+    INDIVIDUAL tournaments use SemesterEnrollment (semester_enrollments relationship).
+    """
+    participant_type = getattr(tournament, 'participant_type', None)
+    if participant_type == 'TEAM':
+        from app.models.team import TournamentTeamEnrollment
+        from sqlalchemy.orm import Session as _Session
+        db: _Session = tournament.__dict__.get('_sa_instance_state').session
+        if db:
+            return db.query(TournamentTeamEnrollment).filter(
+                TournamentTeamEnrollment.semester_id == tournament.id,
+                TournamentTeamEnrollment.is_active == True,
+            ).count()
+        return 0
+    else:
+        enrollments = getattr(tournament, 'enrollments', [])
+        return len([e for e in enrollments if e.is_active])
+
+
 # Valid status transition graph
 # NOTE: READY_FOR_ENROLLMENT removed - it was redundant (no player visibility, no functionality)
 # Two supported workflows:
@@ -99,9 +121,7 @@ def validate_status_transition(
         # path (ENROLLMENT_OPEN → ENROLLMENT_CLOSED) and must NOT block a rewind.
         if current_status != "IN_PROGRESS":
             # Forward path: must have at least minimum participants
-            enrollments = getattr(tournament, 'enrollments', [])
-            active_enrollments = [e for e in enrollments if e.is_active]
-            player_count = len(active_enrollments)
+            player_count = _count_active_participants(tournament)
 
             # Get minimum from tournament type (fallback to 2 if no type configured)
             min_players_required = 2
@@ -127,9 +147,7 @@ def validate_status_transition(
             return False, "Cannot start tournament: No instructor assigned"
 
         # Validate against tournament type's minimum player requirement
-        enrollments = getattr(tournament, 'enrollments', [])
-        active_enrollments = [e for e in enrollments if e.is_active]
-        player_count = len(active_enrollments)
+        player_count = _count_active_participants(tournament)
 
         # Get minimum from tournament type (fallback to 2 if no type configured)
         min_players_required = 2
