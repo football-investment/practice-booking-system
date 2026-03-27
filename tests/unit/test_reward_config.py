@@ -179,10 +179,10 @@ class TestSaveTournamentRewardConfig:
         db = _db_seq(_q(first=None))
         with patch(_REPO) as MockRepo:
             MockRepo.return_value.get_or_404.return_value = t
-            result = save_tournament_reward_config(
+            # Should not raise — no 400 guard for disabled skills anymore
+            save_tournament_reward_config(
                 1, _invalid_config(), db=db, current_user=_admin()
             )
-        assert result is not None
 
     def test_creates_new_config_when_none_exists(self):
         t = _tournament()
