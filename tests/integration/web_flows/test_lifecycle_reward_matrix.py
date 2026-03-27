@@ -19,6 +19,15 @@ SRL-04  Status guard — rewards require COMPLETED:
 
 SRL-05  Status machine guard — CHECK_IN_OPEN mandatory:
         ENROLLMENT_CLOSED → IN_PROGRESS direct transition → 400 Bad Request
+
+SRL-06  force_redistribution=True overwrites existing TournamentParticipation:
+        Distribute once → update ranking → distribute again with force=True
+        → placement updated in the existing TournamentParticipation row
+
+SRL-07  TEAM + HEAD_TO_HEAD explicit block:
+        TEAM tournament + H2H result submission → 400 with clear message
+        (participant_type guard; TEAM must use /team-results instead)
+        ENROLLMENT_CLOSED → IN_PROGRESS direct transition → 400 Bad Request
         (CHECK_IN_OPEN phase is mandatory since 2026-03-27)
 
 All tests use SAVEPOINT-isolated real DB (test_db) + TestClient (client) fixtures
@@ -477,4 +486,115 @@ class TestLifecycleRewardMatrix:
         t_obj = test_db.query(Semester).filter(Semester.id == t.id).first()
         assert t_obj.tournament_status == "ENROLLMENT_CLOSED", (
             "Tournament status must remain ENROLLMENT_CLOSED after rejected transition"
+        )
+
+    def test_SRL_06_force_redistribution_overwrites_existing(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        SRL-06: force_redistribution=True updates (overwrites) existing
+        TournamentParticipation rows — placement changes when rankings change.
+        Row count stays 1 (no duplicate created).
+        """
+        tt = _tt(test_db, f"srl-force-{_uid()}", min_players=2)
+        t = _tournament(test_db, admin_user, tt, tournament_status="COMPLETED")
+
+        p1 = _user(test_db)
+        ranking = TournamentRanking(
+            tournament_id=t.id,
+            user_id=p1.id,
+            participant_type="INDIVIDUAL",
+            rank=2,
+            points=50,
+        )
+        test_db.add(ranking)
+        test_db.flush()
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+
+        # First distribution: rank=2 → placement=2
+        resp = client.post(
+            f"/api/v1/tournaments/{t.id}/distribute-rewards-v2",
+            json={"tournament_id": t.id, "force_redistribution": False},
+            headers=hdrs,
+        )
+        assert resp.status_code == 200
+
+        test_db.expire_all()
+        part = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id,
+            TournamentParticipation.user_id == p1.id,
+        ).one()
+        assert part.placement == 2
+
+        # Update ranking to rank=1
+        test_db.expire(ranking)
+        ranking_obj = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id,
+            TournamentRanking.user_id == p1.id,
+        ).one()
+        ranking_obj.rank = 1
+        test_db.flush()
+
+        # Reset tournament to COMPLETED for second call
+        t_obj = test_db.query(Semester).filter(Semester.id == t.id).first()
+        t_obj.tournament_status = "COMPLETED"
+        test_db.flush()
+
+        # Second distribution with force=True: rank=1 → placement should update
+        resp = client.post(
+            f"/api/v1/tournaments/{t.id}/distribute-rewards-v2",
+            json={"tournament_id": t.id, "force_redistribution": True},
+            headers=hdrs,
+        )
+        assert resp.status_code == 200, f"force redistribution failed: {resp.text[:300]}"
+
+        test_db.expire_all()
+        rows = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id,
+            TournamentParticipation.user_id == p1.id,
+        ).all()
+        assert len(rows) == 1, f"Expected exactly 1 row, got {len(rows)} (duplicate created)"
+        assert rows[0].placement == 1, (
+            f"Placement must be updated to 1 after force redistribution, got {rows[0].placement}"
+        )
+
+    def test_SRL_07_team_h2h_result_submission_blocked(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        SRL-07: TEAM tournament + HEAD_TO_HEAD result submission → 400.
+        Explicit participant_type guard prevents misleading SemesterEnrollment error.
+        """
+        # Use existing "league" (HEAD_TO_HEAD) type
+        tt = _tt(test_db, "league", min_players=2)
+        t = _tournament(test_db, admin_user, tt, participant_type="TEAM")
+
+        team1 = _make_team(test_db)
+        team2 = _make_team(test_db)
+        _enroll_team(test_db, t, team1)
+        _enroll_team(test_db, t, team2)
+
+        sess = _session(test_db, t)
+
+        # Attempt H2H result submission with team member user_ids
+        captain1_id = team1.captain_user_id
+        captain2_id = team2.captain_user_id
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/sessions/{sess.id}/head-to-head-results",
+            json={"results": [
+                {"user_id": captain1_id, "score": 3},
+                {"user_id": captain2_id, "score": 1},
+            ]},
+            headers=hdrs,
+        )
+        assert resp.status_code == 400, (
+            f"Expected 400 for TEAM + H2H, got {resp.status_code}: {resp.text[:300]}"
+        )
+        body = resp.json()
+        detail = (body.get("error") or body).get("message") or body.get("detail", "")
+        assert "TEAM" in detail and "team-results" in detail, (
+            f"Error must mention TEAM and /team-results redirect: {detail}"
         )

@@ -262,6 +262,17 @@ def submit_head_to_head_match_result(
             detail=f"This endpoint is for HEAD_TO_HEAD tournaments only. Tournament format: {semester.format}"
         )
 
+    # Validate INDIVIDUAL participant type — TEAM tournaments must use /team-results
+    cfg = semester.tournament_config_obj
+    if cfg and cfg.participant_type == "TEAM":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "HEAD_TO_HEAD result submission is only supported for INDIVIDUAL tournaments. "
+                "TEAM tournaments must use PATCH /sessions/{id}/team-results instead."
+            ),
+        )
+
     # Authorization: Only master instructor of the tournament or admin
     if current_user.role != UserRole.ADMIN and semester.master_instructor_id != current_user.id:
         raise HTTPException(
