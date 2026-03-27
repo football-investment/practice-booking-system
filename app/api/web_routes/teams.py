@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.semester import Semester
-from ...models.team import TeamMember, TeamInvite, TeamInviteStatus
+from ...models.team import TeamMember, TeamInvite, TeamInviteStatus, TournamentTeamEnrollment
 from ...models.tournament_configuration import TournamentConfiguration
 from ...models.user import User, UserRole
 from ...services.tournament import team_service
@@ -237,6 +237,33 @@ async def team_dashboard(
     members = team_service.get_team_members(db, team_id)
     pending_invites = team_service.get_team_pending_invites(db, team_id)
 
+    # Enrolled tournaments for this team
+    enrollments = (
+        db.query(TournamentTeamEnrollment, Semester)
+        .join(Semester, Semester.id == TournamentTeamEnrollment.semester_id)
+        .filter(
+            TournamentTeamEnrollment.team_id == team_id,
+            TournamentTeamEnrollment.is_active == True,
+        )
+        .all()
+    )
+
+    # Available ENROLLMENT_OPEN TEAM tournaments not already enrolled
+    enrolled_tournament_ids = {e.semester_id for e, _ in enrollments}
+    available_query = (
+        db.query(Semester, TournamentConfiguration)
+        .join(TournamentConfiguration, TournamentConfiguration.semester_id == Semester.id)
+        .filter(
+            Semester.tournament_status == "ENROLLMENT_OPEN",
+            TournamentConfiguration.participant_type == "TEAM",
+        )
+        .all()
+    )
+    available_tournaments = [
+        (t, cfg) for t, cfg in available_query
+        if t.id not in enrolled_tournament_ids
+    ]
+
     return templates.TemplateResponse(
         "student/team_dashboard.html",
         {
@@ -245,6 +272,8 @@ async def team_dashboard(
             "team": team,
             "members": members,
             "pending_invites": pending_invites,
+            "enrollments": enrollments,
+            "available_tournaments": available_tournaments,
             "msg": msg,
             "error": error,
         },
@@ -254,6 +283,33 @@ async def team_dashboard(
 # ---------------------------------------------------------------------------
 # Invite
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Captain re-enrollment — enroll existing team in a tournament
+# ---------------------------------------------------------------------------
+
+@router.post("/tournaments/{tournament_id}/teams/{team_id}/enroll")
+async def team_enroll(
+    tournament_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Captain enrolls their existing team into an ENROLLMENT_OPEN TEAM tournament."""
+    try:
+        team_service.enroll_existing_team_in_tournament(
+            db=db,
+            team_id=team_id,
+            captain_user_id=user.id,
+            tournament_id=tournament_id,
+        )
+    except HTTPException as exc:
+        return RedirectResponse(
+            f"/teams/{team_id}?error={exc.detail}",
+            status_code=303,
+        )
+    return RedirectResponse(f"/teams/{team_id}?msg=Team+enrolled+in+tournament", status_code=303)
+
 
 @router.post("/teams/{team_id}/invite")
 async def team_invite(

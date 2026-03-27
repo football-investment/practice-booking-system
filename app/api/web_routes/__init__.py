@@ -22,6 +22,7 @@ from . import (
     teams,
     tournament_live,
     public_player,
+    sport_director,
 )
 
 # Create main router with tags
@@ -45,3 +46,4 @@ router.include_router(communications.router)
 router.include_router(teams.router)
 router.include_router(tournament_live.router)  # ✅ Live monitoring (WebSocket + admin page)
 router.include_router(public_player.router)   # 🌐 Public player card (no auth)
+router.include_router(sport_director.router)  # 🏅 Sport Director team enrollment

@@ -1,0 +1,155 @@
+name: Team Enrollment Integration (RE-01..06 + SD-01..07)
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/services/tournament/team_service.py'
+      - 'app/api/web_routes/teams.py'
+      - 'app/api/web_routes/sport_director.py'
+      - 'app/dependencies.py'
+      - 'app/templates/student/team_dashboard.html'
+      - 'app/templates/sport_director/**'
+      - 'tests/integration/web_flows/test_captain_reenroll.py'
+      - 'tests/integration/web_flows/test_sport_director_enrollment.py'
+      - '.github/workflows/team-enrollment-integration.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: team-enrollment-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-enrollment-secret-key-not-for-production
+
+jobs:
+  # ── RE-01..06 + SD-01..07 Integration tests ────────────────────────────────
+  enrollment-integration:
+    name: "RE-01..06 (Captain) + SD-01..07 (Sport Director)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-enrollment-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Migrate DB
+        run: alembic upgrade head
+
+      - name: Run RE-01..06 — Captain Re-enrollment
+        run: |
+          mkdir -p results
+          PYTHONPATH=. pytest tests/integration/web_flows/test_captain_reenroll.py \
+            -v --tb=short \
+            --junitxml=results/re-integration.xml
+
+      - name: Run SD-01..07 — Sport Director Enrollment
+        run: |
+          PYTHONPATH=. pytest tests/integration/web_flows/test_sport_director_enrollment.py \
+            -v --tb=short \
+            --junitxml=results/sd-integration.xml
+
+      - name: Run regression — full web_flows suite
+        run: |
+          PYTHONPATH=. pytest tests/integration/web_flows/ \
+            -q --tb=line \
+            --ignore=tests/integration/web_flows/test_captain_reenroll.py \
+            --ignore=tests/integration/web_flows/test_sport_director_enrollment.py \
+            --junitxml=results/regression.xml
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-enrollment-integration-${{ github.run_id }}
+          path: results/*.xml
+          retention-days: 14
+
+  # ── Summary gate ──────────────────────────────────────────────────────────
+  enrollment-gate:
+    name: "Team Enrollment Gate"
+    runs-on: ubuntu-latest
+    needs: [enrollment-integration]
+    if: always()
+
+    steps:
+      - name: Gate check
+        run: |
+          echo "## Team Enrollment Integration Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### P1 — Captain Re-enrollment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| RE-01 | Captain enrolls existing team → enrollment created, credits deducted | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| RE-02 | Non-captain cannot enroll → 403 | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| RE-03 | Duplicate enrollment rejected → 400 | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| RE-04 | Tournament not ENROLLMENT_OPEN → 400 | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| RE-05 | Non-TEAM tournament rejected → 400 | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| RE-06 | Insufficient credits → 402 | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### P2 — Sport Director Enrollment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SD-01 | GET /sport-director/tournaments — location-scoped list | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SD-02 | Other-location tournament excluded from list | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SD-03 | GET /teams page shows enrolled + eligible teams | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SD-04 | POST enroll → TournamentTeamEnrollment(payment_verified=True) | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SD-05 | POST enroll wrong location → 403 | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SD-06 | POST remove → enrollment.is_active=False | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SD-07 | POST remove IN_PROGRESS → 400 (enrollment unchanged) | ${{ needs.enrollment-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          RESULT="${{ needs.enrollment-integration.result }}"
+
+          if [ "$RESULT" = "success" ]; then
+            echo "### ✅ Team enrollment tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated flows:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏆 Captain re-enrollment (existing team → new tournament, credit guard)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏅 Sport Director enrollment (location-scoped, payment_verified bypass)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔒 Auth guards: non-captain blocked, wrong-location SD blocked" >> $GITHUB_STEP_SUMMARY
+            echo "- 💳 Credit deduction with idempotency key" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Team enrollment gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

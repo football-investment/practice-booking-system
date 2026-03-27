@@ -26,6 +26,10 @@ th, td { padding: .6rem .8rem; text-align: left; border-bottom: 1px solid #e2e8f
 th { font-size: .8rem; text-transform: uppercase; color: #718096; }
 .badge-captain { background: #fefcbf; color: #744210; padding: .15rem .5rem; border-radius: 10px; font-size: .78rem; }
 .badge-player { background: #ebf4ff; color: #2b6cb0; padding: .15rem .5rem; border-radius: 10px; font-size: .78rem; }
+.badge-status { padding: .15rem .5rem; border-radius: 10px; font-size: .78rem; font-weight: 600; }
+.badge-open { background: #c6f6d5; color: #276749; }
+.badge-closed { background: #fed7d7; color: #c53030; }
+.badge-progress { background: #bee3f8; color: #2b6cb0; }
 .invite-form { display: flex; gap: .5rem; flex-wrap: wrap; }
 .invite-form input[type=text] {
     flex: 1;
@@ -147,6 +151,64 @@ th { font-size: .8rem; text-transform: uppercase; color: #718096; }
         <p style="color:#718096;">No pending invites.</p>
         {% endif %}
     </div>
+
+    <!-- Enrolled Tournaments -->
+    <div class="card">
+        <h2>Enrolled Tournaments ({{ enrollments | length }})</h2>
+        {% if enrollments %}
+        <table>
+            <thead><tr><th>Tournament</th><th>Status</th><th>Enrolled</th></tr></thead>
+            <tbody>
+            {% for enrollment, tournament in enrollments %}
+            <tr>
+                <td>{{ tournament.name }}</td>
+                <td>
+                    {% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}
+                    <span class="badge-status badge-open">Enrollment Open</span>
+                    {% elif tournament.tournament_status == 'IN_PROGRESS' %}
+                    <span class="badge-status badge-progress">In Progress</span>
+                    {% elif tournament.tournament_status == 'ENROLLMENT_CLOSED' %}
+                    <span class="badge-status badge-closed">Enrollment Closed</span>
+                    {% else %}
+                    <span class="badge-status" style="background:#e2e8f0;color:#4a5568;">{{ tournament.tournament_status }}</span>
+                    {% endif %}
+                </td>
+                <td style="color:#718096;font-size:.9rem;">{{ enrollment.enrolled_at.strftime('%Y-%m-%d') if enrollment.enrolled_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#718096;">Not enrolled in any tournaments yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Join a Tournament -->
+    {% if user.id == team.captain_user_id %}
+    <div class="card">
+        <h2>Join a Tournament</h2>
+        {% if available_tournaments %}
+        <table>
+            <thead><tr><th>Tournament</th><th>Cost</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for tournament, cfg in available_tournaments %}
+            <tr>
+                <td>{{ tournament.name }}</td>
+                <td>{{ cfg.team_enrollment_cost }} credits</td>
+                <td>
+                    <form method="POST" action="/tournaments/{{ tournament.id }}/teams/{{ team.id }}/enroll">
+                        <button type="submit" class="btn btn-primary" style="font-size:.8rem;padding:.3rem .75rem;">Enroll</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#718096;">No open team tournaments available right now.</p>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- Invite Form -->
     <div class="card">

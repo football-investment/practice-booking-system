@@ -151,6 +151,24 @@ async def get_current_admin_user_web(
     return user
 
 
+async def get_current_sport_director_user_web(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
+    """Cookie-auth Sport Director dependency (for web pages / browser form submissions).
+
+    Accepts session cookie (same as get_current_user_web).
+    Raises 401 if not authenticated, 403 if authenticated but not ADMIN or SPORT_DIRECTOR.
+    """
+    user = await get_current_user_web(request, db)
+    if user.role not in {UserRole.ADMIN, UserRole.SPORT_DIRECTOR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sport Director role required",
+        )
+    return user
+
+
 async def get_current_admin_user_hybrid(
     request: Request,
     db: Session = Depends(get_db),

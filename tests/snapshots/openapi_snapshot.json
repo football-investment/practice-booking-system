@@ -56221,6 +56221,189 @@
         ]
       }
     },
+    "/sport-director/tournaments": {
+      "get": {
+        "description": "List TEAM tournaments scoped to the SD's location(s).",
+        "operationId": "sd_tournament_list_sport_director_tournaments_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sd Tournament List",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/sport-director/tournaments/{tournament_id}/teams": {
+      "get": {
+        "description": "Show enrolled teams + eligible club teams for enrollment.",
+        "operationId": "sd_tournament_teams_sport_director_tournaments__tournament_id__teams_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "msg",
+            "required": false,
+            "schema": {
+              "title": "Msg",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "title": "Error",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sd Tournament Teams",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/sport-director/tournaments/{tournament_id}/teams/{team_id}/enroll": {
+      "post": {
+        "description": "Enroll a club team in the tournament (SD/admin bypass \u2014 no credit cost).",
+        "operationId": "sd_enroll_team_sport_director_tournaments__tournament_id__teams__team_id__enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sd Enroll Team",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/sport-director/tournaments/{tournament_id}/teams/{team_id}/remove": {
+      "post": {
+        "description": "Remove a team's enrollment (only allowed when tournament is ENROLLMENT_OPEN).",
+        "operationId": "sd_remove_team_sport_director_tournaments__tournament_id__teams__team_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sd Remove Team",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/teams/invite-search": {
       "get": {
         "description": "Cookie-auth AJAX endpoint for the team invite search box.\nReturns JSON list of {id, name, email} matching the query string,\nexcluding the caller and existing/pending team members.",
@@ -56722,6 +56905,56 @@
           }
         },
         "summary": "Team Create Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/tournaments/{tournament_id}/teams/{team_id}/enroll": {
+      "post": {
+        "description": "Captain enrolls their existing team into an ENROLLMENT_OPEN TEAM tournament.",
+        "operationId": "team_enroll_tournaments__tournament_id__teams__team_id__enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Enroll",
         "tags": [
           "web"
         ]
