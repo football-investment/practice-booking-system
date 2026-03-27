@@ -101,14 +101,17 @@ const SessionGenWizard = (() => {
   }
 
   function _bodyInit() {
-    const enrolled   = _ctx.enrolledCount;
-    const minPlayers = _ctx.presetMinPlayers;
-    const blocked    = minPlayers && enrolled < minPlayers;
-    const multiCampus = enrolled >= 128;
+    const enrolled      = _ctx.enrolledCount;
+    const isTeam        = (_ctx.participantType || '').toUpperCase() === 'TEAM';
+    const unitLabel     = isTeam ? 'teams' : 'players';
+    const enrolledLabel = isTeam ? 'Enrolled teams' : 'Enrolled players';
+    const minPlayers    = _ctx.presetMinPlayers;
+    const blocked       = minPlayers && enrolled < minPlayers;
+    const multiCampus   = enrolled >= 128;
 
     let html = `<div class="sgw-info-grid">
       <div class="sgw-info-item"><span class="sgw-info-label">Tournament</span><strong>${_esc(_ctx.tournName)}</strong></div>
-      <div class="sgw-info-item"><span class="sgw-info-label">Enrolled players</span><strong>${enrolled}</strong></div>
+      <div class="sgw-info-item"><span class="sgw-info-label">${enrolledLabel}</span><strong>${enrolled}</strong></div>
       <div class="sgw-info-item"><span class="sgw-info-label">Format</span><strong>${_esc(_ctx.format || '—')}</strong></div>`;
     if (minPlayers) {
       html += `<div class="sgw-info-item"><span class="sgw-info-label">Preset minimum</span><strong>${minPlayers}</strong></div>`;
@@ -117,19 +120,19 @@ const SessionGenWizard = (() => {
 
     if (blocked) {
       html += `<div class="sgw-warn">
-        ⚠️ <strong>Not enough players.</strong>
-        Preset requires <strong>${minPlayers}</strong> players,
+        ⚠️ <strong>Not enough ${unitLabel}.</strong>
+        Preset requires <strong>${minPlayers}</strong> ${unitLabel},
         only <strong>${enrolled}</strong> enrolled.<br>
-        Enroll more players before generating sessions.
+        Enroll more ${unitLabel} before generating sessions.
       </div>`;
     } else {
-      html += `<div class="sgw-ok">✅ Player count check passed (${enrolled} enrolled).</div>`;
+      html += `<div class="sgw-ok">✅ ${isTeam ? 'Team' : 'Player'} count check passed (${enrolled} ${unitLabel} enrolled).</div>`;
     }
 
     if (multiCampus && !blocked) {
       html += `<div class="sgw-info-banner">
         ℹ️ <strong>Multi-campus mode available.</strong>
-        ${enrolled} players triggers background generation.
+        ${enrolled} ${unitLabel} triggers background generation.
         A task ID will be returned and progress will be polled automatically.
       </div>`;
     }
@@ -210,11 +213,13 @@ const SessionGenWizard = (() => {
     _params.number_of_rounds         = roundsVal;
 
     const multiCampus = _ctx.enrolledCount >= 128;
+    const isTeam2     = (_ctx.participantType || '').toUpperCase() === 'TEAM';
+    const unitLabel2  = isTeam2 ? 'Teams' : 'Players';
 
     let html = `
     <table class="sgw-summary-table">
       <tr><td>Tournament</td><td><strong>${_esc(_ctx.tournName)}</strong></td></tr>
-      <tr><td>Players</td><td><strong>${_ctx.enrolledCount}</strong></td></tr>
+      <tr><td>${unitLabel2}</td><td><strong>${_ctx.enrolledCount}</strong></td></tr>
       <tr><td>Match Duration</td><td><strong>${matchVal} min</strong></td></tr>
       <tr><td>Break Between</td><td><strong>${breakVal === 0 ? 'No break' : breakVal + ' min'}</strong></td></tr>
       <tr><td>Parallel Fields</td><td><strong>${parallelVal}</strong></td></tr>
@@ -225,12 +230,12 @@ const SessionGenWizard = (() => {
     if (multiCampus) {
       html += `
     <div class="sgw-warn" style="margin-top:1rem;">
-      ⚠️ <strong>Large tournament (${_ctx.enrolledCount} players)</strong> — generation runs in background.
+      ⚠️ <strong>Large tournament (${_ctx.enrolledCount} ${unitLabel2.toLowerCase()})</strong> — generation runs in background.
       You must confirm to proceed.
     </div>
     <label style="display:flex;align-items:center;gap:0.6rem;margin-top:0.75rem;cursor:pointer;">
       <input type="checkbox" id="sgw-confirmed" style="width:1.1rem;height:1.1rem;">
-      <span>I confirm this will generate sessions for ${_ctx.enrolledCount} players</span>
+      <span>I confirm this will generate sessions for ${_ctx.enrolledCount} ${unitLabel2.toLowerCase()}</span>
     </label>`;
       _params._requireConfirm = true;
     } else {

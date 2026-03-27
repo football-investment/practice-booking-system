@@ -1270,9 +1270,10 @@ function openSessionGenWizard() {
     SessionGenWizard.open({
         tournId:          {{ t.id }},
         tournName:        {{ t.name | tojson }},
-        enrolledCount:    {{ enrollments|length }},
+        enrolledCount:    {% if cfg and cfg.participant_type == 'TEAM' %}{{ enrolled_teams|length }}{% else %}{{ enrollments|length }}{% endif %},
+        participantType:  {{ (cfg.participant_type if cfg else 'INDIVIDUAL') | tojson }},
         presetMinPlayers: {{ preset_min_players | tojson }},
-        format:           {{ (game_cfg.format if game_cfg and game_cfg.format else 'PLACEMENT') | tojson }},
+        format:           {{ (cfg.format if cfg and cfg.format else 'INDIVIDUAL_RANKING') | tojson }},
         schedule: {
             match_duration_minutes: {{ schedule.match_duration_minutes | tojson }},
             break_duration_minutes: {{ schedule.break_duration_minutes | tojson }},
