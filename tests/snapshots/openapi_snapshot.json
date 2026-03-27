@@ -24864,6 +24864,52 @@
         ]
       }
     },
+    "/admin/sessions/{session_id}/postpone": {
+      "patch": {
+        "description": "Set or clear a postponement reason for a session/match.",
+        "operationId": "admin_session_postpone_admin_sessions__session_id__postpone_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Session Postpone",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/sport-directors": {
       "get": {
         "description": "Admin: list and manage sport director assignments per location.",
@@ -25439,6 +25485,49 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/attendance": {
+      "get": {
+        "description": "Attendance management page: instructor status + team/player check-in.",
+        "operationId": "admin_tournament_attendance_admin_tournaments__tournament_id__attendance_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Attendance",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/cancel": {
       "post": {
         "description": "Admin: cancel tournament.",
@@ -25878,6 +25967,116 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/players/{player_user_id}/checkin": {
+      "post": {
+        "description": "Check in an individual player for the tournament.",
+        "operationId": "admin_player_checkin_admin_tournaments__tournament_id__players__player_user_id__checkin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "player_user_id",
+            "required": true,
+            "schema": {
+              "title": "Player User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Player Checkin",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/{player_user_id}/uncheckin": {
+      "post": {
+        "description": "Remove pre-tournament check-in for a player.",
+        "operationId": "admin_player_uncheckin_admin_tournaments__tournament_id__players__player_user_id__uncheckin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "player_user_id",
+            "required": true,
+            "schema": {
+              "title": "Player User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Player Uncheckin",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/rollback": {
       "post": {
         "description": "Admin: rollback stuck IN_PROGRESS \u2192 ENROLLMENT_CLOSED for re-generation.",
@@ -26039,6 +26238,61 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/checkin": {
+      "post": {
+        "description": "Mark a team as checked-in for the tournament.",
+        "operationId": "admin_team_checkin_admin_tournaments__tournament_id__teams__team_id__checkin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Team Checkin",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/teams/{team_id}/members": {
       "post": {
         "description": "Admin directly adds a user to a team, bypassing the invite flow.",
@@ -26134,6 +26388,61 @@
           }
         },
         "summary": "Admin Tournament Teams Remove",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/uncheckin": {
+      "post": {
+        "description": "Remove check-in for a team.",
+        "operationId": "admin_team_uncheckin_admin_tournaments__tournament_id__teams__team_id__uncheckin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Team Uncheckin",
         "tags": [
           "web"
         ]
