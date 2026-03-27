@@ -370,11 +370,30 @@ class TestPromotionWizard:
         club = _make_club(test_db, admin, suffix="PROMO08")
         test_db.flush()
 
-        # Create 2 teams per age group
+        # Create 2 teams per age group, each with at least one active member
         from app.models.team import Team as TeamModel
         teams_u12 = []
         teams_u15 = []
         for i in range(2):
+            # Each team needs a user to serve as a member (guard rejects empty teams)
+            player_u12 = User(
+                email=f"u12-p{i}-{uuid.uuid4().hex[:6]}@club.test",
+                name=f"U12 Player {i}",
+                password_hash="x",
+                role=UserRole.STUDENT,
+                is_active=True,
+            )
+            player_u15 = User(
+                email=f"u15-p{i}-{uuid.uuid4().hex[:6]}@club.test",
+                name=f"U15 Player {i}",
+                password_hash="x",
+                role=UserRole.STUDENT,
+                is_active=True,
+            )
+            test_db.add(player_u12)
+            test_db.add(player_u15)
+            test_db.flush()
+
             team_u12 = TeamModel(
                 name=f"U12 Team {i}",
                 code=f"U12T{i}-{uuid.uuid4().hex[:4]}",
@@ -391,6 +410,11 @@ class TestPromotionWizard:
             )
             test_db.add(team_u12)
             test_db.add(team_u15)
+            test_db.flush()
+
+            test_db.add(TeamMember(team_id=team_u12.id, user_id=player_u12.id, role="PLAYER", is_active=True))
+            test_db.add(TeamMember(team_id=team_u15.id, user_id=player_u15.id, role="PLAYER", is_active=True))
+
             teams_u12.append(team_u12)
             teams_u15.append(team_u15)
         test_db.commit()

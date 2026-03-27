@@ -15,8 +15,11 @@ All functions assume the caller is authenticated as admin (auth enforced at rout
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -224,6 +227,12 @@ def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
                 .filter(TeamMember.team_id == team.id, TeamMember.is_active == True)
                 .all()
             )
+
+            if not members:
+                logger.warning(
+                    "Team %d (%s) is enrolled in tournament %d but has no active members",
+                    team.id, team.name, tournament_id,
+                )
 
             players: List[Dict] = []
             for member in members:

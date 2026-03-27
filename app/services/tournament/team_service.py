@@ -529,6 +529,17 @@ def enroll_existing_team_in_tournament(
             detail="Team is already enrolled in this tournament",
         )
 
+    # Verify team has active members — an empty team cannot play
+    active_member_count = db.query(TeamMember).filter(
+        TeamMember.team_id == team_id,
+        TeamMember.is_active == True,
+    ).count()
+    if active_member_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Team has no active players. Add players to the team before enrolling.",
+        )
+
     cost = cfg.team_enrollment_cost if cfg else 0
 
     if cost > 0:

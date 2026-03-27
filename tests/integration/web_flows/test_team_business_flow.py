@@ -43,7 +43,7 @@ from app.models.semester import Semester, SemesterStatus, SemesterCategory  # no
 from app.models.tournament_configuration import TournamentConfiguration
 from app.models.tournament_type import TournamentType
 from app.models.credit_transaction import CreditTransaction
-from app.models.team import Team, TeamMember, TeamInvite, TeamInviteStatus
+from app.models.team import Team, TeamMember, TeamInvite, TeamInviteStatus, TournamentTeamEnrollment
 from app.core.security import get_password_hash
 from app.services.tournament import team_service
 from tests.factories.game_factory import TournamentFactory
@@ -650,3 +650,230 @@ class TestTeamBusinessFlow:
             TeamInvite.invited_user_id == other_user.id,
         ).first()
         assert invite is None, "Admin direct-add must not create TeamInvite"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TGENV — GenerationValidator TEAM participant_type branch
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestGenerationValidatorTeam:
+    """
+    TGENV-01: TEAM tournament with enrolled teams → validator counts
+              TournamentTeamEnrollment rows (not SemesterEnrollment).
+    TGENV-02: TEAM tournament with NO enrolled teams → validator rejects.
+    TGENV-03: INDIVIDUAL tournament with enrolled players → existing path unchanged.
+    """
+
+    def _team_tournament_in_progress(self, db: Session) -> Semester:
+        """Create a TEAM HEAD_TO_HEAD tournament in IN_PROGRESS status."""
+        from tests.factories.game_factory import TournamentFactory
+        tt = TournamentFactory.ensure_tournament_type(db, code=f"tt-genv-{uuid.uuid4().hex[:6]}")
+
+        t = Semester(
+            code=f"GENV-{uuid.uuid4().hex[:8].upper()}",
+            name="GenVal TEAM Tournament",
+            semester_category=SemesterCategory.TOURNAMENT,
+            status=SemesterStatus.ONGOING,
+            tournament_status="IN_PROGRESS",
+            age_group="YOUTH",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 4, 8),
+            enrollment_cost=0,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        db.add(t)
+        db.flush()
+
+        cfg = TournamentConfiguration(
+            semester_id=t.id,
+            tournament_type_id=tt.id,
+            participant_type="TEAM",
+            max_players=64,
+            parallel_fields=1,
+            sessions_generated=False,
+            team_enrollment_cost=0,
+        )
+        db.add(cfg)
+        db.flush()
+        return t
+
+    def _make_team_with_member(self, db: Session) -> Team:
+        """Create a team with one active member."""
+        user = _make_user(db, credit_balance=0)
+        team = Team(
+            name=f"Team {uuid.uuid4().hex[:6]}",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            is_active=True,
+            captain_user_id=user.id,
+        )
+        db.add(team)
+        db.flush()
+        member = TeamMember(team_id=team.id, user_id=user.id, role="PLAYER", is_active=True)
+        db.add(member)
+        db.flush()
+        return team
+
+    def test_TGENV_01_team_tournament_counts_team_enrollments(self, test_db: Session):
+        """Two enrolled teams → validator passes (IN_PROGRESS)."""
+        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
+
+        t = self._team_tournament_in_progress(test_db)
+        t1 = self._make_team_with_member(test_db)
+        t2 = self._make_team_with_member(test_db)
+
+        test_db.add(TournamentTeamEnrollment(semester_id=t.id, team_id=t1.id, is_active=True, payment_verified=True))
+        test_db.add(TournamentTeamEnrollment(semester_id=t.id, team_id=t2.id, is_active=True, payment_verified=True))
+        test_db.flush()
+
+        validator = GenerationValidator(test_db)
+        can, reason = validator.can_generate_sessions(t.id)
+
+        assert can is True, f"Expected True, got False: {reason}"
+
+    def test_TGENV_02_team_tournament_no_teams_rejected(self, test_db: Session):
+        """Zero enrolled teams → validator rejects with clear error."""
+        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
+
+        t = self._team_tournament_in_progress(test_db)
+
+        validator = GenerationValidator(test_db)
+        can, reason = validator.can_generate_sessions(t.id)
+
+        assert can is False
+        assert "teams enrolled" in reason.lower(), f"Expected 'teams enrolled' in error: {reason}"
+
+    def test_TGENV_03_individual_tournament_path_unchanged(self, test_db: Session):
+        """INDIVIDUAL tournament: validator still uses SemesterEnrollment (regression guard)."""
+        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
+        from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+
+        t = Semester(
+            code=f"GENV-IND-{uuid.uuid4().hex[:8].upper()}",
+            name="GenVal IND Tournament",
+            semester_category=SemesterCategory.TOURNAMENT,
+            status=SemesterStatus.ONGOING,
+            tournament_status="IN_PROGRESS",
+            age_group="ADULT",
+            start_date=date(2026, 4, 1),
+            end_date=date(2026, 4, 8),
+            enrollment_cost=0,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        test_db.add(t)
+        test_db.flush()
+
+        cfg = TournamentConfiguration(
+            semester_id=t.id,
+            participant_type="INDIVIDUAL",
+            max_players=64,
+            parallel_fields=1,
+            sessions_generated=False,
+        )
+        test_db.add(cfg)
+        test_db.flush()
+
+        # No SemesterEnrollment rows → must reject
+        validator = GenerationValidator(test_db)
+        can, reason = validator.can_generate_sessions(t.id)
+        assert can is False
+        assert "players enrolled" in reason.lower(), f"Expected 'players enrolled' in error: {reason}"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TGUARD — Enrollment guard for empty teams
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestEnrollmentGuardEmptyTeam:
+    """
+    TGUARD-01: enroll_existing_team_in_tournament with 0 active members → HTTP 400.
+    TGUARD-02: enroll_existing_team_in_tournament with 1+ active members → succeeds.
+    """
+
+    def _open_team_tournament(self, db: Session) -> Semester:
+        """Create a TEAM tournament in ENROLLMENT_OPEN status."""
+        from tests.factories.game_factory import TournamentFactory
+        tt = TournamentFactory.ensure_tournament_type(db, code=f"tt-guard-{uuid.uuid4().hex[:6]}")
+
+        t = Semester(
+            code=f"GUARD-{uuid.uuid4().hex[:8].upper()}",
+            name="Guard Test Tournament",
+            semester_category=SemesterCategory.TOURNAMENT,
+            status=SemesterStatus.ONGOING,
+            tournament_status="ENROLLMENT_OPEN",
+            age_group="YOUTH",
+            start_date=date(2026, 5, 1),
+            end_date=date(2026, 5, 8),
+            enrollment_cost=0,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+        )
+        db.add(t)
+        db.flush()
+
+        cfg = TournamentConfiguration(
+            semester_id=t.id,
+            tournament_type_id=tt.id,
+            participant_type="TEAM",
+            max_players=64,
+            parallel_fields=1,
+            sessions_generated=False,
+            team_enrollment_cost=0,
+        )
+        db.add(cfg)
+        db.flush()
+        return t
+
+    def test_TGUARD_01_empty_team_enrollment_rejected(self, test_db: Session):
+        """Team with 0 active members cannot enroll → HTTP 400."""
+        from fastapi import HTTPException
+
+        captain = _make_user(test_db, credit_balance=500)
+        empty_team = Team(
+            name=f"Empty FC {uuid.uuid4().hex[:4]}",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            is_active=True,
+            captain_user_id=captain.id,
+        )
+        test_db.add(empty_team)
+        test_db.flush()
+        # Intentionally no TeamMember rows for empty_team
+
+        tournament = self._open_team_tournament(test_db)
+
+        with pytest.raises(HTTPException) as exc_info:
+            team_service.enroll_existing_team_in_tournament(
+                db=test_db,
+                team_id=empty_team.id,
+                captain_user_id=captain.id,
+                tournament_id=tournament.id,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "no active players" in exc_info.value.detail.lower()
+
+    def test_TGUARD_02_team_with_members_can_enroll(self, test_db: Session):
+        """Team with at least one active member → enrollment succeeds."""
+        captain = _make_user(test_db, credit_balance=500)
+        team = Team(
+            name=f"Full FC {uuid.uuid4().hex[:4]}",
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            is_active=True,
+            captain_user_id=captain.id,
+        )
+        test_db.add(team)
+        test_db.flush()
+        test_db.add(TeamMember(team_id=team.id, user_id=captain.id, role="CAPTAIN", is_active=True))
+        test_db.flush()
+
+        tournament = self._open_team_tournament(test_db)
+
+        enrollment = team_service.enroll_existing_team_in_tournament(
+            db=test_db,
+            team_id=team.id,
+            captain_user_id=captain.id,
+            tournament_id=tournament.id,
+        )
+
+        assert enrollment is not None
+        assert enrollment.team_id == team.id
+        assert enrollment.semester_id == tournament.id
+        assert enrollment.is_active is True

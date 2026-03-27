@@ -3888,6 +3888,12 @@ async def admin_club_promotion(
             .all()
         )
         for team in teams_for_ag:
+            active_members = db.query(TeamMember).filter(
+                TeamMember.team_id == team.id,
+                TeamMember.is_active == True,  # noqa: E712
+            ).count()
+            if active_members == 0:
+                continue  # skip empty teams — they cannot participate
             db.add(TournamentTeamEnrollment(
                 semester_id=t.id,
                 team_id=team.id,
