@@ -43,17 +43,21 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
         Generate group stage + knockout tournament sessions
         """
         sessions = []
+        team_ids = kwargs.get('team_ids')
+        team_mode = kwargs.get('team_mode', False)
 
-        # ✅ CRITICAL: Get enrolled players first
-        enrolled_players = self.db.query(SemesterEnrollment).filter(
-            SemesterEnrollment.semester_id == tournament.id,
-            SemesterEnrollment.is_active == True,
-            SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
-        ).all()
+        # Resolve seeding pool: teams for TEAM tournaments, players otherwise
+        if team_mode and team_ids:
+            player_ids = team_ids
+        else:
+            enrolled_players = self.db.query(SemesterEnrollment).filter(
+                SemesterEnrollment.semester_id == tournament.id,
+                SemesterEnrollment.is_active == True,
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+            ).all()
+            player_ids = [e.user_id for e in enrolled_players]
 
-        player_ids = [enrollment.user_id for enrollment in enrolled_players]
-
-        # ✅ CRITICAL FIX: Use actual enrolled player count, not configured max
+        # Use actual enrolled count, not configured max
         actual_player_count = len(player_ids)
 
         # ✅ NEW: Use dynamic group distribution (supports odd player counts)
@@ -208,8 +212,8 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                                 'expected_participants': 2,
                                 'field_number': active_field_num
                             },
-                            # ✅ EXPLICIT PARTICIPANTS: 2 players
-                            'participant_user_ids': [player1_id, player2_id],
+                            'participant_team_ids': [player1_id, player2_id] if team_mode else None,
+                            'participant_user_ids': None if team_mode else [player1_id, player2_id],
                             # ✅ Multi-campus: use group's assigned campus for pitch assignment
                             'campus_id': _grp_campus_id,
                             'pitch_id': pick_pitch(len(sessions), _grp_campus_id, parallel_fields, self.db),
@@ -279,8 +283,8 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                             'expected_participants': len(group_participant_ids),
                             'field_number': active_field_num
                         },
-                        # ✅ EXPLICIT PARTICIPANTS: No runtime filtering!
-                        'participant_user_ids': group_participant_ids,
+                        'participant_team_ids': group_participant_ids if team_mode else None,
+                        'participant_user_ids': None if team_mode else group_participant_ids,
                         # ✅ Multi-campus: use group's assigned campus for pitch assignment
                         'campus_id': _grp_campus_id,
                         'pitch_id': pick_pitch(len(sessions), _grp_campus_id, parallel_fields, self.db),
