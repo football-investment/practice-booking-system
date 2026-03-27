@@ -1050,7 +1050,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/session-gen-wizard.js"></script>
+<script src="/static/js/session-gen-wizard.js?v=2"></script>
 <script>
 const TOURN_ID = {{ t.id }};
 
