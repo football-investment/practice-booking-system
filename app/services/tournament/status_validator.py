@@ -8,9 +8,13 @@ from app.models.semester import Semester
 
 # Valid status transition graph
 # NOTE: READY_FOR_ENROLLMENT removed - it was redundant (no player visibility, no functionality)
-# Simplified workflow: INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN → ENROLLMENT_CLOSED → IN_PROGRESS
+# Two supported workflows:
+#   Fast-path (no instructor): DRAFT → ENROLLMENT_OPEN → ENROLLMENT_CLOSED → IN_PROGRESS
+#   Full instructor workflow:  DRAFT → SEEKING_INSTRUCTOR → … → INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN → …
+# NOTE: IN_PROGRESS guard still requires master_instructor_id — so a fast-path tournament
+#       can open enrollment without an instructor but cannot be started without one.
 VALID_TRANSITIONS = {
-    "DRAFT": ["SEEKING_INSTRUCTOR", "CANCELLED"],
+    "DRAFT": ["SEEKING_INSTRUCTOR", "ENROLLMENT_OPEN", "CANCELLED"],
     "SEEKING_INSTRUCTOR": ["PENDING_INSTRUCTOR_ACCEPTANCE", "CANCELLED"],
     "PENDING_INSTRUCTOR_ACCEPTANCE": ["INSTRUCTOR_CONFIRMED", "SEEKING_INSTRUCTOR", "CANCELLED"],
     "INSTRUCTOR_CONFIRMED": ["ENROLLMENT_OPEN", "CANCELLED"],  # Direct to ENROLLMENT_OPEN
@@ -73,8 +77,10 @@ def validate_status_transition(
             return False, "Cannot move to pending acceptance: No instructor assigned"
 
     if new_status == "ENROLLMENT_OPEN":
-        # Must have instructor assigned and confirmed
-        if not tournament.master_instructor_id:
+        # instructor check only on the full workflow path (INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN)
+        # Fast-path (DRAFT → ENROLLMENT_OPEN) is allowed without an instructor;
+        # IN_PROGRESS guard will enforce instructor assignment before the tournament can start.
+        if current_status == "INSTRUCTOR_CONFIRMED" and not tournament.master_instructor_id:
             return False, "Cannot open enrollment: No instructor assigned"
         # Must have enrollment capacity and dates configured
         if not hasattr(tournament, 'max_players') or tournament.max_players is None:

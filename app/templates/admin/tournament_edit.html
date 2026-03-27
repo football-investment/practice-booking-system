@@ -679,7 +679,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <div class="lbl">Sessions</div>
         </div>
         <div class="stat-card">
-            <div class="val">{{ '✅' if (cfg and cfg.sessions_generated) else '⬜' }}</div>
+            <div class="val">{{ '✅' if (cfg and cfg.sessions_generated) else '—' }}</div>
             <div class="lbl">Generated</div>
         </div>
         <div class="stat-card">
@@ -725,6 +725,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         <button class="btn btn-primary" id="btn-generate-sessions"
                 onclick="openSessionGenWizard()"
                 {% if t.tournament_status not in ['ENROLLMENT_CLOSED', 'IN_PROGRESS'] %}
+                disabled
                 title="Available when tournament is ENROLLMENT_CLOSED or IN_PROGRESS"
                 style="opacity:0.5;cursor:not-allowed"
                 {% endif %}>

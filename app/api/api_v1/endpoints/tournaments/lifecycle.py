@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.api.api_v1.endpoints.auth import get_current_user
+from app.dependencies import get_current_admin_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.specialization import SpecializationType
@@ -139,10 +140,10 @@ def record_status_change(
 # ============================================================================
 
 @router.post("/", response_model=TournamentCreateResponse, status_code=status.HTTP_201_CREATED)
-def create_tournament(
+async def create_tournament(
     request: TournamentCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ):
     """
     Create a new tournament in DRAFT status (Admin only)
@@ -230,11 +231,11 @@ def create_tournament(
 
 
 @router.patch("/{tournament_id}/status", response_model=StatusTransitionResponse)
-def transition_tournament_status(
+async def transition_tournament_status(
     tournament_id: int,
     request: StatusTransitionRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ):
     """
     Transition tournament to a new status with validation
