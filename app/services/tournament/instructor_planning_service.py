@@ -170,6 +170,12 @@ def add_slot(
     )
     db.add(slot)
     db.flush()
+
+    # Sync MASTER slot → Semester.master_instructor_id (status validator reads this)
+    if role == SlotRole.MASTER.value:
+        tournament.master_instructor_id = instructor_id
+        db.flush()
+
     return slot
 
 
@@ -178,6 +184,14 @@ def remove_slot(db: Session, slot_id: int, by_user: User) -> None:
     if not _is_admin(by_user):
         raise HTTPException(status_code=403, detail="Only admins can remove instructor slots.")
     slot = _get_slot_or_404(db, slot_id)
+
+    # If removing the MASTER slot, clear Semester.master_instructor_id
+    if slot.role == SlotRole.MASTER.value:
+        tournament = db.query(Semester).filter(Semester.id == slot.semester_id).first()
+        if tournament and tournament.master_instructor_id == slot.instructor_id:
+            tournament.master_instructor_id = None
+            db.flush()
+
     db.delete(slot)
     db.flush()
 

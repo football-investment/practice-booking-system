@@ -229,3 +229,60 @@ class TestInProgressWithTournamentType:
 
         assert is_valid is False
         assert "instructor" in err.lower()
+
+
+# ──────────────────── TournamentInstructorSlot fallback ──────────────────────
+
+
+class TestMasterSlotFallback:
+    """IN_PROGRESS guard: TournamentInstructorSlot fallback when master_instructor_id is None."""
+
+    def _slot_db(self, has_slot=True):
+        """DB mock that returns/doesn't return a TournamentInstructorSlot for MASTER query."""
+        db = MagicMock()
+        slot_mock = MagicMock() if has_slot else None
+        q = MagicMock()
+        q.filter.return_value = q
+        q.first.return_value = slot_mock
+        db.query.return_value = q
+        return db
+
+    def test_master_slot_satisfies_in_progress_guard(self):
+        """ISF-01: no master_instructor_id but MASTER slot (non-ABSENT) → allowed."""
+        db = self._slot_db(has_slot=True)
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(
+            status="CHECK_IN_OPEN", master_id=None, type_id=None, enrollments=enrollments
+        )
+        t.__dict__["_sa_instance_state"] = _sa_state(db)
+
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+
+        assert is_valid is True
+        assert err is None
+
+    def test_absent_master_slot_blocks_in_progress(self):
+        """ISF-02: no master_instructor_id, no slot found (ABSENT filtered out) → blocked."""
+        db = self._slot_db(has_slot=False)
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(
+            status="CHECK_IN_OPEN", master_id=None, type_id=None, enrollments=enrollments
+        )
+        t.__dict__["_sa_instance_state"] = _sa_state(db)
+
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+
+        assert is_valid is False
+        assert "instructor" in err.lower()
+
+    def test_legacy_master_instructor_id_still_works(self):
+        """ISF-03: master_instructor_id set → no slot query needed, passes."""
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(
+            status="CHECK_IN_OPEN", master_id=99, type_id=None, enrollments=enrollments
+        )
+
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+
+        assert is_valid is True
+        assert err is None

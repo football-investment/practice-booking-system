@@ -143,8 +143,23 @@ def validate_status_transition(
         # else: rollback path (IN_PROGRESS → ENROLLMENT_CLOSED) — allow unconditionally
 
     if new_status == "IN_PROGRESS":
-        # Must have instructor and participants
-        if not tournament.master_instructor_id:
+        # Check instructor assignment: legacy field OR new TournamentInstructorSlot
+        has_instructor = bool(tournament.master_instructor_id)
+        if not has_instructor:
+            # Fallback: check TournamentInstructorSlot for a non-absent MASTER slot.
+            # Handles tournaments where the new planning system was used (slot exists
+            # but legacy master_instructor_id was never set).
+            from app.models.tournament_instructor_slot import TournamentInstructorSlot
+            _state = tournament.__dict__.get('_sa_instance_state')
+            _db = _state.session if _state else None
+            if _db:
+                master_slot = _db.query(TournamentInstructorSlot).filter(
+                    TournamentInstructorSlot.semester_id == tournament.id,
+                    TournamentInstructorSlot.role == 'MASTER',
+                    TournamentInstructorSlot.status.notin_(['ABSENT']),
+                ).first()
+                has_instructor = bool(master_slot)
+        if not has_instructor:
             return False, "Cannot start tournament: No instructor assigned"
 
         # Validate against tournament type's minimum player requirement
