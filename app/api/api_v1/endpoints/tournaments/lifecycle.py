@@ -140,7 +140,7 @@ def record_status_change(
 # ============================================================================
 
 @router.post("/", response_model=TournamentCreateResponse, status_code=status.HTTP_201_CREATED)
-async def create_tournament(
+def create_tournament(
     request: TournamentCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user_hybrid)
@@ -231,7 +231,7 @@ async def create_tournament(
 
 
 @router.patch("/{tournament_id}/status", response_model=StatusTransitionResponse)
-async def transition_tournament_status(
+def transition_tournament_status(
     tournament_id: int,
     request: StatusTransitionRequest,
     db: Session = Depends(get_db),

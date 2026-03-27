@@ -63,7 +63,7 @@ def get_tournament_reward_config(
 
 
 @router.post("/{tournament_id}/reward-config", response_model=Dict[str, Any])
-async def save_tournament_reward_config(
+def save_tournament_reward_config(
     tournament_id: int,
     reward_config: TournamentRewardConfig,
     db: Session = Depends(get_db),
