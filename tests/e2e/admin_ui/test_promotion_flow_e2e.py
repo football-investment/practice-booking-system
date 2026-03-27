@@ -137,14 +137,29 @@ def _make_club(db: Session, suffix: str = "") -> Club:
 
 
 def _make_team(db: Session, club: Club, name: str, age_group: str) -> Team:
+    # Each team needs at least one active member — promo wizard skips empty teams
+    player = User(
+        email=f"{_E2E_PREFIX}-team-{uuid.uuid4().hex[:8]}@lfa-test.com",
+        name=f"{name} Player",
+        password_hash=get_password_hash("Test1234!"),
+        role=UserRole.STUDENT,
+        is_active=True,
+    )
+    db.add(player)
+    db.flush()
+
     team = Team(
         name=name,
         code=f"PT-{uuid.uuid4().hex[:8].upper()}",
         club_id=club.id,
         age_group_label=age_group,
         is_active=True,
+        captain_user_id=player.id,
     )
     db.add(team)
+    db.flush()
+
+    db.add(TeamMember(team_id=team.id, user_id=player.id, role="CAPTAIN", is_active=True))
     db.commit()
     db.refresh(team)
     return team
