@@ -128,6 +128,16 @@ def calculate_tournament_rankings(
                 detail=f"{missing_count} session(s) do not have results submitted yet. Submit all results first."
             )
 
+    # Swiss format guard: no automatic ranking strategy available
+    if tournament_type_code == "swiss":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Swiss format does not support automatic ranking calculation. "
+                "Rankings must be entered manually."
+            ),
+        )
+
     # Calculate rankings based on tournament format
     try:
         if tournament_format == "HEAD_TO_HEAD":

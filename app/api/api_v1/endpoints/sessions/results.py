@@ -19,6 +19,43 @@ from app.core.redis_pubsub import publish_tournament_update
 
 router = APIRouter()
 
+import logging as _logging
+_logger = _logging.getLogger(__name__)
+
+
+def _maybe_trigger_auto_ranking(db, tournament_id: int) -> None:
+    """
+    Trigger ranking calculation when ALL MATCH sessions in the tournament are completed.
+    Non-breaking: any failure is logged as WARNING, the result submission is not affected.
+    """
+    try:
+        remaining = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.event_category == EventCategory.MATCH,
+                SessionModel.session_status != "completed",
+            )
+            .count()
+        )
+        if remaining > 0:
+            return  # other sessions still pending
+        _logger.info(
+            f"[auto-ranking] All sessions completed for tournament {tournament_id}. "
+            f"Triggering ranking calculation."
+        )
+        from app.services.tournament.ranking.ranking_service import calculate_and_store_rankings
+        result = calculate_and_store_rankings(db, tournament_id)
+        _logger.info(
+            f"[auto-ranking] Rankings calculated for tournament {tournament_id}: "
+            f"{result['rankings_count']} rows."
+        )
+    except Exception as e:
+        _logger.warning(
+            f"[auto-ranking] Failed for tournament {tournament_id}: {e}",
+            exc_info=True,
+        )
+
 
 def _publish_session_result(db, session: SessionModel) -> None:
     """
@@ -153,9 +190,12 @@ def submit_game_results(
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(session, "rounds_data")
 
+    session.session_status = "completed"
+
     db.commit()
     db.refresh(session)
     _publish_session_result(db, session)
+    _maybe_trigger_auto_ranking(db, session.semester_id)
 
     return {
         "session_id": session_id,
@@ -362,6 +402,7 @@ def submit_head_to_head_match_result(
     db.commit()
     db.refresh(session)
     _publish_session_result(db, session)
+    _maybe_trigger_auto_ranking(db, session.semester_id)
 
     # Phase 2.1: Use TournamentPhase enum for type-safe comparison
     progression_result = None

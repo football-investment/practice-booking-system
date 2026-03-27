@@ -183,13 +183,23 @@ def validate_status_transition(
             return False, f"Cannot start tournament: Minimum {min_players_required} participants required (current: {player_count})"
 
     if new_status == "COMPLETED":
-        # All sessions must have attendance records
         sessions = getattr(tournament, 'sessions', [])
         if not sessions:
             return False, "Cannot complete tournament: No sessions found"
 
-        # Note: Detailed attendance validation would go here in production
-        # For now, we just check sessions exist
+        # Require at least 1 TournamentRanking row before marking COMPLETED
+        from app.models.tournament_ranking import TournamentRanking
+        _state = tournament.__dict__.get('_sa_instance_state')
+        _db = _state.session if _state else None
+        if _db:
+            ranking_count = _db.query(TournamentRanking).filter(
+                TournamentRanking.tournament_id == tournament.id
+            ).count()
+            if ranking_count == 0:
+                return False, (
+                    "Cannot complete tournament: No rankings calculated yet. "
+                    "Call POST /{id}/calculate-rankings first."
+                )
 
     if new_status == "REWARDS_DISTRIBUTED":
         # Rankings must be submitted before distributing rewards

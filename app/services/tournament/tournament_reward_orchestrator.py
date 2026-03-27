@@ -547,6 +547,7 @@ def distribute_rewards_for_tournament(
 
     total_participants = len(rankings)
     rewards_distributed = []
+    distribution_errors = []
 
     # Distribute rewards for each participant
     from app.models.tournament_achievement import TournamentParticipation
@@ -566,13 +567,26 @@ def distribute_rewards_for_tournament(
                 ).first()
                 if existing and not force_redistribution:
                     continue
-                result = distribute_rewards_for_user(
-                    db, member.user_id, tournament_id, ranking.rank,
-                    total_participants, reward_policy, distributed_by,
-                    force_redistribution, is_sandbox_mode,
-                    team_id=ranking.team_id,
-                )
-                rewards_distributed.append(result)
+                try:
+                    result = distribute_rewards_for_user(
+                        db, member.user_id, tournament_id, ranking.rank,
+                        total_participants, reward_policy, distributed_by,
+                        force_redistribution, is_sandbox_mode,
+                        team_id=ranking.team_id,
+                    )
+                    rewards_distributed.append(result)
+                except Exception as e:
+                    logger.error(
+                        f"distribute_rewards_for_tournament: failed for "
+                        f"user_id={member.user_id} team_id={ranking.team_id} "
+                        f"tournament_id={tournament_id}: {e}",
+                        exc_info=True,
+                    )
+                    distribution_errors.append({
+                        "user_id": member.user_id,
+                        "team_id": ranking.team_id,
+                        "error": str(e),
+                    })
             continue
 
         if ranking.user_id is None:
@@ -588,12 +602,29 @@ def distribute_rewards_for_tournament(
             # Skip - already distributed
             continue
 
-        # Distribute rewards (force_redistribution and is_sandbox_mode passed through)
-        result = distribute_rewards_for_user(
-            db, ranking.user_id, tournament_id, ranking.rank,
-            total_participants, reward_policy, distributed_by, force_redistribution, is_sandbox_mode
+        try:
+            result = distribute_rewards_for_user(
+                db, ranking.user_id, tournament_id, ranking.rank,
+                total_participants, reward_policy, distributed_by, force_redistribution, is_sandbox_mode
+            )
+            rewards_distributed.append(result)
+        except Exception as e:
+            logger.error(
+                f"distribute_rewards_for_tournament: failed for "
+                f"user_id={ranking.user_id} tournament_id={tournament_id}: {e}",
+                exc_info=True,
+            )
+            distribution_errors.append({
+                "user_id": ranking.user_id,
+                "team_id": None,
+                "error": str(e),
+            })
+
+    if distribution_errors:
+        raise ValueError(
+            f"Reward distribution partially failed for tournament {tournament_id}. "
+            f"{len(distribution_errors)} participant(s) failed: {distribution_errors}"
         )
-        rewards_distributed.append(result)
 
     # Build summary
     total_xp_awarded = sum(r.participation.total_xp for r in rewards_distributed)

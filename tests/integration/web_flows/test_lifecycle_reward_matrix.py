@@ -27,8 +27,21 @@ SRL-06  force_redistribution=True overwrites existing TournamentParticipation:
 SRL-07  TEAM + HEAD_TO_HEAD explicit block:
         TEAM tournament + H2H result submission → 400 with clear message
         (participant_type guard; TEAM must use /team-results instead)
-        ENROLLMENT_CLOSED → IN_PROGRESS direct transition → 400 Bad Request
-        (CHECK_IN_OPEN phase is mandatory since 2026-03-27)
+
+LCG-01  COMPLETED transition blocked without rankings:
+        IN_PROGRESS + sessions but 0 TournamentRanking → PATCH status COMPLETED → 400
+
+LCG-02  COMPLETED transition allowed with rankings:
+        IN_PROGRESS + sessions + ≥1 TournamentRanking → PATCH status COMPLETED → 200
+
+ARK-01  Auto-ranking trigger on last H2H session:
+        Submit last H2H result → TournamentRanking rows auto-created
+
+ARK-02  Auto-ranking only fires on LAST session:
+        2 sessions, submit only 1 → no TournamentRanking rows created yet
+
+ARK-03  Auto-ranking non-breaking for Swiss:
+        Swiss tournament last session completed → HTTP 200, no rankings (swallowed)
 
 All tests use SAVEPOINT-isolated real DB (test_db) + TestClient (client) fixtures
 from tests/integration/conftest.py. Admin Bearer token bypasses instructor-only checks.
@@ -598,3 +611,166 @@ class TestLifecycleRewardMatrix:
         assert "TEAM" in detail and "team-results" in detail, (
             f"Error must mention TEAM and /team-results redirect: {detail}"
         )
+
+
+class TestLifecycleConsistencyGuards:
+    """
+    LCG-01..02: COMPLETED transition requires at least 1 TournamentRanking row.
+    Guards against partial lifecycle states.
+    """
+
+    def test_LCG_01_completed_transition_blocked_without_rankings(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        LCG-01: IN_PROGRESS + sessions present but 0 TournamentRanking rows
+        → PATCH status COMPLETED → 400 "No rankings calculated yet".
+        """
+        tt = _tt(test_db, f"lcg-{_uid()}", min_players=2)
+        t = _tournament(test_db, admin_user, tt, tournament_status="IN_PROGRESS")
+        _session(test_db, t)  # sessions exist (required for COMPLETED check)
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/tournaments/{t.id}/status",
+            json={"new_status": "COMPLETED", "reason": "LCG-01"},
+            headers=hdrs,
+        )
+        assert resp.status_code == 400, (
+            f"Expected 400 (no rankings), got {resp.status_code}: {resp.text[:300]}"
+        )
+        body = resp.json()
+        detail = (body.get("error") or body).get("message") or body.get("detail", "")
+        assert "ranking" in detail.lower() or "calculate" in detail.lower(), (
+            f"Error must mention rankings: {detail}"
+        )
+
+    def test_LCG_02_completed_transition_allowed_with_rankings(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        LCG-02: IN_PROGRESS + sessions + ≥1 TournamentRanking → COMPLETED transition allowed.
+        """
+        tt = _tt(test_db, f"lcg2-{_uid()}", min_players=2)
+        t = _tournament(test_db, admin_user, tt, tournament_status="IN_PROGRESS")
+        _session(test_db, t)
+
+        p1 = _user(test_db)
+        test_db.add(TournamentRanking(
+            tournament_id=t.id,
+            user_id=p1.id,
+            participant_type="INDIVIDUAL",
+            rank=1,
+            points=100,
+        ))
+        test_db.flush()
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/tournaments/{t.id}/status",
+            json={"new_status": "COMPLETED", "reason": "LCG-02"},
+            headers=hdrs,
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200 (rankings present), got {resp.status_code}: {resp.text[:300]}"
+        )
+
+
+class TestAutoRankingTrigger:
+    """
+    ARK-01..03: Auto-trigger ranking calculation on last session completed.
+    """
+
+    def test_ARK_01_auto_ranking_on_last_h2h_session(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        ARK-01: Submit last H2H result → TournamentRanking rows auto-created.
+        """
+        tt = _tt(test_db, "league", min_players=2)
+        t = _tournament(test_db, admin_user, tt)
+        p1 = _user(test_db)
+        p2 = _user(test_db)
+        _enroll(test_db, t, p1)
+        _enroll(test_db, t, p2)
+        sess = _session(test_db, t)
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/sessions/{sess.id}/head-to-head-results",
+            json={"results": [{"user_id": p1.id, "score": 2}, {"user_id": p2.id, "score": 0}]},
+            headers=hdrs,
+        )
+        assert resp.status_code == 200, f"H2H result failed: {resp.text[:300]}"
+
+        # Rankings must be auto-created (no explicit calculate-rankings call)
+        test_db.expire_all()
+        rows = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).all()
+        assert len(rows) == 2, f"Expected 2 auto-created ranking rows, got {len(rows)}"
+        winner = next((r for r in rows if r.user_id == p1.id), None)
+        assert winner is not None and winner.rank == 1
+
+    def test_ARK_02_auto_ranking_only_on_last_session(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        ARK-02: 2 sessions, submit only 1 → no TournamentRanking rows (trigger not fired).
+        """
+        tt = _tt(test_db, "league", min_players=2)
+        t = _tournament(test_db, admin_user, tt)
+        p1 = _user(test_db)
+        p2 = _user(test_db)
+        _enroll(test_db, t, p1)
+        _enroll(test_db, t, p2)
+        sess1 = _session(test_db, t)
+        _session(test_db, t)  # sess2 — not submitted
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/sessions/{sess1.id}/head-to-head-results",
+            json={"results": [{"user_id": p1.id, "score": 1}, {"user_id": p2.id, "score": 0}]},
+            headers=hdrs,
+        )
+        assert resp.status_code == 200
+
+        test_db.expire_all()
+        rows = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).all()
+        assert len(rows) == 0, (
+            f"Rankings must NOT be auto-created yet (1 session still pending), got {len(rows)}"
+        )
+
+    def test_ARK_03_auto_ranking_non_breaking_for_swiss(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        ARK-03: Swiss tournament last session completed → HTTP 200 (auto-ranking
+        silently fails because Swiss has no strategy; result submission unaffected).
+        """
+        tt = _tt(test_db, "swiss", min_players=4)
+        t = _tournament(test_db, admin_user, tt)
+        p1 = _user(test_db)
+        p2 = _user(test_db)
+        _enroll(test_db, t, p1)
+        _enroll(test_db, t, p2)
+        sess = _session(test_db, t)
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/sessions/{sess.id}/head-to-head-results",
+            json={"results": [{"user_id": p1.id, "score": 1}, {"user_id": p2.id, "score": 0}]},
+            headers=hdrs,
+        )
+        # Must still return 200 — auto-ranking failure must be swallowed
+        assert resp.status_code == 200, (
+            f"Swiss auto-ranking failure must not break result submission: {resp.text[:300]}"
+        )
+        # No ranking rows (Swiss auto-ranking raises ValueError, caught by _maybe_trigger)
+        test_db.expire_all()
+        rows = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).all()
+        assert len(rows) == 0, f"Swiss must produce no auto-rankings, got {len(rows)}"
