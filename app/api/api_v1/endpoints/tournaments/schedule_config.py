@@ -14,10 +14,10 @@ Precedence (already implemented in session generation):
 All values are persisted to the database.
 """
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.database import get_db
 from app.dependencies import get_current_admin_user_hybrid
@@ -66,10 +66,24 @@ class MatchDurationConfig(BaseModel):
         default=None,
         description=(
             "UTC datetime when check-in auto-opens. "
-            "The scheduler transitions ENROLLMENT_CLOSED → CHECK_IN_OPEN at this time. "
+            "Naive strings and offset datetimes are normalised to UTC. "
             "Null = manual-only (admin must press 'Open Check-In')."
         ),
     )
+
+    @field_validator("checkin_opens_at", mode="before")
+    @classmethod
+    def normalize_to_utc(cls, v: object) -> object:
+        """Ensure checkin_opens_at is always stored as UTC regardless of input format."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            v = datetime.fromisoformat(v)
+        if isinstance(v, datetime):
+            if v.tzinfo is None:
+                return v.replace(tzinfo=timezone.utc)   # naive → assume UTC
+            return v.astimezone(timezone.utc)            # offset → convert to UTC
+        return v
 
 
 class ScheduleConfigResponse(BaseModel):

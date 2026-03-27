@@ -314,6 +314,52 @@ class TestStartStopScheduler:
 
 
 # ============================================================================
+# auto_checkin_open_job
+# ============================================================================
+
+
+class TestAutoCheckinOpenJob:
+    """ACO-01..02: auto_checkin_open_job transitions/skips based on checkin_opens_at."""
+
+    @patch(f"{_BASE}.SessionLocal")
+    @patch("app.api.api_v1.endpoints.tournaments.lifecycle.record_status_change")
+    def test_ACO_01_past_checkin_triggers_transition(self, mock_record, MockSession):
+        """ACO-01: tournament with past checkin_opens_at → CHECK_IN_OPEN, commit called."""
+        from app.background.scheduler import auto_checkin_open_job
+
+        mock_db = MagicMock()
+        MockSession.return_value = mock_db
+
+        mock_tournament = MagicMock()
+        mock_tournament.id = 1
+        mock_tournament.name = "Test Tournament"
+        mock_tournament.tournament_status = "ENROLLMENT_CLOSED"
+
+        mock_db.query.return_value.filter.return_value.all.return_value = [mock_tournament]
+
+        auto_checkin_open_job()
+
+        assert mock_tournament.tournament_status == "CHECK_IN_OPEN"
+        mock_db.commit.assert_called_once()
+        mock_db.close.assert_called_once()
+
+    @patch(f"{_BASE}.SessionLocal")
+    def test_ACO_02_no_ready_tournaments_no_commit(self, MockSession):
+        """ACO-02: no tournaments with past checkin_opens_at → commit NOT called."""
+        from app.background.scheduler import auto_checkin_open_job
+
+        mock_db = MagicMock()
+        MockSession.return_value = mock_db
+
+        mock_db.query.return_value.filter.return_value.all.return_value = []
+
+        auto_checkin_open_job()
+
+        mock_db.commit.assert_not_called()
+        mock_db.close.assert_called_once()
+
+
+# ============================================================================
 # run_sync_job_now / run_purge_now
 # ============================================================================
 

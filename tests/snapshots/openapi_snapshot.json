@@ -9584,7 +9584,7 @@
                 "type": "null"
               }
             ],
-            "description": "UTC datetime when check-in auto-opens. The scheduler transitions ENROLLMENT_CLOSED \u2192 CHECK_IN_OPEN at this time. Null = manual-only (admin must press 'Open Check-In').",
+            "description": "UTC datetime when check-in auto-opens. Naive strings and offset datetimes are normalised to UTC. Null = manual-only (admin must press 'Open Check-In').",
             "title": "Checkin Opens At"
           },
           "match_duration_minutes": {

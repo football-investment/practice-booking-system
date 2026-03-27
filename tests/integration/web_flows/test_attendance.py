@@ -25,7 +25,7 @@ from sqlalchemy import event
 
 from app.main import app
 from app.database import engine, get_db
-from app.dependencies import get_current_user_web, get_current_admin_user_hybrid
+from app.dependencies import get_current_user_web, get_current_admin_user_hybrid, get_current_user
 from app.models.user import User, UserRole
 from app.models.semester import Semester, SemesterStatus, SemesterCategory
 from app.models.session import Session as SessionModel, SessionType, EventCategory
@@ -35,6 +35,7 @@ from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
 from app.models.specialization import SpecializationType
 from app.core.security import get_password_hash
+from app.models.tournament_ranking import TournamentRanking
 import app.services.tournament.attendance_service as svc
 
 
@@ -578,3 +579,158 @@ def test_IND_ATT_04_team_regression(test_db: Session):
     assert team1.id in team_ids
     assert team2.id in team_ids
     assert summary["summary"]["teams_total"] == 2
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHDT-05: schedule-config UTC round-trip (integration)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestCheckinOpensAtUTC:
+    """CHDT-05: naive datetime string PATCH-ed in → stored + returned as UTC ISO."""
+
+    def test_CHDT_05_naive_string_stored_as_utc(self, test_db: Session):
+        """PATCH with naive datetime → value is stored as UTC (same moment regardless of tz offset returned)."""
+        admin = _admin(test_db)
+        tourn = _tournament(test_db)
+        client = _client(test_db, admin)
+
+        resp = client.patch(
+            f"/api/v1/tournaments/{tourn.id}/schedule-config",
+            json={"checkin_opens_at": "2026-06-01T10:00:00"},
+        )
+        assert resp.status_code == 200, resp.text
+
+        data = resp.json()
+        returned = data["checkin_opens_at"]
+        assert returned is not None
+        # Parse and normalise — regardless of tz offset, must represent 10:00 UTC
+        dt = datetime.fromisoformat(returned)
+        assert dt.tzinfo is not None, "Response must be timezone-aware"
+        dt_utc = dt.astimezone(timezone.utc)
+        assert dt_utc.hour == 10
+        assert dt_utc.minute == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RES-01..03: Results recording in the attendance / tournament flow
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _ind_session(db: Session, tournament: Semester) -> SessionModel:
+    """INDIVIDUAL_RANKING match session."""
+    s = SessionModel(
+        title="RES Match",
+        semester_id=tournament.id,
+        session_type=SessionType.on_site,
+        event_category=EventCategory.MATCH,
+        match_format="INDIVIDUAL_RANKING",
+        date_start=datetime(2026, 7, 1, 10, 0, tzinfo=timezone.utc),
+        date_end=datetime(2026, 7, 1, 11, 0, tzinfo=timezone.utc),
+        capacity=20,
+        rounds_data={"total_rounds": 1},
+    )
+    db.add(s)
+    db.flush()
+    return s
+
+
+def _api_client(db: Session, admin: User) -> TestClient:
+    """TestClient that overrides all auth dependencies for API + web routes."""
+    def override_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = lambda: admin
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    app.dependency_overrides[get_current_admin_user_hybrid] = lambda: admin
+    return TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"},
+                      raise_server_exceptions=True)
+
+
+class TestResultsRecording:
+    """RES-01..03: Submit round results and verify rankings flow."""
+
+    def test_RES_01_submit_round_results(self, test_db: Session):
+        """RES-01: POST round results → 200, rounds_data["round_results"]["1"] populated."""
+        admin  = _admin(test_db)
+        p1     = _player(test_db)
+        p2     = _player(test_db)
+        tourn  = _ind_tournament(test_db)
+        tourn.tournament_status = "IN_PROGRESS"
+        _enroll_player(test_db, tourn, p1)
+        _enroll_player(test_db, tourn, p2)
+        sess   = _ind_session(test_db, tourn)
+        test_db.flush()
+
+        client = _api_client(test_db, admin)
+
+        resp = client.post(
+            f"/api/v1/tournaments/{tourn.id}/sessions/{sess.id}/rounds/1/submit-results",
+            json={
+                "round_number": 1,
+                "results": {
+                    str(p1.id): "100 points",
+                    str(p2.id): "80 points",
+                },
+            },
+        )
+        assert resp.status_code == 200, resp.text
+
+        test_db.expire(sess)
+        assert sess.rounds_data is not None
+        rr = sess.rounds_data.get("round_results", {})
+        assert "1" in rr
+        assert str(p1.id) in rr["1"]
+        assert str(p2.id) in rr["1"]
+
+    def test_RES_02_edit_page_shows_session_with_results(self, test_db: Session):
+        """RES-02: After results submitted, GET edit page returns 200 and session has_results."""
+        admin  = _admin(test_db)
+        p1     = _player(test_db)
+        p2     = _player(test_db)
+        tourn  = _ind_tournament(test_db)
+        tourn.tournament_status = "IN_PROGRESS"
+        _enroll_player(test_db, tourn, p1)
+        _enroll_player(test_db, tourn, p2)
+        sess   = _ind_session(test_db, tourn)
+        # Pre-populate results directly (avoid re-testing the submit endpoint)
+        sess.rounds_data = {
+            "total_rounds": 1,
+            "round_results": {"1": {str(p1.id): "100 points", str(p2.id): "80 points"}},
+            "completed_rounds": 1,
+        }
+        test_db.flush()
+
+        client = _api_client(test_db, admin)
+        resp = client.get(f"/admin/tournaments/{tourn.id}/edit")
+        assert resp.status_code == 200, resp.text
+        # The edit page renders sessions_result_status; presence of the session id is sufficient
+        assert str(sess.id) in resp.text or "RES Match" in resp.text
+
+    def test_RES_03_calculate_rankings_creates_ranking_rows(self, test_db: Session):
+        """RES-03: POST calculate-rankings → 200, TournamentRanking rows created."""
+        admin  = _admin(test_db)
+        p1     = _player(test_db)
+        p2     = _player(test_db)
+        tourn  = _ind_tournament(test_db)
+        tourn.tournament_status = "IN_PROGRESS"
+        _enroll_player(test_db, tourn, p1)
+        _enroll_player(test_db, tourn, p2)
+        sess   = _ind_session(test_db, tourn)
+        sess.rounds_data = {
+            "total_rounds": 1,
+            "round_results": {"1": {str(p1.id): "100 points", str(p2.id): "80 points"}},
+            "completed_rounds": 1,
+        }
+        test_db.flush()
+
+        client = _api_client(test_db, admin)
+        resp = client.post(f"/api/v1/tournaments/{tourn.id}/calculate-rankings")
+        assert resp.status_code == 200, resp.text
+
+        rows = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == tourn.id
+        ).all()
+        assert len(rows) == 2
+        assert sorted(r.rank for r in rows) == [1, 2]
