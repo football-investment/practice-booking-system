@@ -58,7 +58,7 @@ from sqlalchemy import event
 from app.main import app
 from app.database import engine, get_db
 from app.models.session import Session as SessionModel, SessionType, EventCategory
-from app.dependencies import get_current_user_web, get_current_user, get_current_admin_user_hybrid
+from app.dependencies import get_current_user_web, get_current_user, get_current_admin_user_hybrid, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester, SemesterStatus, SemesterCategory
 from app.models.tournament_configuration import TournamentConfiguration
@@ -143,6 +143,7 @@ def admin_client(test_db: Session, admin_user: User) -> TestClient:
     app.dependency_overrides[get_current_user_web] = lambda: admin_user
     app.dependency_overrides[get_current_user] = lambda: admin_user
     app.dependency_overrides[get_current_admin_user_hybrid] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_or_instructor_user_hybrid] = lambda: admin_user
 
     with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
         yield c

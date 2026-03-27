@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.database import get_db, SessionLocal
-from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user
+from app.dependencies import get_current_admin_user, get_current_admin_or_instructor_user, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.tournament_type import TournamentType
 from app.models.session import Session as SessionModel, EventCategory
@@ -404,7 +404,7 @@ def generate_tournament_sessions(
     tournament_id: int,
     request: SessionGenerationRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_or_instructor_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ) -> Dict[str, Any]:
     """
     Generate tournament sessions based on tournament type and enrolled player count.
@@ -646,7 +646,7 @@ def get_generation_status(
 def get_tournament_sessions(
     tournament_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_or_instructor_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ) -> List[Dict[str, Any]]:
     """
     Get all sessions for a tournament

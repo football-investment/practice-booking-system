@@ -28,7 +28,7 @@ from sqlalchemy import event
 
 from app.main import app
 from app.database import engine, get_db
-from app.dependencies import get_current_user_web, get_current_user, get_current_admin_user_hybrid
+from app.dependencies import get_current_user_web, get_current_user, get_current_admin_user_hybrid, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
@@ -3048,6 +3048,7 @@ class TestSmoke24SessionGenWizard:
 
         app.dependency_overrides[get_db] = _db
         app.dependency_overrides[get_current_user] = lambda: admin_user
+        app.dependency_overrides[get_current_admin_or_instructor_user_hybrid] = lambda: admin_user
         with TestClient(app) as c:
             yield c
         app.dependency_overrides.clear()
