@@ -92,9 +92,12 @@
     }
     .badge-draft      { background: #edf2f7; color: #4a5568; }
     .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
+    .badge-closed     { background: #fefcbf; color: #744210; }
+    .badge-checkin    { background: #e6fffa; color: #234e52; }
     .badge-progress   { background: #c6f6d5; color: #22543d; }
     .badge-completed  { background: #e9d8fd; color: #553c9a; }
     .badge-cancelled  { background: #fed7d7; color: #742a2a; }
+    .badge-stuck      { background: #fed7d7; color: #742a2a; font-weight: 800; }
     .badge-rewards    { background: #fef3c7; color: #78350f; }
     .badge-ag         { background: #bee3f8; color: #2a4365; font-size: 0.68rem; }
 
@@ -248,6 +251,7 @@
             {% for info in promo_info %}
             {% set t = info.tournament %}
             {% set status = t.tournament_status or 'DRAFT' %}
+            {% set is_stuck = status == 'IN_PROGRESS' and info.session_count == 0 %}
             <tr data-status="{{ status }}" data-ag="{{ t.age_group or '' }}">
                 <td data-label="Tournament">
                     <span class="promo-name">{{ t.name }}</span>
@@ -296,10 +300,16 @@
                     </div>
                 </td>
                 <td data-label="Status">
-                    {% if status == 'DRAFT' %}
+                    {% if is_stuck %}
+                        <span class="badge badge-stuck">⚠️ STUCK</span>
+                    {% elif status == 'DRAFT' %}
                         <span class="badge badge-draft">DRAFT</span>
                     {% elif status == 'ENROLLMENT_OPEN' %}
                         <span class="badge badge-enrollment">ENROLL</span>
+                    {% elif status == 'ENROLLMENT_CLOSED' %}
+                        <span class="badge badge-closed">CLOSED</span>
+                    {% elif status == 'CHECK_IN_OPEN' %}
+                        <span class="badge badge-checkin">CHECK-IN</span>
                     {% elif status == 'IN_PROGRESS' %}
                         <span class="badge badge-progress">LIVE</span>
                     {% elif status == 'COMPLETED' %}
@@ -316,7 +326,7 @@
                     <div class="action-cell">
                         <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn action-btn-primary">✏️ Edit</a>
                         <a href="/events/{{ t.id }}" class="action-btn" target="_blank">👁 View</a>
-                        {% if status == 'IN_PROGRESS' %}
+                        {% if status == 'IN_PROGRESS' and not is_stuck %}
                         <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn">📡 Live</a>
                         {% endif %}
                     </div>

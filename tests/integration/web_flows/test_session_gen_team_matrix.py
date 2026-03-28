@@ -40,18 +40,25 @@ def test_db():
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy import event
 
-    TestingSession = sessionmaker(bind=engine)
+    # Use connection-based outer transaction so that any db.commit() inside
+    # generate_sessions() (which commits sessions_generated=True) is still
+    # part of the outer transaction and gets rolled back at the end.
+    connection = engine.connect()
+    outer_tx = connection.begin()
+    TestingSession = sessionmaker(bind=connection, autocommit=False, autoflush=False)
     db = TestingSession()
-    db.begin_nested()  # SAVEPOINT
+    connection.begin_nested()  # SAVEPOINT
 
     @event.listens_for(db, "after_transaction_end")
     def restart_savepoint(session, transaction):
         if transaction.nested and not transaction._parent.nested:
-            session.begin_nested()
+            connection.begin_nested()
 
     yield db
-    db.rollback()
     db.close()
+    if outer_tx.is_active:
+        outer_tx.rollback()
+    connection.close()
 
 
 # ── Factories ──────────────────────────────────────────────────────────────────
