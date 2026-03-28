@@ -9601,6 +9601,19 @@
             "description": "Duration of each match in minutes. Applies to all campuses unless overridden per-campus. Typical values: 90 (football), 5 (chess rapid), 1-3 (speed trials).",
             "title": "Match Duration Minutes"
           },
+          "number_of_legs": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of legs for HEAD_TO_HEAD round robin. 1 = single round, 2 = home & away, 3 = triple round, etc. Ignored for INDIVIDUAL_RANKING tournaments.",
+            "title": "Number Of Legs"
+          },
           "parallel_fields": {
             "anyOf": [
               {
@@ -9614,6 +9627,18 @@
             ],
             "description": "Number of pitches/courts/boards available simultaneously across the tournament. Per-campus overrides in CampusScheduleConfig take priority.",
             "title": "Parallel Fields"
+          },
+          "track_home_away": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "If True, even legs reverse each pairing so the home team becomes away in leg 2. Only meaningful when number_of_legs >= 2.",
+            "title": "Track Home Away"
           }
         },
         "title": "MatchDurationConfig",
@@ -15655,6 +15680,13 @@
             "description": "Per-campus schedule overrides keyed by campus_id (as string). Each entry can override match_duration_minutes, break_duration_minutes, and parallel_fields. Example: {\"42\": {\"match_duration_minutes\": 60, \"parallel_fields\": 3}}",
             "title": "Campus Schedule Overrides"
           },
+          "number_of_legs": {
+            "default": 1,
+            "description": "Number of legs for HEAD_TO_HEAD round robin. 1 = single round (default), 2 = home & away, 3 = triple round, etc. Ignored for INDIVIDUAL_RANKING tournaments.",
+            "minimum": 1.0,
+            "title": "Number Of Legs",
+            "type": "integer"
+          },
           "number_of_rounds": {
             "default": 1,
             "description": "Number of rounds for INDIVIDUAL_RANKING tournaments (e.g., 3 attempts for 100m sprint)",
@@ -15678,6 +15710,12 @@
             "minimum": 1.0,
             "title": "Session Duration Minutes",
             "type": "integer"
+          },
+          "track_home_away": {
+            "default": false,
+            "description": "If True, even legs reverse each pairing so the home team becomes away in leg 2. Only meaningful when number_of_legs >= 2.",
+            "title": "Track Home Away",
+            "type": "boolean"
           }
         },
         "title": "SessionGenerationRequest",

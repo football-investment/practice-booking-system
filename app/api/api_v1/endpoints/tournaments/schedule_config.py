@@ -70,6 +70,22 @@ class MatchDurationConfig(BaseModel):
             "Null = manual-only (admin must press 'Open Check-In')."
         ),
     )
+    number_of_legs: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Number of legs for HEAD_TO_HEAD round robin. "
+            "1 = single round, 2 = home & away, 3 = triple round, etc. "
+            "Ignored for INDIVIDUAL_RANKING tournaments."
+        ),
+    )
+    track_home_away: Optional[bool] = Field(
+        default=None,
+        description=(
+            "If True, even legs reverse each pairing so the home team becomes away in leg 2. "
+            "Only meaningful when number_of_legs >= 2."
+        ),
+    )
 
     @field_validator("checkin_opens_at", mode="before")
     @classmethod
@@ -154,6 +170,9 @@ def get_schedule_config(
         "type_break_default": type_break_default,
         # Check-in scheduling
         "checkin_opens_at": tournament.checkin_opens_at.isoformat() if tournament.checkin_opens_at else None,
+        # Multi-leg round robin
+        "number_of_legs": cfg.number_of_legs if cfg else 1,
+        "track_home_away": cfg.track_home_away if cfg else False,
     }
 
 
@@ -209,6 +228,10 @@ def update_schedule_config(
 
     if request.checkin_opens_at is not None:
         tournament.checkin_opens_at = request.checkin_opens_at
+    if request.number_of_legs is not None:
+        cfg.number_of_legs = request.number_of_legs
+    if request.track_home_away is not None:
+        cfg.track_home_away = request.track_home_away
 
     db.commit()
     db.refresh(cfg)
@@ -222,6 +245,8 @@ def update_schedule_config(
         "break_duration_minutes": cfg.break_duration_minutes,
         "parallel_fields": cfg.parallel_fields,
         "checkin_opens_at": tournament.checkin_opens_at.isoformat() if tournament.checkin_opens_at else None,
+        "number_of_legs": cfg.number_of_legs,
+        "track_home_away": cfg.track_home_away,
         "message": (
             f"Schedule config updated: match_duration={cfg.match_duration_minutes}min, "
             f"break={cfg.break_duration_minutes}min, parallel_fields={cfg.parallel_fields}"

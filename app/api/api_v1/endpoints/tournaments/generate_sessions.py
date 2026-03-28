@@ -62,6 +62,8 @@ def _run_generation_in_background(
     number_of_rounds: int,
     campus_overrides_raw: Optional[Dict[str, Any]],
     campus_ids: Optional[list] = None,
+    number_of_legs: int = 1,
+    track_home_away: bool = False,
 ) -> None:
     """
     Worker function executed in a daemon thread.
@@ -90,6 +92,8 @@ def _run_generation_in_background(
             break_minutes=break_duration,
             number_of_rounds=number_of_rounds,
             campus_ids=campus_ids,
+            number_of_legs=number_of_legs,
+            track_home_away=track_home_away,
         )
 
         with _registry_lock:
@@ -137,6 +141,22 @@ class SessionGenerationRequest(BaseModel):
             "Each entry can override match_duration_minutes, break_duration_minutes, and parallel_fields. "
             "Example: {\"42\": {\"match_duration_minutes\": 60, \"parallel_fields\": 3}}"
         )
+    )
+    number_of_legs: int = Field(
+        default=1,
+        ge=1,
+        description=(
+            "Number of legs for HEAD_TO_HEAD round robin. "
+            "1 = single round (default), 2 = home & away, 3 = triple round, etc. "
+            "Ignored for INDIVIDUAL_RANKING tournaments."
+        ),
+    )
+    track_home_away: bool = Field(
+        default=False,
+        description=(
+            "If True, even legs reverse each pairing so the home team becomes away in leg 2. "
+            "Only meaningful when number_of_legs >= 2."
+        ),
     )
 
 
@@ -518,6 +538,9 @@ def generate_tournament_sessions(
                     break_duration,
                     number_of_rounds,
                     campus_overrides_raw,
+                    request_campus_ids,
+                    request.number_of_legs,
+                    request.track_home_away,
                 ),
                 daemon=True,
             )
@@ -548,6 +571,8 @@ def generate_tournament_sessions(
         break_minutes=break_duration,
         number_of_rounds=number_of_rounds,
         campus_ids=request_campus_ids,
+        number_of_legs=request.number_of_legs,
+        track_home_away=request.track_home_away,
     )
 
     if not success:

@@ -45,6 +45,8 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
         sessions = []
         team_ids = kwargs.get('team_ids')
         team_mode = kwargs.get('team_mode', False)
+        number_of_legs = kwargs.get('number_of_legs', 1)
+        track_home_away = kwargs.get('track_home_away', False)
 
         # Resolve seeding pool: teams for TEAM tournaments, players otherwise
         if team_mode and team_ids:
@@ -153,71 +155,80 @@ class GroupKnockoutGenerator(BaseFormatGenerator):
                 # Calculate rounds for this group
                 num_rounds = RoundRobinPairing.calculate_rounds(group_size)
 
-                for round_num in range(1, num_rounds + 1):
-                    # Generate pairings for this round
-                    round_pairings = RoundRobinPairing.get_round_pairings(group_participant_ids, round_num)
+                for leg in range(1, number_of_legs + 1):
+                    for round_num in range(1, num_rounds + 1):
+                        # Generate pairings for this round
+                        round_pairings = RoundRobinPairing.get_round_pairings(group_participant_ids, round_num)
 
-                    for match_num, (player1_id, player2_id) in enumerate(round_pairings, start=1):
-                        if player1_id is None or player2_id is None:
-                            # Skip bye matches
-                            continue
+                        for match_num, (player1_id, player2_id) in enumerate(round_pairings, start=1):
+                            if player1_id is None or player2_id is None:
+                                # Skip bye matches
+                                continue
 
-                        if _use_campus:
-                            # ✅ Per-campus field pool
-                            _slots = campus_field_slots[_grp_campus_id]
-                            _idx = campus_field_index[_grp_campus_id]
-                            _pf = len(_slots)
-                            _dur = campus_configs[_grp_campus_id]["match_duration_minutes"]
-                            _brk = campus_configs[_grp_campus_id]["break_duration_minutes"]
-                            session_start = _slots[_idx]
-                            session_end = session_start + timedelta(minutes=_dur)
-                            _slots[_idx] += timedelta(minutes=_dur + _brk)
-                            campus_field_index[_grp_campus_id] = (_idx + 1) % _pf
-                            active_field_num = _idx + 1
-                        else:
-                            # Global fallback
-                            session_start = field_slots[field_index]
-                            session_end = session_start + timedelta(minutes=session_duration)
-                            field_slots[field_index] += timedelta(minutes=session_duration + break_minutes)
-                            field_index = (field_index + 1) % parallel_fields
-                            active_field_num = field_index  # already advanced
+                            # Even legs with home/away tracking: swap sides
+                            if track_home_away and leg % 2 == 0:
+                                player1_id, player2_id = player2_id, player1_id
 
-                        # ✅ MULTI-CAMPUS: Use group's assigned campus or fallback to tournament venue
-                        session_location = group_to_campus.get(group_name) or get_tournament_venue(tournament)
+                            if _use_campus:
+                                # ✅ Per-campus field pool
+                                _slots = campus_field_slots[_grp_campus_id]
+                                _idx = campus_field_index[_grp_campus_id]
+                                _pf = len(_slots)
+                                _dur = campus_configs[_grp_campus_id]["match_duration_minutes"]
+                                _brk = campus_configs[_grp_campus_id]["break_duration_minutes"]
+                                session_start = _slots[_idx]
+                                session_end = session_start + timedelta(minutes=_dur)
+                                _slots[_idx] += timedelta(minutes=_dur + _brk)
+                                campus_field_index[_grp_campus_id] = (_idx + 1) % _pf
+                                active_field_num = _idx + 1
+                            else:
+                                # Global fallback
+                                session_start = field_slots[field_index]
+                                session_end = session_start + timedelta(minutes=session_duration)
+                                field_slots[field_index] += timedelta(minutes=session_duration + break_minutes)
+                                field_index = (field_index + 1) % parallel_fields
+                                active_field_num = field_index  # already advanced
 
-                        sessions.append({
-                            'title': f'{tournament.name} - Group {group_name} - Round {round_num} - Match {match_num}',
-                            'description': f'Group {group_name} head-to-head match (Field {active_field_num})',
-                            'date_start': session_start,
-                            'date_end': session_end,
-                            'game_type': f'Group {group_name} - Round {round_num}',
-                            'tournament_phase': TournamentPhase.GROUP_STAGE.value,
-                            'tournament_round': round_num,
-                            'tournament_match_number': match_num,
-                            'location': session_location,
-                            'session_type': 'on_site',
-                            # ✅ HEAD_TO_HEAD: Group stage metadata
-                            'ranking_mode': 'GROUP_ISOLATED',
-                            'group_identifier': group_name,
-                            'round_number': round_num,
-                            'expected_participants': 2,
-                            'participant_filter': 'group_membership',
-                            'pod_tier': None,
-                            # ✅ MATCH STRUCTURE: HEAD_TO_HEAD format (from tournament config)
-                            'match_format': tournament.format,  # Should be HEAD_TO_HEAD
-                            'scoring_type': tournament.scoring_type,
-                            'structure_config': {
-                                'group': group_name,
-                                'group_size': group_size,
+                            # ✅ MULTI-CAMPUS: Use group's assigned campus or fallback to tournament venue
+                            session_location = group_to_campus.get(group_name) or get_tournament_venue(tournament)
+
+                            leg_label = f' (Leg {leg})' if number_of_legs > 1 else ''
+                            sessions.append({
+                                'title': f'{tournament.name} - Group {group_name} - Round {round_num} - Match {match_num}{leg_label}',
+                                'description': f'Leg {leg}, Group {group_name} head-to-head match (Field {active_field_num})',
+                                'date_start': session_start,
+                                'date_end': session_end,
+                                'game_type': f'Group {group_name} - Round {round_num}',
+                                'tournament_phase': TournamentPhase.GROUP_STAGE.value,
+                                'tournament_round': round_num,
+                                'tournament_match_number': match_num,
+                                'leg_number': leg,
+                                'location': session_location,
+                                'session_type': 'on_site',
+                                # ✅ HEAD_TO_HEAD: Group stage metadata
+                                'ranking_mode': 'GROUP_ISOLATED',
+                                'group_identifier': group_name,
+                                'round_number': round_num,
                                 'expected_participants': 2,
-                                'field_number': active_field_num
-                            },
-                            'participant_team_ids': [player1_id, player2_id] if team_mode else None,
-                            'participant_user_ids': None if team_mode else [player1_id, player2_id],
-                            # ✅ Multi-campus: use group's assigned campus for pitch assignment
-                            'campus_id': _grp_campus_id,
-                            'pitch_id': pick_pitch(len(sessions), _grp_campus_id, parallel_fields, self.db),
-                        })
+                                'participant_filter': 'group_membership',
+                                'pod_tier': None,
+                                # ✅ MATCH STRUCTURE: HEAD_TO_HEAD format (from tournament config)
+                                'match_format': tournament.format,  # Should be HEAD_TO_HEAD
+                                'scoring_type': tournament.scoring_type,
+                                'structure_config': {
+                                    'group': group_name,
+                                    'group_size': group_size,
+                                    'expected_participants': 2,
+                                    'field_number': active_field_num,
+                                    'leg_number': leg,
+                                    'is_home_game': (leg % 2 == 1) if track_home_away else None,
+                                },
+                                'participant_team_ids': [player1_id, player2_id] if team_mode else None,
+                                'participant_user_ids': None if team_mode else [player1_id, player2_id],
+                                # ✅ Multi-campus: use group's assigned campus for pitch assignment
+                                'campus_id': _grp_campus_id,
+                                'pitch_id': pick_pitch(len(sessions), _grp_campus_id, parallel_fields, self.db),
+                            })
         else:
             # ✅ INDIVIDUAL_RANKING: Multi-player ranking within each group
             # Each group round occupies one field; groups in the same round can run in parallel

@@ -201,16 +201,21 @@ const SessionGenWizard = (() => {
 
   function _bodyConfirm() {
     const s = _ctx.schedule || {};
-    const matchVal    = s.match_duration_minutes || 90;
-    const breakVal    = s.break_duration_minutes ?? 15;
-    const parallelVal = s.parallel_fields || 1;
-    const roundsVal   = s.number_of_rounds || 1;
+    const matchVal      = s.match_duration_minutes || 90;
+    const breakVal      = s.break_duration_minutes ?? 15;
+    const parallelVal   = s.parallel_fields || 1;
+    const roundsVal     = s.number_of_rounds || 1;
+    const legsVal       = s.number_of_legs || 1;
+    const homeAwayVal   = !!s.track_home_away;
+    const isH2H         = (_ctx.format || '').toUpperCase() === 'HEAD_TO_HEAD';
 
     // Store for actual submit (read from already-saved Schedule Config)
     _params.session_duration_minutes = matchVal;
     _params.break_minutes            = breakVal;
     _params.parallel_fields          = parallelVal;
     _params.number_of_rounds         = roundsVal;
+    _params.number_of_legs           = legsVal;
+    _params.track_home_away          = homeAwayVal;
 
     const multiCampus = _ctx.enrolledCount >= 128;
     const isTeam2     = (_ctx.participantType || '').toUpperCase() === 'TEAM';
@@ -224,6 +229,7 @@ const SessionGenWizard = (() => {
       <tr><td>Break Between</td><td><strong>${breakVal === 0 ? 'No break' : breakVal + ' min'}</strong></td></tr>
       <tr><td>Parallel Fields</td><td><strong>${parallelVal}</strong></td></tr>
       <tr><td>Rounds</td><td><strong>${roundsVal}</strong></td></tr>
+      ${isH2H ? `<tr><td>Legs</td><td><strong>${legsVal}${homeAwayVal && legsVal > 1 ? ' (Home/Away tracking)' : ''}</strong></td></tr>` : ''}
       <tr><td>Generation mode</td><td><strong>${multiCampus ? '⏳ Async (background)' : '⚡ Synchronous'}</strong></td></tr>
     </table>`;
 
@@ -338,6 +344,8 @@ const SessionGenWizard = (() => {
       session_duration_minutes: _params.session_duration_minutes,
       break_minutes:            _params.break_minutes,
       number_of_rounds:         _params.number_of_rounds,
+      number_of_legs:           _params.number_of_legs || 1,
+      track_home_away:          !!_params.track_home_away,
     };
 
     // Show progress step immediately

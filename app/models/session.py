@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean, ARRAY, case
+from sqlalchemy import Column, Integer, SmallInteger, String, Text, DateTime, ForeignKey, Enum, Boolean, ARRAY, case
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -175,6 +175,12 @@ class Session(Base):
         Integer,
         nullable=True,
         comment="Round number within the tournament (1, 2, 3, ...)"
+    )
+
+    leg_number = Column(
+        SmallInteger,
+        nullable=True,
+        comment="Leg number within a multi-leg round robin (1-N). NULL for knockout/swiss/INDIVIDUAL_RANKING."
     )
 
     tournament_match_number = Column(

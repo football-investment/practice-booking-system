@@ -420,6 +420,25 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </div>
     </div>
 
+    {% if t.format == 'HEAD_TO_HEAD' %}
+    <div class="form-row" style="margin-top:1rem;">
+        <div class="form-group">
+            <label>Number of Legs</label>
+            <input type="number" id="sched-number-of-legs"
+                   value="{{ schedule.number_of_legs or 1 }}" min="1" step="1" style="width:6rem;">
+            <span class="field-hint">1 = single round, 2 = home &amp; away, 3 = triple round, …</span>
+        </div>
+        <div class="form-group" style="align-self:flex-end;">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="checkbox" id="sched-track-home-away"
+                       {% if schedule.track_home_away %}checked{% endif %}>
+                Track Home / Away sides
+            </label>
+            <span class="field-hint">Even legs reverse each pairing so the &ldquo;home&rdquo; team becomes &ldquo;away&rdquo;.</span>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveScheduleConfig()">💾 Save Schedule Config</button>
         <span id="sched-save-status" style="font-size:0.85rem;color:#718096;"></span>
@@ -819,15 +838,17 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         <h2>Rankings</h2>
         {% if existing_rankings %}
         <span style="font-size:0.8rem;color:#27ae60;margin-left:auto;">
-            ✅ {{ existing_rankings | length }} players ranked
+            ✅ {{ existing_rankings | length }} {% if cfg and cfg.participant_type == 'TEAM' %}teams{% else %}players{% endif %} ranked
         </span>
         {% endif %}
     </div>
 
     <div class="save-row" style="margin-bottom:1rem;">
+        {% if not existing_rankings and t.tournament_status == 'IN_PROGRESS' %}
         <button class="btn btn-primary" onclick="calculateRankings({{ t.id }})">
             🔢 Calculate Rankings
         </button>
+        {% endif %}
         <button class="btn btn-secondary" onclick="loadRankings({{ t.id }})">
             🔄 Refresh
         </button>
@@ -892,28 +913,33 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <thead>
                 <tr>
                     <th style="text-align:left;">#</th>
-                    <th style="text-align:left;">Player</th>
+                    <th style="text-align:left;">{% if cfg and cfg.participant_type == 'TEAM' %}Team{% else %}Player{% endif %}</th>
                     <th style="text-align:right;">Score / Points</th>
                     <th style="text-align:right;">W / D / L</th>
-                    {% if t.tournament_status == 'REWARDS_DISTRIBUTED' %}
-                    <th style="text-align:right;">XP</th>
-                    <th style="text-align:right;">Credits</th>
-                    <th style="text-align:right;">Skill Δ</th>
-                    {% endif %}
+                    <th style="text-align:right;">GF / GA</th>
                 </tr>
             </thead>
             <tbody>
                 {% for r in existing_rankings %}
-                {% set player = ranking_users.get(r.user_id) %}
                 <tr>
                     <td style="padding:0.5rem;">
                         {% if r.rank == 1 %}🥇{% elif r.rank == 2 %}🥈{% elif r.rank == 3 %}🥉
                         {% else %}{{ r.rank }}{% endif %}
                     </td>
-                    <td style="padding:0.5rem;">{{ player.full_name if player else 'User #' ~ r.user_id }}</td>
+                    <td style="padding:0.5rem;font-weight:600;">
+                        {% if r.team_id %}
+                            🏆 {{ ranking_teams[r.team_id].name if r.team_id in ranking_teams else 'Team #' ~ r.team_id }}
+                        {% else %}
+                            {% set player = ranking_users.get(r.user_id) %}
+                            {{ player.full_name if player else 'Player #' ~ r.user_id }}
+                        {% endif %}
+                    </td>
                     <td style="padding:0.5rem;text-align:right;font-weight:600;">{{ r.points or 0 }}</td>
                     <td style="padding:0.5rem;text-align:right;color:#718096;">
                         {{ r.wins or 0 }} / {{ r.draws or 0 }} / {{ r.losses or 0 }}
+                    </td>
+                    <td style="padding:0.5rem;text-align:right;color:#718096;">
+                        {{ (r.goals_for or 0) | int }} / {{ (r.goals_against or 0) | int }}
                     </td>
                 </tr>
                 {% endfor %}
@@ -994,23 +1020,17 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </button>
         {% endif %}
 
-        <button class="btn btn-warning"
-                onclick="finalizeResults({{ t.id }})"
-                {% if t.tournament_status != 'IN_PROGRESS' %}
-                title="Only available for IN_PROGRESS tournaments"
-                style="opacity:0.5;cursor:not-allowed"
-                {% endif %}>
+        {% if t.tournament_status == 'IN_PROGRESS' and existing_rankings %}
+        <button class="btn btn-warning" onclick="finalizeResults({{ t.id }})">
             🏁 Finalize Tournament
         </button>
+        {% endif %}
 
-        <button class="btn btn-success"
-                onclick="distributeRewards({{ t.id }})"
-                {% if t.tournament_status not in ['IN_PROGRESS', 'COMPLETED'] %}
-                title="Available for IN_PROGRESS or COMPLETED tournaments"
-                style="opacity:0.5;cursor:not-allowed"
-                {% endif %}>
+        {% if t.tournament_status == 'COMPLETED' %}
+        <button class="btn btn-success" onclick="distributeRewards({{ t.id }})">
             🎁 Distribute Rewards
         </button>
+        {% endif %}
 
         <a href="/admin/tournaments" class="btn btn-secondary">← Back to Tournaments</a>
     </div>
@@ -1162,6 +1182,12 @@ async function saveScheduleConfig() {
     // Send checkin_opens_at as ISO string (or null to clear)
     body.checkin_opens_at = checkinVal ? checkinVal + ':00' : null;
 
+    // Multi-leg round robin (HEAD_TO_HEAD only — inputs absent for other formats)
+    const legsEl = document.getElementById('sched-number-of-legs');
+    const homeAwayEl = document.getElementById('sched-track-home-away');
+    if (legsEl) body.number_of_legs = parseInt(legsEl.value, 10) || 1;
+    if (homeAwayEl) body.track_home_away = homeAwayEl.checked;
+
     const statusEl = document.getElementById('sched-save-status');
     statusEl.textContent = 'Saving…';
     try {
@@ -1279,6 +1305,8 @@ function openSessionGenWizard() {
             break_duration_minutes: {{ schedule.break_duration_minutes | tojson }},
             parallel_fields:        {{ schedule.parallel_fields or 1 }},
             number_of_rounds:       {{ cfg.number_of_rounds if cfg and cfg.number_of_rounds else 1 }},
+            number_of_legs:         {{ schedule.number_of_legs or 1 }},
+            track_home_away:        {{ 'true' if schedule.track_home_away else 'false' }},
         },
     });
 }

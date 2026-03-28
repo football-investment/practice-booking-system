@@ -394,3 +394,91 @@ class TestSessionGenTeamMatrix:
                 f"Each session must have exactly 2 participant_user_ids, got: {user_ids}"
             assert not s.get("participant_team_ids"), \
                 f"participant_team_ids must be None for INDIVIDUAL, got: {s.get('participant_team_ids')}"
+
+
+# ── SGM-11..12: Multi-leg generation ──────────────────────────────────────────
+
+class TestMultiLegGeneration:
+    """
+    SGM-11  INDIVIDUAL H2H league, number_of_legs=2 → 2× session count vs legs=1
+    SGM-12  TEAM H2H league, number_of_legs=2, track_home_away=True
+             → leg_number populated in DB sessions; home/away reversed in leg 2
+    """
+
+    def _run_gen(self, db: Session, tournament: Semester, **kwargs) -> tuple:
+        """Run TournamentSessionGenerator with extra kwargs and return (success, msg, sessions)."""
+        gen = TournamentSessionGenerator(db)
+        result = gen.generate_sessions(
+            tournament_id=tournament.id,
+            parallel_fields=1,
+            session_duration_minutes=60,
+            break_minutes=10,
+            number_of_rounds=1,
+            **kwargs,
+        )
+        db.rollback()
+        return result
+
+    def test_SGM_11_individual_league_double_leg(self, test_db: Session):
+        """INDIVIDUAL H2H league with 4 players and legs=2 → 2× single-leg session count.
+
+        Two separate tournaments are used (one per leg count) because
+        generate_sessions() marks sessions_generated=True and commits, preventing
+        a second generation on the same tournament object within the same savepoint.
+        """
+        tt = _tournament_type(test_db, "league", min_players=2)
+
+        # Tournament A — single leg baseline
+        t1 = _tournament(test_db, tt, participant_type="INDIVIDUAL")
+        for _ in range(4):
+            _enroll_player(test_db, t1)
+        success1, msg1, s1 = self._run_gen(test_db, t1, number_of_legs=1)
+        assert success1, f"Single-leg generation failed: {msg1}"
+
+        # Tournament B — double leg
+        t2 = _tournament(test_db, tt, participant_type="INDIVIDUAL")
+        for _ in range(4):
+            _enroll_player(test_db, t2)
+        success2, msg2, s2 = self._run_gen(test_db, t2, number_of_legs=2)
+        assert success2, f"Double-leg generation failed: {msg2}"
+
+        assert len(s2) == 2 * len(s1), (
+            f"Expected 2×{len(s1)}={2*len(s1)} sessions for legs=2, got {len(s2)}"
+        )
+
+    def test_SGM_12_team_league_home_away_tracking(self, test_db: Session):
+        """TEAM H2H league, legs=2, track_home_away=True → leg_number set, leg2 reverses pairings."""
+        tt = _tournament_type(test_db, "league", min_players=2)
+        t = _tournament(test_db, tt, participant_type="TEAM")
+        team1 = _make_team(test_db, t)
+        team2 = _make_team(test_db, t)
+
+        # Generate with 2 legs + home/away
+        gen = TournamentSessionGenerator(test_db)
+        success, msg, sessions = gen.generate_sessions(
+            tournament_id=t.id,
+            parallel_fields=1,
+            session_duration_minutes=60,
+            break_minutes=10,
+            number_of_legs=2,
+            track_home_away=True,
+        )
+        test_db.rollback()
+
+        assert success, f"Generation failed: {msg}"
+        # 2 teams → 1 match per leg → 2 sessions total
+        assert len(sessions) == 2, f"Expected 2 sessions (1 per leg), got {len(sessions)}"
+
+        leg1 = [s for s in sessions if s.get("leg_number") == 1]
+        leg2 = [s for s in sessions if s.get("leg_number") == 2]
+        assert len(leg1) == 1
+        assert len(leg2) == 1
+
+        # With home/away: leg 2 participant order should be reversed vs leg 1
+        ids1 = leg1[0].get("participant_team_ids", [])
+        ids2 = leg2[0].get("participant_team_ids", [])
+        assert ids1 and ids2, "participant_team_ids must be set for TEAM sessions"
+        assert ids1 != ids2, "Leg 2 should have reversed team order (home/away tracking)"
+        assert ids1 == list(reversed(ids2)), (
+            f"Leg 2 must be the reverse of leg 1. Leg1={ids1}, Leg2={ids2}"
+        )

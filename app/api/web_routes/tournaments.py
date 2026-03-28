@@ -825,10 +825,14 @@ async def admin_tournament_edit_page(
 
     # Schedule config (from tournament_config_obj)
     cfg = t.tournament_config_obj
+    _checkin_iso = t.checkin_opens_at.isoformat() if getattr(t, 'checkin_opens_at', None) else None
     schedule = {
         "match_duration_minutes": cfg.match_duration_minutes if cfg else None,
         "break_duration_minutes": cfg.break_duration_minutes if cfg else None,
         "parallel_fields": cfg.parallel_fields if cfg else 1,
+        "checkin_opens_at": _checkin_iso,
+        "number_of_legs": cfg.number_of_legs if cfg else 1,
+        "track_home_away": cfg.track_home_away if cfg else False,
     }
 
     # Reward config summary
@@ -915,7 +919,7 @@ async def admin_tournament_edit_page(
         .order_by(TournamentRanking.rank)
         .all()
     )
-    ranking_users = {r.user_id: enrolled_users.get(r.user_id) for r in existing_rankings}
+    ranking_users = {r.user_id: enrolled_users.get(r.user_id) for r in existing_rankings if r.user_id is not None}
 
     # Group standings: sessions with group_identifier → per-group TournamentRanking rows
     from collections import defaultdict as _defaultdict

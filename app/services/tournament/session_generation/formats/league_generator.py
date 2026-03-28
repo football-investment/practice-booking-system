@@ -45,13 +45,15 @@ class LeagueGenerator(BaseFormatGenerator):
 
         if tournament_format == 'HEAD_TO_HEAD':
             # ✅ HEAD_TO_HEAD: Traditional round robin (1v1 pairings)
-            # Total matches = n*(n-1)/2
+            # Total matches = n*(n-1)/2 per leg
             # Use pairing algorithm for fair scheduling
             sessions = self._generate_head_to_head_pairings(
                 tournament, tournament_type, player_count, parallel_fields, session_duration, break_minutes,
                 campus_ids=campus_ids,
                 team_ids=kwargs.get('team_ids'),
                 team_mode=kwargs.get('team_mode', False),
+                number_of_legs=kwargs.get('number_of_legs', 1),
+                track_home_away=kwargs.get('track_home_away', False),
             )
         else:
             # ✅ INDIVIDUAL_RANKING: Multi-player ranking rounds
@@ -120,6 +122,8 @@ class LeagueGenerator(BaseFormatGenerator):
         campus_ids=None,
         team_ids=None,
         team_mode=False,
+        number_of_legs: int = 1,
+        track_home_away: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Generate HEAD_TO_HEAD round robin sessions (1v1 pairings).
@@ -127,6 +131,9 @@ class LeagueGenerator(BaseFormatGenerator):
         For TEAM tournaments: team_ids provided → pairings are between teams,
         sessions carry participant_team_ids instead of participant_user_ids.
         For INDIVIDUAL tournaments: queries SemesterEnrollment for player IDs.
+
+        number_of_legs: how many full round-robin cycles to generate.
+        track_home_away: when True, even legs reverse each pairing (home↔away swap).
         """
         sessions = []
 
@@ -144,52 +151,61 @@ class LeagueGenerator(BaseFormatGenerator):
         current_time = tournament.start_date
         field_slots = [current_time for _ in range(parallel_fields)]
 
-        for round_num in range(1, num_rounds + 1):
-            round_pairings = RoundRobinPairing.get_round_pairings(participant_ids, round_num)
-            field_index = 0
+        for leg in range(1, number_of_legs + 1):
+            for round_num in range(1, num_rounds + 1):
+                round_pairings = RoundRobinPairing.get_round_pairings(participant_ids, round_num)
+                field_index = 0
 
-            for match_num, (id1, id2) in enumerate(round_pairings, start=1):
-                if id1 is None or id2 is None:
-                    continue
+                for match_num, (id1, id2) in enumerate(round_pairings, start=1):
+                    if id1 is None or id2 is None:
+                        continue
 
-                session_start = field_slots[field_index]
-                session_end = session_start + timedelta(minutes=session_duration)
+                    # Even legs with home/away tracking: swap so the "home" side becomes "away"
+                    if track_home_away and leg % 2 == 0:
+                        id1, id2 = id2, id1
 
-                session_data = {
-                    'title': f'{tournament.name} - Round {round_num} - Match {match_num}',
-                    'description': f'Round {round_num} head-to-head match (Field {field_index + 1})',
-                    'date_start': session_start,
-                    'date_end': session_end,
-                    'game_type': f'Round {round_num}',
-                    'tournament_phase': TournamentPhase.GROUP_STAGE.value,
-                    'tournament_round': round_num,
-                    'tournament_match_number': match_num,
-                    'location': get_tournament_venue(tournament),
-                    'session_type': 'on_site',
-                    'ranking_mode': 'ALL_PARTICIPANTS',
-                    'round_number': round_num,
-                    'expected_participants': 2,
-                    'participant_filter': None,
-                    'group_identifier': None,
-                    'pod_tier': None,
-                    'match_format': tournament.format,
-                    'scoring_type': tournament.scoring_type,
-                    'structure_config': {
+                    session_start = field_slots[field_index]
+                    session_end = session_start + timedelta(minutes=session_duration)
+
+                    leg_label = f' (Leg {leg})' if number_of_legs > 1 else ''
+                    session_data = {
+                        'title': f'{tournament.name} - Round {round_num} - Match {match_num}{leg_label}',
+                        'description': f'Leg {leg}, Round {round_num} head-to-head match (Field {field_index + 1})',
+                        'date_start': session_start,
+                        'date_end': session_end,
+                        'game_type': f'Round {round_num}',
+                        'tournament_phase': TournamentPhase.GROUP_STAGE.value,
+                        'tournament_round': round_num,
+                        'tournament_match_number': match_num,
+                        'leg_number': leg,
+                        'location': get_tournament_venue(tournament),
+                        'session_type': 'on_site',
+                        'ranking_mode': 'ALL_PARTICIPANTS',
+                        'round_number': round_num,
                         'expected_participants': 2,
-                        'match_type': 'round_robin',
-                        'field_number': field_index + 1,
-                    },
-                    'campus_id': pick_campus(len(sessions), campus_ids),
-                    'pitch_id': pick_pitch(len(sessions), pick_campus(len(sessions), campus_ids), parallel_fields, self.db),
-                }
-                if team_mode:
-                    session_data['participant_team_ids'] = [id1, id2]
-                    session_data['participant_user_ids'] = None
-                else:
-                    session_data['participant_user_ids'] = [id1, id2]
+                        'participant_filter': None,
+                        'group_identifier': None,
+                        'pod_tier': None,
+                        'match_format': tournament.format,
+                        'scoring_type': tournament.scoring_type,
+                        'structure_config': {
+                            'expected_participants': 2,
+                            'match_type': 'round_robin',
+                            'field_number': field_index + 1,
+                            'leg_number': leg,
+                            'is_home_game': (leg % 2 == 1) if track_home_away else None,
+                        },
+                        'campus_id': pick_campus(len(sessions), campus_ids),
+                        'pitch_id': pick_pitch(len(sessions), pick_campus(len(sessions), campus_ids), parallel_fields, self.db),
+                    }
+                    if team_mode:
+                        session_data['participant_team_ids'] = [id1, id2]
+                        session_data['participant_user_ids'] = None
+                    else:
+                        session_data['participant_user_ids'] = [id1, id2]
 
-                sessions.append(session_data)
-                field_slots[field_index] += timedelta(minutes=session_duration + break_minutes)
-                field_index = (field_index + 1) % parallel_fields
+                    sessions.append(session_data)
+                    field_slots[field_index] += timedelta(minutes=session_duration + break_minutes)
+                    field_index = (field_index + 1) % parallel_fields
 
         return sessions

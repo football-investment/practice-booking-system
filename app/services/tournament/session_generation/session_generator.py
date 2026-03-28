@@ -61,7 +61,9 @@ class TournamentSessionGenerator:
         session_duration_minutes: int = 90,
         break_minutes: int = 15,
         number_of_rounds: int = 1,
-        campus_ids: List[int] = None
+        campus_ids: List[int] = None,
+        number_of_legs: int = 1,
+        track_home_away: bool = False,
     ) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
         Generate all tournament sessions based on tournament type and enrolled player count
@@ -344,12 +346,19 @@ class TournamentSessionGenerator:
                     team_mode=is_team_tournament,
                 )
                 if tournament_type.code == "league":
-                    sessions = self.league_generator.generate(**_h2h_kwargs)
+                    sessions = self.league_generator.generate(
+                        **_h2h_kwargs,
+                        number_of_legs=number_of_legs,
+                        track_home_away=track_home_away,
+                    )
                 elif tournament_type.code == "knockout":
                     sessions = self.knockout_generator.generate(**_h2h_kwargs)
                 elif tournament_type.code == "group_knockout":
                     sessions = self.group_knockout_generator.generate(
-                        **_h2h_kwargs, campus_configs=campus_configs
+                        **_h2h_kwargs,
+                        campus_configs=campus_configs,
+                        number_of_legs=number_of_legs,
+                        track_home_away=track_home_away,
                     )
                 elif tournament_type.code == "swiss":
                     sessions = self.swiss_generator.generate(**_h2h_kwargs)
