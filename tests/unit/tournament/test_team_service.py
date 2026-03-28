@@ -158,7 +158,7 @@ class TestGetTeams:
     """Test get_teams() function"""
 
     def test_get_teams_all_active(self, test_db: Session):
-        """Get all active teams"""
+        """Get all active teams — use limit=None to bypass the 100-row cap."""
         captain = create_test_user(test_db, email="captain6@test.com", name="Captain 6")
 
         # Create 3 teams
@@ -166,7 +166,8 @@ class TestGetTeams:
         team2 = team_service.create_team(test_db, "Team B", captain.id, "LFA_PLAYER")
         team3 = team_service.create_team(test_db, "Team C", captain.id, "LFA_COACH")
 
-        teams = team_service.get_teams(test_db)
+        # Pass a large limit so newly created teams (high IDs) are not cut off
+        teams = team_service.get_teams(test_db, limit=10000)
 
         assert len(teams) >= 3
         team_ids = [t.id for t in teams]
