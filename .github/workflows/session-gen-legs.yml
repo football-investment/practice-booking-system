@@ -134,7 +134,7 @@ jobs:
         run: |
           PYTHONPATH=. pytest tests/integration/web_flows/test_session_gen_team_matrix.py \
             -v --tb=short \
-            -k "SGM-11 or SGM-12" \
+            -k "SGM_11 or SGM_12" \
             --junitxml=results/sgm-legs-integration.xml
 
       - name: Run regression — full unit/tournament suite
