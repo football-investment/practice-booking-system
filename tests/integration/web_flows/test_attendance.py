@@ -15,6 +15,10 @@ IND-ATT-04  TEAM regression — get_attendance_summary still works for TEAM tour
 IND-ATT-05  checkin_player(team_id=None) also stamps SemesterEnrollment.tournament_checked_in_at
             uncheckin_player clears it — session generator seeding pool picks up check-in
 
+ATT-07  checkin_team with 0 CHECKED_IN instructors → 409
+ATT-08  checkin_player with 0 CHECKED_IN instructors → 409
+ATT-09  after instructor CHECKED_IN, checkin_team succeeds (200)
+
 All tests run against real DB in SAVEPOINT-isolated transaction (auto-rollback).
 """
 import uuid
@@ -38,6 +42,7 @@ from app.models.license import UserLicense
 from app.models.specialization import SpecializationType
 from app.core.security import get_password_hash
 from app.models.tournament_ranking import TournamentRanking
+from app.models.tournament_instructor_slot import TournamentInstructorSlot, SlotStatus, SlotRole
 import app.services.tournament.attendance_service as svc
 
 
@@ -170,6 +175,25 @@ def _session(db: Session, tournament: Semester) -> SessionModel:
     return s
 
 
+def _instructor_slot(
+    db: Session,
+    tournament: Semester,
+    instructor: User,
+    status: SlotStatus = SlotStatus.CHECKED_IN,
+) -> TournamentInstructorSlot:
+    """Create a TournamentInstructorSlot for the given tournament/instructor."""
+    slot = TournamentInstructorSlot(
+        semester_id=tournament.id,
+        instructor_id=instructor.id,
+        role=SlotRole.MASTER,
+        status=status,
+        assigned_by=instructor.id,  # NOT NULL column
+    )
+    db.add(slot)
+    db.flush()
+    return slot
+
+
 def _client(db: Session, admin: User) -> TestClient:
     def override_db():
         yield db
@@ -221,6 +245,7 @@ def test_ATT_02_team_checkin_uncheckin(test_db: Session):
     cap   = _player(test_db)
     tourn = _tournament(test_db)
     team  = _team(test_db, tourn, cap)
+    _instructor_slot(test_db, tourn, admin)  # required: at least 1 CHECKED_IN instructor
 
     client = _client(test_db, admin)
 
@@ -258,6 +283,7 @@ def test_ATT_03_player_checkin_uncheckin(test_db: Session):
     tourn  = _tournament(test_db)
     cap    = _player(test_db)
     team   = _team(test_db, tourn, cap)
+    _instructor_slot(test_db, tourn, admin)  # required: at least 1 CHECKED_IN instructor
 
     # Add player as team member
     member = TeamMember(team_id=team.id, user_id=player.id, role="PLAYER", is_active=True)
@@ -306,6 +332,7 @@ def test_ATT_04_session_generator_uses_only_checked_in_teams(test_db: Session):
     team1 = _team(test_db, tourn, cap1)
     team2 = _team(test_db, tourn, cap2)
     team3 = _team(test_db, tourn, cap3)  # NOT checked in
+    _instructor_slot(test_db, tourn, admin)  # required before team check-in
 
     # Check in team1 and team2 only
     svc.checkin_team(test_db, tourn.id, team1.id, by_user_id=admin.id)
@@ -491,6 +518,7 @@ def test_IND_ATT_02_individual_player_checkin(test_db: Session):
     player = _player(test_db)
     tourn  = _ind_tournament(test_db)
     _enroll_player(test_db, tourn, player)
+    _instructor_slot(test_db, tourn, admin)  # required before player check-in
     test_db.flush()
 
     client = _client(test_db, admin)
@@ -530,6 +558,7 @@ def test_IND_ATT_03_individual_player_uncheckin(test_db: Session):
     player = _player(test_db)
     tourn  = _ind_tournament(test_db)
     _enroll_player(test_db, tourn, player)
+    _instructor_slot(test_db, tourn, admin)  # required before player check-in
     test_db.flush()
 
     client = _client(test_db, admin)
@@ -752,6 +781,7 @@ def test_IND_ATT_05_checkin_syncs_semester_enrollment(test_db: Session):
     player = _player(test_db)
     tourn  = _ind_tournament(test_db)
     enr    = _enroll_player(test_db, tourn, player)
+    _instructor_slot(test_db, tourn, admin)  # required before player check-in
     test_db.flush()
 
     # Pre-condition: not yet checked in
@@ -791,3 +821,63 @@ def test_IND_ATT_05_checkin_syncs_semester_enrollment(test_db: Session):
         TournamentPlayerCheckin.user_id == player.id,
     ).first()
     assert gone is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-07: checkin_team blocked when no instructor is CHECKED_IN
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_07_team_checkin_blocked_without_instructor(test_db: Session):
+    """checkin_team → 409 when no TournamentInstructorSlot has status=CHECKED_IN."""
+    admin = _admin(test_db)
+    cap   = _player(test_db)
+    tourn = _tournament(test_db)
+    team  = _team(test_db, tourn, cap)
+    # Slot exists but only PLANNED — NOT CHECKED_IN
+    _instructor_slot(test_db, tourn, admin, status=SlotStatus.PLANNED)
+
+    client = _client(test_db, admin)
+    resp = client.post(f"/admin/tournaments/{tourn.id}/teams/{team.id}/checkin")
+    assert resp.status_code == 409, f"Expected 409, got {resp.status_code}: {resp.text}"
+    assert "instructor" in resp.text.lower()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-08: checkin_player blocked when no instructor is CHECKED_IN
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_08_player_checkin_blocked_without_instructor(test_db: Session):
+    """checkin_player → 409 when no TournamentInstructorSlot has status=CHECKED_IN."""
+    admin  = _admin(test_db)
+    player = _player(test_db)
+    tourn  = _ind_tournament(test_db)
+    _enroll_player(test_db, tourn, player)
+    # No instructor slot at all → 0 CHECKED_IN
+    test_db.flush()
+
+    client = _client(test_db, admin)
+    resp = client.post(
+        f"/admin/tournaments/{tourn.id}/players/{player.id}/checkin",
+        json={},
+    )
+    assert resp.status_code == 409, f"Expected 409, got {resp.status_code}: {resp.text}"
+    assert "instructor" in resp.text.lower()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ATT-09: checkin_team succeeds once instructor is CHECKED_IN
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_ATT_09_team_checkin_succeeds_after_instructor_checkin(test_db: Session):
+    """After a TournamentInstructorSlot is set to CHECKED_IN, team check-in is allowed."""
+    admin = _admin(test_db)
+    cap   = _player(test_db)
+    tourn = _tournament(test_db)
+    team  = _team(test_db, tourn, cap)
+    _instructor_slot(test_db, tourn, admin, status=SlotStatus.CHECKED_IN)
+
+    client = _client(test_db, admin)
+    resp = client.post(f"/admin/tournaments/{tourn.id}/teams/{team.id}/checkin")
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+    assert resp.json()["ok"] is True
+    assert resp.json()["checked_in_at"] is not None

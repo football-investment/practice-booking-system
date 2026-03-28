@@ -2525,6 +2525,19 @@ class TestSmoke22GamePresetPlayerCountGuard:
         """Create an INDIVIDUAL_RANKING tournament in IN_PROGRESS status."""
         from datetime import date, timedelta
         today = date.today()
+        uid = uuid.uuid4().hex[:8]
+        loc = Location(
+            name=f"S22 Location {uid}",
+            city=f"S22City-{uid}",
+            country="HU",
+            is_active=True,
+            location_type=LocationType.CENTER,
+        )
+        test_db.add(loc)
+        test_db.flush()
+        camp = Campus(location_id=loc.id, name=f"S22 Campus {uid}", is_active=True)
+        test_db.add(camp)
+        test_db.flush()
         tourn = Semester(
             code=f"S22{suffix}-{uuid.uuid4().hex[:6]}",
             name=f"SMOKE-22{suffix} Preset Guard Test",
@@ -2532,6 +2545,7 @@ class TestSmoke22GamePresetPlayerCountGuard:
             end_date=today + timedelta(days=7),
             tournament_status="IN_PROGRESS",
             master_instructor_id=admin_user.id,
+            campus_id=camp.id,
             tournament_config_obj=TournamentConfiguration(
                 tournament_type_id=None,
                 participant_type="INDIVIDUAL",
@@ -2953,6 +2967,19 @@ class TestSmoke24SessionGenWizard:
     ) -> Semester:
         """INDIVIDUAL_RANKING tournament (scoring_type=PLACEMENT, no tournament_type_id)."""
         today = date.today()
+        uid = uuid.uuid4().hex[:8]
+        loc = Location(
+            name=f"S24 Location {uid}",
+            city=f"S24City-{uid}",
+            country="HU",
+            is_active=True,
+            location_type=LocationType.CENTER,
+        )
+        test_db.add(loc)
+        test_db.flush()
+        camp = Campus(location_id=loc.id, name=f"S24 Campus {uid}", is_active=True)
+        test_db.add(camp)
+        test_db.flush()
         tourn = Semester(
             code=f"S24{suffix}-{uuid.uuid4().hex[:6]}",
             name=f"SMOKE-24{suffix} Wizard Test",
@@ -2960,6 +2987,7 @@ class TestSmoke24SessionGenWizard:
             end_date=today + timedelta(days=7),
             tournament_status=status,
             master_instructor_id=admin_user.id,
+            campus_id=camp.id,
             tournament_config_obj=TournamentConfiguration(
                 participant_type="INDIVIDUAL",
                 scoring_type="PLACEMENT",  # → INDIVIDUAL_RANKING format

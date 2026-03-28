@@ -70,6 +70,8 @@ from app.models.tournament_type import TournamentType
 from app.models.game_preset import GamePreset
 from app.core.security import get_password_hash
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from app.models.location import Location, LocationType
+from app.models.campus import Campus
 from tests.factories.game_factory import PlayerFactory, TournamentFactory
 
 
@@ -1599,6 +1601,20 @@ class TestMultiRoundSessionGeneration:
         INDIVIDUAL_RANKING must NOT have tournament_type_id — format is derived
         from scoring_type being non-HEAD_TO_HEAD (see Semester.format property).
         """
+        uid = uuid.uuid4().hex[:8]
+        loc = Location(
+            name=f"SESS Location {uid}",
+            city=f"SESSCity-{uid}",
+            country="HU",
+            is_active=True,
+            location_type=LocationType.CENTER,
+        )
+        db.add(loc)
+        db.flush()
+        camp = Campus(location_id=loc.id, name=f"SESS Campus {uid}", is_active=True)
+        db.add(camp)
+        db.flush()
+
         code = f"SESS-{uuid.uuid4().hex[:8].upper()}"
         t = Semester(
             code=code,
@@ -1611,6 +1627,7 @@ class TestMultiRoundSessionGeneration:
             end_date=date(2026, 6, 30),
             enrollment_cost=0,
             specialization_type="LFA_FOOTBALL_PLAYER",
+            campus_id=camp.id,
         )
         db.add(t)
         db.flush()

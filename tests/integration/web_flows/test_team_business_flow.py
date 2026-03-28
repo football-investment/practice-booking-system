@@ -45,6 +45,8 @@ from app.models.tournament_type import TournamentType
 from app.models.credit_transaction import CreditTransaction
 from app.models.team import Team, TeamMember, TeamInvite, TeamInviteStatus, TournamentTeamEnrollment
 from app.core.security import get_password_hash
+from app.models.location import Location, LocationType
+from app.models.campus import Campus
 from app.services.tournament import team_service
 from tests.factories.game_factory import TournamentFactory
 
@@ -669,6 +671,20 @@ class TestGenerationValidatorTeam:
         from tests.factories.game_factory import TournamentFactory
         tt = TournamentFactory.ensure_tournament_type(db, code=f"tt-genv-{uuid.uuid4().hex[:6]}")
 
+        uid = uuid.uuid4().hex[:8]
+        loc = Location(
+            name=f"GENV Location {uid}",
+            city=f"GENVCity-{uid}",
+            country="HU",
+            is_active=True,
+            location_type=LocationType.CENTER,
+        )
+        db.add(loc)
+        db.flush()
+        camp = Campus(location_id=loc.id, name=f"GENV Campus {uid}", is_active=True)
+        db.add(camp)
+        db.flush()
+
         t = Semester(
             code=f"GENV-{uuid.uuid4().hex[:8].upper()}",
             name="GenVal TEAM Tournament",
@@ -680,6 +696,7 @@ class TestGenerationValidatorTeam:
             end_date=date(2026, 4, 8),
             enrollment_cost=0,
             specialization_type="LFA_FOOTBALL_PLAYER",
+            campus_id=camp.id,
         )
         db.add(t)
         db.flush()

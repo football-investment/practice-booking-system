@@ -29,7 +29,34 @@ from app.models.session import Session as SessionModel
 from app.models.semester import Semester
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.user import User
-from app.models.tournament_instructor_slot import TournamentInstructorSlot
+from app.models.tournament_instructor_slot import TournamentInstructorSlot, SlotStatus
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Instructor check-in gate
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _require_instructor_checked_in(db: Session, tournament_id: int) -> None:
+    """Raise HTTP 409 if no instructor is CHECKED_IN for this tournament.
+
+    Player/team check-in is only allowed after at least one instructor has
+    physically checked in (SlotStatus.CHECKED_IN).  This enforces the
+    correct on-site workflow: instructors arrive and confirm readiness first,
+    then participants are admitted.
+    """
+    count = (
+        db.query(TournamentInstructorSlot)
+        .filter(
+            TournamentInstructorSlot.semester_id == tournament_id,
+            TournamentInstructorSlot.status == SlotStatus.CHECKED_IN,
+        )
+        .count()
+    )
+    if count == 0:
+        raise HTTPException(
+            status_code=409,
+            detail="At least one instructor must be checked in before player/team check-in.",
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +71,7 @@ def checkin_team(
 ) -> TournamentTeamEnrollment:
     """Mark a team as checked-in for the tournament."""
     enrollment = _get_enrollment_or_404(db, tournament_id, team_id)
+    _require_instructor_checked_in(db, tournament_id)
     enrollment.checked_in_at = datetime.now(timezone.utc)
     enrollment.checked_in_by_id = by_user_id
     db.flush()
@@ -83,6 +111,7 @@ def checkin_player(
     """
     # Verify tournament exists
     _get_tournament_or_404(db, tournament_id)
+    _require_instructor_checked_in(db, tournament_id)
 
     now_utc = datetime.now(timezone.utc)
 

@@ -90,4 +90,8 @@ class GenerationValidator:
             if active_enrollment_count < min_players:
                 return False, f"Not enough players enrolled. Need at least {min_players}, have {active_enrollment_count}"
 
+        # Check location/campus is set — session_generator.get_campus_schedule() requires it
+        if not tournament.location_id and not tournament.campus_id:
+            return False, "Tournament must have a Location or Campus set before sessions can be generated."
+
         return True, "Ready for session generation"

@@ -8,6 +8,8 @@ SGM-04  TEAM + GROUP_KNOCKOUT → sessions generated, participant_team_ids set
 SGM-05  INDIVIDUAL + LEAGUE → sessions generated, participant_user_ids set (regression guard)
 SGM-06  TEAM + LEAGUE, 0 teams enrolled → generation fails with "teams" in error, not "players"
 
+GENVAL-LOC-01  GenerationValidator: tournament without location_id AND campus_id → (False, "Location or Campus")
+
 Every test uses TournamentSessionGenerator directly (no HTTP) with a real DB session.
 """
 import uuid
@@ -24,6 +26,8 @@ from app.models.game_configuration import GameConfiguration
 from app.models.game_preset import GamePreset
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
+from app.models.location import Location, LocationType
+from app.models.campus import Campus
 from app.services.tournament_session_generator import TournamentSessionGenerator
 from app.core.security import get_password_hash
 
@@ -124,6 +128,20 @@ def _tournament(
         instructor = _instructor(db)
     preset = _preset(db)
 
+    uid = _uid()
+    loc = Location(
+        name=f"SGM Location {uid}",
+        city=f"SGMCity-{uid}",
+        country="HU",
+        is_active=True,
+        location_type=LocationType.CENTER,
+    )
+    db.add(loc)
+    db.flush()
+    camp = Campus(location_id=loc.id, name=f"SGM Campus {uid}", is_active=True)
+    db.add(camp)
+    db.flush()
+
     t = Semester(
         name=f"SGM Cup {_uid()}",
         code=f"SGM-{_uid()}",
@@ -133,6 +151,7 @@ def _tournament(
         status=SemesterStatus.ONGOING,
         semester_category=SemesterCategory.TOURNAMENT,
         tournament_status="IN_PROGRESS",
+        campus_id=camp.id,
     )
     db.add(t)
     db.flush()
@@ -482,3 +501,55 @@ class TestMultiLegGeneration:
         assert ids1 == list(reversed(ids2)), (
             f"Leg 2 must be the reverse of leg 1. Leg1={ids1}, Leg2={ids2}"
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GENVAL-LOC-01: GenerationValidator rejects tournament without location/campus
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_GENVAL_LOC_01_no_location_or_campus_blocked(test_db: Session):
+    """GENVAL-LOC-01: can_generate_sessions() returns (False, ...) when both
+    location_id and campus_id are NULL on the tournament.
+    """
+    from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
+
+    tt = _tournament_type(test_db, f"genval-loc-{_uid()}")
+    t = _tournament(test_db, tt, participant_type="INDIVIDUAL")
+    # Clear location/campus to test the validator guard
+    t.campus_id = None
+    t.location_id = None
+    test_db.flush()
+    assert t.location_id is None
+    assert t.campus_id is None
+
+    # Enroll enough players so the enrollment check passes
+    for _ in range(2):
+        player = _user(test_db)
+        from app.models.license import UserLicense
+        from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+        lic = UserLicense(
+            user_id=player.id,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            is_active=True,
+            onboarding_completed=True,
+        )
+        test_db.add(lic)
+        test_db.flush()
+        enr = SemesterEnrollment(
+            user_id=player.id,
+            semester_id=t.id,
+            user_license_id=lic.id,
+            request_status=EnrollmentStatus.APPROVED,
+            is_active=True,
+        )
+        test_db.add(enr)
+    test_db.flush()
+
+    validator = GenerationValidator(test_db)
+    can_gen, reason = validator.can_generate_sessions(t.id)
+
+    assert can_gen is False, f"Expected False, got True (reason: {reason})"
+    assert "location" in reason.lower() or "campus" in reason.lower(), (
+        f"Error message must mention location/campus, got: {reason}"
+    )
