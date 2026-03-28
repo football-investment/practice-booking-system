@@ -94,32 +94,49 @@
     </div>
 </section>
 
-<!-- Add Team -->
+<!-- Add Teams (club-grouped checkboxes) -->
 <section class="card mt-4">
     <div class="card-header">
-        <h2>➕ Enroll a Team</h2>
+        <h2>➕ Enroll Teams from Clubs</h2>
     </div>
     <div class="card-body">
-        {% if available_teams %}
-        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/enroll">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="team_id">Select Team</label>
-                    <select name="team_id" id="team_id" required>
-                        <option value="">— choose a team —</option>
-                        {% for team in available_teams %}
-                        <option value="{{ team.id }}">{{ team.name }} ({{ team.code }})</option>
-                        {% endfor %}
-                    </select>
+        {% if available_clubs %}
+        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/enroll-bulk">
+            {% for entry in available_clubs %}
+            <div style="margin-bottom:1.25rem;">
+                <div style="font-weight:700;color:#4a5568;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">
+                    {{ entry.club.name }}
                 </div>
-                <div class="form-group" style="align-self: flex-end;">
-                    <button type="submit" class="btn btn-primary">Enroll Team</button>
+                <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+                    {% for t in entry.teams %}
+                    <label style="display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem;border-radius:.375rem;border:1px solid #e2e8f0;background:#f7fafc;cursor:pointer;font-size:.875rem;"
+                           onmouseover="if(!this.querySelector('input').checked){this.style.borderColor='#a0aec0';this.style.background='#edf2f7';}"
+                           onmouseout="if(!this.querySelector('input').checked){this.style.borderColor='#e2e8f0';this.style.background='#f7fafc';}">
+                        <input type="checkbox" name="team_ids" value="{{ t.id }}" onchange="syncTeamLabel(this)">
+                        <span>{{ t.name }}</span>
+                        {% if t.code %}<code style="font-size:.8em;color:#718096;">{{ t.code }}</code>{% endif %}
+                        <span style="color:#718096;">({{ t.member_count }})</span>
+                    </label>
+                    {% endfor %}
                 </div>
             </div>
+            {% endfor %}
+            <div style="margin-top:.75rem;display:flex;align-items:center;gap:1rem;">
+                <button type="submit" class="btn btn-primary">➕ Enroll Selected Teams</button>
+                <span id="team-sel-count" style="color:#718096;font-size:.875rem;">0 teams selected</span>
+            </div>
         </form>
+        <script>
+        function syncTeamLabel(cb) {
+            var lbl = cb.closest('label');
+            lbl.style.borderColor = cb.checked ? '#667eea' : '#e2e8f0';
+            lbl.style.background = cb.checked ? '#ebf4ff' : '#f7fafc';
+            var n = document.querySelectorAll('input[name="team_ids"]:checked').length;
+            document.getElementById('team-sel-count').textContent = n + ' team' + (n !== 1 ? 's' : '') + ' selected';
+        }
+        </script>
         {% else %}
-        <p class="text-muted">All available teams are already enrolled, or no teams exist.</p>
-        <a href="/admin/teams/new" class="btn btn-outline">Create New Team</a>
+        <p class="text-muted">All available teams are already enrolled, or no clubs with unenrolled teams exist.</p>
         {% endif %}
     </div>
 </section>

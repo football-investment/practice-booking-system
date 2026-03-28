@@ -105,9 +105,7 @@ def validate_status_transition(
         # IN_PROGRESS guard will enforce instructor assignment before the tournament can start.
         if current_status == "INSTRUCTOR_CONFIRMED" and not tournament.master_instructor_id:
             return False, "Cannot open enrollment: No instructor assigned"
-        # Must have enrollment capacity and dates configured
-        if not hasattr(tournament, 'max_players') or tournament.max_players is None:
-            return False, "Cannot open enrollment: Max participants not configured"
+        # max_players is optional — unlimited if not set
         # Must have campus assigned — campus_id is required before sessions can be generated
         if not getattr(tournament, 'campus_id', None):
             return False, (

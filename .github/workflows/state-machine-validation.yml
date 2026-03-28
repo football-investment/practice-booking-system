@@ -1,0 +1,61 @@
+name: State Machine Graph Validation
+
+on:
+  pull_request:
+    branches: [ main, develop, feature/* ]
+    paths:
+      - 'app/services/tournament/status_validator.py'
+      - 'tests/unit/tournament/test_state_machine.py'
+      - 'app/api/web_routes/tournaments.py'
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: state-machine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  state-machine:
+    name: "State Machine — all 24 graph edges + guards"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: pip
+
+    - name: Install dependencies
+      run: pip install -r requirements-test.txt
+
+    - name: Run state machine unit tests (DB-free)
+      env:
+        DATABASE_URL: "sqlite:///:memory:"
+        SECRET_KEY: "ci-test-secret"
+      run: |
+        python -m pytest tests/unit/tournament/test_state_machine.py \
+          -v \
+          --tb=short \
+          --no-header \
+          -q
+
+    - name: Verify graph edge count
+      env:
+        DATABASE_URL: "sqlite:///:memory:"
+        SECRET_KEY: "ci-test-secret"
+      run: |
+        python - <<'EOF'
+        from app.services.tournament.status_validator import VALID_TRANSITIONS
+        total = sum(len(v) for v in VALID_TRANSITIONS.values())
+        print(f"Graph: {len(VALID_TRANSITIONS)} states, {total} edges")
+        assert total == 24, f"Expected 24 edges, found {total} — update test_state_machine.py SM-16"
+        # Every target must be a known state
+        for src, targets in VALID_TRANSITIONS.items():
+            for tgt in targets:
+                assert tgt in VALID_TRANSITIONS, f"Unknown target state {tgt!r} from {src}"
+        print("Graph integrity OK")
+        EOF

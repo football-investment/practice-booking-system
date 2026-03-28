@@ -38,11 +38,11 @@ Guards:
   SEEKING_INSTRUCTOR:           sessions non-empty, name/start_date/end_date set
   PENDING_INSTRUCTOR_ACCEPTANCE: master_instructor_id set
   ENROLLMENT_OPEN (full path):  master_instructor_id (only when source=INSTRUCTOR_CONFIRMED),
-                                max_players, campus_id
-  ENROLLMENT_OPEN (fast-path):  max_players, campus_id  (no instructor required from DRAFT)
+                                campus_id  [max_players optional — unlimited if not set]
+  ENROLLMENT_OPEN (fast-path):  campus_id  (no instructor required from DRAFT)
   ENROLLMENT_CLOSED:            active enrollments >= min_players (2 if no type)
   IN_PROGRESS:                  master_instructor_id, active enrollments >= min_players
-  COMPLETED:                    sessions non-empty
+  COMPLETED:                    sessions non-empty + TournamentRanking rows exist
   REWARDS_DISTRIBUTED:          (no guard — pass-through)
   CANCELLED / ARCHIVED:         (no guard)
 
@@ -278,11 +278,11 @@ class TestEnrollmentOpenGuards:
         assert ok is False
         assert "instructor" in err.lower()
 
-    def test_no_max_players_blocked(self):
+    def test_no_max_players_allowed(self):
+        """max_players is optional (unlimited capacity if not set) — must not block."""
         t = _tournament(master_instructor_id=1, max_players=None, campus_id=7)
         ok, err = validate_status_transition("INSTRUCTOR_CONFIRMED", "ENROLLMENT_OPEN", t)
-        assert ok is False
-        assert "participant" in err.lower() or "max" in err.lower()
+        assert ok is True, f"max_players=None must not block enrollment open, got: {err}"
 
     # ── Campus precondition (isolated) ────────────────────────────────────────
 
@@ -333,12 +333,11 @@ class TestEnrollmentOpenGuards:
         ok, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
         assert ok is True
 
-    def test_draft_fast_path_still_needs_max_players(self):
-        """Fast-path: max_players guard still applies."""
+    def test_draft_fast_path_no_max_players_allowed(self):
+        """Fast-path: max_players is optional — unlimited capacity if not set."""
         t = _tournament(master_instructor_id=None, max_players=None, campus_id=7)
         ok, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
-        assert ok is False
-        assert "participant" in err.lower() or "max" in err.lower()
+        assert ok is True, f"max_players=None must not block fast-path enrollment open, got: {err}"
 
     def test_draft_fast_path_still_needs_campus_id(self):
         """Fast-path: campus_id guard still applies."""
