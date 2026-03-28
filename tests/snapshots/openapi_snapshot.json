@@ -2758,6 +2758,19 @@
         "title": "Body_admin_revoke_license_admin_users__user_id__revoke_license__license_id__post",
         "type": "object"
       },
+      "Body_admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "Body_admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post",
+        "type": "object"
+      },
       "Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post": {
         "properties": {
           "team_id": {
@@ -25579,6 +25592,100 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/available-players": {
+      "get": {
+        "description": "Return LFA-licensed players not yet enrolled in this tournament.\n\nFilters: ?q=name/email search, ?club_id=, ?team_id=\nLimit: 100",
+        "operationId": "admin_available_players_admin_tournaments__tournament_id__available_players_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "club_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Club Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Available Players",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/cancel": {
       "post": {
         "description": "Admin: cancel tournament.",
@@ -25689,6 +25796,98 @@
           }
         },
         "summary": "Admin Tournament Edit Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/enroll-player": {
+      "post": {
+        "description": "Bulk-enroll one or more players (admin bypass \u2014 no credit deduction).",
+        "operationId": "admin_enroll_player_admin_tournaments__tournament_id__enroll_player_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Enroll Player",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/enrollment-clubs": {
+      "get": {
+        "description": "Return clubs (and their teams) that are eligible for player enrollment.\n\nIf the tournament has a campus_id, returns clubs linked to that campus's\nlocation. Otherwise returns all clubs (for non-campus tournaments).",
+        "operationId": "admin_enrollment_clubs_admin_tournaments__tournament_id__enrollment_clubs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Enrollment Clubs",
         "tags": [
           "web"
         ]
@@ -26018,6 +26217,131 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/players": {
+      "get": {
+        "description": "Admin: manage individual player enrollments for an INDIVIDUAL tournament.",
+        "operationId": "admin_tournament_players_page_admin_tournaments__tournament_id__players_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/enroll": {
+      "post": {
+        "description": "Enroll a single player into an INDIVIDUAL tournament (admin bypass).",
+        "operationId": "admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/enroll-from-team": {
+      "post": {
+        "description": "Bulk-enroll active members of one or more selected teams as individual players.",
+        "operationId": "admin_tournament_players_enroll_from_team_admin_tournaments__tournament_id__players_enroll_from_team_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Enroll From Team",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/players/{player_user_id}/checkin": {
       "post": {
         "description": "Check in an individual player for the tournament.",
@@ -26068,6 +26392,51 @@
           }
         ],
         "summary": "Admin Player Checkin",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/{player_user_id}/remove": {
+      "post": {
+        "description": "Remove a player's active enrollment from an INDIVIDUAL tournament.",
+        "operationId": "admin_tournament_players_remove_admin_tournaments__tournament_id__players__player_user_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "player_user_id",
+            "required": true,
+            "schema": {
+              "title": "Player User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Remove",
         "tags": [
           "web"
         ]
@@ -26284,6 +26653,42 @@
           }
         },
         "summary": "Admin Tournament Teams Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/enroll-bulk": {
+      "post": {
+        "description": "Bulk-enroll multiple teams into a TEAM tournament from club-grouped checkboxes.",
+        "operationId": "admin_tournament_teams_enroll_bulk_admin_tournaments__tournament_id__teams_enroll_bulk_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Enroll Bulk",
         "tags": [
           "web"
         ]
@@ -26584,6 +26989,52 @@
           }
         },
         "summary": "Admin Tournament Team Verify",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/unenroll-player": {
+      "post": {
+        "description": "Remove a player's active enrollment (admin action).",
+        "operationId": "admin_unenroll_player_admin_tournaments__tournament_id__unenroll_player_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Unenroll Player",
         "tags": [
           "web"
         ]
