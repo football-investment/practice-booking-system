@@ -147,6 +147,10 @@ jobs:
       - name: Migrate DB
         run: alembic upgrade head
 
+      - name: Seed reference data (tournament_types)
+        run: |
+          PYTHONPATH=. python scripts/seed_tournament_types.py
+
       - name: Run seed_all_tournament_types.py
         run: |
           PYTHONPATH=. python scripts/seed_all_tournament_types.py
@@ -222,6 +226,7 @@ jobs:
       - name: Migrate DB + seed
         run: |
           alembic upgrade head
+          PYTHONPATH=. python scripts/seed_tournament_types.py
           PYTHONPATH=. python scripts/seed_all_tournament_types.py
 
       - name: Start app server

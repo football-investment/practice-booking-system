@@ -120,6 +120,12 @@ def _tt(db: Session, code: str, fmt: str = "HEAD_TO_HEAD", min_players: int = 2)
     existing = db.query(TournamentType).filter(TournamentType.code == code).first()
     if existing:
         return existing
+    # Include type-specific config so tests are self-contained on a fresh DB
+    _cfg: dict = {"code": code}
+    if code == "knockout":
+        _cfg["third_place_playoff"] = True
+    elif code == "group_knockout":
+        _cfg["rounds"] = {"4": "Semi-Finals", "2": "Finals"}
     tt = TournamentType(
         code=code,
         display_name=f"SRL {code}",
@@ -130,7 +136,7 @@ def _tt(db: Session, code: str, fmt: str = "HEAD_TO_HEAD", min_players: int = 2)
         requires_power_of_two=False,
         session_duration_minutes=60,
         break_between_sessions_minutes=10,
-        config={"code": code},
+        config=_cfg,
     )
     db.add(tt)
     db.flush()
