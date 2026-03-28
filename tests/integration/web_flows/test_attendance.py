@@ -12,6 +12,8 @@ IND-ATT-01  GET /attendance for INDIVIDUAL tournament shows player list (no team
 IND-ATT-02  POST players/{uid}/checkin for INDIVIDUAL (team_id=null)
 IND-ATT-03  POST players/{uid}/uncheckin for INDIVIDUAL removes row
 IND-ATT-04  TEAM regression — get_attendance_summary still works for TEAM tournaments
+IND-ATT-05  checkin_player(team_id=None) also stamps SemesterEnrollment.tournament_checked_in_at
+            uncheckin_player clears it — session generator seeding pool picks up check-in
 
 All tests run against real DB in SAVEPOINT-isolated transaction (auto-rollback).
 """
@@ -735,3 +737,57 @@ class TestResultsRecording:
         ).all()
         assert len(rows) == 2
         assert sorted(r.rank for r in rows) == [1, 2]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IND-ATT-05: checkin_player syncs SemesterEnrollment.tournament_checked_in_at
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_IND_ATT_05_checkin_syncs_semester_enrollment(test_db: Session):
+    """checkin_player(team_id=None) stamps SemesterEnrollment.tournament_checked_in_at;
+    uncheckin_player clears it.  This ensures the session generator seeding pool
+    (which reads tournament_checked_in_at) picks up attendance-page check-ins.
+    """
+    admin  = _admin(test_db)
+    player = _player(test_db)
+    tourn  = _ind_tournament(test_db)
+    enr    = _enroll_player(test_db, tourn, player)
+    test_db.flush()
+
+    # Pre-condition: not yet checked in
+    assert enr.tournament_checked_in_at is None
+
+    # Check in via service (same path the attendance route uses)
+    svc.checkin_player(test_db, tourn.id, player.id, team_id=None, by_user_id=admin.id)
+    test_db.flush()
+
+    # SemesterEnrollment.tournament_checked_in_at must be stamped
+    test_db.expire(enr)
+    assert enr.tournament_checked_in_at is not None, (
+        "checkin_player(team_id=None) must sync SemesterEnrollment.tournament_checked_in_at "
+        "so the session generator includes this player in the seeding pool"
+    )
+
+    # TournamentPlayerCheckin row also exists
+    pc = test_db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tourn.id,
+        TournamentPlayerCheckin.user_id == player.id,
+    ).first()
+    assert pc is not None
+    assert pc.team_id is None
+
+    # Uncheckin clears the stamp
+    svc.uncheckin_player(test_db, tourn.id, player.id)
+    test_db.flush()
+    test_db.expire(enr)
+    assert enr.tournament_checked_in_at is None, (
+        "uncheckin_player must clear SemesterEnrollment.tournament_checked_in_at"
+    )
+
+    # TournamentPlayerCheckin row deleted
+    test_db.expire_all()
+    gone = test_db.query(TournamentPlayerCheckin).filter(
+        TournamentPlayerCheckin.tournament_id == tourn.id,
+        TournamentPlayerCheckin.user_id == player.id,
+    ).first()
+    assert gone is None

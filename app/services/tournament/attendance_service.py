@@ -75,9 +75,16 @@ def checkin_player(
     team_id: Optional[int],
     by_user_id: int,
 ) -> TournamentPlayerCheckin:
-    """Check in an individual player for the tournament (upsert)."""
+    """Check in an individual player for the tournament (upsert).
+
+    For INDIVIDUAL tournaments (team_id=None) also stamps
+    SemesterEnrollment.tournament_checked_in_at so that the session
+    generator — which reads that column — sees the check-in.
+    """
     # Verify tournament exists
     _get_tournament_or_404(db, tournament_id)
+
+    now_utc = datetime.now(timezone.utc)
 
     existing = db.query(TournamentPlayerCheckin).filter(
         TournamentPlayerCheckin.tournament_id == tournament_id,
@@ -85,21 +92,32 @@ def checkin_player(
     ).first()
 
     if existing:
-        existing.checked_in_at = datetime.now(timezone.utc)
+        existing.checked_in_at = now_utc
         existing.checked_in_by_id = by_user_id
         existing.team_id = team_id
-        db.flush()
-        return existing
+    else:
+        existing = TournamentPlayerCheckin(
+            tournament_id=tournament_id,
+            user_id=user_id,
+            team_id=team_id,
+            checked_in_by_id=by_user_id,
+        )
+        db.add(existing)
 
-    checkin = TournamentPlayerCheckin(
-        tournament_id=tournament_id,
-        user_id=user_id,
-        team_id=team_id,
-        checked_in_by_id=by_user_id,
-    )
-    db.add(checkin)
+    # Sync SemesterEnrollment.tournament_checked_in_at for INDIVIDUAL check-ins.
+    # The session generator reads this column to build the seeding pool; without
+    # the sync it falls back to all approved enrollments, ignoring the check-in.
+    if team_id is None:
+        enrollment = db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.semester_id == tournament_id,
+            SemesterEnrollment.user_id == user_id,
+            SemesterEnrollment.is_active == True,
+        ).first()
+        if enrollment:
+            enrollment.tournament_checked_in_at = now_utc
+
     db.flush()
-    return checkin
+    return existing
 
 
 def uncheckin_player(
@@ -107,14 +125,27 @@ def uncheckin_player(
     tournament_id: int,
     user_id: int,
 ) -> None:
-    """Remove pre-tournament check-in for a player."""
+    """Remove pre-tournament check-in for a player.
+
+    Also clears SemesterEnrollment.tournament_checked_in_at so the
+    session generator no longer counts this player as confirmed.
+    """
     checkin = db.query(TournamentPlayerCheckin).filter(
         TournamentPlayerCheckin.tournament_id == tournament_id,
         TournamentPlayerCheckin.user_id == user_id,
     ).first()
     if checkin:
         db.delete(checkin)
-        db.flush()
+
+    # Clear the SemesterEnrollment stamp (INDIVIDUAL path).
+    enrollment = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.user_id == user_id,
+    ).first()
+    if enrollment and enrollment.tournament_checked_in_at is not None:
+        enrollment.tournament_checked_in_at = None
+
+    db.flush()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
