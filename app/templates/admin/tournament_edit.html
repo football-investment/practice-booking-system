@@ -177,6 +177,25 @@
 .action-btn-green:hover { background: #9ae6b4; }
 .action-btn-red { background: #fed7d7; color: #742a2a; border-color: #feb2b2; }
 .action-btn-red:hover { background: #feb2b2; }
+/* ── Lifecycle Wizard ────────────────────────────────────── */
+.wiz-progress{display:flex;gap:0;margin-bottom:1.5rem;overflow-x:auto;}
+.wiz-progress-step{flex:1;min-width:80px;text-align:center;padding:.5rem .25rem;font-size:.72rem;font-weight:600;border-bottom:3px solid #e2e8f0;color:#a0aec0;}
+.wiz-progress-step.done{border-color:#48bb78;color:#276749;}
+.wiz-progress-step.active{border-color:#667eea;color:#434190;}
+.wiz-step{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:1rem;overflow:hidden;transition:box-shadow .2s;}
+.wiz-step.done{border-color:#c6f6d5;background:#f0fff4;}
+.wiz-step.active{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.15);}
+.wiz-step.locked{background:#f7fafc;opacity:.65;pointer-events:none;}
+.wiz-step-header{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;cursor:pointer;user-select:none;}
+.wiz-step-header .wiz-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;}
+.wiz-step.done .wiz-num{background:#48bb78;color:#fff;}
+.wiz-step.active .wiz-num{background:#667eea;color:#fff;}
+.wiz-step.locked .wiz-num{background:#e2e8f0;color:#a0aec0;}
+.wiz-step-title{font-weight:700;font-size:.95rem;flex:1;}
+.wiz-step-subtitle{font-size:.8rem;color:#718096;}
+.wiz-step-body{padding:0.25rem 0 0.75rem;}
+.wiz-step.done:not(.expanded) .wiz-step-body,.wiz-step.locked .wiz-step-body{display:none;}
+.wiz-action-row{display:flex;justify-content:flex-end;padding:.75rem 1.25rem 0;margin-top:0.5rem;border-top:1px solid #e2e8f0;gap:.75rem;}
 </style>
 {% endblock %}
 
@@ -195,7 +214,42 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 <div class="warn-banner">⚠️ {{ error }}</div>
 {% endif %}
 
-{# ── SECTION 1: Alapadatok ─────────────────────────────────────────────────── #}
+{# ── Wizard step-state computation ─────────────────────────────────────────── #}
+{% set _status = t.tournament_status or 'DRAFT' %}
+{% set _all_results_done = (session_count > 0 and completed_session_count >= session_count) %}
+{% set _has_rankings = (existing_rankings | length > 0) %}
+{% set step1_state = 'done' if _status != 'DRAFT' else 'active' %}
+{% set step2_state = 'done' if _status not in ['DRAFT','ENROLLMENT_OPEN'] else ('active' if _status == 'ENROLLMENT_OPEN' else 'locked') %}
+{% set step3_state = 'done' if _status not in ['DRAFT','ENROLLMENT_OPEN','ENROLLMENT_CLOSED'] else ('active' if _status == 'ENROLLMENT_CLOSED' else 'locked') %}
+{% set step4_state = 'done' if _status in ['IN_PROGRESS','COMPLETED','REWARDS_DISTRIBUTED'] else ('active' if _status == 'CHECK_IN_OPEN' else 'locked') %}
+{% set step5_state = 'done' if (_status in ['COMPLETED','REWARDS_DISTRIBUTED'] or (_status == 'IN_PROGRESS' and _all_results_done)) else ('active' if _status == 'IN_PROGRESS' else 'locked') %}
+{% set step6_state = 'done' if _status in ['COMPLETED','REWARDS_DISTRIBUTED'] else ('active' if _status == 'IN_PROGRESS' and _all_results_done else 'locked') %}
+{% set step7_state = 'done' if _status == 'REWARDS_DISTRIBUTED' else ('active' if _status == 'COMPLETED' else 'locked') %}
+
+{# ── Wizard progress bar ──────────────────────────────────────────────────── #}
+<div class="wiz-progress">
+  <div class="wiz-progress-step {{ step1_state }}">1 · Configure</div>
+  <div class="wiz-progress-step {{ step2_state }}">2 · Enroll</div>
+  <div class="wiz-progress-step {{ step3_state }}">3 · Prepare</div>
+  <div class="wiz-progress-step {{ step4_state }}">4 · Check-in</div>
+  <div class="wiz-progress-step {{ step5_state }}">5 · Results</div>
+  <div class="wiz-progress-step {{ step6_state }}">6 · Finalize</div>
+  <div class="wiz-progress-step {{ step7_state }}">7 · Rewards</div>
+</div>
+
+{# ── STEP 1: Configure ────────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step1_state }}" id="wiz-step-1">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-1')">
+    <div class="wiz-num">{% if step1_state == 'done' %}✓{% else %}1{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Configure</div>
+      <div class="wiz-step-subtitle">{{ t.name }} · {{ t.format or 'Format not set' }}</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step1_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+
+{# ── SECTION 1: Basic Info ────────────────────────────────────────────────── #}
 <div class="card" id="section-basic">
     <div class="section-header">
         <span class="section-icon">📋</span>
@@ -510,7 +564,27 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
 </div>
 
-{# ── SECTION 4: Enrolled Players (INDIVIDUAL) / Teams (TEAM) ───────────────── #}
+    {% if step1_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">📢 Open Enrollment</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-1 #}
+
+{# ── STEP 2: Enrollment ───────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step2_state }}" id="wiz-step-2">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-2')">
+    <div class="wiz-num">{% if step2_state == 'done' %}✓{% else %}2{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Enrollment</div>
+      <div class="wiz-step-subtitle">{{ enrolled_count }} {{ 'team' if (cfg and cfg.participant_type == 'TEAM') else 'player' }}{{ 's' if enrolled_count != 1 else '' }} enrolled</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step2_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+
+{# ── SECTION 4: Enrolled Players / Teams ─────────────────────────────────── #}
 {% if cfg and cfg.participant_type == 'TEAM' %}
 <div class="card" id="section-checkin">
     <div class="section-header">
@@ -586,6 +660,28 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     {% endif %}
 </div>
 {% endif %}
+
+    {% if step2_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-warning"
+              {% if enrolled_count < 2 %}disabled title="Need at least 2 participants" style="opacity:.5;cursor:not-allowed"{% endif %}
+              onclick="transitionStatus('ENROLLMENT_CLOSED')">🔒 Close Enrollment</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-2 #}
+
+{# ── STEP 3: Preparation ──────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step3_state }}" id="wiz-step-3">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-3')">
+    <div class="wiz-num">{% if step3_state == 'done' %}✓{% else %}3{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Preparation</div>
+      <div class="wiz-step-subtitle">{{ enrolled_count }} enrolled · {{ schedule.match_duration_minutes or 90 }} min matches · {{ schedule.parallel_fields or 1 }} field(s)</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step3_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
 
 {# ── SECTION 4.5: Instructor Roster ───────────────────────────────────────── #}
 <div class="card" id="section-instructors">
@@ -694,6 +790,52 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
     {% endif %}
 </div>
+
+    {% if step3_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-warning" onclick="transitionStatus('CHECK_IN_OPEN')">⏰ Open Check-In</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-3 #}
+
+{# ── STEP 4: Check-in ─────────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step4_state }}" id="wiz-step-4">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-4')">
+    <div class="wiz-num">{% if step4_state == 'done' %}✓{% else %}4{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Check-in &amp; Start</div>
+      <div class="wiz-step-subtitle">Check-in open{% if t.checkin_opens_at %} since {{ t.checkin_opens_at.strftime('%Y-%m-%d %H:%M') }} UTC{% endif %}</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step4_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+    <div class="card">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1rem;">
+        <div class="stat-card"><div class="val">{{ enrolled_count }}</div><div class="lbl">Enrolled</div></div>
+        <div class="stat-card"><div class="val">{{ checked_in_count }}</div><div class="lbl">Checked In</div></div>
+      </div>
+      <div class="info-banner">ℹ️ Sessions will be auto-generated when you start the tournament.</div>
+    </div>
+    {% if step4_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-start" onclick="transitionStatus('IN_PROGRESS')">🚀 Start Tournament</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-4 #}
+
+{# ── STEP 5: Record Results ───────────────────────────────────────────────── #}
+<div class="wiz-step {{ step5_state }}" id="wiz-step-5">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-5')">
+    <div class="wiz-num">{% if step5_state == 'done' %}✓{% else %}5{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Record Results</div>
+      <div class="wiz-step-subtitle">{{ completed_session_count }} / {{ session_count }} sessions completed</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step5_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
 
 {# ── SECTION 5: Session Generation ────────────────────────────────────────── #}
 <div class="card" id="section-sessions">
@@ -830,7 +972,24 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 </div>
 {% endif %}
 
-{# ── SECTION 8: Rankings & Skill Delta ────────────────────────────────────── #}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-5 #}
+
+{# ── STEP 6: Rank & Finalize ──────────────────────────────────────────────── #}
+<div class="wiz-step {{ step6_state }}" id="wiz-step-6">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-6')">
+    <div class="wiz-num">{% if step6_state == 'done' %}✓{% else %}6{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Rank &amp; Finalize</div>
+      <div class="wiz-step-subtitle">
+        {% if _has_rankings %}Rankings ready · {{ existing_rankings | length }} entries{% else %}Ready to calculate{% endif %}
+      </div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step6_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+
+{# ── SECTION 8: Rankings ──────────────────────────────────────────────────── #}
 {% if session_count > 0 and t.tournament_status in ['IN_PROGRESS', 'COMPLETED', 'REWARDS_DISTRIBUTED'] %}
 <div class="card" id="section-rankings">
     <div class="section-header">
@@ -954,6 +1113,58 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 </div>
 {% endif %}
 
+    {% if step6_state == 'active' %}
+    <div class="wiz-action-row">
+      {% if not _has_rankings %}
+      <button class="btn btn-primary" onclick="wizCalculateRankings({{ t.id }})">🔢 Calculate Rankings</button>
+      {% else %}
+      <button class="btn btn-warning" onclick="wizFinalize({{ t.id }})">🏁 Finalize Tournament</button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-6 #}
+
+{# ── STEP 7: Distribute Rewards ───────────────────────────────────────────── #}
+<div class="wiz-step {{ step7_state }}" id="wiz-step-7">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-7')">
+    <div class="wiz-num">{% if step7_state == 'done' %}✓{% else %}7{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Distribute Rewards</div>
+      <div class="wiz-step-subtitle">
+        {% if step7_state == 'done' %}Rewards distributed · REWARDS_DISTRIBUTED
+        {% elif step7_state == 'active' %}Tournament completed — distribute rewards to {{ existing_rankings | length }} participants
+        {% else %}Complete the tournament first{% endif %}
+      </div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step7_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+    {% if existing_rankings %}
+    <div class="card">
+      <p style="font-size:.85rem;font-weight:700;color:#4a5568;margin-bottom:.75rem;">Top Rankings</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;">
+        {% for r in existing_rankings[:3] %}
+        <div class="reward-tier">
+          <div class="tier-label">{% if r.rank == 1 %}🥇 1st{% elif r.rank == 2 %}🥈 2nd{% else %}🥉 3rd{% endif %}</div>
+          <div class="tier-credits" style="font-size:1rem;">
+            {% if r.team_id %}{{ ranking_teams[r.team_id].name if r.team_id in ranking_teams else 'Team #' ~ r.team_id }}
+            {% else %}{% set _p = ranking_users.get(r.user_id) %}{{ _p.full_name if _p else 'Player #' ~ r.user_id }}{% endif %}
+          </div>
+          <div class="tier-xp">{{ r.points or 0 }} pts</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if step7_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-success" onclick="wizDistributeRewards({{ t.id }})">🎁 Distribute Rewards</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-7 #}
+
 {# ── Result Entry Modal ────────────────────────────────────────────────────── #}
 <div id="result-modal-overlay"
      onclick="if(event.target===this)closeResultModal()"
@@ -981,8 +1192,8 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
 </div>
 
-{# ── SECTION 6: Results & Finalization ────────────────────────────────────── #}
-<div class="card" id="section-results">
+{# ── SECTION 6: Legacy Results & Finalization (hidden — wizard handles this) ── #}
+<div class="card" id="section-results" style="display:none">
     <div class="section-header">
         <span class="section-icon">🏅</span>
         <h2>Results &amp; Finalization</h2>
@@ -1311,12 +1522,17 @@ function openSessionGenWizard() {
     });
 }
 
-// ── Section 6: Results ────────────────────────────────────────────────────────
+// ── Section 6: Legacy results (kept for backward compat) ─────────────────────
 async function finalizeResults(tournId) {
     if (!confirm('Finalize this tournament? This will lock results and calculate final rankings.')) return;
     try {
         const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/finalize-tournament`, {});
-        toast('Tournament finalized');
+        if (data && data.success === false) {
+            const n = (data.incomplete_matches || []).length;
+            toast(`${data.message || 'Cannot finalize'}${n ? ` (${n} session${n>1?'s':''} incomplete)` : ''}`, 'error');
+            return;
+        }
+        toast('Tournament finalized ✅');
         setTimeout(() => location.reload(), 1500);
     } catch (err) {
         toast(err.message, 'error');
@@ -1326,7 +1542,7 @@ async function finalizeResults(tournId) {
 async function distributeRewards(tournId) {
     if (!confirm('Distribute rewards to all participants? This action awards XP, credits, and badges.')) return;
     try {
-        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
+        await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
         toast('Rewards distributed successfully');
         setTimeout(() => location.reload(), 1500);
     } catch (err) {
@@ -1334,12 +1550,51 @@ async function distributeRewards(tournId) {
     }
 }
 
-// ── Section 6+: Status lifecycle transition ───────────────────────────────────
+// ── Wizard step actions ───────────────────────────────────────────────────────
+function wizToggle(stepId) {
+    const el = document.getElementById(stepId);
+    if (!el || el.classList.contains('locked')) return;
+    el.classList.toggle('expanded');
+}
+
+async function wizCalculateRankings(tournId) {
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/calculate-rankings`, {});
+        toast(`Rankings calculated — ${data.rankings_count ?? (data.rankings ?? []).length} entries`);
+        setTimeout(() => location.reload(), 1000);
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+async function wizFinalize(tournId) {
+    if (!confirm('Finalize tournament? Results will be locked.')) return;
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/finalize-tournament`, {});
+        if (data && data.success === false) {
+            const n = (data.incomplete_matches || []).length;
+            toast(`${data.message || 'Cannot finalize'}${n ? ` (${n} session${n>1?'s':''} incomplete)` : ''}`, 'error');
+            return;
+        }
+        toast('Tournament finalized ✅');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+async function wizDistributeRewards(tournId) {
+    if (!confirm('Distribute rewards to all ranked participants?')) return;
+    try {
+        await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
+        toast('Rewards distributed ✅');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Status lifecycle transition ───────────────────────────────────────────────
 async function transitionStatus(newStatus) {
     const labels = {
-        'ENROLLMENT_OPEN': 'open enrollment for this tournament',
+        'ENROLLMENT_OPEN':   'open enrollment for this tournament',
         'ENROLLMENT_CLOSED': 'close enrollment',
-        'IN_PROGRESS': 'start the tournament (sessions will be auto-generated)',
+        'CHECK_IN_OPEN':     'open check-in for this tournament',
+        'IN_PROGRESS':       'start the tournament (sessions will be auto-generated)',
     };
     if (!confirm(`Are you sure you want to ${labels[newStatus] || newStatus}?`)) return;
     try {

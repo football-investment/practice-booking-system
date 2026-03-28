@@ -17,7 +17,7 @@ from sqlalchemy import and_
 import json
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel, EventCategory
@@ -34,7 +34,7 @@ router = APIRouter()
 def calculate_tournament_rankings(
     tournament_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Calculate and store tournament rankings
@@ -331,7 +331,8 @@ def get_tournament_rankings(
                     user_group_map[uid] = gid
 
     # Load reward data if tournament is REWARDS_DISTRIBUTED
-    reward_map: dict = {}  # user_id -> {"xp_earned": int, "credits_earned": int}
+    reward_map: dict = {}       # user_id  → per-user reward summary
+    team_reward_map: dict = {}  # team_id  → aggregated reward summary across members
     if tournament.tournament_status == "REWARDS_DISTRIBUTED":
         participation_rows = db.query(TournamentParticipation).filter(
             TournamentParticipation.semester_id == tournament_id
@@ -347,6 +348,14 @@ def get_tournament_rankings(
                     "skills_awarded": p.skill_points_awarded or {},
                     "skill_rating_delta": p.skill_rating_delta or {},
                 }
+                # Aggregate into team bucket when the participation is team-linked
+                if p.team_id:
+                    bucket = team_reward_map.setdefault(p.team_id, {
+                        "xp_earned": 0, "credits_earned": 0,
+                        "skills_awarded": {}, "skill_rating_delta": {},
+                    })
+                    bucket["xp_earned"] += p.xp_awarded or 0
+                    bucket["credits_earned"] += p.credits_awarded or 0
 
     # For INDIVIDUAL_RANKING tournaments, points = measured_value (set by ResultProcessor)
     is_ir_tournament = tournament.format == "INDIVIDUAL_RANKING"
@@ -406,16 +415,19 @@ def get_tournament_rankings(
             # Attach per-round breakdown if available (ROUNDS_BASED sessions)
             if r.user_id in user_round_results:
                 entry["round_results"] = user_round_results[r.user_id]
-        if reward_map:
-            # Always include reward fields when tournament is REWARDS_DISTRIBUTED,
-            # defaulting to empty/zero for users without a participation record
+        if reward_map or team_reward_map:
+            # Always include reward fields when tournament is REWARDS_DISTRIBUTED.
+            # TEAM rows aggregate across all active team members; INDIVIDUAL rows use per-user data.
             defaults = {
                 "xp_earned": 0,
                 "credits_earned": 0,
                 "skills_awarded": {},
                 "skill_rating_delta": {},
             }
-            defaults.update(reward_map.get(r.user_id, {}))
+            if r.team_id is not None:
+                defaults.update(team_reward_map.get(r.team_id, {}))
+            else:
+                defaults.update(reward_map.get(r.user_id, {}))
             entry.update(defaults)
         rankings_data.append(entry)
 

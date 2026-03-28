@@ -970,6 +970,14 @@ async def admin_tournament_edit_page(
         for s in instructor_roster
     )
 
+    # Wizard context: enrolled_count + completed_session_count
+    _participant_type = cfg.participant_type if cfg else "INDIVIDUAL"
+    enrolled_count = len(team_enrollments) if _participant_type == "TEAM" else len(enrollments)
+    completed_session_count = sum(
+        1 for s in all_match_sessions
+        if s.game_results or (s.rounds_data and s.rounds_data.get("round_results"))
+    )
+
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
         {
@@ -985,6 +993,8 @@ async def admin_tournament_edit_page(
             "enrollments": enrollments,
             "enrolled_users": enrolled_users,
             "checked_in_count": checked_in_count,
+            "enrolled_count": enrolled_count,
+            "completed_session_count": completed_session_count,
             "sessions": sessions,
             "session_count": session_count,
             "sessions_result_status": sessions_result_status,
