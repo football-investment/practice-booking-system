@@ -89,11 +89,69 @@ def calculate_and_store_rankings(db, tournament_id: int) -> dict:
     pt_label = "TEAM" if is_team else "INDIVIDUAL"
 
     if tournament_format == "HEAD_TO_HEAD":
-        strategy = RankingStrategyFactory.create(
-            tournament_format="HEAD_TO_HEAD",
-            tournament_type_code=tournament_type_code,
-        )
-        rankings = strategy.calculate_rankings(sessions, db)
+        if is_team:
+            # TEAM HEAD_TO_HEAD: results stored in rounds_data (game_results is NULL).
+            # Compute W/D/L points from per-session team scores.
+            from collections import defaultdict as _dd
+            team_stats: dict = _dd(lambda: {
+                "points": 0, "wins": 0, "ties": 0, "losses": 0,
+                "goals_scored": 0.0, "goals_conceded": 0.0,
+            })
+            for s in sessions:
+                for round_data in (s.rounds_data or {}).get("round_results", {}).values():
+                    team_scores: dict = {}
+                    for key, val in (round_data or {}).items():
+                        if key.startswith("team_"):
+                            try:
+                                tid = int(key.split("_", 1)[1])
+                                team_scores[tid] = float(val)
+                            except (ValueError, IndexError):
+                                pass
+                    if len(team_scores) != 2:
+                        continue
+                    (t1, s1), (t2, s2) = list(team_scores.items())
+                    team_stats[t1]["goals_scored"] += s1
+                    team_stats[t1]["goals_conceded"] += s2
+                    team_stats[t2]["goals_scored"] += s2
+                    team_stats[t2]["goals_conceded"] += s1
+                    if s1 > s2:
+                        team_stats[t1]["points"] += 3
+                        team_stats[t1]["wins"] += 1
+                        team_stats[t2]["losses"] += 1
+                    elif s2 > s1:
+                        team_stats[t2]["points"] += 3
+                        team_stats[t2]["wins"] += 1
+                        team_stats[t1]["losses"] += 1
+                    else:
+                        team_stats[t1]["points"] += 1
+                        team_stats[t1]["ties"] += 1
+                        team_stats[t2]["points"] += 1
+                        team_stats[t2]["ties"] += 1
+            if not team_stats:
+                raise ValueError("No round results found in TEAM HEAD_TO_HEAD sessions.")
+            ranked_teams = sorted(
+                team_stats.items(),
+                key=lambda x: (
+                    -x[1]["points"],
+                    -(x[1]["goals_scored"] - x[1]["goals_conceded"]),
+                    -x[1]["goals_scored"],
+                ),
+            )
+            rankings = [
+                {
+                    "team_id": tid, "user_id": None, "rank": i + 1,
+                    "points": st["points"], "wins": st["wins"],
+                    "ties": st["ties"], "losses": st["losses"],
+                    "goals_for": st["goals_scored"], "goals_against": st["goals_conceded"],
+                }
+                for i, (tid, st) in enumerate(ranked_teams)
+            ]
+        else:
+            strategy = RankingStrategyFactory.create(
+                tournament_format="HEAD_TO_HEAD",
+                tournament_type_code=tournament_type_code,
+            )
+            rankings = strategy.calculate_rankings(sessions, db)
     else:
         if is_team:
             combined: dict = {}

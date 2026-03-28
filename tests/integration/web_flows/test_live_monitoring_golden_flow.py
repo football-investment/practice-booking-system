@@ -37,7 +37,7 @@ from sqlalchemy import event
 
 from app.main import app
 from app.database import engine, get_db
-from app.dependencies import get_current_user, get_current_user_web
+from app.dependencies import get_current_user, get_current_user_web, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.session import Session as SessionModel, SessionType, EventCategory
 from app.models.semester import Semester, SemesterStatus, SemesterCategory
@@ -171,6 +171,7 @@ def _client_for(test_db: Session, current_user: User) -> TestClient:
     app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_current_user] = _override_user
     app.dependency_overrides[get_current_user_web] = lambda: current_user
+    app.dependency_overrides[get_current_admin_or_instructor_user_hybrid] = _override_user
     return TestClient(app, raise_server_exceptions=True)
 
 

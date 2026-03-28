@@ -152,14 +152,75 @@ def calculate_tournament_rankings(
                     detail="HEAD_TO_HEAD tournament missing tournament_type"
                 )
 
-            # Create ranking strategy
-            strategy = RankingStrategyFactory.create(
-                tournament_format="HEAD_TO_HEAD",
-                tournament_type_code=tournament_type_code
-            )
+            _cfg = tournament.tournament_config_obj
+            _is_team = _cfg and _cfg.participant_type == "TEAM"
 
-            # Calculate rankings
-            rankings = strategy.calculate_rankings(sessions, db)
+            if _is_team:
+                # TEAM HEAD_TO_HEAD: results stored in rounds_data (game_results is NULL).
+                # Standard strategies read only game_results — handle TEAM inline.
+                from collections import defaultdict as _dd
+                team_stats = _dd(lambda: {
+                    "points": 0, "wins": 0, "ties": 0, "losses": 0,
+                    "goals_scored": 0.0, "goals_conceded": 0.0,
+                })
+                for _s in sessions:
+                    for _rd in (_s.rounds_data or {}).get("round_results", {}).values():
+                        _tscores: dict = {}
+                        for _key, _val in (_rd or {}).items():
+                            if _key.startswith("team_"):
+                                try:
+                                    _tid = int(_key.split("_", 1)[1])
+                                    _tscores[_tid] = float(_val)
+                                except (ValueError, IndexError):
+                                    pass
+                        if len(_tscores) != 2:
+                            continue
+                        (_t1, _s1), (_t2, _s2) = list(_tscores.items())
+                        team_stats[_t1]["goals_scored"] += _s1
+                        team_stats[_t1]["goals_conceded"] += _s2
+                        team_stats[_t2]["goals_scored"] += _s2
+                        team_stats[_t2]["goals_conceded"] += _s1
+                        if _s1 > _s2:
+                            team_stats[_t1]["points"] += 3
+                            team_stats[_t1]["wins"] += 1
+                            team_stats[_t2]["losses"] += 1
+                        elif _s2 > _s1:
+                            team_stats[_t2]["points"] += 3
+                            team_stats[_t2]["wins"] += 1
+                            team_stats[_t1]["losses"] += 1
+                        else:
+                            team_stats[_t1]["points"] += 1
+                            team_stats[_t1]["ties"] += 1
+                            team_stats[_t2]["points"] += 1
+                            team_stats[_t2]["ties"] += 1
+                if not team_stats:
+                    raise ValueError("No round results found in TEAM HEAD_TO_HEAD sessions.")
+                _ranked = sorted(
+                    team_stats.items(),
+                    key=lambda x: (
+                        -x[1]["points"],
+                        -(x[1]["goals_scored"] - x[1]["goals_conceded"]),
+                        -x[1]["goals_scored"],
+                    ),
+                )
+                rankings = [
+                    {
+                        "team_id": _tid, "user_id": None, "rank": i + 1,
+                        "points": _st["points"], "wins": _st["wins"],
+                        "ties": _st["ties"], "losses": _st["losses"],
+                        "goals_for": _st["goals_scored"], "goals_against": _st["goals_conceded"],
+                    }
+                    for i, (_tid, _st) in enumerate(_ranked)
+                ]
+            else:
+                # Create ranking strategy
+                strategy = RankingStrategyFactory.create(
+                    tournament_format="HEAD_TO_HEAD",
+                    tournament_type_code=tournament_type_code
+                )
+
+                # Calculate rankings
+                rankings = strategy.calculate_rankings(sessions, db)
 
         else:
             # INDIVIDUAL_RANKING format — check whether TEAM or INDIVIDUAL participant_type

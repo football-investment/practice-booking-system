@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.name }} — LFA Event</title>
+    <meta property="og:title" content="{{ t.name }} — LFA Event">
+    <meta property="og:description" content="{{ status_label }} · {{ tournament_format }} · {{ participant_type }}">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { overflow-x: hidden; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0f1923;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 0.75rem 4rem;
+    color: #e2e8f0;
+    overflow-x: hidden;
+    width: 100%;
+}
+.page-brand {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: rgba(255,255,255,0.35);
+    margin-bottom: 1.25rem; text-align: center;
+}
+.card-wrap {
+    width: 100%;
+    max-width: min(720px, calc(100vw - 1.5rem));
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Event header ─────────────────────────────────────────── */
+.event-header {
+    background: linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%);
+    padding: 1.75rem 1.5rem 1.25rem;
+}
+.event-title {
+    font-size: 1.55rem; font-weight: 900; color: white; line-height: 1.15;
+    margin-bottom: 0.6rem;
+    overflow-wrap: break-word;
+}
+.event-meta-row {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;
+    align-items: center; margin-bottom: 0.75rem;
+}
+.status-badge {
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.1em; padding: 4px 12px; border-radius: 99px; color: white;
+    white-space: nowrap;
+}
+.meta-chip {
+    font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.65);
+    background: rgba(255,255,255,0.08); border-radius: 6px;
+    padding: 3px 10px; white-space: nowrap;
+}
+.event-info-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.6rem; margin-top: 0.75rem;
+}
+.info-cell { display: flex; flex-direction: column; gap: 2px; }
+.info-label {
+    font-size: 0.58rem; font-weight: 700; color: rgba(255,255,255,0.35);
+    text-transform: uppercase; letter-spacing: 0.08em;
+}
+.info-value { font-size: 0.82rem; font-weight: 700; color: rgba(255,255,255,0.85); }
+
+/* ── Sections ─────────────────────────────────────────────── */
+.section {
+    background: #1a202c;
+    padding: 1.1rem 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.section-title {
+    font-size: 0.63rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.13em; color: rgba(255,255,255,0.35);
+    margin-bottom: 0.85rem;
+}
+
+/* ── Rankings table ───────────────────────────────────────── */
+.rankings-table { width: 100%; border-collapse: collapse; }
+.rankings-table th {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: rgba(255,255,255,0.35);
+    padding: 0.35rem 0.5rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.rankings-table th.num { text-align: right; }
+.rankings-table td {
+    padding: 0.5rem 0.5rem; font-size: 0.82rem; color: #e2e8f0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    vertical-align: middle;
+}
+.rankings-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.rankings-table tr:last-child td { border-bottom: none; }
+.rank-col { width: 36px; }
+.rank-medal { font-size: 1rem; }
+.participant-name { font-weight: 700; color: white; }
+.club-sub { font-size: 0.68rem; color: rgba(255,255,255,0.45); margin-top: 1px; }
+.pts-badge {
+    display: inline-block; background: rgba(102,126,234,0.2);
+    color: #a3b3f7; border-radius: 6px; padding: 2px 8px;
+    font-size: 0.75rem; font-weight: 800;
+}
+.wdl { font-size: 0.75rem; color: rgba(255,255,255,0.55); white-space: nowrap; }
+.goals { font-size: 0.75rem; color: rgba(255,255,255,0.45); white-space: nowrap; }
+
+/* ── Participant list (pre-results) ───────────────────────── */
+.participant-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.participant-pill {
+    font-size: 0.75rem; font-weight: 600; color: #a0aec0;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 99px; padding: 4px 12px;
+}
+
+/* ── No results state ─────────────────────────────────────── */
+.empty-note {
+    font-size: 0.82rem; color: rgba(255,255,255,0.35);
+    text-align: center; padding: 1.5rem 0;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 520px) {
+    .event-title { font-size: 1.25rem; }
+    .event-header { padding: 1.25rem 1rem 1rem; }
+    .section { padding: 0.9rem 1rem; }
+    .hide-sm { display: none; }
+}
+@media (max-width: 380px) {
+    .event-info-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-brand">⚽ LFA Education Center — Event Details</div>
+
+<div class="card-wrap">
+
+    <!-- Header -->
+    <div class="event-header">
+        <h1 class="event-title">🏆 {{ t.name }}</h1>
+
+        <div class="event-meta-row">
+            <span class="status-badge" style="background: {{ status_color }};">{{ status_label }}</span>
+            {% if tournament_format %}
+            <span class="meta-chip">{{ tournament_format.replace('_', ' ') }}</span>
+            {% endif %}
+            {% if type_name %}
+            <span class="meta-chip">{{ type_name }}</span>
+            {% endif %}
+            <span class="meta-chip">{{ participant_type }}</span>
+        </div>
+
+        <div class="event-info-grid">
+            {% if t.start_date %}
+            <div class="info-cell">
+                <span class="info-label">Start</span>
+                <span class="info-value">📅 {{ t.start_date.strftime('%Y-%m-%d') }}</span>
+            </div>
+            {% endif %}
+            {% if t.end_date %}
+            <div class="info-cell">
+                <span class="info-label">End</span>
+                <span class="info-value">📅 {{ t.end_date.strftime('%Y-%m-%d') }}</span>
+            </div>
+            {% endif %}
+            {% if location_name or campus_name %}
+            <div class="info-cell">
+                <span class="info-label">Location</span>
+                <span class="info-value">📍 {{ campus_name or location_name }}</span>
+            </div>
+            {% endif %}
+            {% if t.age_group %}
+            <div class="info-cell">
+                <span class="info-label">Age Group</span>
+                <span class="info-value">👦 {{ t.age_group }}</span>
+            </div>
+            {% endif %}
+            <div class="info-cell">
+                <span class="info-label">Participants</span>
+                <span class="info-value">👥 {{ enrolled_count }}{% if max_players %} / {{ max_players }}{% endif %}</span>
+            </div>
+            {% if match_duration %}
+            <div class="info-cell">
+                <span class="info-label">Match Time</span>
+                <span class="info-value">⏱ {{ match_duration }} min</span>
+            </div>
+            {% endif %}
+            {% if number_of_legs and number_of_legs > 1 %}
+            <div class="info-cell">
+                <span class="info-label">Legs</span>
+                <span class="info-value">🔄 {{ number_of_legs }}× legs</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Final Standings -->
+    {% if has_rankings %}
+    <div class="section">
+        <div class="section-title">
+            {% if status in ('COMPLETED', 'REWARDS_DISTRIBUTED') %}🏅 Final Standings{% else %}📊 Current Standings{% endif %}
+        </div>
+        <table class="rankings-table">
+            <thead>
+                <tr>
+                    <th class="rank-col">#</th>
+                    <th>{{ 'Team' if participant_type == 'TEAM' else 'Player' }}</th>
+                    <th class="num">Pts</th>
+                    <th class="num hide-sm">W</th>
+                    <th class="num hide-sm">D</th>
+                    <th class="num hide-sm">L</th>
+                    <th class="num hide-sm">GF</th>
+                    <th class="num hide-sm">GA</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rankings %}
+                <tr>
+                    <td class="rank-col">
+                        {% if row.rank == 1 %}<span class="rank-medal">🥇</span>
+                        {% elif row.rank == 2 %}<span class="rank-medal">🥈</span>
+                        {% elif row.rank == 3 %}<span class="rank-medal">🥉</span>
+                        {% elif row.rank %}{{ row.rank }}
+                        {% else %}<span style="color:rgba(255,255,255,0.3)">—</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="participant-name">{{ row.name }}</div>
+                        {% if row.club_name %}<div class="club-sub">{{ row.club_name }}</div>{% endif %}
+                    </td>
+                    <td class="num"><span class="pts-badge">{{ row.points | int }}</span></td>
+                    <td class="num hide-sm">{{ row.wins or 0 }}</td>
+                    <td class="num hide-sm">{{ row.draws or 0 }}</td>
+                    <td class="num hide-sm">{{ row.losses or 0 }}</td>
+                    <td class="num hide-sm goals">{{ row.goals_for or 0 }}</td>
+                    <td class="num hide-sm goals">{{ row.goals_against or 0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Participants (no final rankings yet) -->
+    {% elif participants %}
+    <div class="section">
+        <div class="section-title">👥 Registered {{ 'Teams' if participant_type == 'TEAM' else 'Players' }}</div>
+        <div class="participant-pills">
+            {% for p in participants %}
+            <span class="participant-pill">
+                {{ p.name }}{% if p.club_name %} · {{ p.club_name }}{% endif %}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% else %}
+    <div class="section">
+        <div class="empty-note">No participants registered yet.</div>
+    </div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>

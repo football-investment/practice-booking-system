@@ -11,7 +11,7 @@ from typing import List, Optional
 import json
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.session import Session as SessionModel, EventCategory
 from app.models.tournament_enums import TournamentPhase  # Phase 2.1: Import enum
@@ -141,7 +141,7 @@ def submit_game_results(
     session_id: int,
     request: SubmitGameResultsRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Submit game results for a tournament session
@@ -209,7 +209,7 @@ def submit_game_results(
 def get_game_results(
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Get game results for a tournament session
@@ -269,7 +269,7 @@ def submit_head_to_head_match_result(
     session_id: int,
     request: SubmitHeadToHeadMatchRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Submit HEAD_TO_HEAD match result for a tournament session (League/Knockout)
@@ -463,7 +463,7 @@ def submit_team_results(
     session_id: int,
     request: SubmitTeamResultsRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid),
 ):
     """
     Submit results for a TEAM tournament session.
@@ -515,9 +515,11 @@ def submit_team_results(
 
     session.rounds_data = rd
     flag_modified(session, "rounds_data")
+    session.session_status = "completed"
     db.commit()
     db.refresh(session)
     _publish_session_result(db, session)
+    _maybe_trigger_auto_ranking(db, session.semester_id)
 
     return {
         "session_id": session_id,

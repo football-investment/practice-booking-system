@@ -437,6 +437,9 @@ def transition_tournament_status(
                 break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else 15
                 parallel_fields = tournament.parallel_fields if tournament.parallel_fields else 1
                 number_of_rounds = tournament.number_of_rounds if tournament.number_of_rounds else 1
+                _cfg_obj = tournament.tournament_config_obj
+                number_of_legs = (_cfg_obj.number_of_legs if _cfg_obj and _cfg_obj.number_of_legs else 1)
+                track_home_away = (_cfg_obj.track_home_away if _cfg_obj and _cfg_obj.track_home_away else False)
 
                 # Generate sessions (durations and parallel fields from semester config or defaults)
                 success, message, sessions_created = generator.generate_sessions(
@@ -444,7 +447,9 @@ def transition_tournament_status(
                     parallel_fields=parallel_fields,
                     session_duration_minutes=session_duration,
                     break_minutes=break_duration,
-                    number_of_rounds=number_of_rounds
+                    number_of_rounds=number_of_rounds,
+                    number_of_legs=number_of_legs,
+                    track_home_away=track_home_away,
                 )
 
                 if success:

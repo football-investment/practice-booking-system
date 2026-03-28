@@ -350,6 +350,8 @@
                     <div class="action-btns">
                         <!-- Edit → tournament edit page -->
                         <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn" style="text-decoration:none;">✏️ Edit</a>
+                        <!-- Public event page -->
+                        <a href="/events/{{ t.id }}" class="action-btn" target="_blank" style="text-decoration:none;">👁 View</a>
 
                         <!-- Live Monitoring (IN_PROGRESS, not stuck) -->
                         {% if t.tournament_status == 'IN_PROGRESS' and not is_stuck %}

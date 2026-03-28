@@ -315,6 +315,7 @@
                 <td data-label="Actions">
                     <div class="action-cell">
                         <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn action-btn-primary">✏️ Edit</a>
+                        <a href="/events/{{ t.id }}" class="action-btn" target="_blank">👁 View</a>
                         {% if status == 'IN_PROGRESS' %}
                         <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn">📡 Live</a>
                         {% endif %}
