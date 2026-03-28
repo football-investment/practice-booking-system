@@ -165,7 +165,7 @@ jobs:
           with engine.connect() as conn:
               row = conn.execute(text(
                   "SELECT COUNT(*) FROM semesters WHERE tournament_status = 'REWARDS_DISTRIBUTED' "
-                  "AND notes LIKE '%SATT-%'"
+                  "AND code LIKE 'SATT-%'"
               )).scalar()
           print(f"SATT tournaments with REWARDS_DISTRIBUTED: {row}")
           if row < 9:
