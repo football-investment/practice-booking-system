@@ -50,6 +50,9 @@ class TournamentUpdateRequest(BaseModel):
     campus_id: Optional[int] = Field(None, description="Campus ID where tournament will be held")
     location_id: Optional[int] = Field(None, description="Location ID where tournament will be held")
     game_preset_id: Optional[int] = Field(None, description="Game preset ID (updates GameConfiguration)")
+    theme: Optional[str] = Field(None, description="Marketing theme / headline (e.g. 'Spring 2026 Edition')")
+    winner_count: Optional[int] = Field(None, ge=1, description="Number of winners (INDIVIDUAL_RANKING)")
+    team_enrollment_cost: Optional[int] = Field(None, ge=0, description="Credit cost per team enrollment (TEAM tournaments)")
 
 
 # ============================================================================
@@ -209,6 +212,10 @@ def update_tournament(
             )
         updates["campus_id"] = {"old": tournament.campus_id, "new": request.campus_id}
         tournament.campus_id = request.campus_id
+        # Auto-derive location from campus if tournament has no location set
+        if campus.location_id and not tournament.location_id:
+            tournament.location_id = campus.location_id
+            updates["location_id_derived"] = {"source": "campus", "value": campus.location_id}
 
     # Update tournament_type_id (lives in TournamentConfiguration — ⚠️ auto-deletes sessions on change)
     # Use model_fields_set to detect explicit null (IR switch) vs omitted field
@@ -386,6 +393,25 @@ def update_tournament(
         if game_cfg:
             updates["game_preset_id"] = {"old": game_cfg.game_preset_id, "new": request.game_preset_id}
             game_cfg.game_preset_id = request.game_preset_id
+
+    # Update theme (direct Semester column)
+    if request.theme is not None:
+        updates["theme"] = {"old": tournament.theme, "new": request.theme}
+        tournament.theme = request.theme
+
+    # Update winner_count (direct Semester column — for INDIVIDUAL_RANKING)
+    if request.winner_count is not None:
+        updates["winner_count"] = {"old": tournament.winner_count, "new": request.winner_count}
+        tournament.winner_count = request.winner_count
+
+    # Update team_enrollment_cost (lives in TournamentConfiguration)
+    if request.team_enrollment_cost is not None:
+        updates["team_enrollment_cost"] = {
+            "old": getattr(tournament.tournament_config_obj, 'team_enrollment_cost', None),
+            "new": request.team_enrollment_cost,
+        }
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.team_enrollment_cost = request.team_enrollment_cost
 
     # If no updates, return early
     if not updates:

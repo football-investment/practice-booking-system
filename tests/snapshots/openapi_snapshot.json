@@ -18275,6 +18275,31 @@
             "description": "Tournament start date (ISO format)",
             "title": "Start Date"
           },
+          "team_enrollment_cost": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Credit cost per team enrollment (TEAM tournaments)",
+            "title": "Team Enrollment Cost"
+          },
+          "theme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Marketing theme / headline (e.g. 'Spring 2026 Edition')",
+            "title": "Theme"
+          },
           "tournament_status": {
             "anyOf": [
               {
@@ -18298,6 +18323,19 @@
             ],
             "description": "Tournament type ID (\u26a0\ufe0f WARNING: Can only change if no sessions generated)",
             "title": "Tournament Type Id"
+          },
+          "winner_count": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of winners (INDIVIDUAL_RANKING)",
+            "title": "Winner Count"
           }
         },
         "title": "TournamentUpdateRequest",

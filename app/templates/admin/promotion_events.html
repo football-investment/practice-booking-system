@@ -133,6 +133,8 @@
     white-space: nowrap;
     flex-shrink: 0;
 }
+.fmt-chip  { background: #e9d8fd; color: #553c9a; }
+.type-chip { background: #e6fffa; color: #234e52; }
 
 /* ── Warning flag ─────────────────────────────────────────────── */
 .warn-flag {
@@ -246,18 +248,16 @@
         <option value="ENROLLMENT_OPEN">Enrollment Open</option>
         <option value="ENROLLMENT_CLOSED">Enrollment Closed</option>
         <option value="CHECK_IN_OPEN">Check-In Open</option>
-        <option value="IN_PROGRESS">Live</option>
+        <option value="IN_PROGRESS">In Progress</option>
         <option value="COMPLETED">Completed</option>
         <option value="REWARDS_DISTRIBUTED">Rewards Distributed</option>
         <option value="CANCELLED">Cancelled</option>
     </select>
     <select id="agFilter" onchange="applyFilters()">
         <option value="all">All age groups</option>
-        <option value="PRE">U12</option>
-        <option value="YOUTH">U15</option>
-        <option value="JUNIOR">U18</option>
-        <option value="ADULT">Adult</option>
-        <option value="AMATEUR">Amateur</option>
+        <option value="PRE">U12 (Pre)</option>
+        <option value="YOUTH">U13–U18 (Youth)</option>
+        <option value="AMATEUR">U19+ (Amateur)</option>
     </select>
     <span class="filter-count" id="filterCount">{{ promo_info|length }} event{% if promo_info|length != 1 %}s{% endif %}</span>
 </div>
@@ -288,11 +288,13 @@
                 <span class="meta-sep">·</span>
                 {% endif %}
                 {% if t.age_group %}<span class="ag-chip">{{ t.age_group }}</span><span class="meta-sep">·</span>{% endif %}
+                {% if info.fmt %}<span class="ag-chip fmt-chip">{% if info.fmt == 'HEAD_TO_HEAD' %}H2H{% else %}Indiv.{% endif %}</span><span class="meta-sep">·</span>{% endif %}
+                {% if info.type_code %}<span class="ag-chip type-chip">{% if info.type_code == 'league' %}League{% elif info.type_code == 'knockout' %}Knockout{% elif info.type_code == 'group_knockout' %}Group+KO{% elif info.type_code == 'swiss' %}Swiss{% else %}{{ info.type_code }}{% endif %}</span><span class="meta-sep">·</span>{% endif %}
                 {% if t.start_date %}
                 {{ t.start_date.strftime('%Y. %m. %d.') }}{% if t.end_date %} – {{ t.end_date.strftime('%m. %d.') }}{% endif %}
                 <span class="meta-sep">·</span>
                 {% endif %}
-                <span>{{ info.team_count }} teams</span>
+                {% if info.max_players %}<span>{{ info.team_count }} / {{ info.max_players }} teams</span>{% else %}<span>{{ info.team_count }} teams</span>{% endif %}
                 {% if info.session_count > 0 %}<span class="meta-sep">·</span><span>{{ info.session_count }} matches</span>{% endif %}
             </div>
         </div>

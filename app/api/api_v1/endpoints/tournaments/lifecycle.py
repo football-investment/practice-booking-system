@@ -318,52 +318,11 @@ def transition_tournament_status(
                 print(f"🗑️ Auto-deleted {deleted_count} sessions when tournament reverted to ENROLLMENT_CLOSED")
 
     # ============================================================================
-    # AUTO-GENERATE SESSIONS when transitioning to IN_PROGRESS
+    # AUTO-DELETE SESSIONS when rolling back from CHECK_IN_OPEN to ENROLLMENT_CLOSED
     # ============================================================================
-    if request.new_status == "IN_PROGRESS":
-        # 📸 SAVE REWARD POLICY SNAPSHOT FIRST (lock reward_config for this tournament)
-        # This MUST happen BEFORE session generation and ALWAYS when entering IN_PROGRESS
-        # This prevents admin from changing reward config after tournament starts
-        if tournament.reward_config and not tournament.reward_policy_snapshot:
-            if tournament.reward_config_obj:
-                tournament.reward_config_obj.reward_policy_snapshot = tournament.reward_config
-                db.flush()
-            print(f"📸 REWARD POLICY SNAPSHOT saved for tournament {tournament_id}:")
-            print(f"   Skills: {len(tournament.reward_config.get('skill_mappings', []))}")
-            print(f"   Template: {tournament.reward_config.get('template_name', 'Custom')}")
-
-        # Check if we need to regenerate sessions
-        from app.models.session import Session as SessionModel
-
-        current_session_count = db.query(SessionModel).filter(
-            SessionModel.semester_id == tournament_id,
-            SessionModel.auto_generated == True
-        ).count()
-
-        # 🔄 NEW: INDIVIDUAL_RANKING always expects 1 session (rounds stored in rounds_data)
-        # HEAD_TO_HEAD expects N sessions based on tournament type
-        if tournament.format == "INDIVIDUAL_RANKING":
-            expected_session_count = 1
-        else:
-            # HEAD_TO_HEAD: session count depends on tournament type (calculated by generator)
-            expected_session_count = None  # Can't predict without running generator
-
-        # Regenerate if: (1) not generated yet, OR (2) session count doesn't match expected (for INDIVIDUAL_RANKING)
-        if tournament.format == "INDIVIDUAL_RANKING":
-            needs_regeneration = (not tournament.sessions_generated) or (current_session_count != expected_session_count)
-        else:
-            # HEAD_TO_HEAD: just check if not generated yet
-            needs_regeneration = not tournament.sessions_generated
-
-        if needs_regeneration and current_session_count > 0:
-            # Reset flags FIRST (before deletion) so can_generate_sessions() sees the correct state
-            # Write to config object — Semester properties are read-only proxies
-            if tournament.tournament_config_obj:
-                tournament.tournament_config_obj.sessions_generated = False
-                tournament.tournament_config_obj.sessions_generated_at = None
-                db.flush()
-
-            # Delete existing sessions
+    if old_status == "CHECK_IN_OPEN" and request.new_status == "ENROLLMENT_CLOSED":
+        if tournament.sessions_generated:
+            from app.models.session import Session as SessionModel
             from app.models.attendance import Attendance
 
             session_ids = [s.id for s in db.query(SessionModel).filter(
@@ -373,16 +332,25 @@ def transition_tournament_status(
 
             if session_ids:
                 db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).delete(synchronize_session=False)
+
                 deleted_count = db.query(SessionModel).filter(
                     SessionModel.semester_id == tournament_id,
                     SessionModel.auto_generated == True
                 ).delete(synchronize_session=False)
-                db.flush()
-                print(f"🗑️ Deleted {deleted_count} old sessions (mismatch: had {current_session_count}, need {expected_session_count})")
 
-        if needs_regeneration:
-            # 📸 SNAPSHOT: Save enrollment state BEFORE session generation
-            # This allows regeneration if something goes wrong
+                if tournament.tournament_config_obj:
+                    tournament.tournament_config_obj.sessions_generated = False
+                    tournament.tournament_config_obj.sessions_generated_at = None
+                    db.flush()
+
+                print(f"🗑️ Auto-deleted {deleted_count} sessions when tournament rolled back CHECK_IN_OPEN → ENROLLMENT_CLOSED")
+
+    # ============================================================================
+    # AUTO-GENERATE SESSIONS when transitioning to CHECK_IN_OPEN (initial draw)
+    # ============================================================================
+    if request.new_status == "CHECK_IN_OPEN":
+        if not tournament.sessions_generated:
+            # 📸 Save enrollment snapshot BEFORE session generation (initial draw)
             from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 
             enrolled_players = db.query(SemesterEnrollment).filter(
@@ -412,27 +380,19 @@ def transition_tournament_status(
                 }
             }
 
-            # 💾 SAVE ENROLLMENT SNAPSHOT to database
-            # Write to config object — Semester.enrollment_snapshot is a read-only proxy property
             if tournament.tournament_config_obj:
                 tournament.tournament_config_obj.enrollment_snapshot = enrollment_snapshot
-                db.flush()  # Save snapshot immediately before session generation
+                db.flush()
 
-            print(f"📸 ENROLLMENT SNAPSHOT saved for tournament {tournament_id}:")
-            print(f"   Players: {len(enrolled_players)}")
-            print(f"   Config: {enrollment_snapshot['schedule_config']}")
+            print(f"📸 ENROLLMENT SNAPSHOT saved at CHECK_IN_OPEN for tournament {tournament_id}: {len(enrolled_players)} players")
 
-            # Auto-generate tournament sessions using default parameters
+            # Generate initial sessions using all enrolled teams/players (no check-in filter yet)
             from app.services.tournament_session_generator import TournamentSessionGenerator
 
             generator = TournamentSessionGenerator(db)
-
-            # Check if can generate
             can_generate, reason = generator.can_generate_sessions(tournament_id)
 
             if can_generate:
-                # Use semester's saved schedule configuration if available, otherwise use defaults
-                # Admin sets these via schedule editor BEFORE generating sessions
                 session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else 90
                 break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else 15
                 parallel_fields = tournament.parallel_fields if tournament.parallel_fields else 1
@@ -441,7 +401,6 @@ def transition_tournament_status(
                 number_of_legs = (_cfg_obj.number_of_legs if _cfg_obj and _cfg_obj.number_of_legs else 1)
                 track_home_away = (_cfg_obj.track_home_away if _cfg_obj and _cfg_obj.track_home_away else False)
 
-                # Generate sessions (durations and parallel fields from semester config or defaults)
                 success, message, sessions_created = generator.generate_sessions(
                     tournament_id=tournament_id,
                     parallel_fields=parallel_fields,
@@ -453,11 +412,119 @@ def transition_tournament_status(
                 )
 
                 if success:
-                    print(f"✅ Auto-generated {len(sessions_created)} sessions for tournament {tournament_id}")
+                    print(f"✅ Auto-generated {len(sessions_created)} sessions at CHECK_IN_OPEN for tournament {tournament_id}")
                 else:
-                    print(f"⚠️ Failed to auto-generate sessions: {message}")
+                    print(f"⚠️ Failed to auto-generate sessions at CHECK_IN_OPEN: {message}")
             else:
-                print(f"⚠️ Cannot auto-generate sessions: {reason}")
+                print(f"⚠️ Cannot auto-generate sessions at CHECK_IN_OPEN: {reason}")
+
+    # ============================================================================
+    # AUTO-REGENERATE SESSIONS when transitioning to IN_PROGRESS (check-in filter)
+    # ============================================================================
+    if request.new_status == "IN_PROGRESS":
+        # 📸 SAVE REWARD POLICY SNAPSHOT FIRST (lock reward_config for this tournament)
+        # This MUST happen BEFORE session generation and ALWAYS when entering IN_PROGRESS
+        # This prevents admin from changing reward config after tournament starts
+        if tournament.reward_config and not tournament.reward_policy_snapshot:
+            if tournament.reward_config_obj:
+                tournament.reward_config_obj.reward_policy_snapshot = tournament.reward_config
+                db.flush()
+            print(f"📸 REWARD POLICY SNAPSHOT saved for tournament {tournament_id}:")
+            print(f"   Skills: {len(tournament.reward_config.get('skill_mappings', []))}")
+            print(f"   Template: {tournament.reward_config.get('template_name', 'Custom')}")
+
+        # Check if we need to regenerate sessions
+        from app.models.session import Session as SessionModel
+
+        current_session_count = db.query(SessionModel).filter(
+            SessionModel.semester_id == tournament_id,
+            SessionModel.auto_generated == True
+        ).count()
+
+        # 🔄 Determine if regeneration is needed at IN_PROGRESS:
+        # - INDIVIDUAL_RANKING: always expects exactly 1 session
+        # - HEAD_TO_HEAD: sessions were already generated at CHECK_IN_OPEN;
+        #   only regenerate if check-in exclusions are active (no-shows to filter out)
+        if tournament.format == "INDIVIDUAL_RANKING":
+            expected_session_count = 1
+            needs_regeneration = (not tournament.sessions_generated) or (current_session_count != expected_session_count)
+        else:
+            # HEAD_TO_HEAD
+            if not tournament.sessions_generated:
+                needs_regeneration = True  # Fallback: generate if somehow missing
+            elif tournament.participant_type == "TEAM":
+                from app.models.team import TournamentTeamEnrollment
+                has_checkins = db.query(TournamentTeamEnrollment).filter(
+                    TournamentTeamEnrollment.semester_id == tournament_id,
+                    TournamentTeamEnrollment.is_active == True,
+                    TournamentTeamEnrollment.checked_in_at.isnot(None)
+                ).count() > 0
+                needs_regeneration = has_checkins
+            else:
+                from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+                has_checkins = db.query(SemesterEnrollment).filter(
+                    SemesterEnrollment.semester_id == tournament_id,
+                    SemesterEnrollment.is_active == True,
+                    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+                    SemesterEnrollment.tournament_checked_in_at.isnot(None)
+                ).count() > 0
+                needs_regeneration = has_checkins
+
+        if needs_regeneration and current_session_count > 0:
+            # Reset flags FIRST so can_generate_sessions() sees the correct state
+            if tournament.tournament_config_obj:
+                tournament.tournament_config_obj.sessions_generated = False
+                tournament.tournament_config_obj.sessions_generated_at = None
+                db.flush()
+
+            # Delete existing sessions
+            from app.models.attendance import Attendance
+
+            session_ids = [s.id for s in db.query(SessionModel).filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.auto_generated == True
+            ).all()]
+
+            if session_ids:
+                db.query(Attendance).filter(Attendance.session_id.in_(session_ids)).delete(synchronize_session=False)
+                deleted_count = db.query(SessionModel).filter(
+                    SessionModel.semester_id == tournament_id,
+                    SessionModel.auto_generated == True
+                ).delete(synchronize_session=False)
+                db.flush()
+                print(f"🗑️ Deleted {deleted_count} sessions for check-in-filtered regeneration at IN_PROGRESS")
+
+        if needs_regeneration:
+            from app.services.tournament_session_generator import TournamentSessionGenerator
+
+            generator = TournamentSessionGenerator(db)
+            can_generate, reason = generator.can_generate_sessions(tournament_id)
+
+            if can_generate:
+                session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else 90
+                break_duration = tournament.break_duration_minutes if tournament.break_duration_minutes else 15
+                parallel_fields = tournament.parallel_fields if tournament.parallel_fields else 1
+                number_of_rounds = tournament.number_of_rounds if tournament.number_of_rounds else 1
+                _cfg_obj = tournament.tournament_config_obj
+                number_of_legs = (_cfg_obj.number_of_legs if _cfg_obj and _cfg_obj.number_of_legs else 1)
+                track_home_away = (_cfg_obj.track_home_away if _cfg_obj and _cfg_obj.track_home_away else False)
+
+                success, message, sessions_created = generator.generate_sessions(
+                    tournament_id=tournament_id,
+                    parallel_fields=parallel_fields,
+                    session_duration_minutes=session_duration,
+                    break_minutes=break_duration,
+                    number_of_rounds=number_of_rounds,
+                    number_of_legs=number_of_legs,
+                    track_home_away=track_home_away,
+                )
+
+                if success:
+                    print(f"✅ Auto-regenerated {len(sessions_created)} sessions at IN_PROGRESS for tournament {tournament_id}")
+                else:
+                    print(f"⚠️ Failed to regenerate sessions at IN_PROGRESS: {message}")
+            else:
+                print(f"⚠️ Cannot regenerate sessions at IN_PROGRESS: {reason}")
 
     # Record status history
     record_status_change(

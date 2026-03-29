@@ -113,6 +113,31 @@ def validate_status_transition(
                 "Set campus_id via PATCH /{id} before opening enrollment."
             )
 
+        # Tournament name must be non-empty
+        name = getattr(tournament, 'name', None)
+        if not name or not str(name).strip():
+            return False, "Cannot open enrollment: Tournament name is required"
+
+        # Dates must be valid: start not in the past, end >= start
+        from datetime import date as _date, datetime as _datetime
+        start = getattr(tournament, 'start_date', None)
+        end = getattr(tournament, 'end_date', None)
+        # Normalise to date — datetime is a subclass of date, so check datetime first
+        start_d = start.date() if isinstance(start, _datetime) else (start if isinstance(start, _date) else None)
+        end_d = end.date() if isinstance(end, _datetime) else (end if isinstance(end, _date) else None)
+        if start_d and start_d < _date.today():
+            return False, "Cannot open enrollment: Start date is in the past"
+        if start_d and end_d and end_d < start_d:
+            return False, "Cannot open enrollment: End date must be on or after start date"
+
+        # HEAD_TO_HEAD tournaments need a tournament type (league/knockout/etc.)
+        fmt = getattr(tournament, 'format', None)
+        if fmt == "HEAD_TO_HEAD" and not getattr(tournament, 'tournament_type_id', None):
+            return False, (
+                "Cannot open enrollment: Tournament type (league/knockout/etc.) "
+                "must be selected for HEAD_TO_HEAD format"
+            )
+
     if new_status == "ENROLLMENT_CLOSED":
         # SM-BUG-01 fix: bifurcate guard on source state.
         # IN_PROGRESS → ENROLLMENT_CLOSED is an admin emergency rollback for a

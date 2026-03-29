@@ -484,6 +484,8 @@ async def admin_promotion_events_list(
             .filter(TournamentInstructorSlot.semester_id == t.id)
             .all()
         )
+        cfg = t.tournament_config_obj
+        tt = cfg.tournament_type if cfg else None
         promo_info.append({
             "tournament":       t,
             "team_count":       team_count,
@@ -498,6 +500,9 @@ async def admin_promotion_events_list(
                 s.status == SlotStatus.ABSENT.value and s.role == SlotRole.FIELD.value
                 for s in slots
             ),
+            "fmt":              t.format,
+            "type_code":        tt.code if tt else None,
+            "max_players":      cfg.max_players if cfg else None,
         })
 
     return templates.TemplateResponse(

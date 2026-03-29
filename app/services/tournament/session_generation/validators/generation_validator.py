@@ -47,9 +47,9 @@ class GenerationValidator:
         else:
             return False, f"Invalid tournament format: {tournament.format}"
 
-        # Check if enrollment is closed (tournament status must be IN_PROGRESS or later)
-        if tournament.tournament_status not in ["IN_PROGRESS", "COMPLETED"]:
-            return False, f"Tournament not ready for session generation. Current status: {tournament.tournament_status}. Sessions can only be generated when status is IN_PROGRESS."
+        # Check if enrollment is closed (tournament status must be CHECK_IN_OPEN or later)
+        if tournament.tournament_status not in ["CHECK_IN_OPEN", "IN_PROGRESS", "COMPLETED"]:
+            return False, f"Tournament not ready for session generation. Current status: {tournament.tournament_status}. Sessions can only be generated when status is CHECK_IN_OPEN or later."
 
         # Check if there are enough enrolled participants (TEAM vs INDIVIDUAL differ)
         if tournament.participant_type == "TEAM":

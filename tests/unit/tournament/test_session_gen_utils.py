@@ -227,14 +227,14 @@ class TestGenerationValidator:
         assert "Invalid tournament format" in reason
 
     def test_status_not_in_progress_or_completed(self):
-        """Line 52: status != IN_PROGRESS/COMPLETED → False."""
+        """Line 52: status not in {CHECK_IN_OPEN, IN_PROGRESS, COMPLETED} → False."""
         t = _make_tournament(fmt="INDIVIDUAL_RANKING", status="ENROLLMENT_OPEN")
         v, _ = _make_validator(t)
 
         ok, reason = v.can_generate_sessions(1)
 
         assert ok is False
-        assert "IN_PROGRESS" in reason
+        assert "CHECK_IN_OPEN" in reason or "IN_PROGRESS" in reason
 
     def test_individual_ranking_not_enough_players(self):
         """Line 63: IR format, only 1 enrolled (< 2 minimum) → False."""

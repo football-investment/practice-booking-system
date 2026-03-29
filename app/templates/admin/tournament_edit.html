@@ -313,7 +313,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </div>
         <div class="form-group">
             <label>Campus</label>
-            <select id="basic-campus-id">
+            <select id="basic-campus-id" onchange="onCampusChange()">
                 <option value="">— No campus —</option>
                 {% for campus in campuses %}
                 <option value="{{ campus.id }}" data-location="{{ campus.location_id }}" {% if t.campus_id == campus.id %}selected{% endif %}>{{ campus.name }}</option>
@@ -1331,6 +1331,15 @@ function filterEditCampuses() {
     // Clear campus selection if now hidden
     const selected = campusSel.options[campusSel.selectedIndex];
     if (selected && selected.hidden) campusSel.value = '';
+}
+
+function onCampusChange() {
+    const campusSel = document.getElementById('basic-campus-id');
+    const locSel = document.getElementById('basic-location-id');
+    const sel = campusSel.options[campusSel.selectedIndex];
+    if (sel && sel.dataset.location && !locSel.value) {
+        locSel.value = sel.dataset.location;
+    }
 }
 
 // ── Section 2: Schedule Config ────────────────────────────────────────────────

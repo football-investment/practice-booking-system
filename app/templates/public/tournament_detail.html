@@ -108,6 +108,39 @@ body {
 .wdl { font-size: 0.75rem; color: rgba(255,255,255,0.55); white-space: nowrap; }
 .goals { font-size: 0.75rem; color: rgba(255,255,255,0.45); white-space: nowrap; }
 
+/* ── Podium ───────────────────────────────────────────────── */
+.podium-row {
+    display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;
+    padding: 0.25rem 0;
+}
+.podium-card {
+    display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 0.75rem 1.1rem; min-width: 110px; text-align: center;
+}
+.podium-card.rank-1 { border-color: rgba(236,201,75,0.4);  background: rgba(236,201,75,0.07); }
+.podium-card.rank-2 { border-color: rgba(160,174,192,0.35); background: rgba(160,174,192,0.05); }
+.podium-card.rank-3 { border-color: rgba(205,125,50,0.3);  background: rgba(205,125,50,0.05); }
+.podium-medal { font-size: 1.6rem; line-height: 1; }
+.podium-name  { font-size: 0.88rem; font-weight: 800; color: white; }
+.podium-sub   { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+
+/* ── Awards ───────────────────────────────────────────────── */
+.awards-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.award-row {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.45rem 0.7rem;
+    background: rgba(255,255,255,0.03); border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.award-icon  { font-size: 1.1rem; flex-shrink: 0; }
+.award-name  { font-size: 0.82rem; font-weight: 700; color: #e2e8f0; flex: 1; }
+.award-chips { display: flex; gap: 0.35rem; flex-shrink: 0; }
+.award-chip  { font-size: 0.7rem; font-weight: 800; padding: 2px 9px; border-radius: 99px; }
+.award-chip.xp      { background: rgba(102,126,234,0.18); color: #a3b3f7; }
+.award-chip.credits { background: rgba(236,201,75,0.15);  color: #ecc94b; }
+.prize-row .award-name { color: rgba(255,255,255,0.6); }
+
 /* ── Participant list (pre-results) ───────────────────────── */
 .participant-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .participant-pill {
@@ -140,6 +173,190 @@ body {
 }
 .state-banner.draft     { background: rgba(160,174,192,0.08); color: #a0aec0; border-left: 3px solid #a0aec0; }
 .state-banner.cancelled { background: rgba(113,128,150,0.10); color: #a0aec0; border-left: 3px solid #718096; }
+
+/* ── State-specific header gradients ──────────────────────── */
+.event-header.hdr-draft {
+    background: linear-gradient(155deg, #161a24 0%, #1e2232 60%, #161a24 100%);
+}
+.event-header.hdr-enrollment-open {
+    background: linear-gradient(155deg, #0d2218 0%, #173320 60%, #0a1e14 100%);
+}
+.event-header.hdr-enrollment-closed {
+    background: linear-gradient(155deg, #1e1508 0%, #2a1e0a 60%, #1a1206 100%);
+}
+
+/* ── Hero band ────────────────────────────────────────────── */
+.hero-band {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.hero-band .hb-icon { font-size: 1.2rem; flex-shrink: 0; line-height: 1; }
+.hero-band .hb-body { display: flex; flex-direction: column; gap: 0.12rem; }
+.hero-band .hb-title { font-size: 0.88rem; font-weight: 700; }
+.hero-band .hb-sub   { font-size: 0.76rem; color: rgba(255,255,255,0.42); }
+
+.hero-band.hb-draft {
+    background: rgba(160,174,192,0.05);
+    border-left: 3px solid #718096;
+}
+.hero-band.hb-draft .hb-title { color: #a0aec0; }
+
+.hero-band.hb-enroll-open {
+    background: rgba(72,187,120,0.07);
+    border-left: 3px solid #48bb78;
+}
+.hero-band.hb-enroll-open .hb-title { color: #68d391; }
+
+.hero-band.hb-enroll-closed {
+    background: rgba(237,137,54,0.07);
+    border-left: 3px solid #ed8936;
+}
+.hero-band.hb-enroll-closed .hb-title { color: #f6ad55; }
+
+.capacity-bar-wrap {
+    width: 160px;
+    max-width: 100%;
+    height: 5px;
+    background: rgba(255,255,255,0.10);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 0.35rem;
+}
+.capacity-bar-fill {
+    height: 100%;
+    background: #48bb78;
+    border-radius: 99px;
+}
+
+.cta-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.45rem;
+    background: rgba(72,187,120,0.12);
+    border: 1px solid rgba(72,187,120,0.25);
+    color: #68d391;
+    border-radius: 99px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    width: fit-content;
+}
+
+/* ── CHECK_IN_OPEN ────────────────────────────────────────── */
+.event-header.hdr-check-in-open {
+    background: linear-gradient(155deg, #120d2a 0%, #1c1440 60%, #0f0b20 100%);
+}
+.hero-band.hb-checkin {
+    background: rgba(102,126,234,0.07);
+    border-left: 3px solid #667eea;
+}
+.hero-band.hb-checkin .hb-title { color: #a3b3f7; }
+
+/* ── IN_PROGRESS ──────────────────────────────────────────── */
+.event-header.hdr-in-progress {
+    background: linear-gradient(155deg, #200c0c 0%, #2e1010 60%, #1a0808 100%);
+}
+
+/* ── COMPLETED ────────────────────────────────────────────── */
+.event-header.hdr-completed {
+    background: linear-gradient(155deg, #0d1f0f 0%, #14301a 60%, #0b1a0d 100%);
+}
+.hero-band.hb-completed {
+    background: rgba(56,161,105,0.07);
+    border-left: 3px solid #38a169;
+}
+.hero-band.hb-completed .hb-title { color: #68d391; }
+
+/* ── REWARDS_DISTRIBUTED ──────────────────────────────────── */
+.event-header.hdr-rewards-distributed {
+    background: linear-gradient(155deg, #1a1304 0%, #241c06 60%, #141002 100%);
+}
+.hero-band.hb-rewards {
+    background: rgba(214,158,46,0.08);
+    border-left: 3px solid #d69e2e;
+}
+.hero-band.hb-rewards .hb-title { color: #ecc94b; }
+
+/* ── CANCELLED ────────────────────────────────────────────── */
+.event-header.hdr-cancelled {
+    background: linear-gradient(155deg, #111418 0%, #161c22 60%, #0f1317 100%);
+}
+.hero-band.hb-cancelled {
+    background: rgba(113,128,150,0.07);
+    border-left: 3px solid #4a5568;
+}
+.hero-band.hb-cancelled .hb-title { color: #a0aec0; }
+
+@keyframes live-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(229,62,62,0.5); }
+    50%       { box-shadow: 0 0 0 7px rgba(229,62,62,0); }
+}
+@keyframes live-dot-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%       { transform: scale(1.35); opacity: 0.55; }
+}
+.badge-live {
+    animation: live-glow 1.6s ease-in-out infinite;
+}
+.live-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    background: #fc8181;
+    border-radius: 50%;
+    animation: live-dot-pulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+.hero-band.hb-live {
+    background: rgba(229,62,62,0.07);
+    border-left: 3px solid #e53e3e;
+    align-items: flex-start;
+}
+.hero-band.hb-live .hb-icon {
+    display: flex;
+    align-items: center;
+    padding-top: 0.15rem;
+}
+.hero-band.hb-live .hb-title { color: #fc8181; }
+
+/* ── Schedule / Fixtures ──────────────────────────────────── */
+.schedule-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.sched-round-header {
+    font-size: 0.6rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.1em; color: rgba(255,255,255,0.3);
+    padding: 0.6rem 0 0.25rem;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    margin-top: 0.35rem;
+}
+.sched-round-header:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.match-row {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    background: rgba(255,255,255,0.03);
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.match-row.match-done { opacity: 0.7; }
+.match-team {
+    font-size: 0.82rem; font-weight: 600; flex: 1; color: #e2e8f0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.match-team.team-a { text-align: right; }
+.match-team.team-b { text-align: left; }
+.match-vs {
+    font-size: 0.78rem; font-weight: 800;
+    color: rgba(255,255,255,0.5);
+    min-width: 38px; text-align: center;
+    background: rgba(255,255,255,0.07);
+    border-radius: 5px; padding: 2px 6px;
+    white-space: nowrap; flex-shrink: 0;
+}
+.match-done .match-vs { color: #68d391; background: rgba(72,187,120,0.13); }
+.match-date { font-size: 0.68rem; color: rgba(255,255,255,0.3); white-space: nowrap; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -149,11 +366,11 @@ body {
 <div class="card-wrap">
 
     <!-- Header -->
-    <div class="event-header">
+    <div class="event-header hdr-{{ status | lower | replace('_', '-') }}">
         <h1 class="event-title">🏆 {{ t.name }}</h1>
 
         <div class="event-meta-row">
-            <span class="status-badge" style="background: {{ status_color }};">{{ status_label }}</span>
+            <span class="status-badge{% if status == 'IN_PROGRESS' %} badge-live{% endif %}" style="background: {{ status_color }};">{{ status_label }}</span>
             {% if tournament_format %}
             <span class="meta-chip">{{ tournament_format.replace('_', ' ') }}</span>
             {% endif %}
@@ -179,7 +396,7 @@ body {
             {% if location_name or campus_name %}
             <div class="info-cell">
                 <span class="info-label">Location</span>
-                <span class="info-value">📍 {{ campus_name or location_name }}</span>
+                <span class="info-value">📍 {% if location_name and campus_name %}{{ location_name }} · {{ campus_name }}{% else %}{{ location_name or campus_name }}{% endif %}{% for ec in extra_campuses %} · {{ ec.location_name or '' }}{% if ec.location_name and ec.name %}/{% endif %}{{ ec.name }}{% endfor %}</span>
             </div>
             {% endif %}
             {% if t.age_group %}
@@ -207,22 +424,223 @@ body {
         </div>
     </div>
 
-    <!-- State-aware banners -->
-    {% if is_draft %}
-    <div class="state-banner draft">
-        ⏳ This event is not yet open for enrollment. Check back soon.
+    <!-- State hero bands -->
+    {% if status == 'DRAFT' %}
+    <div class="hero-band hb-draft">
+        <span class="hb-icon">⏳</span>
+        <div class="hb-body">
+            <span class="hb-title">Enrollment not yet open{% if theme %} · {{ theme }}{% endif %}</span>
+            {% if focus_description %}
+            <span class="hb-sub">{{ focus_description }}</span>
+            {% elif t.start_date %}
+            <span class="hb-sub">Event runs {{ t.start_date.strftime('%B %d, %Y') }}{% if t.end_date %} – {{ t.end_date.strftime('%B %d') }}{% endif %} · Check back soon for enrollment details</span>
+            {% else %}
+            <span class="hb-sub">Check back soon for enrollment details.</span>
+            {% endif %}
+        </div>
+    </div>
+    {% elif status == 'ENROLLMENT_OPEN' %}
+    <div class="hero-band hb-enroll-open">
+        <span class="hb-icon">✅</span>
+        <div class="hb-body">
+            {% if max_players %}
+            {% set pct = (enrolled_count * 100 // max_players) %}
+            {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+            <span class="hb-title">Enrollment open — {{ enrolled_count }} / {{ max_players }} spots filled</span>
+            <div class="capacity-bar-wrap"><div class="capacity-bar-fill" style="width: {{ pct }}%"></div></div>
+            {% else %}
+            <span class="hb-title">Enrollment is open — {{ enrolled_count }} registered so far</span>
+            {% endif %}
+            <span class="cta-note">➔ Contact your club to register</span>
+        </div>
+    </div>
+    {% elif status == 'ENROLLMENT_CLOSED' %}
+    <div class="hero-band hb-enroll-closed">
+        <span class="hb-icon">🔒</span>
+        <div class="hb-body">
+            <span class="hb-title">Enrollment closed — {{ enrolled_count }} {{ 'team' if participant_type == 'TEAM' else 'player' }}{{ 's' if enrolled_count != 1 else '' }} registered</span>
+            <span class="hb-sub">
+                Registration is no longer available · Tournament starts
+                {% if t.start_date %}{{ t.start_date.strftime('%B %d, %Y') }}{% else %}soon{% endif %}
+            </span>
+        </div>
+    </div>
+    {% elif status == 'CHECK_IN_OPEN' %}
+    <div class="hero-band hb-checkin">
+        <span class="hb-icon">🎯</span>
+        <div class="hb-body">
+            <span class="hb-title">Check-in underway — {{ enrolled_count }} {{ 'team' if participant_type == 'TEAM' else 'player' }}{{ 's' if enrolled_count != 1 else '' }} registered</span>
+            <span class="hb-sub">
+                Draw is complete · Match schedule is set
+                {% if t.start_date %} · Kick-off {{ t.start_date.strftime('%B %d') }}{% endif %}
+            </span>
+        </div>
+    </div>
+    {% elif status == 'IN_PROGRESS' %}
+    <div class="hero-band hb-live">
+        <span class="hb-icon"><span class="live-dot"></span></span>
+        <div class="hb-body">
+            <span class="hb-title">Tournament in progress</span>
+            <span class="hb-sub">
+                {% if sessions_total %}{{ sessions_total }} matches scheduled · {% endif %}
+                {% if has_rankings %}Standings updating as results come in{% else %}Results will appear here as matches are played{% endif %}
+            </span>
+        </div>
+    </div>
+    {% elif status == 'COMPLETED' %}
+    <div class="hero-band hb-completed">
+        <span class="hb-icon">🏆</span>
+        <div class="hb-body">
+            <span class="hb-title">Tournament complete — final standings below</span>
+            <span class="hb-sub">
+                {% if enrolled_count %}{{ enrolled_count }} {{ 'teams' if participant_type == 'TEAM' else 'players' }} competed · {% endif %}
+                {% if sessions_total %}{{ sessions_total }} matches played{% endif %}
+            </span>
+        </div>
+    </div>
+    {% elif status == 'REWARDS_DISTRIBUTED' %}
+    <div class="hero-band hb-rewards">
+        <span class="hb-icon">🎖️</span>
+        <div class="hb-body">
+            <span class="hb-title">Rewards distributed — results are official</span>
+            <span class="hb-sub">XP and credits have been awarded to all participants</span>
+        </div>
     </div>
     {% elif is_cancelled %}
-    <div class="state-banner cancelled">
-        ✖ This event has been cancelled.
+    <div class="hero-band hb-cancelled">
+        <span class="hb-icon">✖</span>
+        <div class="hb-body">
+            <span class="hb-title">This event has been cancelled</span>
+            <span class="hb-sub">No further information available.</span>
+        </div>
     </div>
     {% endif %}
 
-    <!-- Final Standings -->
+    {# ── Prize pool (all states except REWARDS_DISTRIBUTED + CANCELLED) ── #}
+    {% if has_prize_pool and status not in ('REWARDS_DISTRIBUTED', 'CANCELLED') %}
+    <div class="section">
+        <div class="section-title">🎁 Prize Pool</div>
+        <div class="awards-list">
+            {% for p in prize_pool %}
+            <div class="award-row prize-row">
+                <span class="award-icon">
+                    {% if p.placement == 1 %}🥇
+                    {% elif p.placement == 2 %}🥈
+                    {% elif p.placement == 3 %}🥉
+                    {% else %}🏅{% endif %}
+                </span>
+                <span class="award-name">
+                    {% if p.placement == 1 %}1st Place
+                    {% elif p.placement == 2 %}2nd Place
+                    {% elif p.placement == 3 %}3rd Place
+                    {% else %}All Participants{% endif %}
+                </span>
+                <div class="award-chips">
+                    {% if p.xp %}<span class="award-chip xp">+{{ p.xp }} XP</span>{% endif %}
+                    {% if p.credits %}<span class="award-chip credits">+{{ p.credits }} Credits</span>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- DRAFT: placeholder only -->
+    {% if status == 'DRAFT' %}
+    <div class="section">
+        <div class="empty-note" style="padding: 2rem 0;">
+            Participant list and results will appear here once the event is underway.
+        </div>
+    </div>
+
+    {% else %}
+
+    {# ── Winner podium (COMPLETED / REWARDS_DISTRIBUTED) ── #}
+    {% if status in ('COMPLETED', 'REWARDS_DISTRIBUTED') and has_rankings %}
+    <div class="section">
+        <div class="section-title">🏆 Winners</div>
+        <div class="podium-row">
+            {% for row in rankings[:3] %}
+            <div class="podium-card rank-{{ row.rank }}">
+                <span class="podium-medal">
+                    {% if row.rank == 1 %}🥇{% elif row.rank == 2 %}🥈{% else %}🥉{% endif %}
+                </span>
+                <span class="podium-name">{{ row.name }}</span>
+                {% if row.club_name %}<span class="podium-sub">{{ row.club_name }}</span>{% endif %}
+                <span class="podium-sub">{{ row.points | int }} pts</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Rewards awarded (only when participations exist) ── #}
+    {% if has_awards %}
+    <div class="section">
+        <div class="section-title">🎁 Rewards Awarded</div>
+        <div class="awards-list">
+            {% for aw in awards %}
+            <div class="award-row">
+                <span class="award-icon">
+                    {% if aw.placement == 1 %}🥇
+                    {% elif aw.placement == 2 %}🥈
+                    {% elif aw.placement == 3 %}🥉
+                    {% else %}{{ aw.placement }}.{% endif %}
+                </span>
+                <span class="award-name">{{ aw.names | join(', ') or ('Place ' ~ aw.placement) }}</span>
+                <div class="award-chips">
+                    {% if aw.xp %}<span class="award-chip xp">+{{ aw.xp | int }} XP</span>{% endif %}
+                    {% if aw.credits %}<span class="award-chip credits">+{{ aw.credits | int }} Credits</span>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Registered participants (shown before schedule when no rankings yet) ── #}
+    {% if participants and not has_rankings %}
+    <div class="section">
+        <div class="section-title">👥 Registered {{ 'Teams' if participant_type == 'TEAM' else 'Players' }}</div>
+        <div class="participant-pills">
+            {% for p in participants %}
+            <span class="participant-pill">
+                {{ p.name }}{% if p.club_name %} · {{ p.club_name }}{% endif %}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Match schedule / draw (shown when sessions exist) ── #}
+    {% if schedule %}
+    <div class="section">
+        <div class="section-title">🎲 Match Schedule</div>
+        <div class="schedule-list">
+            {% set ns = namespace(cur_round=None) %}
+            {% for match in schedule %}
+                {% if match.round != ns.cur_round %}
+                    {% set ns.cur_round = match.round %}
+                    <div class="sched-round-header">Round {{ match.round or '—' }}</div>
+                {% endif %}
+                <div class="match-row{% if match.done %} match-done{% endif %}">
+                    <span class="match-team team-a">{{ match.team_a }}</span>
+                    <span class="match-vs">
+                        {% if match.score_a is not none and match.score_b is not none %}{{ match.score_a }}–{{ match.score_b }}{% else %}vs{% endif %}
+                    </span>
+                    <span class="match-team team-b">{{ match.team_b }}</span>
+                    {% if match.date %}<span class="match-date">{{ match.date.strftime('%m/%d %H:%M') }}</span>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Standings / Rankings ── #}
     {% if has_rankings %}
     <div class="section">
         <div class="section-title">
-            {% if status in ('COMPLETED', 'REWARDS_DISTRIBUTED') %}🏅 Final Standings{% else %}📊 Current Standings{% endif %}
+            {% if status in ('COMPLETED', 'REWARDS_DISTRIBUTED') %}📋 Full Results{% else %}📊 Current Standings{% endif %}
         </div>
         <table class="rankings-table">
             <thead>
@@ -262,28 +680,18 @@ body {
             </tbody>
         </table>
     </div>
+    {% endif %}
 
-    <!-- Participants (no final rankings yet) -->
-    {% elif participants %}
-    <div class="section">
-        <div class="section-title">👥 Registered {{ 'Teams' if participant_type == 'TEAM' else 'Players' }}</div>
-        <div class="participant-pills">
-            {% for p in participants %}
-            <span class="participant-pill">
-                {{ p.name }}{% if p.club_name %} · {{ p.club_name }}{% endif %}
-            </span>
-            {% endfor %}
-        </div>
-    </div>
-
-    {% else %}
+    {# ── Empty fallback ── #}
+    {% if not has_rankings and not schedule and not participants %}
     <div class="section">
         <div class="empty-note">
-            {% if is_draft %}Enrollment not yet open.
-            {% elif is_cancelled %}No participants to display.
+            {% if is_cancelled %}No participants to display.
             {% else %}No participants registered yet.{% endif %}
         </div>
     </div>
+    {% endif %}
+
     {% endif %}
 
 </div>

@@ -474,6 +474,47 @@ def run():
         club = _seed_bootstrap_club(db)
         db.commit()
 
+        # Step 7: Backfill missing fields on seed tournaments (idempotent)
+        _step(7, "Backfill location_id + semester_category + game_preset on seed tournaments")
+        from sqlalchemy import text as _text
+        db.execute(_text("""
+            UPDATE semesters s
+            SET location_id = c.location_id
+            FROM campuses c
+            WHERE s.campus_id = c.id
+              AND s.location_id IS NULL
+              AND c.location_id IS NOT NULL
+        """))
+        # Semesters created via old seed (before semester_category was set in wizard)
+        db.execute(_text("""
+            UPDATE semesters s
+            SET semester_category = 'TOURNAMENT'
+            FROM tournament_configurations tc
+            WHERE tc.semester_id = s.id
+              AND s.semester_category IS NULL
+        """))
+        db.commit()
+
+        # Tournaments without a game_configuration → assign default (outfield_default) preset
+        from app.models.game_configuration import GameConfiguration
+        default_preset = db.query(GamePreset).filter(GamePreset.code == "outfield_default").first()
+        if default_preset:
+            from app.models.tournament_configuration import TournamentConfiguration
+            tournament_ids_with_cfg = {
+                row.semester_id
+                for row in db.query(GameConfiguration).all()
+            }
+            all_tournament_ids = {
+                row.semester_id
+                for row in db.query(TournamentConfiguration).all()
+            }
+            missing = all_tournament_ids - tournament_ids_with_cfg
+            for tid in missing:
+                db.add(GameConfiguration(semester_id=tid, game_preset_id=default_preset.id))
+            if missing:
+                db.commit()
+                print(f"       → assigned default game preset to {len(missing)} tournament(s)")
+
         # Summary
         print("\n" + "="*70)
         print("  Bootstrap complete")
