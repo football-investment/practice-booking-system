@@ -431,18 +431,17 @@ async def admin_promotion_events_list(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Admin: list all team-format promotion tournaments."""
+    """Admin: list all promotion tournaments (TEAM and INDIVIDUAL)."""
     _admin_only(user)
 
-    # All TOURNAMENT-category semesters with TEAM participant_type.
-    # This covers both PROMO-* (club wizard) and manually-created team tournaments.
+    # All TOURNAMENT-category semesters — both TEAM and INDIVIDUAL participant types.
     promotions = (
         db.query(Semester)
         .join(TournamentConfiguration,
               TournamentConfiguration.semester_id == Semester.id)
         .filter(
             Semester.semester_category == SemesterCategory.TOURNAMENT,
-            TournamentConfiguration.participant_type == "TEAM",
+            TournamentConfiguration.participant_type.in_(["TEAM", "INDIVIDUAL"]),
         )
         .order_by(Semester.start_date.desc())
         .all()
@@ -450,33 +449,50 @@ async def admin_promotion_events_list(
 
     promo_info = []
     for t in promotions:
-        # Team enrollment count
-        team_count = (
-            db.query(TournamentTeamEnrollment)
-            .filter(
-                TournamentTeamEnrollment.semester_id == t.id,
-                TournamentTeamEnrollment.is_active == True,
+        cfg = t.tournament_config_obj
+        participant_type = cfg.participant_type if cfg else "TEAM"
+
+        if participant_type == "INDIVIDUAL":
+            # Individual: count approved enrolled players
+            team_count = 0
+            player_count = (
+                db.query(SemesterEnrollment)
+                .filter(
+                    SemesterEnrollment.semester_id == t.id,
+                    SemesterEnrollment.is_active == True,
+                    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+                )
+                .count()
             )
-            .count()
-        )
+            source_club = None
+        else:
+            # Team: count active team enrollments; resolve source club from first team
+            team_count = (
+                db.query(TournamentTeamEnrollment)
+                .filter(
+                    TournamentTeamEnrollment.semester_id == t.id,
+                    TournamentTeamEnrollment.is_active == True,
+                )
+                .count()
+            )
+            player_count = 0
+            first_enrollment = (
+                db.query(TournamentTeamEnrollment)
+                .filter(TournamentTeamEnrollment.semester_id == t.id)
+                .first()
+            )
+            source_club = None
+            if first_enrollment:
+                team = db.query(Team).filter(Team.id == first_enrollment.team_id).first()
+                if team and team.club_id:
+                    source_club = db.query(Club).filter(Club.id == team.club_id).first()
+
         session_count = (
             db.query(SessionModel)
             .filter(SessionModel.semester_id == t.id)
             .count()
         )
-        # Resolve campus name
         campus = db.query(Campus).filter(Campus.id == t.campus_id).first() if t.campus_id else None
-        # Resolve source club via one enrolled team's club_id
-        first_enrollment = (
-            db.query(TournamentTeamEnrollment)
-            .filter(TournamentTeamEnrollment.semester_id == t.id)
-            .first()
-        )
-        source_club = None
-        if first_enrollment:
-            team = db.query(Team).filter(Team.id == first_enrollment.team_id).first()
-            if team and team.club_id:
-                source_club = db.query(Club).filter(Club.id == team.club_id).first()
 
         # Instructor planning status
         slots = (
@@ -484,11 +500,12 @@ async def admin_promotion_events_list(
             .filter(TournamentInstructorSlot.semester_id == t.id)
             .all()
         )
-        cfg = t.tournament_config_obj
         tt = cfg.tournament_type if cfg else None
         promo_info.append({
             "tournament":       t,
+            "participant_type": participant_type,
             "team_count":       team_count,
+            "player_count":     player_count,
             "session_count":    session_count,
             "campus":           campus,
             "source_club":      source_club,

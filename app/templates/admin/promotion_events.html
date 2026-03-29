@@ -2,7 +2,7 @@
 
 {% block title %}Promotion Events{% endblock %}
 {% block page_heading %}🚀 Promotion Events{% endblock %}
-{% block page_subtitle %}Club team promotion tournaments{% endblock %}
+{% block page_subtitle %}All promotion tournaments — team and individual formats{% endblock %}
 
 {% block extra_styles %}
 <style>
@@ -253,6 +253,11 @@
         <option value="REWARDS_DISTRIBUTED">Rewards Distributed</option>
         <option value="CANCELLED">Cancelled</option>
     </select>
+    <select id="fmtFilter" onchange="applyFilters()">
+        <option value="all">All formats</option>
+        <option value="HEAD_TO_HEAD">Head-to-Head (Team)</option>
+        <option value="INDIVIDUAL_RANKING">Individual Ranking</option>
+    </select>
     <select id="agFilter" onchange="applyFilters()">
         <option value="all">All age groups</option>
         <option value="PRE">U12 (Pre)</option>
@@ -270,7 +275,7 @@
     {% set is_stuck = status == 'IN_PROGRESS' and info.session_count == 0 %}
     {% set row_class = 'STUCK' if is_stuck else status %}
 
-    <div class="event-row s-{{ row_class }}" data-status="{{ status }}" data-ag="{{ t.age_group or '' }}">
+    <div class="event-row s-{{ row_class }}" data-status="{{ status }}" data-ag="{{ t.age_group or '' }}" data-fmt="{{ info.fmt or '' }}">
 
         <!-- Main info -->
         <div class="event-main">
@@ -294,8 +299,12 @@
                 {{ t.start_date.strftime('%Y. %m. %d.') }}{% if t.end_date %} – {{ t.end_date.strftime('%m. %d.') }}{% endif %}
                 <span class="meta-sep">·</span>
                 {% endif %}
-                {% if info.max_players %}<span>{{ info.team_count }} / {{ info.max_players }} teams</span>{% else %}<span>{{ info.team_count }} teams</span>{% endif %}
-                {% if info.session_count > 0 %}<span class="meta-sep">·</span><span>{{ info.session_count }} matches</span>{% endif %}
+                {% if info.participant_type == 'INDIVIDUAL' %}
+                    {% if info.max_players %}<span>{{ info.player_count }} / {{ info.max_players }} players</span>{% else %}<span>{{ info.player_count }} players</span>{% endif %}
+                {% else %}
+                    {% if info.max_players %}<span>{{ info.team_count }} / {{ info.max_players }} teams</span>{% else %}<span>{{ info.team_count }} teams</span>{% endif %}
+                {% endif %}
+                {% if info.session_count > 0 %}<span class="meta-sep">·</span><span>{{ info.session_count }} {% if info.participant_type == 'INDIVIDUAL' %}rounds{% else %}matches{% endif %}</span>{% endif %}
             </div>
         </div>
 
@@ -329,14 +338,16 @@
 <script>
 function applyFilters() {
     const statusVal = document.getElementById('statusFilter').value;
+    const fmtVal    = document.getElementById('fmtFilter').value;
     const agVal     = document.getElementById('agFilter').value;
     const rows      = document.querySelectorAll('#eventList .event-row');
     let visible = 0;
     rows.forEach(row => {
         const statusOk = statusVal === 'all' || row.dataset.status === statusVal;
+        const fmtOk    = fmtVal === 'all' || row.dataset.fmt === fmtVal;
         const agOk     = agVal === 'all' || row.dataset.ag === agVal;
-        row.style.display = (statusOk && agOk) ? '' : 'none';
-        if (statusOk && agOk) visible++;
+        row.style.display = (statusOk && fmtOk && agOk) ? '' : 'none';
+        if (statusOk && fmtOk && agOk) visible++;
     });
     document.getElementById('filterCount').textContent =
         visible + ' / {{ promo_info|length }} event' + ({{ promo_info|length }} !== 1 ? 's' : '');
