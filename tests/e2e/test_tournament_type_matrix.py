@@ -12,8 +12,8 @@ TM-02  Public event page — INDIVIDUAL ranking display
 TM-03  TEAM tournament public page
         GET /events/{id} for a TEAM tournament → "TEAM" chip, team name in table
 
-TM-04  DRAFT/unavailable event
-        GET /events/{draft_id} → 404 response with "not available" message
+TM-04  DRAFT event — public "coming soon" page
+        GET /events/{draft_id} → 200 with "Coming Soon" status label (state-driven rendering)
 
 All tests target a running server (API_URL=http://localhost:8000, default).
 Tests are skipped automatically if the server is not reachable.
@@ -411,7 +411,9 @@ class TestTournamentTypeMatrix:
 
     def test_TM_04_draft_event_not_available(self):
         """
-        TM-04: A DRAFT tournament returns 404 / 'not available' on the public page.
+        TM-04: A DRAFT tournament returns 200 with a "Coming Soon" status label.
+        /events/{id} is a public marketing page — state-driven rendering, not a 404 gate.
+        DRAFT shows an enrollment-locked banner so visitors know the event exists.
         """
         # Create a DRAFT tournament directly in the DB
         engine = create_engine(DB_URL)
@@ -443,12 +445,12 @@ class TestTournamentTypeMatrix:
 
         try:
             resp = requests.get(f"{APP_URL}/events/{draft_id}", timeout=10)
-            # Should be 404 for DRAFT events
-            assert resp.status_code == 404, (
-                f"DRAFT tournament should return 404, got {resp.status_code}"
+            # DRAFT events are publicly visible with a "coming soon" banner
+            assert resp.status_code == 200, (
+                f"DRAFT tournament should return 200 (state-driven rendering), got {resp.status_code}"
             )
-            assert "not available" in resp.text.lower() or "not found" in resp.text.lower(), (
-                "404 page should contain 'not available' or 'not found'"
+            assert "coming soon" in resp.text.lower() or "enrollment not yet open" in resp.text.lower(), (
+                "DRAFT page should contain 'Coming Soon' status label or enrollment-locked banner"
             )
         finally:
             # Cleanup: delete the DRAFT tournament
