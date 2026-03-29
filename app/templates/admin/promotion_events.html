@@ -277,9 +277,9 @@
             <div class="event-title">
                 {{ t.name }}
                 {% if is_stuck %}
-                <span class="warn-flag">⚠ nincs meccs</span>
+                <span class="warn-flag">⚠ no sessions</span>
                 {% elif info.has_absent_field %}
-                <span class="warn-flag">⚠ hiányzó oktató</span>
+                <span class="warn-flag">⚠ instructor absent</span>
                 {% endif %}
             </div>
             <div class="event-meta">
@@ -292,8 +292,8 @@
                 {{ t.start_date.strftime('%Y. %m. %d.') }}{% if t.end_date %} – {{ t.end_date.strftime('%m. %d.') }}{% endif %}
                 <span class="meta-sep">·</span>
                 {% endif %}
-                <span>{{ info.team_count }} csapat</span>
-                {% if info.session_count > 0 %}<span class="meta-sep">·</span><span>{{ info.session_count }} meccs</span>{% endif %}
+                <span>{{ info.team_count }} teams</span>
+                {% if info.session_count > 0 %}<span class="meta-sep">·</span><span>{{ info.session_count }} matches</span>{% endif %}
             </div>
         </div>
 
@@ -317,8 +317,8 @@
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">🚀</div>
-    <h3>Még nincs promotion event</h3>
-    <p>Hozz létre egyet a <a href="/admin/clubs" style="color:#667eea;">klub oldaláról</a> a Promotion Event varázslóval.</p>
+    <h3>No promotion events yet</h3>
+    <p>Create one from a <a href="/admin/clubs" style="color:#667eea;">club page</a> using the Promotion Event wizard.</p>
 </div>
 {% endif %}
 {% endblock admin_content %}
