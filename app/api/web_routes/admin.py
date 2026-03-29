@@ -3843,18 +3843,6 @@ async def admin_club_promotion(
             status_code=303,
         )
 
-    if not campus_id.strip():
-        return RedirectResponse(
-            url=f"/admin/clubs/{club_id}?error=Campus+is+required.+Create+a+campus+first+or+run+bootstrap_clean.py",
-            status_code=303,
-        )
-
-    if not tournament_type_id.strip():
-        return RedirectResponse(
-            url=f"/admin/clubs/{club_id}?error=Tournament+type+is+required.+Seed+tournament+types+first+or+run+bootstrap_clean.py",
-            status_code=303,
-        )
-
     from datetime import datetime as _dt
     from ...models.semester import SemesterStatus, SemesterCategory
     from ...models.tournament_configuration import TournamentConfiguration
