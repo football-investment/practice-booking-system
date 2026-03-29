@@ -2,198 +2,234 @@
 
 {% block title %}Promotion Events{% endblock %}
 {% block page_heading %}🚀 Promotion Events{% endblock %}
-{% block page_subtitle %}Club team promotion tournaments (PROMO-*){% endblock %}
+{% block page_subtitle %}Club team promotion tournaments{% endblock %}
 
 {% block extra_styles %}
 <style>
-    /* ── Table card wrapper ────────────────────────────────────────── */
-    .promo-table-wrap {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
-    .promo-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.88rem;
-        table-layout: fixed;
-    }
-    /* Column widths: Tournament(auto) Club(15%) AG(7%) Dates(11%) Stats(10%) Status(10%) Actions(9%) */
-    .promo-table col.c-tournament { width: auto; }
-    .promo-table col.c-club       { width: 15%; }
-    .promo-table col.c-ag         { width: 7%; }
-    .promo-table col.c-dates      { width: 11%; }
-    .promo-table col.c-stats      { width: 10%; }
-    .promo-table col.c-status     { width: 10%; }
-    .promo-table col.c-actions    { width: 9%; }
+/* ── Status color map (left border + badge background) ────────── */
+:root {
+    --c-draft:    #a0aec0;
+    --c-enroll:   #48bb78;
+    --c-closed:   #ed8936;
+    --c-checkin:  #667eea;
+    --c-live:     #e53e3e;
+    --c-done:     #38a169;
+    --c-rewards:  #d69e2e;
+    --c-cancel:   #718096;
+    --c-stuck:    #c53030;
+}
 
-    .promo-table thead th {
-        background: #f7fafc;
-        padding: 0.75rem 0.85rem;
-        text-align: left;
-        font-weight: 700;
-        color: #4a5568;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        border-bottom: 2px solid #e2e8f0;
-        white-space: nowrap;
-        overflow: hidden;
-    }
-    .promo-table tbody td {
-        padding: 0.75rem 0.85rem;
-        border-bottom: 1px solid #e2e8f0;
-        vertical-align: middle;
-        color: #2d3748;
-        overflow: hidden;
-    }
-    .promo-table tbody tr:last-child td { border-bottom: none; }
-    .promo-table tbody tr:hover td { background: #f7fafc; }
+/* ── Filter bar ───────────────────────────────────────────────── */
+.filter-bar {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+.filter-bar select {
+    padding: 0.38rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: white;
+    color: #2d3748;
+    cursor: pointer;
+}
+.filter-count {
+    margin-left: auto;
+    color: #718096;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
 
-    /* tournament name: truncate if too long */
-    .promo-name {
-        font-weight: 700;
-        color: #2d3748;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
-        display: block;
-    }
-    .promo-code {
-        font-size: 0.7rem;
-        color: #a0aec0;
-        font-family: monospace;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: block;
-    }
+/* ── Flash ────────────────────────────────────────────────────── */
+.alert-success {
+    padding: 0.75rem 1.1rem;
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
 
-    /* ── Stats cell: Teams · Sessions · Instructors ────────────────── */
-    .stats-cell {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        font-size: 0.8rem;
-        color: #4a5568;
-    }
-    .stats-cell .stat-row { display: flex; align-items: center; gap: 0.3rem; }
-    .stats-cell .stat-label { color: #a0aec0; font-size: 0.72rem; width: 1.6rem; flex-shrink: 0; }
+/* ── Event list ───────────────────────────────────────────────── */
+.event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
 
-    /* ── Badges ────────────────────────────────────────────────────── */
-    .badge {
-        display: inline-block;
-        padding: 0.18rem 0.5rem;
-        border-radius: 99px;
-        font-size: 0.72rem;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-    .badge-draft      { background: #edf2f7; color: #4a5568; }
-    .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
-    .badge-closed     { background: #fefcbf; color: #744210; }
-    .badge-checkin    { background: #e6fffa; color: #234e52; }
-    .badge-progress   { background: #c6f6d5; color: #22543d; }
-    .badge-completed  { background: #e9d8fd; color: #553c9a; }
-    .badge-cancelled  { background: #fed7d7; color: #742a2a; }
-    .badge-stuck      { background: #fed7d7; color: #742a2a; font-weight: 800; }
-    .badge-rewards    { background: #fef3c7; color: #78350f; }
-    .badge-ag         { background: #bee3f8; color: #2a4365; font-size: 0.68rem; }
+/* ── Single event row ─────────────────────────────────────────── */
+.event-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    background: white;
+    border-radius: 9px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 4px solid #a0aec0;
+    padding: 0.6rem 1rem 0.6rem 0.85rem;
+    transition: box-shadow 0.12s;
+    min-width: 0;
+}
+.event-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.10); }
 
-    .club-link {
-        color: #667eea; font-weight: 600; text-decoration: none;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
-    }
-    .club-link:hover { text-decoration: underline; }
+/* Status border colors */
+.event-row.s-DRAFT              { border-left-color: var(--c-draft); }
+.event-row.s-ENROLLMENT_OPEN    { border-left-color: var(--c-enroll); }
+.event-row.s-ENROLLMENT_CLOSED  { border-left-color: var(--c-closed); }
+.event-row.s-CHECK_IN_OPEN      { border-left-color: var(--c-checkin); }
+.event-row.s-IN_PROGRESS        { border-left-color: var(--c-live); }
+.event-row.s-COMPLETED          { border-left-color: var(--c-done); }
+.event-row.s-REWARDS_DISTRIBUTED{ border-left-color: var(--c-rewards); }
+.event-row.s-CANCELLED          { border-left-color: var(--c-cancel); opacity: 0.72; }
+.event-row.s-STUCK              { border-left-color: var(--c-stuck); }
 
-    /* ── Action buttons ────────────────────────────────────────────── */
-    .action-btn {
-        padding: 0.25rem 0.55rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        cursor: pointer;
-        background: white;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.2rem;
-        transition: background 0.15s;
-        color: #2d3748;
-        white-space: nowrap;
-    }
-    .action-btn:hover { background: #edf2f7; }
-    .action-btn-primary { background: #667eea; color: white; border-color: #667eea; }
-    .action-btn-primary:hover { background: #5a67d8; }
-    .action-cell { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+/* ── Main info block ──────────────────────────────────────────── */
+.event-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+}
+.event-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #1a202c;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.event-meta {
+    font-size: 0.76rem;
+    color: #718096;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+}
+.meta-sep { color: #cbd5e0; }
+.meta-club { color: #4a5568; font-weight: 600; }
 
-    /* ── Empty state ───────────────────────────────────────────────── */
-    .empty-state { text-align: center; padding: 4rem 2rem; color: #718096; }
-    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
-    .empty-state h3 { font-size: 1.1rem; color: #4a5568; margin-bottom: 0.5rem; }
+/* ── Age group chip ───────────────────────────────────────────── */
+.ag-chip {
+    display: inline-block;
+    padding: 0.08rem 0.45rem;
+    border-radius: 99px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: #ebf8ff;
+    color: #2b6cb0;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
 
-    /* ── Filter bar ────────────────────────────────────────────────── */
-    .filter-bar {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-    }
-    .filter-bar select {
-        padding: 0.4rem 0.8rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        font-size: 0.88rem;
-        background: white;
-    }
-    .filter-count { margin-left: auto; color: #718096; font-size: 0.85rem; white-space: nowrap; }
+/* ── Warning flag ─────────────────────────────────────────────── */
+.warn-flag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--c-stuck);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
 
-    /* ── Flash ─────────────────────────────────────────────────────── */
-    .alert-success {
-        padding: 0.85rem 1.25rem;
-        background: #d4edda;
-        color: #155724;
-        border-left: 4px solid #28a745;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        font-weight: 500;
-    }
+/* ── Right side ───────────────────────────────────────────────── */
+.event-right {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
 
-    /* ── Mobile: stack filter, card rows ───────────────────────────── */
-    @media (max-width: 639px) {
-        .filter-bar { flex-direction: column; align-items: stretch; }
-        .filter-bar select { width: 100%; }
-        .filter-count { margin-left: 0; }
+/* ── Status badge ─────────────────────────────────────────────── */
+.sbadge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 99px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    text-transform: uppercase;
+    color: white;
+    background: var(--c-draft);
+}
+.sbadge.s-DRAFT              { background: var(--c-draft);   color: #2d3748; }
+.sbadge.s-ENROLLMENT_OPEN    { background: var(--c-enroll); }
+.sbadge.s-ENROLLMENT_CLOSED  { background: var(--c-closed); }
+.sbadge.s-CHECK_IN_OPEN      { background: var(--c-checkin); }
+.sbadge.s-IN_PROGRESS        { background: var(--c-live); }
+.sbadge.s-COMPLETED          { background: var(--c-done); }
+.sbadge.s-REWARDS_DISTRIBUTED{ background: var(--c-rewards); color: #1a202c; }
+.sbadge.s-CANCELLED          { background: var(--c-cancel); }
+.sbadge.s-STUCK              { background: var(--c-stuck); }
 
-        .promo-table, .promo-table thead, .promo-table tbody,
-        .promo-table th, .promo-table td, .promo-table tr { display: block; }
-        .promo-table thead { display: none; }
-        .promo-table tbody tr {
-            border-bottom: 2px solid #e2e8f0;
-            padding: 0.75rem 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-        .promo-table tbody td {
-            border: none;
-            padding: 0;
-            font-size: 0.85rem;
-        }
-        .promo-table tbody td::before {
-            content: attr(data-label);
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #a0aec0;
-            letter-spacing: 0.04em;
-            display: block;
-            margin-bottom: 0.15rem;
-        }
-    }
+/* Badge labels */
+.sbadge.s-DRAFT::after               { content: "Draft"; }
+.sbadge.s-ENROLLMENT_OPEN::after     { content: "Enroll"; }
+.sbadge.s-ENROLLMENT_CLOSED::after   { content: "Closed"; }
+.sbadge.s-CHECK_IN_OPEN::after       { content: "Check-in"; }
+.sbadge.s-IN_PROGRESS::after         { content: "Live"; }
+.sbadge.s-COMPLETED::after           { content: "Done"; }
+.sbadge.s-REWARDS_DISTRIBUTED::after { content: "Rewards"; }
+.sbadge.s-CANCELLED::after           { content: "Cancelled"; }
+.sbadge.s-STUCK::after               { content: "⚠ Stuck"; }
+
+/* ── Action buttons ───────────────────────────────────────────── */
+.btn {
+    padding: 0.28rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+    border: 1px solid #e2e8f0;
+    color: #2d3748;
+    background: white;
+    transition: background 0.12s;
+    cursor: pointer;
+}
+.btn:hover    { background: #f7fafc; }
+.btn-primary  { background: #667eea; color: white; border-color: #667eea; }
+.btn-primary:hover { background: #5a67d8; }
+.btn-icon     { padding: 0.28rem 0.45rem; color: #718096; }
+.btn-live     { background: #fff5f5; color: #c53030; border-color: #fed7d7; }
+.btn-live:hover { background: #fed7d7; }
+
+/* ── Empty state ──────────────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #718096;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.empty-state h3 { font-size: 1.05rem; color: #4a5568; margin-bottom: 0.4rem; }
+.empty-state p  { font-size: 0.88rem; }
+
+/* ── Mobile ───────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .filter-bar { flex-direction: column; align-items: stretch; }
+    .filter-count { margin-left: 0; }
+    .event-meta { flex-wrap: wrap; }
+    .sbadge { display: none; }   /* badge redundant when border shows status */
+    .btn-icon { display: none; } /* hide View icon on small screens */
+}
 </style>
 {% endblock %}
 
@@ -206,141 +242,83 @@
 <div class="filter-bar">
     <select id="statusFilter" onchange="applyFilters()">
         <option value="all">All statuses</option>
-        <option value="DRAFT">DRAFT</option>
-        <option value="ENROLLMENT_OPEN">ENROLLMENT_OPEN</option>
-        <option value="IN_PROGRESS">IN_PROGRESS</option>
-        <option value="COMPLETED">COMPLETED</option>
-        <option value="REWARDS_DISTRIBUTED">REWARDS_DISTRIBUTED</option>
-        <option value="CANCELLED">CANCELLED</option>
+        <option value="DRAFT">Draft</option>
+        <option value="ENROLLMENT_OPEN">Enrollment Open</option>
+        <option value="ENROLLMENT_CLOSED">Enrollment Closed</option>
+        <option value="CHECK_IN_OPEN">Check-In Open</option>
+        <option value="IN_PROGRESS">Live</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="REWARDS_DISTRIBUTED">Rewards Distributed</option>
+        <option value="CANCELLED">Cancelled</option>
     </select>
     <select id="agFilter" onchange="applyFilters()">
         <option value="all">All age groups</option>
-        <option value="PRE">PRE (U12)</option>
-        <option value="YOUTH">YOUTH (U15)</option>
-        <option value="JUNIOR">JUNIOR (U18)</option>
-        <option value="ADULT">ADULT</option>
-        <option value="AMATEUR">AMATEUR</option>
+        <option value="PRE">U12</option>
+        <option value="YOUTH">U15</option>
+        <option value="JUNIOR">U18</option>
+        <option value="ADULT">Adult</option>
+        <option value="AMATEUR">Amateur</option>
     </select>
-    <span class="filter-count" id="filterCount">{{ promo_info|length }} promotion events</span>
+    <span class="filter-count" id="filterCount">{{ promo_info|length }} event{% if promo_info|length != 1 %}s{% endif %}</span>
 </div>
 
 {% if promo_info %}
-<div class="promo-table-wrap">
-    <table class="promo-table" id="promoTable">
-        <colgroup>
-            <col class="c-tournament">
-            <col class="c-club">
-            <col class="c-ag">
-            <col class="c-dates">
-            <col class="c-stats">
-            <col class="c-status">
-            <col class="c-actions">
-        </colgroup>
-        <thead>
-            <tr>
-                <th>Tournament</th>
-                <th>Club</th>
-                <th>AG</th>
-                <th>Dates</th>
-                <th>Teams / Sessions / Instr.</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for info in promo_info %}
-            {% set t = info.tournament %}
-            {% set status = t.tournament_status or 'DRAFT' %}
-            {% set is_stuck = status == 'IN_PROGRESS' and info.session_count == 0 %}
-            <tr data-status="{{ status }}" data-ag="{{ t.age_group or '' }}">
-                <td data-label="Tournament">
-                    <span class="promo-name">{{ t.name }}</span>
-                    <span class="promo-code">{{ t.code }}</span>
-                </td>
-                <td data-label="Club">
-                    {% if info.source_club %}
-                    <a href="/admin/clubs/{{ info.source_club.id }}" class="club-link">{{ info.source_club.name }}</a>
-                    {% else %}
-                    <span style="color:#a0aec0;">—</span>
-                    {% endif %}
-                </td>
-                <td data-label="Age group">
-                    {% if t.age_group %}
-                    <span class="badge badge-ag">{{ t.age_group }}</span>
-                    {% else %}
-                    <span style="color:#a0aec0;">—</span>
-                    {% endif %}
-                </td>
-                <td data-label="Dates" style="color:#4a5568; font-size:0.82rem; white-space:nowrap;">
-                    {{ t.start_date.strftime('%m-%d') if t.start_date else '—' }}<br>
-                    <span style="color:#a0aec0;">→ {{ t.end_date.strftime('%m-%d') if t.end_date else '—' }}</span>
-                </td>
-                <td data-label="Teams / Sessions / Instr.">
-                    <div class="stats-cell">
-                        <div class="stat-row">
-                            <span class="stat-label">T</span>
-                            <strong>{{ info.team_count }}</strong>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">S</span>
-                            <span style="color:#718096;">{{ info.session_count }}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">I</span>
-                            {% if info.slot_total == 0 %}
-                                <span style="color:#a0aec0;">–</span>
-                            {% elif info.has_absent_field %}
-                                <span style="color:#c53030; font-weight:700;">⚠️ {{ info.slot_absent }} absent</span>
-                            {% elif info.slot_checked > 0 %}
-                                <span style="color:#276749;">✅ {{ info.slot_checked }}/{{ info.slot_total }}</span>
-                            {% else %}
-                                <span style="color:#2b6cb0;">{{ info.slot_total }} planned</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </td>
-                <td data-label="Status">
-                    {% if is_stuck %}
-                        <span class="badge badge-stuck">⚠️ STUCK</span>
-                    {% elif status == 'DRAFT' %}
-                        <span class="badge badge-draft">DRAFT</span>
-                    {% elif status == 'ENROLLMENT_OPEN' %}
-                        <span class="badge badge-enrollment">ENROLL</span>
-                    {% elif status == 'ENROLLMENT_CLOSED' %}
-                        <span class="badge badge-closed">CLOSED</span>
-                    {% elif status == 'CHECK_IN_OPEN' %}
-                        <span class="badge badge-checkin">CHECK-IN</span>
-                    {% elif status == 'IN_PROGRESS' %}
-                        <span class="badge badge-progress">LIVE</span>
-                    {% elif status == 'COMPLETED' %}
-                        <span class="badge badge-completed">DONE</span>
-                    {% elif status == 'REWARDS_DISTRIBUTED' %}
-                        <span class="badge badge-rewards">REWARDS</span>
-                    {% elif status == 'CANCELLED' %}
-                        <span class="badge badge-cancelled">CANCEL</span>
-                    {% else %}
-                        <span class="badge badge-draft">{{ status }}</span>
-                    {% endif %}
-                </td>
-                <td data-label="Actions">
-                    <div class="action-cell">
-                        <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn action-btn-primary">✏️ Edit</a>
-                        <a href="/events/{{ t.id }}" class="action-btn" target="_blank">👁 View</a>
-                        {% if status == 'IN_PROGRESS' and not is_stuck %}
-                        <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn">📡 Live</a>
-                        {% endif %}
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="event-list" id="eventList">
+    {% for info in promo_info %}
+    {% set t = info.tournament %}
+    {% set status = t.tournament_status or 'DRAFT' %}
+    {% set is_stuck = status == 'IN_PROGRESS' and info.session_count == 0 %}
+    {% set row_class = 'STUCK' if is_stuck else status %}
+
+    <div class="event-row s-{{ row_class }}" data-status="{{ status }}" data-ag="{{ t.age_group or '' }}">
+
+        <!-- Main info -->
+        <div class="event-main">
+            <div class="event-title">
+                {{ t.name }}
+                {% if is_stuck %}
+                <span class="warn-flag">⚠ nincs meccs</span>
+                {% elif info.has_absent_field %}
+                <span class="warn-flag">⚠ hiányzó oktató</span>
+                {% endif %}
+            </div>
+            <div class="event-meta">
+                {% if info.source_club %}
+                <a href="/admin/clubs/{{ info.source_club.id }}" class="meta-club" style="color:#667eea;text-decoration:none;">{{ info.source_club.name }}</a>
+                <span class="meta-sep">·</span>
+                {% endif %}
+                {% if t.age_group %}<span class="ag-chip">{{ t.age_group }}</span><span class="meta-sep">·</span>{% endif %}
+                {% if t.start_date %}
+                {{ t.start_date.strftime('%Y. %m. %d.') }}{% if t.end_date %} – {{ t.end_date.strftime('%m. %d.') }}{% endif %}
+                <span class="meta-sep">·</span>
+                {% endif %}
+                <span>{{ info.team_count }} csapat</span>
+                {% if info.session_count > 0 %}<span class="meta-sep">·</span><span>{{ info.session_count }} meccs</span>{% endif %}
+            </div>
+        </div>
+
+        <!-- Right: badge + actions -->
+        <div class="event-right">
+            <span class="sbadge s-{{ row_class }}"></span>
+
+            <a href="/admin/tournaments/{{ t.id }}/edit" class="btn btn-primary">✏ Edit</a>
+
+            {% if status == 'IN_PROGRESS' and not is_stuck %}
+            <a href="/admin/tournaments/{{ t.id }}/live" class="btn btn-live">📡</a>
+            {% endif %}
+
+            <a href="/events/{{ t.id }}" class="btn btn-icon" target="_blank" title="Public view">👁</a>
+        </div>
+
+    </div>
+    {% endfor %}
 </div>
+
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">🚀</div>
-    <h3>No promotion events yet</h3>
-    <p>Create one from a <a href="/admin/clubs" style="color:#667eea;">club detail page</a> using the Promotion Event wizard.</p>
+    <h3>Még nincs promotion event</h3>
+    <p>Hozz létre egyet a <a href="/admin/clubs" style="color:#667eea;">klub oldaláról</a> a Promotion Event varázslóval.</p>
 </div>
 {% endif %}
 {% endblock admin_content %}
@@ -350,19 +328,16 @@
 function applyFilters() {
     const statusVal = document.getElementById('statusFilter').value;
     const agVal     = document.getElementById('agFilter').value;
-    const rows      = document.querySelectorAll('#promoTable tbody tr');
+    const rows      = document.querySelectorAll('#eventList .event-row');
     let visible = 0;
     rows.forEach(row => {
-        const status = row.dataset.status;
-        const ag     = row.dataset.ag;
-        const statusOk = statusVal === 'all' || status === statusVal;
-        const agOk     = agVal === 'all' || ag === agVal;
-        const show = statusOk && agOk;
-        row.style.display = show ? '' : 'none';
-        if (show) visible++;
+        const statusOk = statusVal === 'all' || row.dataset.status === statusVal;
+        const agOk     = agVal === 'all' || row.dataset.ag === agVal;
+        row.style.display = (statusOk && agOk) ? '' : 'none';
+        if (statusOk && agOk) visible++;
     });
     document.getElementById('filterCount').textContent =
-        visible + ' / {{ promo_info|length }} promotion events';
+        visible + ' / {{ promo_info|length }} event' + ({{ promo_info|length }} !== 1 ? 's' : '');
 }
 </script>
 {% endblock %}
