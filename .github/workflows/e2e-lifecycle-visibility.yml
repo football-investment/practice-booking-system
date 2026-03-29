@@ -1,0 +1,130 @@
+name: E2E Lifecycle Visibility (state machine + /events/{id} invariant)
+
+# Proves every state transition in the promotion flow:
+#   1. GUARD validations — campus, instructor, rankings all enforced
+#   2. Full DRAFT → REWARDS_DISTRIBUTED lifecycle
+#   3. /events/{id} visibility invariant at every step
+#      DRAFT/CANCELLED → 404 | all other states → 200
+#   4. Frontend consistency: admin-list / admin-detail / public agree
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/api/web_routes/admin.py'
+      - 'app/api/api_v1/endpoints/tournaments/lifecycle.py'
+      - 'app/api/web_routes/public_tournament.py'
+      - 'app/services/tournament/status_validator.py'
+      - 'app/services/tournament/session_generation/**'
+      - 'app/services/tournament/ranking/**'
+      - 'app/services/tournament/rewards/**'
+      - 'scripts/bootstrap_clean.py'
+      - 'scripts/e2e_lifecycle_visibility_test.py'
+      - 'alembic/versions/**'
+      - '.github/workflows/e2e-lifecycle-visibility.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-lifecycle-visibility-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-lifecycle-visibility-secret-not-for-production
+
+jobs:
+  lifecycle-visibility:
+    name: "Lifecycle + Visibility Invariant"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-lifecycle-visibility-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Assert DB is empty (no tables)
+        run: |
+          TABLE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres lfa_intern_system \
+            -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" \
+            | tr -d '[:space:]')
+          echo "Tables before bootstrap: $TABLE_COUNT"
+          if [ "$TABLE_COUNT" -ne "0" ]; then
+            echo "❌ DB is not empty — $TABLE_COUNT tables found before bootstrap"
+            exit 1
+          fi
+          echo "✅ DB is empty — clean start confirmed"
+
+      - name: Bootstrap DB
+        run: PYTHONPATH=. python scripts/bootstrap_clean.py
+
+      - name: Validate seed state
+        run: PYTHONPATH=. python scripts/validate_seed_state.py
+
+      - name: Run e2e_lifecycle_visibility_test.py
+        run: PYTHONPATH=. python scripts/e2e_lifecycle_visibility_test.py
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## E2E Lifecycle Visibility Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | What it proves |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| GUARD-A | \`campus_id=NULL\` → ENROLLMENT_OPEN rejected (HTTP 400) |" >> $GITHUB_STEP_SUMMARY
+          echo "| GUARD-C | No instructor → IN_PROGRESS rejected (HTTP 400) |" >> $GITHUB_STEP_SUMMARY
+          echo "| GUARD-D | 0 rankings → COMPLETED rejected (HTTP 400) |" >> $GITHUB_STEP_SUMMARY
+          echo "| FULL-LC | DRAFT→ENROLLMENT_OPEN→ENROLLMENT_CLOSED→CHECK_IN_OPEN→IN_PROGRESS→COMPLETED→REWARDS_DISTRIBUTED |" >> $GITHUB_STEP_SUMMARY
+          echo "| CANCELLED | DRAFT→CANCELLED → \`/events/{id}\` = 404 |" >> $GITHUB_STEP_SUMMARY
+          echo "| FRONTEND-CONSISTENCY | admin-list / admin-detail / public agree on REWARDS_DISTRIBUTED |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Visibility Invariant" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | \`GET /events/{id}\` | Rule |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------------------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| DRAFT | 404 | Not published |" >> $GITHUB_STEP_SUMMARY
+          echo "| ENROLLMENT_OPEN | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
+          echo "| ENROLLMENT_CLOSED | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
+          echo "| CHECK_IN_OPEN | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
+          echo "| IN_PROGRESS | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
+          echo "| COMPLETED | 200 | ✅ Visible (with rankings) |" >> $GITHUB_STEP_SUMMARY
+          echo "| REWARDS_DISTRIBUTED | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
+          echo "| CANCELLED | 404 | Withdrawn |" >> $GITHUB_STEP_SUMMARY
