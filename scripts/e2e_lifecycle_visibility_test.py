@@ -31,7 +31,7 @@ VISIBILITY INVARIANT (domain-correct model):
     Others    → normal content (participants / rankings / rewards)
 
 DB-STATE INVARIANTS (checked at every transition in FULL-LC):
-  Before IN_PROGRESS: sessions=0, rankings=0, rewards=0
+  At CHECK_IN_OPEN:   sessions≥1, rankings=0, rewards=0  (auto-generated on entry)
   After  IN_PROGRESS: sessions≥1, rankings=0, rewards=0
   After  rankings:    sessions≥1, rankings≥1, rewards=0
   After  COMPLETED:   sessions≥1, rankings≥1, rewards=0
@@ -85,7 +85,7 @@ RESULTS = []  # [(name, passed, error)]
 
 # Status labels as rendered by public_tournament.py
 _STATUS_LABELS = {
-    "DRAFT": "Draft",
+    "DRAFT": "Coming Soon",
     "CANCELLED": "Cancelled",
     "ENROLLMENT_OPEN": "Enrollment Open",
     "ENROLLMENT_CLOSED": "Enrollment Closed",
@@ -606,7 +606,7 @@ def test_full_lifecycle_visibility(club, campus, tt_id, instructor):
     # ─── → CHECK_IN_OPEN ──────────────────────────────────────────────────────
     _status_transition(t.id, "CHECK_IN_OPEN")
     _assert_public_visibility(t.id, 200, "CHECK_IN_OPEN")
-    _assert_db_invariants(t.id, "CHECK_IN_OPEN", sessions=0, rankings=0, rewards=0)
+    _assert_db_invariants(t.id, "CHECK_IN_OPEN", sessions_min=1, rankings=0, rewards=0)
 
     # ─── Set instructor ───────────────────────────────────────────────────────
     _db.expire_all()
@@ -616,7 +616,7 @@ def test_full_lifecycle_visibility(club, campus, tt_id, instructor):
     _db.expire_all()
     ok(f"master_instructor_id = {instructor.id}")
 
-    # ─── → IN_PROGRESS (triggers session generation) ──────────────────────────
+    # ─── → IN_PROGRESS (sessions already generated at CHECK_IN_OPEN) ──────────
     _status_transition(t.id, "IN_PROGRESS")
     _assert_public_visibility(t.id, 200, "IN_PROGRESS")
     _assert_db_invariants(t.id, "IN_PROGRESS", sessions_min=1, rankings=0, rewards=0)
