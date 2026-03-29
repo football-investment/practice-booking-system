@@ -1,0 +1,509 @@
+"""
+Deterministic DB Bootstrap
+==========================
+Single idempotent script — safe to run multiple times.
+
+After any DB reset, run this once to reach a fully working state:
+
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/lfa_intern_system" \\
+        PYTHONPATH=. python scripts/bootstrap_clean.py
+
+What it creates (skips existing rows):
+  1. Alembic migrations  (alembic upgrade head)
+  2. TournamentType      (4 rows: league, knockout, group_knockout, swiss)
+  3. GamePreset          (3 rows: outfield_default, passing_focus, shooting_focus)
+  4. Location + Campus   (Budapest / Főváros Campus)
+  5. Admin user          admin@lfa.com / admin123
+  6. Instructor user     instructor@lfa.com / instructor123
+  7. Bootstrap Club      LFA_BOOTSTRAP_CLUB — 4 teams × 5 players, all LFA-licensed
+"""
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+os.environ.setdefault("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+
+# ── DB setup ──────────────────────────────────────────────────────────────────
+from app.database import SessionLocal  # noqa: E402
+
+# ── Models ────────────────────────────────────────────────────────────────────
+from app.models.campus import Campus  # noqa: E402
+from app.models.club import Club  # noqa: E402
+from app.models.game_preset import GamePreset  # noqa: E402
+from app.models.license import UserLicense  # noqa: E402
+from app.models.location import Location, LocationType  # noqa: E402
+from app.models.team import Team, TeamMember  # noqa: E402
+from app.models.tournament_type import TournamentType  # noqa: E402
+from app.models.user import User, UserRole  # noqa: E402
+from app.core.security import get_password_hash  # noqa: E402
+from app.skills_config import get_all_skill_keys  # noqa: E402
+
+# ── Tournament type JSON files ────────────────────────────────────────────────
+_JSON_DIR = os.path.join(os.path.dirname(__file__), "..", "app", "tournament_types")
+
+# ── Game preset definitions (mirrors seed_game_presets.py) ───────────────────
+_PRESETS = [
+    {
+        "code": "outfield_default",
+        "name": "Outfield Football (Default)",
+        "description": (
+            "Baseline template for standard outfield football tournaments and training sessions. "
+            "Covers core technical, mental, and physical skills for any field position."
+        ),
+        "is_recommended": True,
+        "is_locked": False,
+        "game_config": {
+            "version": "1.0",
+            "metadata": {
+                "game_category": "FOOTBALL",
+                "difficulty_level": "intermediate",
+                "min_players": 4,
+                "recommended_player_count": {"min": 8, "max": 32},
+            },
+            "skill_config": {
+                "skills_tested": [
+                    "ball_control", "dribbling", "finishing", "passing",
+                    "vision", "positioning_off", "sprint_speed", "agility", "stamina",
+                ],
+                "skill_weights": {
+                    "ball_control": 1.2, "dribbling": 1.5, "finishing": 1.4,
+                    "passing": 1.3, "vision": 1.1, "positioning_off": 1.1,
+                    "sprint_speed": 1.0, "agility": 1.0, "stamina": 0.9,
+                },
+            },
+            "format_config": {},
+            "simulation_config": {},
+        },
+    },
+    {
+        "code": "passing_focus",
+        "name": "Passing & Vision Focus",
+        "description": "Specialised preset for passing-intensive game formats.",
+        "is_recommended": False,
+        "is_locked": False,
+        "game_config": {
+            "version": "1.0",
+            "metadata": {
+                "game_category": "FOOTBALL",
+                "difficulty_level": "intermediate",
+                "min_players": 4,
+                "recommended_player_count": {"min": 6, "max": 24},
+            },
+            "skill_config": {
+                "skills_tested": ["passing", "vision", "ball_control", "positioning_off", "agility", "stamina"],
+                "skill_weights": {
+                    "passing": 1.8, "vision": 1.6, "ball_control": 1.4,
+                    "positioning_off": 1.3, "agility": 1.0, "stamina": 0.8,
+                },
+            },
+            "format_config": {},
+            "simulation_config": {},
+        },
+    },
+    {
+        "code": "shooting_focus",
+        "name": "Finishing & Shooting Focus",
+        "description": "Goal-conversion focused preset for shooting drills and 1v1 formats.",
+        "is_recommended": False,
+        "is_locked": False,
+        "game_config": {
+            "version": "1.0",
+            "metadata": {
+                "game_category": "FOOTBALL",
+                "difficulty_level": "intermediate",
+                "min_players": 4,
+                "recommended_player_count": {"min": 6, "max": 20},
+            },
+            "skill_config": {
+                "skills_tested": ["finishing", "sprint_speed", "dribbling", "ball_control", "agility", "positioning_off"],
+                "skill_weights": {
+                    "finishing": 2.0, "sprint_speed": 1.6, "dribbling": 1.5,
+                    "ball_control": 1.2, "agility": 1.1, "positioning_off": 0.9,
+                },
+            },
+            "format_config": {},
+            "simulation_config": {},
+        },
+    },
+]
+
+# ── Bootstrap Club definition ─────────────────────────────────────────────────
+_CLUB_CODE = "LFA-BOOT"
+_CLUB_NAME = "LFA_BOOTSTRAP_CLUB"
+
+_TEAMS = [
+    # U12: 2 teams — league (min 2)
+    {"name": "Bootstrap U12 A",    "age_group": "U12",   "age_group_label": "U12"},
+    {"name": "Bootstrap U12 B",    "age_group": "U12",   "age_group_label": "U12"},
+    # U15: 4 teams — knockout (min 4, requires power-of-two)
+    {"name": "Bootstrap U15 A",    "age_group": "U15",   "age_group_label": "U15"},
+    {"name": "Bootstrap U15 B",    "age_group": "U15",   "age_group_label": "U15"},
+    {"name": "Bootstrap U15 C",    "age_group": "U15",   "age_group_label": "U15"},
+    {"name": "Bootstrap U15 D",    "age_group": "U15",   "age_group_label": "U15"},
+    # U18: 8 teams — group+knockout (min 8)
+    {"name": "Bootstrap U18 A",    "age_group": "U18",   "age_group_label": "U18"},
+    {"name": "Bootstrap U18 B",    "age_group": "U18",   "age_group_label": "U18"},
+    {"name": "Bootstrap U18 C",    "age_group": "U18",   "age_group_label": "U18"},
+    {"name": "Bootstrap U18 D",    "age_group": "U18",   "age_group_label": "U18"},
+    {"name": "Bootstrap U18 E",    "age_group": "U18",   "age_group_label": "U18"},
+    {"name": "Bootstrap U18 F",    "age_group": "U18",   "age_group_label": "U18"},
+    {"name": "Bootstrap U18 G",    "age_group": "U18",   "age_group_label": "U18"},
+    {"name": "Bootstrap U18 H",    "age_group": "U18",   "age_group_label": "U18"},
+    # ADULT: 2 teams — 2-leg league
+    {"name": "Bootstrap Adult A",  "age_group": "ADULT", "age_group_label": "ADULT"},
+    {"name": "Bootstrap Adult B",  "age_group": "ADULT", "age_group_label": "ADULT"},
+]
+
+_PLAYERS_PER_TEAM = 5
+_SKILL_BASE = 55.0
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _step(n: int, title: str) -> None:
+    print(f"\n{'='*70}")
+    print(f"  Step {n}: {title}")
+    print("="*70)
+
+
+def _ok(msg: str) -> None:
+    print(f"  ✅ {msg}")
+
+
+def _skip(msg: str) -> None:
+    print(f"  ⏭️  {msg}")
+
+
+def _seed_tournament_types(db) -> int:
+    """Seed 4 TournamentType rows from JSON files — skip existing codes."""
+    files = ["league.json", "knockout.json", "group_knockout.json", "swiss.json"]
+    created = 0
+    for fname in files:
+        path = os.path.join(_JSON_DIR, fname)
+        try:
+            with open(path) as f:
+                cfg = json.load(f)
+        except FileNotFoundError:
+            print(f"  ❌ JSON not found: {path}")
+            continue
+
+        code = cfg["code"]
+        if db.query(TournamentType).filter(TournamentType.code == code).first():
+            _skip(f"TournamentType '{code}' already exists")
+            continue
+
+        tt = TournamentType(
+            code=code,
+            display_name=cfg["display_name"],
+            description=cfg["description"],
+            format=cfg.get("format", "INDIVIDUAL_RANKING"),
+            min_players=cfg["min_players"],
+            max_players=cfg.get("max_players"),
+            requires_power_of_two=cfg["requires_power_of_two"],
+            session_duration_minutes=cfg["session_duration_minutes"],
+            break_between_sessions_minutes=cfg["break_between_sessions_minutes"],
+            config=cfg,
+        )
+        db.add(tt)
+        db.flush()
+        _ok(f"TournamentType '{code}' created (id={tt.id})")
+        created += 1
+
+    return created
+
+
+def _seed_game_presets(db) -> int:
+    """Seed 3 GamePreset rows — skip existing codes."""
+    created = 0
+    for defn in _PRESETS:
+        if db.query(GamePreset).filter(GamePreset.code == defn["code"]).first():
+            _skip(f"GamePreset '{defn['code']}' already exists")
+            continue
+        preset = GamePreset(
+            code=defn["code"],
+            name=defn["name"],
+            description=defn.get("description"),
+            game_config=defn["game_config"],
+            is_active=True,
+            is_recommended=defn.get("is_recommended", False),
+            is_locked=defn.get("is_locked", False),
+        )
+        db.add(preset)
+        db.flush()
+        _ok(f"GamePreset '{defn['code']}' created (id={preset.id})")
+        created += 1
+    return created
+
+
+def _seed_location_campus(db) -> tuple:
+    """Create Budapest location + Főváros Campus if not present."""
+    # Check by city (unique) first, then fall back to location_code
+    loc = (
+        db.query(Location).filter(Location.city == "Budapest").first()
+        or db.query(Location).filter(Location.location_code == "BDPST").first()
+    )
+    if loc:
+        _skip(f"Location 'Budapest' already exists (id={loc.id})")
+    else:
+        loc = Location(
+            name="Budapest",
+            city="Budapest",
+            country="Hungary",
+            country_code="HU",
+            location_code="BDPST",
+            address="Budapest, Hungary",
+            location_type=LocationType.CENTER,
+            is_active=True,
+        )
+        db.add(loc)
+        db.flush()
+        _ok(f"Location 'Budapest' created (id={loc.id})")
+
+    campus = db.query(Campus).filter(Campus.location_id == loc.id).first()
+    if campus:
+        _skip(f"Campus '{campus.name}' already exists (id={campus.id})")
+    else:
+        campus = Campus(
+            location_id=loc.id,
+            name="Főváros Campus",
+            venue="LFA Main Venue",
+            address="Budapest, Főváros u. 1.",
+            is_active=True,
+        )
+        db.add(campus)
+        db.flush()
+        _ok(f"Campus 'Főváros Campus' created (id={campus.id})")
+
+    return loc, campus
+
+
+def _seed_users(db) -> tuple:
+    """Create admin@lfa.com and instructor@lfa.com if not present."""
+    admin = db.query(User).filter(User.email == "admin@lfa.com").first()
+    if admin:
+        _skip(f"Admin user 'admin@lfa.com' already exists (id={admin.id})")
+    else:
+        admin = User(
+            name="LFA Admin",
+            email="admin@lfa.com",
+            password_hash=get_password_hash("admin123"),
+            role=UserRole.ADMIN,
+            is_active=True,
+            onboarding_completed=True,
+        )
+        db.add(admin)
+        db.flush()
+        _ok(f"Admin user created: admin@lfa.com / admin123 (id={admin.id})")
+
+    instr = db.query(User).filter(User.email == "instructor@lfa.com").first()
+    if instr:
+        _skip(f"Instructor user 'instructor@lfa.com' already exists (id={instr.id})")
+    else:
+        instr = User(
+            name="LFA Instructor",
+            email="instructor@lfa.com",
+            password_hash=get_password_hash("instructor123"),
+            role=UserRole.INSTRUCTOR,
+            is_active=True,
+            onboarding_completed=True,
+        )
+        db.add(instr)
+        db.flush()
+        _ok(f"Instructor user created: instructor@lfa.com / instructor123 (id={instr.id})")
+
+    return admin, instr
+
+
+def _seed_bootstrap_club(db) -> Club:
+    """Create LFA_BOOTSTRAP_CLUB with 4 age-group teams × 5 LFA-licensed players."""
+    all_keys = get_all_skill_keys()
+    football_skills = {k: _SKILL_BASE for k in all_keys}
+    now = datetime.now()
+
+    club = db.query(Club).filter(Club.code == _CLUB_CODE).first()
+    if club:
+        _skip(f"Club '{_CLUB_NAME}' already exists (id={club.id})")
+    else:
+        club = Club(
+            name=_CLUB_NAME,
+            code=_CLUB_CODE,
+            city="Budapest",
+            country="HU",
+            contact_email="bootstrap@lfa.com",
+            is_active=True,
+        )
+        db.add(club)
+        db.flush()
+        _ok(f"Club '{_CLUB_NAME}' created (id={club.id})")
+
+    for tdef in _TEAMS:
+        team = db.query(Team).filter(
+            Team.club_id == club.id,
+            Team.name == tdef["name"],
+        ).first()
+        if team:
+            _skip(f"  Team '{tdef['name']}' already exists (id={team.id})")
+        else:
+            team = Team(
+                name=tdef["name"],
+                club_id=club.id,
+                age_group_label=tdef["age_group_label"],
+                is_active=True,
+            )
+            db.add(team)
+            db.flush()
+            _ok(f"  Team '{tdef['name']}' created (id={team.id})")
+
+        # team_slug: "Bootstrap U12 A" → "u12-a"
+        team_slug = tdef["name"].replace("Bootstrap ", "").replace(" ", "-").lower()
+        for i in range(1, _PLAYERS_PER_TEAM + 1):
+            email = f"boot-{team_slug}-{i}@lfa.com"
+            user = db.query(User).filter(User.email == email).first()
+            if not user:
+                user = User(
+                    name=f"Boot {tdef['name']} Player {i}",
+                    email=email,
+                    password_hash=get_password_hash("Bootstrap#123"),
+                    role=UserRole.STUDENT,
+                    is_active=True,
+                    onboarding_completed=True,
+                    credit_balance=1000,
+                )
+                db.add(user)
+                db.flush()
+
+            # Ensure LFA license
+            lic = db.query(UserLicense).filter(
+                UserLicense.user_id == user.id,
+                UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            ).first()
+            if not lic:
+                lic = UserLicense(
+                    user_id=user.id,
+                    specialization_type="LFA_FOOTBALL_PLAYER",
+                    current_level=1,
+                    max_achieved_level=1,
+                    started_at=now,
+                    payment_verified=True,
+                    payment_verified_at=now,
+                    onboarding_completed=True,
+                    onboarding_completed_at=now,
+                    is_active=True,
+                    football_skills=football_skills,
+                    motivation_scores={
+                        "position": "MIDFIELDER",
+                        "goals": "improve_skills",
+                        "motivation": "",
+                        "average_skill_level": _SKILL_BASE,
+                        "onboarding_completed_at": now.isoformat(),
+                    },
+                    average_motivation_score=_SKILL_BASE,
+                )
+                db.add(lic)
+                db.flush()
+
+            # Team membership
+            member = db.query(TeamMember).filter(
+                TeamMember.team_id == team.id,
+                TeamMember.user_id == user.id,
+            ).first()
+            if not member:
+                db.add(TeamMember(team_id=team.id, user_id=user.id, role="PLAYER"))
+                db.flush()
+
+        member_count = db.query(TeamMember).filter(TeamMember.team_id == team.id).count()
+        print(f"    {tdef['name']}: {member_count} players")
+
+    return club
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def run():
+    print("\n" + "="*70)
+    print("  LFA Practice Booking System — DB Bootstrap")
+    print("="*70)
+
+    # Step 1: Migrations
+    _step(1, "Alembic migrations")
+    result = subprocess.run(
+        ["alembic", "upgrade", "head"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(f"  ❌ Migration failed:\n{result.stderr}")
+        sys.exit(1)
+    output = (result.stdout + result.stderr).strip()
+    if "Running upgrade" in output or "upgrade" in output.lower():
+        _ok("Migrations applied")
+    else:
+        _ok("Schema already up to date")
+
+    db = SessionLocal()
+    try:
+        # Step 2: TournamentType
+        _step(2, "TournamentType (4 rows from JSON)")
+        _seed_tournament_types(db)
+        db.commit()
+        total = db.query(TournamentType).count()
+        print(f"  → TournamentType total: {total}")
+
+        # Step 3: GamePreset
+        _step(3, "GamePreset (3 rows)")
+        _seed_game_presets(db)
+        db.commit()
+        total = db.query(GamePreset).count()
+        print(f"  → GamePreset total: {total}")
+
+        # Step 4: Location + Campus
+        _step(4, "Location + Campus")
+        loc, campus = _seed_location_campus(db)
+        db.commit()
+
+        # Step 5: Admin + Instructor users
+        _step(5, "Admin + Instructor users")
+        admin, instr = _seed_users(db)
+        db.commit()
+
+        # Step 6: Bootstrap Club
+        _step(6, "Bootstrap Club (4 teams × 5 players)")
+        club = _seed_bootstrap_club(db)
+        db.commit()
+
+        # Summary
+        print("\n" + "="*70)
+        print("  Bootstrap complete")
+        print("="*70)
+        tt_count = db.query(TournamentType).count()
+        gp_count = db.query(GamePreset).count()
+        campus_count = db.query(Campus).count()
+        admin_u = db.query(User).filter(User.email == "admin@lfa.com").first()
+        instr_u = db.query(User).filter(User.email == "instructor@lfa.com").first()
+        boot_club = db.query(Club).filter(Club.code == _CLUB_CODE).first()
+        team_count = db.query(Team).filter(Team.club_id == boot_club.id).count() if boot_club else 0
+        print(f"  TournamentType : {tt_count} rows")
+        print(f"  GamePreset     : {gp_count} rows")
+        print(f"  Campus         : {campus_count} (id={campus.id}, '{campus.name}')")
+        print(f"  Admin          : {admin_u.email if admin_u else '—'}  /  admin123")
+        print(f"  Instructor     : {instr_u.email if instr_u else '—'}  /  instructor123")
+        print(f"  Club           : {boot_club.name if boot_club else '—'} (id={boot_club.id if boot_club else '—'})")
+        print(f"  Teams          : {team_count} (U12/U15/U18/ADULT, {_PLAYERS_PER_TEAM} players each)")
+        print()
+        print("  Run validate:  PYTHONPATH=. python scripts/validate_seed_state.py")
+        print("="*70 + "\n")
+
+    except Exception:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    run()

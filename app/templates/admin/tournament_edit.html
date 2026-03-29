@@ -602,62 +602,16 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 {% else %}
 <div class="card" id="section-checkin">
     <div class="section-header">
-        <span class="section-icon">✅</span>
+        <span class="section-icon">👤</span>
         <h2>Enrolled Players</h2>
     </div>
-
     <div class="stats-row" style="margin-bottom:1rem;">
         <div class="stat-card">
             <div class="val">{{ enrollments|length }}</div>
-            <div class="lbl">Enrolled</div>
+            <div class="lbl">Enrolled Players</div>
         </div>
-        <div class="stat-card">
-            <div class="val">{{ checked_in_count }}</div>
-            <div class="lbl">Checked In</div>
-        </div>
-        <div class="stat-card">
-            <div class="val">{{ enrollments|length - checked_in_count }}</div>
-            <div class="lbl">Pending Check-in</div>
-        </div>
-        {% if preset_min_players %}
-        <div class="stat-card">
-            <div class="val" style="{% if enrollments|length >= preset_min_players %}color:#27ae60{% else %}color:#e74c3c{% endif %}">{{ preset_min_players }}</div>
-            <div class="lbl">Min Players (preset)</div>
-        </div>
-        {% endif %}
     </div>
-
-    {% if enrollments %}
-    <div class="info-banner">
-        Players self-check-in within 15 min of tournament start. If 0 check-ins occur, session
-        generation falls back to all approved enrollments automatically.
-    </div>
-
-    <div style="max-height:320px;overflow-y:auto;">
-        {% for enrollment in enrollments %}
-        {% set player = enrolled_users.get(enrollment.user_id) %}
-        <div class="checkin-row">
-            <div style="flex:1">
-                <div class="checkin-name">{{ player.full_name if player else 'User #' ~ enrollment.user_id }}</div>
-                <div class="checkin-email">{{ player.email if player else '' }}</div>
-            </div>
-            <div>
-                <span class="badge badge-{% if enrollment.request_status.value == 'APPROVED' %}student{% else %}instructor{% endif %}"
-                      style="font-size:0.75rem;">{{ enrollment.request_status.value }}</span>
-            </div>
-            <div class="checkin-status {% if enrollment.tournament_checked_in_at %}checked-in{% else %}not-checked-in{% endif %}">
-                {% if enrollment.tournament_checked_in_at %}
-                    ✅ {{ enrollment.tournament_checked_in_at.strftime('%H:%M') }}
-                {% else %}
-                    ⬜ Not checked in
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-        <p style="color:#718096;font-style:italic;">No enrollments yet.</p>
-    {% endif %}
+    <a href="/admin/tournaments/{{ t.id }}/players" class="btn btn-primary" style="display:inline-block;">👤 Manage Players →</a>
 </div>
 {% endif %}
 

@@ -2922,7 +2922,8 @@ class TestSmoke23TournamentEditPage:
     def test_23d_edit_page_shows_enrolled_players_and_checkin_status(
         self, test_db: Session, admin_user: User, web_client: TestClient
     ):
-        """Edit page lists enrolled players with check-in status indicators."""
+        """Edit page shows enrollment count + Manage Players link (dedicated page pattern).
+        Player details are on /admin/tournaments/{id}/players."""
         tourn = self._make_tournament(test_db, admin_user, suffix="d")
         player, enroll = self._enroll_player(test_db, tourn.id)
 
@@ -2930,14 +2931,21 @@ class TestSmoke23TournamentEditPage:
         assert resp.status_code == 200
 
         html = resp.text
-        # Player appears in the check-in section
-        assert player.email in html, "Enrolled player email not shown on edit page"
-        # Check-in status indicator present
-        assert "Not checked in" in html or "Checked In" in html or "checked-in" in html, (
-            "Check-in status indicator missing from edit page"
-        )
-        # Enrollment count stat visible
+        # Enrollment section present
         assert "section-checkin" in html, "Check-in section missing"
+        # Enrolled Players card present with count
+        assert "Enrolled Players" in html, "Enrolled Players heading missing"
+        # Link to dedicated players management page
+        assert f"/admin/tournaments/{tourn.id}/players" in html, (
+            "Manage Players link missing from edit page"
+        )
+
+        # Players page shows the actual player email and check-in status
+        resp2 = web_client.get(f"/admin/tournaments/{tourn.id}/players")
+        assert resp2.status_code == 200
+        html2 = resp2.text
+        assert player.email in html2, "Enrolled player email not shown on players page"
+        assert "Enrolled Players" in html2, "Enrolled Players heading missing on players page"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
