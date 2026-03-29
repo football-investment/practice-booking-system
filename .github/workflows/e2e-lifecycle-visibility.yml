@@ -4,7 +4,7 @@ name: E2E Lifecycle Visibility (state machine + /events/{id} invariant)
 #   1. GUARD validations — campus, instructor, rankings all enforced
 #   2. Full DRAFT → REWARDS_DISTRIBUTED lifecycle
 #   3. /events/{id} visibility invariant at every step
-#      DRAFT/CANCELLED → 404 | all other states → 200
+#      all existing events → 200 (state-driven rendering); only invalid ID → 404
 #   4. Frontend consistency: admin-list / admin-detail / public agree
 
 on:
@@ -113,18 +113,19 @@ jobs:
           echo "| GUARD-C | No instructor → IN_PROGRESS rejected (HTTP 400) |" >> $GITHUB_STEP_SUMMARY
           echo "| GUARD-D | 0 rankings → COMPLETED rejected (HTTP 400) |" >> $GITHUB_STEP_SUMMARY
           echo "| FULL-LC | DRAFT→ENROLLMENT_OPEN→ENROLLMENT_CLOSED→CHECK_IN_OPEN→IN_PROGRESS→COMPLETED→REWARDS_DISTRIBUTED |" >> $GITHUB_STEP_SUMMARY
-          echo "| CANCELLED | DRAFT→CANCELLED → \`/events/{id}\` = 404 |" >> $GITHUB_STEP_SUMMARY
+          echo "| CANCELLED | DRAFT→CANCELLED → \`/events/{id}\` = 200 (cancelled page) |" >> $GITHUB_STEP_SUMMARY
           echo "| FRONTEND-CONSISTENCY | admin-list / admin-detail / public agree on REWARDS_DISTRIBUTED |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Visibility Invariant" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Status | \`GET /events/{id}\` | Rule |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|---------------------|------|" >> $GITHUB_STEP_SUMMARY
-          echo "| DRAFT | 404 | Not published |" >> $GITHUB_STEP_SUMMARY
-          echo "| ENROLLMENT_OPEN | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
-          echo "| ENROLLMENT_CLOSED | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
-          echo "| CHECK_IN_OPEN | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
-          echo "| IN_PROGRESS | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
-          echo "| COMPLETED | 200 | ✅ Visible (with rankings) |" >> $GITHUB_STEP_SUMMARY
-          echo "| REWARDS_DISTRIBUTED | 200 | ✅ Visible |" >> $GITHUB_STEP_SUMMARY
-          echo "| CANCELLED | 404 | Withdrawn |" >> $GITHUB_STEP_SUMMARY
+          echo "| DRAFT | 200 | ✅ Coming Soon page |" >> $GITHUB_STEP_SUMMARY
+          echo "| ENROLLMENT_OPEN | 200 | ✅ Active enrollment |" >> $GITHUB_STEP_SUMMARY
+          echo "| ENROLLMENT_CLOSED | 200 | ✅ Enrollment closed |" >> $GITHUB_STEP_SUMMARY
+          echo "| CHECK_IN_OPEN | 200 | ✅ Check-in open |" >> $GITHUB_STEP_SUMMARY
+          echo "| IN_PROGRESS | 200 | ✅ Live event |" >> $GITHUB_STEP_SUMMARY
+          echo "| COMPLETED | 200 | ✅ Finished (with rankings) |" >> $GITHUB_STEP_SUMMARY
+          echo "| REWARDS_DISTRIBUTED | 200 | ✅ Rewards distributed |" >> $GITHUB_STEP_SUMMARY
+          echo "| CANCELLED | 200 | ✅ Cancelled notice page |" >> $GITHUB_STEP_SUMMARY
+          echo "| invalid ID | 404 | Event not found |" >> $GITHUB_STEP_SUMMARY

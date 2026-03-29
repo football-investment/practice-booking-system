@@ -51,10 +51,9 @@ def public_event_detail(
     if not tournament:
         return HTMLResponse("<h2>Event not found</h2>", status_code=404)
 
-    # Only show non-draft, non-cancelled events publicly
+    # Every existing event has a public page — visibility is state-driven, not binary.
+    # 404 is reserved for non-existent IDs only.
     status = tournament.tournament_status or "DRAFT"
-    if status in ("DRAFT", "CANCELLED"):
-        return HTMLResponse("<h2>Event not available</h2>", status_code=404)
 
     cfg = tournament.tournament_config_obj
     participant_type = cfg.participant_type if cfg else "INDIVIDUAL"
@@ -183,4 +182,6 @@ def public_event_detail(
         "has_rankings": has_rankings,
         "enrolled_count": enrolled_count,
         "participants": participants,
+        "is_draft": status == "DRAFT",
+        "is_cancelled": status == "CANCELLED",
     })

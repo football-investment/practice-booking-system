@@ -132,6 +132,14 @@ body {
 @media (max-width: 380px) {
     .event-info-grid { grid-template-columns: 1fr 1fr; }
 }
+.state-banner {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.82rem; font-weight: 700;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.state-banner.draft     { background: rgba(160,174,192,0.08); color: #a0aec0; border-left: 3px solid #a0aec0; }
+.state-banner.cancelled { background: rgba(113,128,150,0.10); color: #a0aec0; border-left: 3px solid #718096; }
 </style>
 </head>
 <body>
@@ -199,6 +207,17 @@ body {
         </div>
     </div>
 
+    <!-- State-aware banners -->
+    {% if is_draft %}
+    <div class="state-banner draft">
+        ⏳ This event is not yet open for enrollment. Check back soon.
+    </div>
+    {% elif is_cancelled %}
+    <div class="state-banner cancelled">
+        ✖ This event has been cancelled.
+    </div>
+    {% endif %}
+
     <!-- Final Standings -->
     {% if has_rankings %}
     <div class="section">
@@ -259,7 +278,11 @@ body {
 
     {% else %}
     <div class="section">
-        <div class="empty-note">No participants registered yet.</div>
+        <div class="empty-note">
+            {% if is_draft %}Enrollment not yet open.
+            {% elif is_cancelled %}No participants to display.
+            {% else %}No participants registered yet.{% endif %}
+        </div>
     </div>
     {% endif %}
 
