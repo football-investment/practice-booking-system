@@ -1345,29 +1345,40 @@ async def admin_tournament_players_page(
         .all()
     )
 
-    enrolled_players = []
-    enrolled_user_ids: set = set()
+    # Group enrolled players by team (via TeamMember → Team → Club)
+    enrolled_groups_map: dict = {}  # team_id → group dict
+    unaffiliated_players: list = []
     for enr in active_enrollments:
-        u = db.query(User).filter(User.id == enr.user_id).first()
-        enrolled_players.append({"enrollment": enr, "user": u})
-        enrolled_user_ids.add(enr.user_id)
-
-    # Available clubs with their teams for bulk enrollment
-    available_clubs = []
-    for club in db.query(Club).filter(Club.is_active == True).order_by(Club.name).all():
-        teams = (
-            db.query(Team)
-            .filter(Team.club_id == club.id, Team.is_active == True)
-            .order_by(Team.name)
-            .all()
+        u = enr.user
+        tm = (
+            db.query(TeamMember)
+            .filter(TeamMember.user_id == enr.user_id, TeamMember.is_active == True)
+            .order_by(TeamMember.joined_at.desc())
+            .first()
         )
-        teams_data = []
-        for tm in teams:
-            mc = db.query(TeamMember).filter(
-                TeamMember.team_id == tm.id, TeamMember.is_active == True
-            ).count()
-            teams_data.append({"id": tm.id, "name": tm.name, "member_count": mc})
-        available_clubs.append({"club": club, "teams": teams_data})
+        if tm:
+            team = tm.team
+            club = team.club
+            key = team.id
+            if key not in enrolled_groups_map:
+                enrolled_groups_map[key] = {
+                    "club_id":   club.id if club else None,
+                    "club_name": club.name if club else "—",
+                    "team_id":   team.id,
+                    "team_name": team.name,
+                    "age_group": team.age_group_label or "",
+                    "players":   [],
+                }
+            enrolled_groups_map[key]["players"].append(
+                {"enrollment": enr, "user": u, "role": tm.role}
+            )
+        else:
+            unaffiliated_players.append({"enrollment": enr, "user": u, "role": None})
+
+    enrolled_groups = sorted(
+        enrolled_groups_map.values(),
+        key=lambda g: (g["club_name"], g["team_name"]),
+    )
 
     return templates.TemplateResponse(
         request,
@@ -1375,8 +1386,9 @@ async def admin_tournament_players_page(
         {
             "tournament": t,
             "cfg": cfg,
-            "enrolled_players": enrolled_players,
-            "available_clubs": available_clubs,
+            "enrolled_groups": enrolled_groups,
+            "unaffiliated_players": unaffiliated_players,
+            "total_enrolled": len(active_enrollments),
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },
