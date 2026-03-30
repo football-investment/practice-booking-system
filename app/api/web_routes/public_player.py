@@ -48,7 +48,21 @@ def public_player_card(
 
     # Skill profile
     from app.services.skill_progression_service import get_skill_profile
+    from app.models.tournament_achievement import TournamentParticipation
     skill_profile = get_skill_profile(db, user_id) if lfa_license.onboarding_completed else None
+
+    # Last-tournament per-skill delta (for trend arrows on public card)
+    _last_part = (
+        db.query(TournamentParticipation)
+        .filter(TournamentParticipation.user_id == user_id)
+        .order_by(TournamentParticipation.achieved_at.desc(), TournamentParticipation.id.desc())
+        .first()
+    )
+    last_skill_delta = (
+        _last_part.skill_rating_delta
+        if _last_part and isinstance(_last_part.skill_rating_delta, dict)
+        else {}
+    )
 
     overall = round(skill_profile["average_level"], 1) if skill_profile else 50.0
     total_tournaments = skill_profile["total_tournaments"] if skill_profile else 0
@@ -120,4 +134,5 @@ def public_player_card(
         "skill_categories": SKILL_CATEGORIES,
         "teams_info": teams_info,
         "photo_url": lfa_license.player_card_photo_url,
+        "last_skill_delta": last_skill_delta,
     })

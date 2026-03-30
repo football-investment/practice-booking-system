@@ -111,6 +111,7 @@ body {
 .skill-row:last-child { margin-bottom: 0; }
 .skill-name { font-size: 0.62rem; color: rgba(255,255,255,0.6); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .skill-val { font-size: 0.67rem; font-weight: 700; width: 28px; text-align: right; flex-shrink: 0; }
+.skill-up { font-size: 0.6rem; color: #48bb78; font-weight: 900; flex-shrink: 0; line-height: 1; }
 .skill-bar-bg { flex: 0 1 36px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; }
 .skill-bar-fill { height: 100%; border-radius: 2px; }
 
@@ -219,10 +220,12 @@ body {
                 {% elif sval >= 60 %}{% set bar_color = '#667eea' %}
                 {% elif sval >= 50 %}{% set bar_color = '#ed8936' %}
                 {% else %}{% set bar_color = '#fc8181' %}{% endif %}
+                {% set sdelta = last_skill_delta.get(skill.key, 0) %}
                 <div class="skill-row">
                     <span class="skill-name">{{ skill.name_en }}</span>
                     <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{{ fill_pct }}%; background:{{ bar_color }};"></div></div>
                     <span class="skill-val" style="color:{{ bar_color }};">{{ sval }}</span>
+                    {% if sdelta > 0 %}<span class="skill-up">↑</span>{% endif %}
                 </div>
                 {% endfor %}
             </div>
