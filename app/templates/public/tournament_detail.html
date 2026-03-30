@@ -587,7 +587,11 @@ body {
                     {% elif aw.placement == 3 %}🥉
                     {% else %}{{ aw.placement }}.{% endif %}
                 </span>
-                <span class="award-name">{{ aw.names | join(', ') or ('Place ' ~ aw.placement) }}</span>
+                <span class="award-name">
+                    {% if aw.players %}
+                        {% for player in aw.players %}{% if not loop.first %}, {% endif %}{% if player.user_id %}<a href="/players/{{ player.user_id }}/card" style="color:inherit;font-weight:700;text-decoration:underline;text-decoration-color:rgba(0,0,0,.25);">{{ player.name }}</a>{% else %}{{ player.name }}{% endif %}{% endfor %}
+                    {% else %}{{ 'Place ' ~ aw.placement }}{% endif %}
+                </span>
                 <div class="award-chips">
                     {% if aw.xp %}<span class="award-chip xp">+{{ aw.xp | int }} XP</span>{% endif %}
                     {% if aw.credits %}<span class="award-chip credits">+{{ aw.credits | int }} Credits</span>{% endif %}

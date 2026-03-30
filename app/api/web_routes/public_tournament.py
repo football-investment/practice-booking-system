@@ -268,18 +268,23 @@ def public_event_detail(
                     "credits": p.credits_awarded,
                     "count": 0,
                     "names": [],
+                    "players": [],  # [{name, user_id}] for individual; [{name}] for team
                 }
             placement_map[pl]["count"] += 1
             if p.team_id:
                 team = db.query(Team).filter(Team.id == p.team_id).first()
                 name = team.name if team else f"Team #{p.team_id}"
+                if name and name not in placement_map[pl]["names"]:
+                    placement_map[pl]["names"].append(name)
+                    placement_map[pl]["players"].append({"name": name, "user_id": None})
             elif p.user_id:
                 user = db.query(User).filter(User.id == p.user_id).first()
                 name = (user.name or user.email) if user else f"Player #{p.user_id}"
+                if name and name not in placement_map[pl]["names"]:
+                    placement_map[pl]["names"].append(name)
+                    placement_map[pl]["players"].append({"name": name, "user_id": p.user_id})
             else:
                 name = None
-            if name and name not in placement_map[pl]["names"]:
-                placement_map[pl]["names"].append(name)
         awards = sorted(placement_map.values(), key=lambda x: x["placement"])
 
     has_awards = len(awards) > 0
