@@ -212,6 +212,20 @@
 .btn-remove:hover { background: #fff5f5; }
 
 .empty-group { color: #a0aec0; font-size: .85rem; padding: .75rem; }
+
+/* ── Enroll tabs ──────────────────────────────────────────── */
+.enroll-tab {
+    padding: .3rem .8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    color: #4a5568;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.enroll-tab.active { background: #667eea; color: white; border-color: #667eea; }
+.enroll-tab:not(.active):hover { background: #f7fafc; }
 </style>
 {% endblock %}
 
@@ -338,35 +352,56 @@
     <div class="card-body">
         <div class="enroll-panel">
 
-            <!-- Step 1: Club -->
-            <div class="enroll-step">
-                <label for="enroll-club">Club</label>
-                <select id="enroll-club" onchange="onEnrollClubChange()">
-                    <option value="">— select club —</option>
-                </select>
+            <!-- Tab switcher -->
+            <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+                <button id="tab-club" class="enroll-tab active" onclick="switchEnrollTab('club')">By Club / Team</button>
+                <button id="tab-search" class="enroll-tab" onclick="switchEnrollTab('search')">Direct Search</button>
             </div>
 
-            <!-- Step 2: Team -->
-            <div class="enroll-step">
-                <label for="enroll-team">Team</label>
-                <select id="enroll-team" onchange="loadEnrollPlayers()" disabled>
-                    <option value="">— select team —</option>
-                </select>
-            </div>
-
-            <!-- Step 3: Players -->
-            <div id="enroll-players-wrap" style="display:none;">
-                <div class="enroll-step" style="margin-bottom:.35rem;">
-                    <label style="width:4.5rem;">Players</label>
-                    <input type="text" id="enroll-search" placeholder="Search name / email…"
-                        oninput="filterEnrollPlayers()" style="flex:1;">
+            <!-- ── Tab: Club / Team ── -->
+            <div id="enroll-club-section">
+                <div class="enroll-step">
+                    <label for="enroll-club">Club</label>
+                    <select id="enroll-club" onchange="onEnrollClubChange()">
+                        <option value="">— select club —</option>
+                    </select>
                 </div>
-                <div class="player-checklist" id="enroll-checklist"></div>
-                <div class="enroll-action">
-                    <button class="btn-enroll-sel" id="enroll-btn" onclick="enrollSelected()" disabled>
+                <div class="enroll-step">
+                    <label for="enroll-team">Team</label>
+                    <select id="enroll-team" onchange="loadEnrollPlayers()" disabled>
+                        <option value="">— select team —</option>
+                    </select>
+                </div>
+                <div id="enroll-players-wrap" style="display:none;">
+                    <div class="enroll-step" style="margin-bottom:.35rem;">
+                        <label style="width:4.5rem;">Players</label>
+                        <input type="text" id="enroll-search" placeholder="Search name / email…"
+                            oninput="filterEnrollPlayers()" style="flex:1;">
+                    </div>
+                    <div class="player-checklist" id="enroll-checklist"></div>
+                    <div class="enroll-action">
+                        <button class="btn-enroll-sel" id="enroll-btn" onclick="enrollSelected()" disabled>
+                            ➕ Enroll Selected (0)
+                        </button>
+                        <span class="enroll-msg" id="enroll-msg"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Tab: Direct Search ── -->
+            <div id="enroll-search-section" style="display:none;">
+                <div class="enroll-step">
+                    <label for="direct-search" style="width:4.5rem;">Search</label>
+                    <input type="text" id="direct-search" placeholder="Name or email (min. 2 chars)…" style="flex:1;"
+                        oninput="directSearchDebounce()">
+                    <button class="btn-enroll-sel" style="flex-shrink:0;" onclick="directSearch()">🔍 Search</button>
+                </div>
+                <div class="player-checklist" id="direct-checklist" style="display:none;margin-top:.5rem;"></div>
+                <div class="enroll-action" id="direct-action" style="display:none;margin-top:.75rem;">
+                    <button class="btn-enroll-sel" id="direct-enroll-btn" onclick="directEnrollSelected()" disabled>
                         ➕ Enroll Selected (0)
                     </button>
-                    <span class="enroll-msg" id="enroll-msg"></span>
+                    <span class="enroll-msg" id="direct-enroll-msg"></span>
                 </div>
             </div>
 
@@ -449,23 +484,7 @@ async function loadEnrollPlayers() {
 }
 
 function renderEnrollPlayers(players) {
-    const list = document.getElementById('enroll-checklist');
-    list.innerHTML = '';
-    if (!players.length) {
-        list.innerHTML = '<p style="padding:.6rem .75rem;color:#a0aec0;font-size:.85rem;">No available players</p>';
-        updateEnrollBtn();
-        return;
-    }
-    players.forEach(p => {
-        const row = document.createElement('label');
-        row.className = 'player-check-row';
-        row.innerHTML = `
-            <input type="checkbox" value="${p.user_id}" onchange="updateEnrollBtn()">
-            <span class="pcr-name">${p.name}</span>
-            <span class="pcr-email">${p.email}</span>`;
-        list.appendChild(row);
-    });
-    updateEnrollBtn();
+    _renderPlayerCheckboxes(players, 'enroll-checklist', updateEnrollBtn);
 }
 
 function filterEnrollPlayers() {
@@ -507,6 +526,98 @@ async function enrollSelected() {
         msg.textContent = '❌ Error — please try again';
         btn.disabled = false;
     }
+}
+
+// ── Tab switcher ─────────────────────────────────────────────
+function switchEnrollTab(tab) {
+    const isClub = tab === 'club';
+    document.getElementById('tab-club').classList.toggle('active', isClub);
+    document.getElementById('tab-search').classList.toggle('active', !isClub);
+    document.getElementById('enroll-club-section').style.display  = isClub ? '' : 'none';
+    document.getElementById('enroll-search-section').style.display = isClub ? 'none' : '';
+}
+
+// ── Direct Search tab ─────────────────────────────────────────
+let _directDebounce = null;
+function directSearchDebounce() {
+    clearTimeout(_directDebounce);
+    _directDebounce = setTimeout(directSearch, 350);
+}
+
+async function directSearch() {
+    const q = document.getElementById('direct-search').value.trim();
+    const list = document.getElementById('direct-checklist');
+    const action = document.getElementById('direct-action');
+    if (q.length < 2) {
+        list.style.display = 'none';
+        action.style.display = 'none';
+        return;
+    }
+    list.innerHTML = '<p style="padding:.6rem .75rem;color:#a0aec0;font-size:.85rem;">Searching…</p>';
+    list.style.display = 'block';
+    action.style.display = 'none';
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/available-players?q=${encodeURIComponent(q)}`);
+        const players = await res.json();
+        _renderPlayerCheckboxes(players, 'direct-checklist', updateDirectBtn);
+        action.style.display = 'flex';
+        updateDirectBtn();
+    } catch(e) {
+        list.innerHTML = '<p style="padding:.6rem .75rem;color:#c53030;font-size:.85rem;">Search failed</p>';
+    }
+}
+
+function updateDirectBtn() {
+    const n = document.querySelectorAll('#direct-checklist input:checked').length;
+    const btn = document.getElementById('direct-enroll-btn');
+    btn.disabled = n === 0;
+    btn.textContent = `➕ Enroll Selected (${n})`;
+}
+
+async function directEnrollSelected() {
+    const ids = [...document.querySelectorAll('#direct-checklist input:checked')].map(cb => parseInt(cb.value));
+    if (!ids.length) return;
+    const btn = document.getElementById('direct-enroll-btn');
+    const msg = document.getElementById('direct-enroll-msg');
+    btn.disabled = true;
+    msg.textContent = 'Enrolling…';
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/enroll-player`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _csrf()},
+            body: JSON.stringify({user_ids: ids}),
+        });
+        const data = await res.json();
+        const enrolled = (data.enrolled || []).length;
+        const skipped  = (data.skipped  || []).length;
+        msg.textContent = `✅ ${enrolled} enrolled${skipped ? `, ${skipped} skipped` : ''}`;
+        setTimeout(() => location.reload(), 800);
+    } catch(e) {
+        msg.textContent = '❌ Error — please try again';
+        btn.disabled = false;
+    }
+}
+
+// ── Shared: render player checkboxes into any container ──────
+function _renderPlayerCheckboxes(players, containerId, updateFn) {
+    const list = document.getElementById(containerId);
+    list.innerHTML = '';
+    if (!players.length) {
+        list.innerHTML = '<p style="padding:.6rem .75rem;color:#a0aec0;font-size:.85rem;">No available players</p>';
+        if (updateFn) updateFn();
+        return;
+    }
+    players.forEach(p => {
+        const row = document.createElement('label');
+        row.className = 'player-check-row';
+        const teamInfo = p.team_name ? `<span style="color:#a0aec0;font-size:.75rem;margin-left:.3rem;">(${p.team_name})</span>` : '';
+        row.innerHTML = `
+            <input type="checkbox" value="${p.user_id}" onchange="${updateFn.name}()">
+            <span class="pcr-name">${p.name}</span>${teamInfo}
+            <span class="pcr-email">${p.email}</span>`;
+        list.appendChild(row);
+    });
+    if (updateFn) updateFn();
 }
 
 // ── Remove player (AJAX) ─────────────────────────────────────
