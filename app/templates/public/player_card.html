@@ -225,7 +225,9 @@ body {
                     <span class="skill-name">{{ skill.name_en }}</span>
                     <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{{ fill_pct }}%; background:{{ bar_color }};"></div></div>
                     <span class="skill-val" style="color:{{ bar_color }};">{{ sval }}</span>
-                    <span class="skill-up"{% if sdelta <= 0 %} style="visibility:hidden"{% endif %}>↑</span>
+                    {% if sdelta > 0 %}<span class="skill-up">↑</span>
+                    {% elif sdelta < 0 %}<span class="skill-up" style="color:#fc8181;">↓</span>
+                    {% else %}<span class="skill-up" style="visibility:hidden">↑</span>{% endif %}
                 </div>
                 {% endfor %}
             </div>
