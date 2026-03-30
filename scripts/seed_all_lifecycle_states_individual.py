@@ -36,13 +36,32 @@ from app.models.game_preset import GamePreset
 from app.models.campus import Campus
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
+from app.models.tournament_reward_config import TournamentRewardConfig
 from app.models.user import User, UserRole
 from app.core.security import get_password_hash
+from app.skills_config import get_all_skill_keys
 from app.dependencies import (
     get_current_user_web,
     get_current_admin_user_hybrid,
     get_current_admin_or_instructor_user_hybrid,
 )
+
+# Baseline football_skills for seed players (flat format, 65.0 adult beginner)
+_IR_FOOTBALL_SKILLS = {k: 65.0 for k in get_all_skill_keys()}
+
+# Reward config for IR tournaments: 8 core skills enabled
+_IR_REWARD_CONFIG = {
+    "skill_mappings": [
+        {"skill": "ball_control",  "weight": 1.2, "category": "TECHNICAL", "enabled": True},
+        {"skill": "passing",       "weight": 1.0, "category": "TECHNICAL", "enabled": True},
+        {"skill": "finishing",     "weight": 1.2, "category": "TECHNICAL", "enabled": True},
+        {"skill": "dribbling",     "weight": 1.0, "category": "TECHNICAL", "enabled": True},
+        {"skill": "sprint_speed",  "weight": 1.1, "category": "PHYSICAL",  "enabled": True},
+        {"skill": "stamina",       "weight": 1.0, "category": "PHYSICAL",  "enabled": True},
+        {"skill": "composure",     "weight": 1.0, "category": "MENTAL",    "enabled": True},
+        {"skill": "reactions",     "weight": 1.1, "category": "MENTAL",    "enabled": True},
+    ],
+}
 
 # ── Setup ──────────────────────────────────────────────────────────────────
 db = SessionLocal()
@@ -110,6 +129,11 @@ def create_ir_tournament(name: str, status: str = "DRAFT") -> Semester:
         semester_id=t.id,
         game_preset_id=preset.id,
     ))
+    db.add(TournamentRewardConfig(
+        semester_id=t.id,
+        reward_policy_name="IR Default",
+        reward_config=_IR_REWARD_CONFIG,
+    ))
     db.commit()
     db.expire_all()
     ok(f"Created '{t.name}'  id={t.id}  status={t.tournament_status}")
@@ -135,7 +159,9 @@ def enroll_players(tid: int, count: int = 4) -> list:
             specialization_type="LFA_FOOTBALL_PLAYER",
             started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             onboarding_completed=True,
+            onboarding_completed_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
             is_active=True,
+            football_skills=_IR_FOOTBALL_SKILLS,
         )
         db.add(lic)
         db.flush()
@@ -213,6 +239,37 @@ def distribute_rewards(tid: int) -> bool:
     err(f"Rewards failed: {r.status_code} {r.text[:150]}")
     return False
 
+
+# ── Cleanup: delete existing IR seed tournaments (raw SQL → respects FK order) ─
+from sqlalchemy import text as _sql
+
+_existing_ids = [
+    row[0] for row in db.execute(
+        _sql("SELECT s.id FROM semesters s JOIN tournament_configurations tc ON tc.semester_id = s.id WHERE s.name LIKE 'IR Skills Cup%' AND tc.participant_type = 'INDIVIDUAL'")
+    ).fetchall()
+]
+if _existing_ids:
+    print(f"\n🧹 Deleting {len(_existing_ids)} existing IR seed tournament(s)...")
+    id_list = ", ".join(str(i) for i in _existing_ids)
+    # Tables that reference semesters via semester_id
+    for tbl in [
+        "tournament_reward_configs", "tournament_skill_mappings", "tournament_configurations",
+        "game_configurations", "semester_enrollments", "tournament_team_enrollments",
+        "tournament_player_checkins", "tournament_rankings", "tournament_participations",
+        "tournament_reward_distributions", "tournament_instructor_slots", "sessions",
+    ]:
+        try:
+            db.execute(_sql(f"DELETE FROM {tbl} WHERE semester_id IN ({id_list})"))
+        except Exception:
+            db.rollback()
+    # tournament_status_history uses tournament_id column
+    try:
+        db.execute(_sql(f"DELETE FROM tournament_status_history WHERE tournament_id IN ({id_list})"))
+    except Exception:
+        db.rollback()
+    db.execute(_sql(f"DELETE FROM semesters WHERE id IN ({id_list})"))
+    db.commit()
+    print("   Done.")
 
 # ══════════════════════════════════════════════════════════════════════════
 print("\n" + "="*60)
