@@ -37,17 +37,16 @@ from app.models.campus import Campus
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.license import UserLicense
 from app.models.tournament_reward_config import TournamentRewardConfig
-from app.models.user import User, UserRole
-from app.core.security import get_password_hash
-from app.skills_config import get_all_skill_keys
+from app.models.club import Club
+from app.models.team import Team, TeamMember
+from app.models.user import User
 from app.dependencies import (
     get_current_user_web,
     get_current_admin_user_hybrid,
     get_current_admin_or_instructor_user_hybrid,
 )
 
-# Baseline football_skills for seed players (flat format, 65.0 adult beginner)
-_IR_FOOTBALL_SKILLS = {k: 65.0 for k in get_all_skill_keys()}
+_BOOT_CLUB_CODE = "LFA-BOOT"
 
 # Reward config for IR tournaments: 8 core skills enabled
 _IR_REWARD_CONFIG = {
@@ -140,43 +139,48 @@ def create_ir_tournament(name: str, status: str = "DRAFT") -> Semester:
     return t
 
 
-def enroll_players(tid: int, count: int = 4) -> list:
-    """Create `count` test users + LFA licenses + approved enrollments."""
+def enroll_bootstrap_players(tid: int, age_group_label: str) -> list:
+    """Enroll all bootstrap club players of a given age group into a tournament."""
     db.expire_all()
+    boot_club = db.query(Club).filter(Club.code == _BOOT_CLUB_CODE).first()
+    if not boot_club:
+        err("LFA-BOOT club not found — run bootstrap_clean.py first")
+        return []
+    _team_name_map = {"U15": "LFA U15", "U18": "LFA U18", "ADULT": "LFA Adult"}
+    team = db.query(Team).filter(
+        Team.club_id == boot_club.id,
+        Team.name == _team_name_map.get(age_group_label, f"LFA {age_group_label}"),
+    ).first()
+    if not team:
+        err(f"Bootstrap team with age_group_label={age_group_label} not found")
+        return []
+    members = db.query(User).join(TeamMember, TeamMember.user_id == User.id).filter(
+        TeamMember.team_id == team.id
+    ).all()
     players = []
-    for i in range(count):
-        u = User(
-            email=f"ir-player-{_uid()}@lfa-seed.com",
-            name=f"IR Player {i+1}",
-            password_hash=get_password_hash("seed123"),
-            role=UserRole.STUDENT,
-            is_active=True,
-        )
-        db.add(u)
-        db.flush()
-        lic = UserLicense(
-            user_id=u.id,
-            specialization_type="LFA_FOOTBALL_PLAYER",
-            started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-            onboarding_completed=True,
-            onboarding_completed_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
-            is_active=True,
-            football_skills=_IR_FOOTBALL_SKILLS,
-        )
-        db.add(lic)
-        db.flush()
-        enr = SemesterEnrollment(
-            semester_id=tid,
-            user_id=u.id,
-            user_license_id=lic.id,
-            is_active=True,
-            request_status=EnrollmentStatus.APPROVED,
-        )
-        db.add(enr)
-        db.flush()
+    for u in members:
+        lic = db.query(UserLicense).filter(
+            UserLicense.user_id == u.id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            UserLicense.is_active == True,
+        ).first()
+        if not lic:
+            continue
+        existing = db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.semester_id == tid,
+            SemesterEnrollment.user_id == u.id,
+        ).first()
+        if not existing:
+            db.add(SemesterEnrollment(
+                semester_id=tid,
+                user_id=u.id,
+                user_license_id=lic.id,
+                is_active=True,
+                request_status=EnrollmentStatus.APPROVED,
+            ))
         players.append(u)
     db.commit()
-    info(f"Enrolled {count} players")
+    info(f"Enrolled {len(players)} {age_group_label} bootstrap players")
     return players
 
 
@@ -202,7 +206,7 @@ def submit_ir_results(tid: int, players: list, max_sessions: int = None) -> int:
     submitted = 0
     for sess in sessions:
         results = [
-            {"user_id": p.id, "score": float(100 - i * 10), "rank": i + 1}
+            {"user_id": p.id, "score": float(100 - i * 5), "rank": i + 1}
             for i, p in enumerate(players)
         ]
         r = client.patch(
@@ -267,6 +271,11 @@ if _existing_ids:
         db.execute(_sql(f"DELETE FROM tournament_status_history WHERE tournament_id IN ({id_list})"))
     except Exception:
         db.rollback()
+    # notifications references related_semester_id
+    try:
+        db.execute(_sql(f"DELETE FROM notifications WHERE related_semester_id IN ({id_list})"))
+    except Exception:
+        db.rollback()
     db.execute(_sql(f"DELETE FROM semesters WHERE id IN ({id_list})"))
     db.commit()
     print("   Done.")
@@ -284,20 +293,20 @@ t = create_ir_tournament("IR Skills Cup — Draft 2026")
 # ── 2. ENROLLMENT_OPEN ─────────────────────────────────────────────────────
 print("\n[2/8] ENROLLMENT_OPEN")
 t = create_ir_tournament("IR Skills Cup — Enrollment Open 2026")
-players = enroll_players(t.id, count=4)
+players = enroll_bootstrap_players(t.id, "U15")
 transition(t.id, "ENROLLMENT_OPEN")
 
 # ── 3. ENROLLMENT_CLOSED ───────────────────────────────────────────────────
 print("\n[3/8] ENROLLMENT_CLOSED")
 t = create_ir_tournament("IR Skills Cup — Enrollment Closed 2026")
-players = enroll_players(t.id, count=4)
+players = enroll_bootstrap_players(t.id, "U15")
 transition(t.id, "ENROLLMENT_OPEN")
 transition(t.id, "ENROLLMENT_CLOSED")
 
 # ── 4. CHECK_IN_OPEN (sessions auto-generated) ────────────────────────────
 print("\n[4/8] CHECK_IN_OPEN")
 t = create_ir_tournament("IR Skills Cup — Check-In Open 2026")
-players = enroll_players(t.id, count=4)
+players = enroll_bootstrap_players(t.id, "U18")
 transition(t.id, "ENROLLMENT_OPEN")
 transition(t.id, "ENROLLMENT_CLOSED")
 transition(t.id, "CHECK_IN_OPEN")
@@ -308,7 +317,7 @@ info(f"Sessions auto-generated: {sess_count}")
 # ── 5. IN_PROGRESS (partial results) ──────────────────────────────────────
 print("\n[5/8] IN_PROGRESS")
 t = create_ir_tournament("IR Skills Cup — In Progress 2026")
-players = enroll_players(t.id, count=4)
+players = enroll_bootstrap_players(t.id, "U18")
 transition(t.id, "ENROLLMENT_OPEN")
 transition(t.id, "ENROLLMENT_CLOSED")
 transition(t.id, "CHECK_IN_OPEN")
@@ -316,13 +325,12 @@ if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     sess_count = db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()
     info(f"Sessions generated: {sess_count}")
-    # Submit results for 0 sessions — keeps it "live" with no complete results yet
     info("No results submitted — tournament stays live")
 
 # ── 6. COMPLETED (all results + rankings) ─────────────────────────────────
 print("\n[6/8] COMPLETED")
 t = create_ir_tournament("IR Skills Cup — Completed 2026")
-players = enroll_players(t.id, count=4)
+players = enroll_bootstrap_players(t.id, "ADULT")
 transition(t.id, "ENROLLMENT_OPEN")
 transition(t.id, "ENROLLMENT_CLOSED")
 transition(t.id, "CHECK_IN_OPEN")
@@ -337,7 +345,7 @@ if transition(t.id, "IN_PROGRESS"):
 # ── 7. REWARDS_DISTRIBUTED ────────────────────────────────────────────────
 print("\n[7/8] REWARDS_DISTRIBUTED")
 t = create_ir_tournament("IR Skills Cup — Rewards Distributed 2026")
-players = enroll_players(t.id, count=4)
+players = enroll_bootstrap_players(t.id, "ADULT")
 transition(t.id, "ENROLLMENT_OPEN")
 transition(t.id, "ENROLLMENT_CLOSED")
 transition(t.id, "CHECK_IN_OPEN")

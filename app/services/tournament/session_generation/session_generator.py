@@ -217,10 +217,14 @@ class TournamentSessionGenerator:
                     f"investigate _player_filter and concurrent DB state before proceeding."
                 )
 
-            # Validate player count against GamePreset min_players (applies to ALL formats)
-            # This guard runs before format routing so it covers both INDIVIDUAL_RANKING
-            # and HEAD_TO_HEAD tournaments equally.
-            if tournament.game_config_obj and tournament.game_config_obj.game_preset:
+            # Detect TEAM participant_type early (needed for preset check below)
+            _early_cfg = tournament.tournament_config_obj
+            _is_team_early = _early_cfg and _early_cfg.participant_type == "TEAM"
+
+            # Validate player count against GamePreset min_players (INDIVIDUAL only).
+            # Skip for TEAM tournaments: player_count uses SemesterEnrollment (= 0 for
+            # team-type tournaments); team member count is validated later per format.
+            if not _is_team_early and tournament.game_config_obj and tournament.game_config_obj.game_preset:
                 _preset = tournament.game_config_obj.game_preset
                 _preset_min = _preset.game_config.get("metadata", {}).get("min_players", 0)
                 if _preset_min and player_count < _preset_min:

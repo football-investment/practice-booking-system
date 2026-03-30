@@ -15,7 +15,8 @@ What it creates (skips existing rows):
   4. Location + Campus   (Budapest / Főváros Campus)
   5. Admin user          admin@lfa.com / admin123
   6. Instructor user     instructor@lfa.com / instructor123
-  7. Bootstrap Club      LFA_BOOTSTRAP_CLUB — 4 teams × 5 players, all LFA-licensed
+  7. Bootstrap Club      LFA_BOOTSTRAP_CLUB — 3 teams × 12 UK-named players, all LFA-licensed
+                         LFA U15 (63.0), LFA U18 (68.0), LFA Adult (72.0)
 """
 import json
 import os
@@ -135,31 +136,40 @@ _PRESETS = [
 _CLUB_CODE = "LFA-BOOT"
 _CLUB_NAME = "LFA_BOOTSTRAP_CLUB"
 
+# 3 age-group teams × 12 players each = 36 total
 _TEAMS = [
-    # U12: 2 teams — league (min 2)
-    {"name": "Bootstrap U12 A",    "age_group": "U12",   "age_group_label": "U12"},
-    {"name": "Bootstrap U12 B",    "age_group": "U12",   "age_group_label": "U12"},
-    # U15: 4 teams — knockout (min 4, requires power-of-two)
-    {"name": "Bootstrap U15 A",    "age_group": "U15",   "age_group_label": "U15"},
-    {"name": "Bootstrap U15 B",    "age_group": "U15",   "age_group_label": "U15"},
-    {"name": "Bootstrap U15 C",    "age_group": "U15",   "age_group_label": "U15"},
-    {"name": "Bootstrap U15 D",    "age_group": "U15",   "age_group_label": "U15"},
-    # U18: 8 teams — group+knockout (min 8)
-    {"name": "Bootstrap U18 A",    "age_group": "U18",   "age_group_label": "U18"},
-    {"name": "Bootstrap U18 B",    "age_group": "U18",   "age_group_label": "U18"},
-    {"name": "Bootstrap U18 C",    "age_group": "U18",   "age_group_label": "U18"},
-    {"name": "Bootstrap U18 D",    "age_group": "U18",   "age_group_label": "U18"},
-    {"name": "Bootstrap U18 E",    "age_group": "U18",   "age_group_label": "U18"},
-    {"name": "Bootstrap U18 F",    "age_group": "U18",   "age_group_label": "U18"},
-    {"name": "Bootstrap U18 G",    "age_group": "U18",   "age_group_label": "U18"},
-    {"name": "Bootstrap U18 H",    "age_group": "U18",   "age_group_label": "U18"},
-    # ADULT: 2 teams — 2-leg league
-    {"name": "Bootstrap Adult A",  "age_group": "ADULT", "age_group_label": "ADULT"},
-    {"name": "Bootstrap Adult B",  "age_group": "ADULT", "age_group_label": "ADULT"},
+    {"name": "LFA U15",   "age_group_label": "U15",   "skill_base": 63.0},
+    {"name": "LFA U18",   "age_group_label": "U18",   "skill_base": 68.0},
+    {"name": "LFA Adult", "age_group_label": "ADULT", "skill_base": 72.0},
 ]
 
-_PLAYERS_PER_TEAM = 5
-_SKILL_BASE = 55.0
+# 12 unique UK English names per age group (36 total, no cross-group overlap)
+_PLAYERS: dict[str, list[tuple[str, str]]] = {
+    "LFA U15": [
+        ("James", "Archer"), ("Oliver", "Bennett"), ("Harry", "Clarke"),
+        ("Charlie", "Dixon"), ("George", "Ellis"), ("Freddie", "Ford"),
+        ("Archie", "Grant"), ("Oscar", "Hughes"), ("Noah", "Irving"),
+        ("Ethan", "James"), ("Lewis", "King"), ("Samuel", "Lee"),
+    ],
+    "LFA U18": [
+        ("William", "Marsh"), ("Thomas", "Nash"), ("Daniel", "Owen"),
+        ("Joseph", "Price"), ("Edward", "Quinn"), ("Arthur", "Reid"),
+        ("Sebastian", "Scott"), ("Mason", "Turner"), ("Luca", "Underwood"),
+        ("Elijah", "Vale"), ("Henry", "Ward"), ("Felix", "York"),
+    ],
+    "LFA Adult": [
+        ("Robert", "Adams"), ("Michael", "Baker"), ("Christopher", "Cole"),
+        ("Andrew", "Davis"), ("Jonathan", "Evans"), ("Matthew", "Fisher"),
+        ("Benjamin", "Gray"), ("Nicholas", "Hall"), ("Patrick", "Ingram"),
+        ("Richard", "Jenkins"), ("Stephen", "Knight"), ("Timothy", "Lane"),
+    ],
+}
+
+_POSITIONS = ["STRIKER", "MIDFIELDER", "MIDFIELDER", "DEFENDER", "DEFENDER", "GOALKEEPER"]
+_GOALS = [
+    "improve_skills", "play_higher_level", "become_professional",
+    "team_football", "fitness_health", "enjoy_game",
+]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -319,9 +329,8 @@ def _seed_users(db) -> tuple:
 
 
 def _seed_bootstrap_club(db) -> Club:
-    """Create LFA_BOOTSTRAP_CLUB with 4 age-group teams × 5 LFA-licensed players."""
+    """Create LFA_BOOTSTRAP_CLUB with 3 age-group teams × 12 UK-named LFA-licensed players."""
     all_keys = get_all_skill_keys()
-    football_skills = {k: _SKILL_BASE for k in all_keys}
     now = datetime.now()
 
     club = db.query(Club).filter(Club.code == _CLUB_CODE).first()
@@ -358,14 +367,18 @@ def _seed_bootstrap_club(db) -> Club:
             db.flush()
             _ok(f"  Team '{tdef['name']}' created (id={team.id})")
 
-        # team_slug: "Bootstrap U12 A" → "u12-a"
-        team_slug = tdef["name"].replace("Bootstrap ", "").replace(" ", "-").lower()
-        for i in range(1, _PLAYERS_PER_TEAM + 1):
-            email = f"boot-{team_slug}-{i}@lfa.com"
+        skill_base = tdef["skill_base"]
+        football_skills = {k: skill_base for k in all_keys}
+        age_slug = tdef["age_group_label"].lower()  # "u15", "u18", "adult"
+
+        for idx, (first, last) in enumerate(_PLAYERS[tdef["name"]]):
+            email = f"lfa-{age_slug}-{first.lower()}.{last.lower()}@lfa.com"
             user = db.query(User).filter(User.email == email).first()
             if not user:
+                position = _POSITIONS[idx % len(_POSITIONS)]
+                goals = _GOALS[idx % len(_GOALS)]
                 user = User(
-                    name=f"Boot {tdef['name']} Player {i}",
+                    name=f"{first} {last}",
                     email=email,
                     password_hash=get_password_hash("Bootstrap#123"),
                     role=UserRole.STUDENT,
@@ -376,12 +389,6 @@ def _seed_bootstrap_club(db) -> Club:
                 db.add(user)
                 db.flush()
 
-            # Ensure LFA license
-            lic = db.query(UserLicense).filter(
-                UserLicense.user_id == user.id,
-                UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
-            ).first()
-            if not lic:
                 lic = UserLicense(
                     user_id=user.id,
                     specialization_type="LFA_FOOTBALL_PLAYER",
@@ -395,16 +402,19 @@ def _seed_bootstrap_club(db) -> Club:
                     is_active=True,
                     football_skills=football_skills,
                     motivation_scores={
-                        "position": "MIDFIELDER",
-                        "goals": "improve_skills",
+                        "position": position,
+                        "goals": goals,
                         "motivation": "",
-                        "average_skill_level": _SKILL_BASE,
+                        "average_skill_level": skill_base,
                         "onboarding_completed_at": now.isoformat(),
                     },
-                    average_motivation_score=_SKILL_BASE,
+                    average_motivation_score=skill_base,
                 )
                 db.add(lic)
                 db.flush()
+                _ok(f"    {first} {last} ({email})")
+            else:
+                _skip(f"    {first} {last} already exists")
 
             # Team membership
             member = db.query(TeamMember).filter(
@@ -416,7 +426,7 @@ def _seed_bootstrap_club(db) -> Club:
                 db.flush()
 
         member_count = db.query(TeamMember).filter(TeamMember.team_id == team.id).count()
-        print(f"    {tdef['name']}: {member_count} players")
+        print(f"  ✅ {tdef['name']}: {member_count} players")
 
     return club
 
@@ -470,7 +480,7 @@ def run():
         db.commit()
 
         # Step 6: Bootstrap Club
-        _step(6, "Bootstrap Club (4 teams × 5 players)")
+        _step(6, "Bootstrap Club (3 teams × 12 UK-named players)")
         club = _seed_bootstrap_club(db)
         db.commit()
 
@@ -532,7 +542,12 @@ def run():
         print(f"  Admin          : {admin_u.email if admin_u else '—'}  /  admin123")
         print(f"  Instructor     : {instr_u.email if instr_u else '—'}  /  instructor123")
         print(f"  Club           : {boot_club.name if boot_club else '—'} (id={boot_club.id if boot_club else '—'})")
-        print(f"  Teams          : {team_count} (U12/U15/U18/ADULT, {_PLAYERS_PER_TEAM} players each)")
+        player_count = sum(
+            db.query(TeamMember).filter(TeamMember.team_id == t.id).count()
+            for t in db.query(Team).filter(Team.club_id == boot_club.id).all()
+        ) if boot_club else 0
+        print(f"  Teams          : {team_count} (LFA U15 / LFA U18 / LFA Adult, 12 players each)")
+        print(f"  Players        : {player_count} total (UK English names)")
         print()
         print("  Run validate:  PYTHONPATH=. python scripts/validate_seed_state.py")
         print("="*70 + "\n")
