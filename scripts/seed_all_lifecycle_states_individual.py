@@ -87,6 +87,7 @@ def create_ir_tournament(name: str, status: str = "DRAFT") -> Semester:
         code=f"IR-{_uid()}",
         master_instructor_id=instructor.id,
         campus_id=campus.id,
+        location_id=campus.location_id,
         start_date=date(2026, 8, 1),
         end_date=date(2026, 8, 3),
         status=SemesterStatus.ONGOING,

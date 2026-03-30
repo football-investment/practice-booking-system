@@ -3870,6 +3870,12 @@ async def admin_club_promotion(
         db.add(t)
         db.flush()
 
+        # Auto-derive location_id from campus (campus always belongs to a location)
+        if t.campus_id:
+            _campus = db.query(Campus).filter(Campus.id == t.campus_id).first()
+            if _campus and _campus.location_id:
+                t.location_id = _campus.location_id
+
         cfg = TournamentConfiguration(
             semester_id=t.id,
             tournament_type_id=int(tournament_type_id) if tournament_type_id.strip() else None,
