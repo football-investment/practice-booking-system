@@ -383,6 +383,10 @@ const TID = {{ tournament.id }};
 let _allClubs  = [];   // [{club_id, club_name, teams:[{team_id,team_name,member_count}]}]
 let _allPlayers = [];  // [{user_id, name, email}]
 
+function _csrf() {
+    return (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1] || '';
+}
+
 // ── Init ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadEnrollClubs);
 
@@ -490,7 +494,7 @@ async function enrollSelected() {
     try {
         const res = await fetch(`/admin/tournaments/${TID}/enroll-player`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _csrf()},
             body: JSON.stringify({user_ids: ids}),
         });
         const data = await res.json();
@@ -512,7 +516,7 @@ async function removePlayer(userId, teamId, btn) {
     try {
         const res = await fetch(`/admin/tournaments/${TID}/unenroll-player`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _csrf()},
             body: JSON.stringify({user_id: userId}),
         });
         const data = await res.json();
