@@ -633,7 +633,7 @@ async def admin_create_tournament(
     _admin_only(user)
 
     from datetime import datetime as _dt
-    code = f"TOURN-{date.fromisoformat(start_date).strftime('%Y%m%d')}-{_dt.now().strftime('%H%M%S')}"
+    code = f"TOURN-{date.fromisoformat(start_date).strftime('%Y%m%d')}-{_dt.now().strftime('%H%M%S%f')[:9]}"
 
     if db.query(Semester).filter(Semester.code == code).first():
         return RedirectResponse(

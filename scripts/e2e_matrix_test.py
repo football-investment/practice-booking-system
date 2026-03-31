@@ -3,12 +3,20 @@ E2E Tournament Type Matrix Test
 ================================
 Proves all 5 key flows work on a clean bootstrapped DB.
 
+Bootstrap structure (new): 3 teams × 12 named players
+  LFA U15  (age_group_label="U15",   12 players)
+  LFA U18  (age_group_label="U18",   12 players)
+  LFA Adult (age_group_label="ADULT", 12 players)
+
 Scenarios:
-  S1: TEAM + League          — U12, 2 teams, 1 round-robin leg
-  S2: TEAM + Knockout        — U15, 4 teams, power-of-two bracket
-  S3: TEAM + Group+Knockout  — U18, 8 teams, group stage → knockout
-  S4: TEAM + League 2-leg    — ADULT, 2 teams, number_of_legs=2
-  S5: INDIVIDUAL + League    — U12 players enrolled individually
+  S1: TEAM + League          — U15+U18, 2 teams, 1 round-robin leg
+  S2: INDIVIDUAL + Knockout  — 8 players from U15 team, full bracket
+  S3: INDIVIDUAL + Group+Knockout — 12 players (U15), group stage → knockout
+  S4: TEAM + League 2-leg    — U15+U18, 2 teams, number_of_legs=2
+  S5: INDIVIDUAL + League    — U15+U18 players enrolled individually
+
+  Note: TEAM Knockout/Group+Knockout require min 4/8 teams respectively;
+  with 3 bootstrap teams these formats are tested via INDIVIDUAL participant_type.
 
 Each scenario runs the full lifecycle:
   create → teams/players enrolled → ENROLLMENT_OPEN → ENROLLMENT_CLOSED
@@ -159,6 +167,69 @@ def _status_transition(tid, new_status):
     _assert_api_ok(resp, f"→ {new_status}")
 
 
+# ── Bootstrap team helpers ────────────────────────────────────────────────────
+def _get_boot_teams(club):
+    """Return dict of age_group_label → Team for the 3 LFA bootstrap teams."""
+    teams = (
+        _db.query(Team)
+        .filter(
+            Team.club_id == club.id,
+            Team.name.in_(["LFA U15", "LFA U18", "LFA Adult"]),
+            Team.is_active == True,  # noqa: E712
+        )
+        .all()
+    )
+    by_label = {t.age_group_label: t for t in teams}
+    if len(by_label) < 3:
+        fail_local(
+            f"Expected 3 bootstrap teams (LFA U15/U18/Adult), got {len(by_label)}: "
+            f"{list(by_label.keys())} — run bootstrap_clean.py first"
+        )
+    return by_label
+
+
+def _enroll_teams_direct(tid, teams):
+    """Replace all existing enrollments with exactly the given teams.
+
+    Removes any teams already enrolled (e.g. auto-enrolled by promotion wizard
+    on a non-fresh DB with legacy bootstrap data) and enrolls only the requested
+    bootstrap teams. This keeps scenarios deterministic on dirty local DBs.
+    """
+    wanted_ids = {t.id for t in teams}
+
+    # Remove enrollments for teams NOT in the wanted set
+    _db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tid,
+        TournamentTeamEnrollment.team_id.notin_(wanted_ids),
+    ).delete(synchronize_session=False)
+
+    # Upsert wanted teams
+    for team in teams:
+        existing = _db.query(TournamentTeamEnrollment).filter(
+            TournamentTeamEnrollment.semester_id == tid,
+            TournamentTeamEnrollment.team_id == team.id,
+        ).first()
+        if not existing:
+            _db.add(TournamentTeamEnrollment(
+                semester_id=tid,
+                team_id=team.id,
+                is_active=True,
+                payment_verified=True,
+            ))
+        else:
+            existing.is_active = True
+            existing.payment_verified = True
+
+    _db.commit()
+    _db.expire_all()
+    count = _db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tid,
+        TournamentTeamEnrollment.is_active == True,  # noqa: E712
+    ).count()
+    ok(f"Teams enrolled: {count}")
+    return count
+
+
 # ── Common lifecycle (after enrollment phase) ─────────────────────────────────
 def _common_lifecycle(tid, instructor_id, expected_min_sessions=1):
     """ENROLLMENT_CLOSED → CHECK_IN_OPEN → (set instructor) → IN_PROGRESS → verify."""
@@ -217,7 +288,7 @@ def _get_tournament_after_promotion(name_fragment):
     return t
 
 
-def _promotion_wizard(club_id, campus_id, tt_id, age_group, label, name_prefix):
+def _create_team_tournament(club_id, campus_id, tt_id, age_group, label, name_prefix):
     """Run the promotion wizard for a single age group. Returns tournament id."""
     resp = _post_form(
         f"/admin/clubs/{club_id}/promotion",
@@ -238,72 +309,159 @@ def _promotion_wizard(club_id, campus_id, tt_id, age_group, label, name_prefix):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# S1: TEAM + League — U12, 2 teams
+# S1: TEAM + League — 2 teams (U15 + U18)
 # ══════════════════════════════════════════════════════════════════════════════
-def s1_team_league(club, campus, tt_by_code, instructor):
+def s1_team_league(club, campus, tt_by_code, instructor, boot_teams):
     prefix = f"S1-League-{uuid.uuid4().hex[:6]}"
-    tid = _promotion_wizard(club.id, campus.id, tt_by_code["league"].id, "U12", "league/U12", prefix)
+    # Create via promotion wizard (enrolls LFA U15 automatically)
+    tid = _create_team_tournament(club.id, campus.id, tt_by_code["league"].id, "U15", "league/U15", prefix)
 
-    enrollments = _db.query(TournamentTeamEnrollment).filter(
-        TournamentTeamEnrollment.semester_id == tid, TournamentTeamEnrollment.is_active == True,  # noqa: E712
-    ).count()
-    ok(f"Teams enrolled: {enrollments}")
-    if enrollments < 2:
-        fail_local(f"Need ≥2 teams, got {enrollments}")
+    # Enroll U18 too → 2 teams total
+    count = _enroll_teams_direct(tid, [boot_teams["U15"], boot_teams["U18"]])
+    if count < 2:
+        fail_local(f"Need ≥2 teams, got {count}")
 
     _status_transition(tid, "ENROLLMENT_OPEN")
     _common_lifecycle(tid, instructor.id, expected_min_sessions=1)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# S2: TEAM + Knockout — U15, 4 teams, requires_power_of_two
+# S2: INDIVIDUAL + Knockout — 8 players from LFA U15
+# (TEAM Knockout requires min 4 teams; bootstrap only has 3 → use INDIVIDUAL)
 # ══════════════════════════════════════════════════════════════════════════════
-def s2_team_knockout(club, campus, tt_by_code, instructor):
-    prefix = f"S2-Knockout-{uuid.uuid4().hex[:6]}"
-    tid = _promotion_wizard(club.id, campus.id, tt_by_code["knockout"].id, "U15", "knockout/U15", prefix)
+def s2_individual_knockout(club, campus, tt_by_code, instructor, boot_teams):
+    prefix = f"S2-KO-{uuid.uuid4().hex[:6]}"
 
-    enrollments = _db.query(TournamentTeamEnrollment).filter(
-        TournamentTeamEnrollment.semester_id == tid, TournamentTeamEnrollment.is_active == True,  # noqa: E712
-    ).count()
-    ok(f"Teams enrolled: {enrollments}")
-    if enrollments < 4:
-        fail_local(f"Knockout needs ≥4 teams (power-of-two), got {enrollments}")
+    # Create INDIVIDUAL knockout tournament
+    resp = _post_form(
+        "/admin/tournaments",
+        data={
+            "name": prefix,
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-03",
+            "age_group": "YOUTH",
+            "enrollment_cost": "0",
+            "campus_id": str(campus.id),
+            "tournament_type_id": str(tt_by_code["knockout"].id),
+            "game_preset_id": "",
+            "participant_type": "INDIVIDUAL",
+            "number_of_rounds": "1",
+        },
+    )
+    _assert_redirect(resp, "/admin/tournaments/", "Create INDIVIDUAL knockout")
 
-    _status_transition(tid, "ENROLLMENT_OPEN")
-    # Expected: 3 matches for a 4-team bracket (2 semis + 1 final)
-    _common_lifecycle(tid, instructor.id, expected_min_sessions=3)
+    t = _get_tournament_after_promotion(prefix)
+    cfg = _db.query(TournamentConfiguration).filter(
+        TournamentConfiguration.semester_id == t.id
+    ).first()
+    if not cfg or cfg.participant_type != "INDIVIDUAL":
+        fail_local(f"participant_type wrong: {cfg.participant_type if cfg else 'no config'}")
+    ok(f"TournamentConfiguration: participant_type=INDIVIDUAL  tournament_type_id={cfg.tournament_type_id}")
+
+    _status_transition(t.id, "ENROLLMENT_OPEN")
+
+    # Enroll 8 players from LFA U15 (need power-of-two for knockout)
+    u15_team = boot_teams["U15"]
+    resp = _post_form(
+        f"/admin/tournaments/{t.id}/players/enroll-from-team",
+        data={"team_ids": [str(u15_team.id)]},
+    )
+    _assert_redirect(resp, f"/admin/tournaments/{t.id}/players", "Enroll U15 players")
+
+    from app.models.semester_enrollment import SemesterEnrollment
+    enrolled = (
+        _db.query(SemesterEnrollment)
+        .filter(SemesterEnrollment.semester_id == t.id, SemesterEnrollment.is_active == True)  # noqa: E712
+        .all()
+    )
+    # Keep only first 8 (power-of-two for knockout bracket)
+    if len(enrolled) > 8:
+        for se in enrolled[8:]:
+            se.is_active = False
+        _db.commit()
+        _db.expire_all()
+
+    enrolled_count = (
+        _db.query(SemesterEnrollment)
+        .filter(SemesterEnrollment.semester_id == t.id, SemesterEnrollment.is_active == True)  # noqa: E712
+        .count()
+    )
+    ok(f"Individual players enrolled: {enrolled_count}")
+    if enrolled_count < 4:
+        fail_local(f"Need ≥4 players for knockout, got {enrolled_count}")
+
+    # 8-player knockout: 7 matches (4 R1 + 2 semis + 1 final) — check ≥4
+    _common_lifecycle(t.id, instructor.id, expected_min_sessions=4)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# S3: TEAM + Group+Knockout — U18, 8 teams
+# S3: INDIVIDUAL + Group+Knockout — 12 players from LFA U15
+# (TEAM Group+Knockout requires min 8 teams; bootstrap only has 3 → use INDIVIDUAL)
 # ══════════════════════════════════════════════════════════════════════════════
-def s3_team_group_knockout(club, campus, tt_by_code, instructor):
+def s3_individual_group_knockout(club, campus, tt_by_code, instructor, boot_teams):
     prefix = f"S3-GKO-{uuid.uuid4().hex[:6]}"
-    tid = _promotion_wizard(club.id, campus.id, tt_by_code["group_knockout"].id, "U18", "gko/U18", prefix)
 
-    enrollments = _db.query(TournamentTeamEnrollment).filter(
-        TournamentTeamEnrollment.semester_id == tid, TournamentTeamEnrollment.is_active == True,  # noqa: E712
-    ).count()
-    ok(f"Teams enrolled: {enrollments}")
-    if enrollments < 8:
-        fail_local(f"Group+Knockout needs ≥8 teams, got {enrollments}")
+    # Create INDIVIDUAL group_knockout tournament
+    resp = _post_form(
+        "/admin/tournaments",
+        data={
+            "name": prefix,
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-03",
+            "age_group": "YOUTH",
+            "enrollment_cost": "0",
+            "campus_id": str(campus.id),
+            "tournament_type_id": str(tt_by_code["group_knockout"].id),
+            "game_preset_id": "",
+            "participant_type": "INDIVIDUAL",
+            "number_of_rounds": "1",
+        },
+    )
+    _assert_redirect(resp, "/admin/tournaments/", "Create INDIVIDUAL group+knockout")
 
-    _status_transition(tid, "ENROLLMENT_OPEN")
-    # Group stage + knockout: ≥9 sessions for 8 teams (varies by config)
-    _common_lifecycle(tid, instructor.id, expected_min_sessions=9)
+    t = _get_tournament_after_promotion(prefix)
+    cfg = _db.query(TournamentConfiguration).filter(
+        TournamentConfiguration.semester_id == t.id
+    ).first()
+    if not cfg or cfg.participant_type != "INDIVIDUAL":
+        fail_local(f"participant_type wrong: {cfg.participant_type if cfg else 'no config'}")
+    ok(f"TournamentConfiguration: participant_type=INDIVIDUAL  tournament_type_id={cfg.tournament_type_id}")
+
+    _status_transition(t.id, "ENROLLMENT_OPEN")
+
+    # Enroll all 12 players from LFA U15
+    u15_team = boot_teams["U15"]
+    resp = _post_form(
+        f"/admin/tournaments/{t.id}/players/enroll-from-team",
+        data={"team_ids": [str(u15_team.id)]},
+    )
+    _assert_redirect(resp, f"/admin/tournaments/{t.id}/players", "Enroll U15 players")
+
+    from app.models.semester_enrollment import SemesterEnrollment
+    enrolled_count = (
+        _db.query(SemesterEnrollment)
+        .filter(SemesterEnrollment.semester_id == t.id, SemesterEnrollment.is_active == True)  # noqa: E712
+        .count()
+    )
+    ok(f"Individual players enrolled: {enrolled_count}")
+    if enrolled_count < 8:
+        fail_local(f"Need ≥8 players for group+knockout, got {enrolled_count}")
+
+    # 12 players: group stage + knockout → ≥10 sessions minimum
+    _common_lifecycle(t.id, instructor.id, expected_min_sessions=10)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# S4: TEAM + League 2-leg — ADULT, 2 teams, number_of_legs=2
+# S4: TEAM + League 2-leg — 2 teams (U15 + U18), number_of_legs=2
 # ══════════════════════════════════════════════════════════════════════════════
-def s4_team_league_2leg(club, campus, tt_by_code, instructor):
+def s4_team_league_2leg(club, campus, tt_by_code, instructor, boot_teams):
     prefix = f"S4-2Leg-{uuid.uuid4().hex[:6]}"
-    tid = _promotion_wizard(club.id, campus.id, tt_by_code["league"].id, "ADULT", "2leg/ADULT", prefix)
+    tid = _create_team_tournament(club.id, campus.id, tt_by_code["league"].id, "U15", "2leg/U15", prefix)
 
-    enrollments = _db.query(TournamentTeamEnrollment).filter(
-        TournamentTeamEnrollment.semester_id == tid, TournamentTeamEnrollment.is_active == True,  # noqa: E712
-    ).count()
-    ok(f"Teams enrolled: {enrollments}")
+    # Enroll U15 + U18 → 2 teams
+    count = _enroll_teams_direct(tid, [boot_teams["U15"], boot_teams["U18"]])
+    if count < 2:
+        fail_local(f"Need ≥2 teams for 2-leg league, got {count}")
 
     # Set number_of_legs = 2 before generating sessions
     cfg = _db.query(TournamentConfiguration).filter(
@@ -327,9 +485,9 @@ def s4_team_league_2leg(club, campus, tt_by_code, instructor):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# S5: INDIVIDUAL + League — players enrolled individually (U12 teams as source)
+# S5: INDIVIDUAL + League — U15 players enrolled individually
 # ══════════════════════════════════════════════════════════════════════════════
-def s5_individual_league(club, campus, tt_by_code, instructor):
+def s5_individual_league(club, campus, tt_by_code, instructor, boot_teams):
     prefix = f"S5-Ind-{uuid.uuid4().hex[:6]}"
 
     # Create INDIVIDUAL tournament via admin form
@@ -364,17 +522,14 @@ def s5_individual_league(club, campus, tt_by_code, instructor):
     # Open enrollment
     _status_transition(t.id, "ENROLLMENT_OPEN")
 
-    # Enroll players from Bootstrap U12 A and U12 B teams
-    u12_teams = (
-        _db.query(Team)
-        .filter(Team.club_id == club.id, Team.age_group_label == "U12", Team.is_active == True)  # noqa: E712
-        .all()
-    )
-    if len(u12_teams) < 2:
-        fail_local(f"Need ≥2 U12 teams for INDIVIDUAL enrollment, got {len(u12_teams)}")
+    # Enroll players from LFA U15 and LFA U18 bootstrap teams
+    u15_team = boot_teams.get("U15")
+    u18_team = boot_teams.get("U18")
+    if not u15_team or not u18_team:
+        fail_local("LFA U15 / LFA U18 bootstrap teams not found")
 
     # enroll-from-team accepts multiple team_ids as a list
-    team_ids_str = [str(t2.id) for t2 in u12_teams[:2]]
+    team_ids_str = [str(u15_team.id), str(u18_team.id)]
     resp = _post_form(
         f"/admin/tournaments/{t.id}/players/enroll-from-team",
         data={"team_ids": team_ids_str},
@@ -430,21 +585,29 @@ def run():
         n = sum(1 for t in teams if t.age_group_label == ag)
         info(f"  {ag}: {n} teams")
 
+    # Load bootstrap teams dict (raises _ScenarioFailed → sys.exit if missing)
+    try:
+        boot_teams = _get_boot_teams(club)
+    except _ScenarioFailed as e:
+        print(f"❌ {e}")
+        sys.exit(1)
+    info(f"  Bootstrap teams loaded: {[t.name for t in boot_teams.values()]}")
+
     # ── Run scenarios ─────────────────────────────────────────────────────────
-    _run_scenario("S1: TEAM + League (U12, 2 teams)",
-                  s1_team_league, club, campus, tt_by_code, instructor)
+    _run_scenario("S1: TEAM + League (U15+U18, 2 teams)",
+                  s1_team_league, club, campus, tt_by_code, instructor, boot_teams)
 
-    _run_scenario("S2: TEAM + Knockout (U15, 4 teams)",
-                  s2_team_knockout, club, campus, tt_by_code, instructor)
+    _run_scenario("S2: INDIVIDUAL + Knockout (8 players from U15)",
+                  s2_individual_knockout, club, campus, tt_by_code, instructor, boot_teams)
 
-    _run_scenario("S3: TEAM + Group+Knockout (U18, 8 teams)",
-                  s3_team_group_knockout, club, campus, tt_by_code, instructor)
+    _run_scenario("S3: INDIVIDUAL + Group+Knockout (12 players from U15)",
+                  s3_individual_group_knockout, club, campus, tt_by_code, instructor, boot_teams)
 
-    _run_scenario("S4: TEAM + League 2-leg (ADULT, 2 teams)",
-                  s4_team_league_2leg, club, campus, tt_by_code, instructor)
+    _run_scenario("S4: TEAM + League 2-leg (U15+U18, 2 teams)",
+                  s4_team_league_2leg, club, campus, tt_by_code, instructor, boot_teams)
 
-    _run_scenario("S5: INDIVIDUAL + League (U12 players individually)",
-                  s5_individual_league, club, campus, tt_by_code, instructor)
+    _run_scenario("S5: INDIVIDUAL + League (U15+U18 players individually)",
+                  s5_individual_league, club, campus, tt_by_code, instructor, boot_teams)
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print(f"\n\n{'='*65}")
