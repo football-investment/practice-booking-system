@@ -443,7 +443,7 @@ async def admin_promotion_events_list(
             Semester.semester_category == SemesterCategory.TOURNAMENT,
             TournamentConfiguration.participant_type.in_(["TEAM", "INDIVIDUAL"]),
         )
-        .order_by(Semester.start_date.desc())
+        .order_by(Semester.start_date.desc(), Semester.name.asc(), Semester.id.asc())
         .all()
     )
 
