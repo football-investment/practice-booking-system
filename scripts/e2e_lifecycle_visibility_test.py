@@ -381,6 +381,35 @@ def _get_tournament(name_fragment):
     return t
 
 
+def _add_lfa_u18_enrollment(tid):
+    """Directly enroll LFA U18 into a tournament (needed when only 1 team auto-enrolled).
+
+    The new bootstrap has 1 team per age group. Promotion wizard for "U15" enrolls
+    LFA U15 only (1 team). Most TEAM lifecycle tests require ≥2 teams to close
+    enrollment — this helper adds LFA U18 to reach the minimum.
+    """
+    u18 = (
+        _db.query(Team)
+        .filter(Team.name == "LFA U18", Team.is_active == True)  # noqa: E712
+        .first()
+    )
+    if not u18:
+        fail("LFA U18 bootstrap team not found — run bootstrap_clean.py first")
+    existing = _db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tid,
+        TournamentTeamEnrollment.team_id == u18.id,
+    ).first()
+    if not existing:
+        _db.add(TournamentTeamEnrollment(
+            semester_id=tid,
+            team_id=u18.id,
+            is_active=True,
+            payment_verified=True,
+        ))
+        _db.commit()
+    _db.expire_all()
+
+
 def _promotion_wizard(club_id, campus_id, tt_id, age_group, name_prefix):
     resp = _post_form(
         f"/admin/clubs/{club_id}/promotion",
@@ -502,7 +531,8 @@ def test_guard_a_campus_required(tt_id):
 def test_guard_c_instructor_required(club, campus, tt_id):
     """Run lifecycle to CHECK_IN_OPEN without instructor; assert IN_PROGRESS fails."""
     prefix = f"Guard-C-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U12", prefix)
+    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
+    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
 
     enr_count = _db.query(TournamentTeamEnrollment).filter(
         TournamentTeamEnrollment.semester_id == t.id,
@@ -531,7 +561,8 @@ def test_guard_c_instructor_required(club, campus, tt_id):
 def test_guard_d_rankings_required(club, campus, tt_id, instructor):
     """Advance to IN_PROGRESS without rankings; assert COMPLETED fails."""
     prefix = f"Guard-D-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U12", prefix)
+    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
+    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
 
     _status_transition(t.id, "ENROLLMENT_OPEN")
     _status_transition(t.id, "ENROLLMENT_CLOSED")
@@ -567,7 +598,7 @@ def test_guard_d_rankings_required(club, campus, tt_id, instructor):
 # ══════════════════════════════════════════════════════════════════════════════
 def test_full_lifecycle_visibility(club, campus, tt_id, instructor):
     """
-    Full lifecycle traversal for a U12 TEAM+League tournament.
+    Full lifecycle traversal for a U15+U18 TEAM+League tournament.
 
     At every transition:
       1. Assert /events/{id} returns correct HTTP code (visibility invariant)
@@ -578,7 +609,8 @@ def test_full_lifecycle_visibility(club, campus, tt_id, instructor):
     Returns tournament id for the follow-up frontend consistency test.
     """
     prefix = f"FullLC-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U12", prefix)
+    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
+    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
 
     enrollments = _db.query(TournamentTeamEnrollment).filter(
         TournamentTeamEnrollment.semester_id == t.id,
@@ -733,7 +765,8 @@ def test_idempotency(club, campus, tt_id, instructor):
     3. IN_PROGRESS transition attempted again (already past) → 400
     """
     prefix = f"Idem-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U12", prefix)
+    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
+    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
 
     # Fast-track to IN_PROGRESS
     _status_transition(t.id, "ENROLLMENT_OPEN")
@@ -835,7 +868,8 @@ def test_public_api_strict(club, campus, tt_id, instructor):
     This is a 1:1 projection check: DB state → rendered HTML.
     """
     prefix = f"PubStrict-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U12", prefix)
+    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
+    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
     tournament_name = t.name
 
     def _check_html(expected_status):
@@ -969,7 +1003,7 @@ def run():
     ok(f"Instructor: {instructor.email}  id={instructor.id}")
     ok(f"TournamentType 'league': id={tt_league.id}  min_players={tt_league.min_players}")
     teams = _db.query(Team).filter(Team.club_id == club.id, Team.is_active == True).all()  # noqa: E712
-    for ag in ("U12", "U15"):
+    for ag in ("U15", "U18", "ADULT"):
         n = sum(1 for tm in teams if tm.age_group_label == ag)
         info(f"  {ag}: {n} teams")
 
