@@ -27,6 +27,20 @@
     --card-text-muted:     rgba(255,255,255,0.40);
     --card-text-faint:     rgba(255,255,255,0.35);
     --card-text-tab:       rgba(255,255,255,0.50);
+    /* Skill bar + value colour tokens */
+    --card-skill-up:      #48bb78;
+    --card-skill-dn:      #fc8181;
+    --card-val-neutral:   rgba(255,255,255,0.85);
+    /* Event badge tokens */
+    --card-badge-xp-bg:   rgba(102,126,234,0.20);
+    --card-badge-xp-text: #a3bffa;
+    --card-badge-cr-bg:   rgba(72,187,120,0.15);
+    --card-badge-cr-text: #9ae6b4;
+    /* Skill pill tokens */
+    --card-pill-up-bg:    rgba(72,187,120,0.15);
+    --card-pill-up-text:  #9ae6b4;
+    --card-pill-dn-bg:    rgba(252,129,129,0.15);
+    --card-pill-dn-text:  #feb2b2;
 }
 
 /* ── Theme overrides ─────────────────────────────────────────────────────── */
@@ -38,25 +52,25 @@
     --card-page-bg:   #050505;
 }
 .theme-gold {
-    --card-panel-bg:  linear-gradient(155deg, #1a1000 0%, #2d2000 60%, #1a1500 100%);
-    --card-body-bg:   #1a1200;
-    --card-tab-bg:    #2d2000;
-    --card-accent:    #d69e2e;
-    --card-page-bg:   #100c00;
+    --card-panel-bg:  linear-gradient(155deg, #3d2200 0%, #5c3500 60%, #3d2200 100%);
+    --card-body-bg:   #1e1500;
+    --card-tab-bg:    #2d1f00;
+    --card-accent:    #f6ad3c;
+    --card-page-bg:   #120d00;
 }
 .theme-emerald {
-    --card-panel-bg:  linear-gradient(155deg, #0a1f0a 0%, #0f2d1a 60%, #0a1f14 100%);
+    --card-panel-bg:  linear-gradient(155deg, #0a2d0a 0%, #144d1e 60%, #0a2d14 100%);
     --card-body-bg:   #0d1f0d;
     --card-tab-bg:    #142b14;
-    --card-accent:    #48bb78;
+    --card-accent:    #4cde82;
     --card-page-bg:   #060f06;
 }
 .theme-crimson {
-    --card-panel-bg:  linear-gradient(155deg, #1f0a0a 0%, #2d0f0f 60%, #1f0a0f 100%);
-    --card-body-bg:   #1a0d0d;
+    --card-panel-bg:  linear-gradient(155deg, #3d0a0a 0%, #5c1414 60%, #3d0a14 100%);
+    --card-body-bg:   #1e0d0d;
     --card-tab-bg:    #2d1010;
-    --card-accent:    #fc8181;
-    --card-page-bg:   #0f0505;
+    --card-accent:    #ff6b6b;
+    --card-page-bg:   #120404;
 }
 .theme-arctic {
     --card-body-bg:        #f7fafc;
@@ -74,6 +88,18 @@
     --card-text-muted:     rgba(0,0,0,0.40);
     --card-text-faint:     rgba(0,0,0,0.30);
     --card-text-tab:       rgba(0,0,0,0.45);
+    /* Light-mode skill + badge overrides */
+    --card-skill-up:      #276749;
+    --card-skill-dn:      #c53030;
+    --card-val-neutral:   rgba(0,0,0,0.70);
+    --card-badge-xp-bg:   rgba(102,126,234,0.12);
+    --card-badge-xp-text: #4c63b6;
+    --card-badge-cr-bg:   rgba(56,161,105,0.12);
+    --card-badge-cr-text: #276749;
+    --card-pill-up-bg:    rgba(56,161,105,0.12);
+    --card-pill-up-text:  #276749;
+    --card-pill-dn-bg:    rgba(229,62,62,0.12);
+    --card-pill-dn-text:  #c53030;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -180,7 +206,7 @@ body {
 .skill-row:last-child { margin-bottom: 0; }
 .skill-name { font-size: 0.62rem; color: var(--card-text-secondary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .skill-val { font-size: 0.67rem; font-weight: 700; width: 28px; text-align: right; flex-shrink: 0; }
-.skill-up { font-size: 0.6rem; color: #48bb78; font-weight: 900; flex-shrink: 0; line-height: 1; }
+.skill-up { font-size: 0.6rem; color: var(--card-skill-up); font-weight: 900; flex-shrink: 0; line-height: 1; }
 .skill-bar-bg { flex: 0 1 36px; height: 4px; background: var(--card-bar-bg); border-radius: 2px; }
 .skill-bar-fill { height: 100%; border-radius: 2px; }
 
@@ -202,7 +228,7 @@ body {
     border-bottom: 2px solid transparent;
     transition: color .15s, border-color .15s;
 }
-.tab-btn.active { color: #fff; border-bottom-color: var(--card-accent); }
+.tab-btn.active { color: var(--card-text-primary); border-bottom-color: var(--card-accent); }
 
 /* ── Events section ──────────────────────────────────────── */
 .events-section { background: var(--card-body-bg); padding: 0.75rem 1rem; }
@@ -221,12 +247,12 @@ body {
 .ev-link:hover { text-decoration: underline; }
 .ev-rewards { display: flex; gap: 0.3rem; margin-bottom: 0.25rem; flex-wrap: wrap; }
 .ev-badge { font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 99px; }
-.ev-badge.xp { background: rgba(102,126,234,0.2); color: #a3bffa; }
-.ev-badge.cr { background: rgba(72,187,120,0.15); color: #9ae6b4; }
+.ev-badge.xp { background: var(--card-badge-xp-bg); color: var(--card-badge-xp-text); }
+.ev-badge.cr { background: var(--card-badge-cr-bg); color: var(--card-badge-cr-text); }
 .ev-skills { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .ev-skill-pill { font-size: 0.65rem; padding: 1px 6px; border-radius: 99px; }
-.ev-skill-pill.up { background: rgba(72,187,120,0.15); color: #9ae6b4; }
-.ev-skill-pill.dn { background: rgba(252,129,129,0.15); color: #feb2b2; }
+.ev-skill-pill.up { background: var(--card-pill-up-bg); color: var(--card-pill-up-text); }
+.ev-skill-pill.dn { background: var(--card-pill-dn-bg); color: var(--card-pill-dn-text); }
 .ev-empty { text-align: center; color: var(--card-text-faint); font-size: 0.8rem; padding: 2rem 0; }
 
 /* ── Responsive ─────────────────────────────────────────────
@@ -339,21 +365,21 @@ body {
                 {# Color driven solely by last-tournament delta, not by level tier.
                    Neutral = not affected by the most recent tournament. #}
                 {% if sdelta > 0 %}
-                    {% set bar_color = '#48bb78' %}
-                    {% set val_color = '#48bb78' %}
+                    {% set bar_color = 'var(--card-skill-up)' %}
+                    {% set val_color = 'var(--card-skill-up)' %}
                 {% elif sdelta < 0 %}
-                    {% set bar_color = '#fc8181' %}
-                    {% set val_color = '#fc8181' %}
+                    {% set bar_color = 'var(--card-skill-dn)' %}
+                    {% set val_color = 'var(--card-skill-dn)' %}
                 {% else %}
                     {% set bar_color = 'var(--card-bar-neutral)' %}
-                    {% set val_color = 'rgba(255,255,255,0.85)' %}
+                    {% set val_color = 'var(--card-val-neutral)' %}
                 {% endif %}
                 <div class="skill-row">
                     <span class="skill-name">{{ skill.name_en }}</span>
                     <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{{ fill_pct }}%; background:{{ bar_color }};"></div></div>
                     <span class="skill-val" style="color:{{ val_color }};">{{ sval }}</span>
                     {% if sdelta > 0 %}<span class="skill-up">↑</span>
-                    {% elif sdelta < 0 %}<span class="skill-up" style="color:#fc8181;">↓</span>
+                    {% elif sdelta < 0 %}<span class="skill-up" style="color:var(--card-skill-dn);">↓</span>
                     {% else %}<span class="skill-up" style="visibility:hidden">↑</span>{% endif %}
                 </div>
                 {% endfor %}

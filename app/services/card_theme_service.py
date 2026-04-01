@@ -53,21 +53,21 @@ THEMES: dict[str, ThemeDefinition] = {
     ),
     "gold": ThemeDefinition(
         id="gold", label="Gold", is_premium=True, credit_cost=500,
-        panel_bg="linear-gradient(155deg, #1a1000 0%, #2d2000 60%, #1a1500 100%)",
-        body_bg="#1a1200", tab_bg="#2d2000", accent="#d69e2e",
-        dot_color="#d69e2e",
+        panel_bg="linear-gradient(155deg, #3d2200 0%, #5c3500 60%, #3d2200 100%)",
+        body_bg="#1e1500", tab_bg="#2d1f00", accent="#f6ad3c",
+        dot_color="#f6ad3c",
     ),
     "emerald": ThemeDefinition(
         id="emerald", label="Emerald", is_premium=True, credit_cost=500,
-        panel_bg="linear-gradient(155deg, #0a1f0a 0%, #0f2d1a 60%, #0a1f14 100%)",
-        body_bg="#0d1f0d", tab_bg="#142b14", accent="#48bb78",
-        dot_color="#48bb78",
+        panel_bg="linear-gradient(155deg, #0a2d0a 0%, #144d1e 60%, #0a2d14 100%)",
+        body_bg="#0d1f0d", tab_bg="#142b14", accent="#4cde82",
+        dot_color="#4cde82",
     ),
     "crimson": ThemeDefinition(
         id="crimson", label="Crimson", is_premium=True, credit_cost=500,
-        panel_bg="linear-gradient(155deg, #1f0a0a 0%, #2d0f0f 60%, #1f0a0f 100%)",
-        body_bg="#1a0d0d", tab_bg="#2d1010", accent="#fc8181",
-        dot_color="#c53030",
+        panel_bg="linear-gradient(155deg, #3d0a0a 0%, #5c1414 60%, #3d0a14 100%)",
+        body_bg="#1e0d0d", tab_bg="#2d1010", accent="#ff6b6b",
+        dot_color="#ff6b6b",
     ),
 }
 
