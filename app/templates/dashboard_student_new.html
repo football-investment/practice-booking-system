@@ -111,6 +111,15 @@
     }
     .dash-right-col { display: flex; flex-direction: column; gap: 1.5rem; }
     .dash-right-col .section-block { margin-bottom: 0; }
+    /* mod-nav + KPI inside right col */
+    .dash-right-col .mod-nav-section {
+        background: white;
+        border-radius: 16px;
+        padding: 1.1rem 1.1rem 0.6rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin: 0;
+    }
+    .dash-right-col .s-kpi-row { margin-bottom: 0; }
     @media (max-width: 1024px) {
         .dash-main-grid { grid-template-columns: 1fr; }
     }
@@ -219,56 +228,7 @@
     <span class="s-breadcrumb-item active">{{ spec_config.icon if spec_config else '⚽' }} {{ spec_config.name if spec_config else 'LFA Football Player' }}</span>
 </nav>
 
-{# ── Module Navigation Cards ───────────────────────────────────────────────── #}
-{# All 5 targets have require_student_onboarding guard → redirect /dashboard    #}
-{# if user.onboarding_completed is False. (/sessions & /calendar use inline     #}
-{# equivalent check in sessions.py.)                                            #}
-<section class="mod-nav-section">
-    <div class="mod-nav-grid">
-        <a href="/sessions" class="mod-nav-card">
-            <span class="mod-nav-icon">📅</span>
-            <span class="mod-nav-title">Sessions</span>
-        </a>
-        <a href="/progress" class="mod-nav-card">
-            <span class="mod-nav-icon">📊</span>
-            <span class="mod-nav-title">Progress</span>
-        </a>
-        <a href="/skills" class="mod-nav-card">
-            <span class="mod-nav-icon">⚡</span>
-            <span class="mod-nav-title">Skills</span>
-        </a>
-        <a href="/achievements" class="mod-nav-card">
-            <span class="mod-nav-icon">🏆</span>
-            <span class="mod-nav-title">Achievements</span>
-        </a>
-        <a href="/calendar" class="mod-nav-card">
-            <span class="mod-nav-icon">📆</span>
-            <span class="mod-nav-title">Calendar</span>
-        </a>
-    </div>
-</section>
-
 <div class="container">
-
-    {# ── KPI Row ──────────────────────────────────────────────────────────────── #}
-    <div class="s-kpi-row">
-        <div class="s-kpi-card">
-            <div class="s-kpi-val" id="kpi-avg">—</div>
-            <div class="s-kpi-lbl">Avg Skill Level</div>
-        </div>
-        <div class="s-kpi-card">
-            <div class="s-kpi-val" id="kpi-tournaments">—</div>
-            <div class="s-kpi-lbl">Tournaments</div>
-        </div>
-        <div class="s-kpi-card">
-            <div class="s-kpi-val">{{ credit_balance }}</div>
-            <div class="s-kpi-lbl">Credits</div>
-        </div>
-        <div class="s-kpi-card">
-            <div class="s-kpi-val" style="font-size:1.2rem;">{{ age_category or '—' }}</div>
-            <div class="s-kpi-lbl">{{ age_range or 'Category' }}</div>
-        </div>
-    </div>
 
     {# ── 2-column main grid ────────────────────────────────────────────────────── #}
     <div class="dash-main-grid">
@@ -297,8 +257,55 @@
         </section>
         {% endif %}
 
-        {# RIGHT: Last Skill Event + Available Events egymás alatt ────────────── #}
+        {# RIGHT: nav + KPI + Last Skill Event + Available Events ──────────────── #}
         <div class="dash-right-col">
+
+            {# ── Module Navigation ─────────────────────────────────────────────── #}
+            {# All 5 targets have require_student_onboarding guard                 #}
+            <section class="mod-nav-section">
+                <div class="mod-nav-grid">
+                    <a href="/sessions" class="mod-nav-card">
+                        <span class="mod-nav-icon">📅</span>
+                        <span class="mod-nav-title">Sessions</span>
+                    </a>
+                    <a href="/progress" class="mod-nav-card">
+                        <span class="mod-nav-icon">📊</span>
+                        <span class="mod-nav-title">Progress</span>
+                    </a>
+                    <a href="/skills" class="mod-nav-card">
+                        <span class="mod-nav-icon">⚡</span>
+                        <span class="mod-nav-title">Skills</span>
+                    </a>
+                    <a href="/achievements" class="mod-nav-card">
+                        <span class="mod-nav-icon">🏆</span>
+                        <span class="mod-nav-title">Achievements</span>
+                    </a>
+                    <a href="/calendar" class="mod-nav-card">
+                        <span class="mod-nav-icon">📆</span>
+                        <span class="mod-nav-title">Calendar</span>
+                    </a>
+                </div>
+            </section>
+
+            {# ── KPI Row ───────────────────────────────────────────────────────── #}
+            <div class="s-kpi-row">
+                <div class="s-kpi-card">
+                    <div class="s-kpi-val" id="kpi-avg">—</div>
+                    <div class="s-kpi-lbl">Avg Skill Level</div>
+                </div>
+                <div class="s-kpi-card">
+                    <div class="s-kpi-val" id="kpi-tournaments">—</div>
+                    <div class="s-kpi-lbl">Tournaments</div>
+                </div>
+                <div class="s-kpi-card">
+                    <div class="s-kpi-val">{{ credit_balance }}</div>
+                    <div class="s-kpi-lbl">Credits</div>
+                </div>
+                <div class="s-kpi-card">
+                    <div class="s-kpi-val" style="font-size:1.2rem;">{{ age_category or '—' }}</div>
+                    <div class="s-kpi-lbl">{{ age_range or 'Category' }}</div>
+                </div>
+            </div>
 
             {# ── Last Skill Event ──────────────────────────────────────────────── #}
             <section class="section-block">
