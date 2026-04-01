@@ -101,6 +101,20 @@
     .player-card-embed-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
     .player-card-embed-wrap iframe { display: block; width: 100%; border: none; }
 
+    /* ── 2-column main layout ─────────────────────────────────────────────────── */
+    .dash-main-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+        margin-bottom: 1.5rem;
+    }
+    .dash-right-col { display: flex; flex-direction: column; gap: 1.5rem; }
+    .dash-right-col .section-block { margin-bottom: 0; }
+    @media (max-width: 1024px) {
+        .dash-main-grid { grid-template-columns: 1fr; }
+    }
+
     /* ── Last Result ─────────────────────────────────────────────────────────── */
     .s-last-result-card { background: #f8faff; border-left: 4px solid #667eea; border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
     .s-result-name     { font-weight: 700; color: #2d3748; font-size: 1rem; flex: 1; min-width: 140px; }
@@ -256,88 +270,98 @@
         </div>
     </div>
 
-    {# ── Player Card (LFA license) / Skill Snapshot fallback ─────────────────── #}
-    {% if user_license %}
-    <section class="section-block" style="padding: 1.25rem;">
-        <div class="section-header" style="margin-bottom: 0.75rem;">
-            <h2 class="page-title">🪪 My Player Card</h2>
-            <a href="/players/{{ user.id }}/card" target="_blank" class="section-link">🌐 Open full screen →</a>
-        </div>
-        <div class="player-card-embed-wrap">
-            <iframe src="/players/{{ user.id }}/card" height="920" scrolling="no"
-                    title="My Player Card"></iframe>
-        </div>
-    </section>
-    {% else %}
-    <section class="section-block">
-        <div class="section-header">
-            <h2 class="page-title">📊 Skill Snapshot</h2>
-            <a href="/skills" class="section-link">View all 29 skills →</a>
-        </div>
-        <div id="s-snapshot">
-            <div class="s-loading"><span class="s-spinner"></span> Loading…</div>
-        </div>
-    </section>
-    {% endif %}
+    {# ── 2-column main grid ────────────────────────────────────────────────────── #}
+    <div class="dash-main-grid">
 
-    {# ── Last Skill Event ─────────────────────────────────────────────────────── #}
-    <section class="section-block">
-        <div class="section-header">
-            <h2 class="page-title">📈 Last Skill Event</h2>
-            <a href="/skills/history?skill=passing" class="section-link">Full event history →</a>
-        </div>
-        <div id="s-last-result">
-            <div class="s-loading"><span class="s-spinner"></span> Loading…</div>
-        </div>
-    </section>
-
-    {# ── Available Events ─────────────────────────────────────────────────────── #}
-    <section class="section-block">
-        <div class="section-header">
-            <h2 class="page-title">⚽ Available Events</h2>
-        </div>
-        <p class="page-subtitle">Enroll in semesters to access training sessions and progress through your football development path.</p>
-
-        {% if available_semesters|length == 0 %}
-        <div class="info-banner" style="background: #fff7e6; border-color: #faad14;">
-            <p style="color: #ad6800;">⚠️ <strong>No track semesters available for your age group yet.</strong><br>
-            Check back later, or <a href="/profile" style="color: #ad6800; text-decoration: underline;">update your profile</a> if your age group is incorrect.</p>
-        </div>
+        {# LEFT: Player Card (LFA license) / Skill Snapshot fallback ─────────── #}
+        {% if user_license %}
+        <section class="section-block" style="padding: 1.25rem; margin-bottom: 0;">
+            <div class="section-header" style="margin-bottom: 0.75rem;">
+                <h2 class="page-title">🪪 My Player Card</h2>
+                <a href="/players/{{ user.id }}/card" target="_blank" class="section-link">🌐 Open full screen →</a>
+            </div>
+            <div class="player-card-embed-wrap">
+                <iframe src="/players/{{ user.id }}/card" height="920" scrolling="no"
+                        title="My Player Card"></iframe>
+            </div>
+        </section>
         {% else %}
-        <div class="info-banner">
-            <p><strong>💡 Available Semesters for {{ age_category_name }} ({{ age_range }})</strong><br>
-            {{ age_description }} — {{ available_semesters|length }} semester(s) available</p>
-        </div>
+        <section class="section-block" style="margin-bottom: 0;">
+            <div class="section-header">
+                <h2 class="page-title">📊 Skill Snapshot</h2>
+                <a href="/skills" class="section-link">View all 29 skills →</a>
+            </div>
+            <div id="s-snapshot">
+                <div class="s-loading"><span class="s-spinner"></span> Loading…</div>
+            </div>
+        </section>
         {% endif %}
 
-        <div class="cards-grid">
-            {% for semester in available_semesters %}
-            <div class="spec-card">
-                <div class="cost-badge">💰 {{ semester.enrollment_cost }} Credits</div>
-                <div class="spec-icon">⚽</div>
-                <h3 class="spec-title">{{ semester.name }}</h3>
-                <p class="spec-age">📅 {{ semester.start_date.strftime('%Y-%m-%d') }} — {{ semester.end_date.strftime('%Y-%m-%d') }}</p>
-                <p class="spec-description">
-                    <strong>Code:</strong> {{ semester.code }}<br>
-                    <strong>Status:</strong> {{ semester.status.value if semester.status else 'Unknown' }}
-                </p>
-                <div class="spec-action">
-                    {% if user.credit_balance < semester.enrollment_cost %}
-                        <button class="unlock-btn" disabled>❌ Insufficient Credits (Need {{ semester.enrollment_cost }})</button>
-                        <p style="margin-top: 0.5rem; font-size: 0.85rem;">
-                            <a href="/credits" style="color: #667eea; font-weight: 600;">Purchase credits →</a>
-                        </p>
-                    {% else %}
-                        <form method="POST" action="/semester/enroll">
-                            <input type="hidden" name="semester_id" value="{{ semester.id }}">
-                            <button type="submit" class="unlock-btn">🎓 Enroll Now ({{ semester.enrollment_cost }} credits)</button>
-                        </form>
-                    {% endif %}
+        {# RIGHT: Last Skill Event + Available Events egymás alatt ────────────── #}
+        <div class="dash-right-col">
+
+            {# ── Last Skill Event ──────────────────────────────────────────────── #}
+            <section class="section-block">
+                <div class="section-header">
+                    <h2 class="page-title">📈 Last Skill Event</h2>
+                    <a href="/skills/history?skill=passing" class="section-link">Full event history →</a>
                 </div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
+                <div id="s-last-result">
+                    <div class="s-loading"><span class="s-spinner"></span> Loading…</div>
+                </div>
+            </section>
+
+            {# ── Available Events ──────────────────────────────────────────────── #}
+            <section class="section-block">
+                <div class="section-header">
+                    <h2 class="page-title">⚽ Available Events</h2>
+                </div>
+                <p class="page-subtitle">Enroll in semesters to access training sessions and progress through your football development path.</p>
+
+                {% if available_semesters|length == 0 %}
+                <div class="info-banner" style="background: #fff7e6; border-color: #faad14;">
+                    <p style="color: #ad6800;">⚠️ <strong>No track semesters available for your age group yet.</strong><br>
+                    Check back later, or <a href="/profile" style="color: #ad6800; text-decoration: underline;">update your profile</a> if your age group is incorrect.</p>
+                </div>
+                {% else %}
+                <div class="info-banner">
+                    <p><strong>💡 Available Semesters for {{ age_category_name }} ({{ age_range }})</strong><br>
+                    {{ age_description }} — {{ available_semesters|length }} semester(s) available</p>
+                </div>
+                {% endif %}
+
+                <div class="cards-grid">
+                    {% for semester in available_semesters %}
+                    <div class="spec-card">
+                        <div class="cost-badge">💰 {{ semester.enrollment_cost }} Credits</div>
+                        <div class="spec-icon">⚽</div>
+                        <h3 class="spec-title">{{ semester.name }}</h3>
+                        <p class="spec-age">📅 {{ semester.start_date.strftime('%Y-%m-%d') }} — {{ semester.end_date.strftime('%Y-%m-%d') }}</p>
+                        <p class="spec-description">
+                            <strong>Code:</strong> {{ semester.code }}<br>
+                            <strong>Status:</strong> {{ semester.status.value if semester.status else 'Unknown' }}
+                        </p>
+                        <div class="spec-action">
+                            {% if user.credit_balance < semester.enrollment_cost %}
+                                <button class="unlock-btn" disabled>❌ Insufficient Credits (Need {{ semester.enrollment_cost }})</button>
+                                <p style="margin-top: 0.5rem; font-size: 0.85rem;">
+                                    <a href="/credits" style="color: #667eea; font-weight: 600;">Purchase credits →</a>
+                                </p>
+                            {% else %}
+                                <form method="POST" action="/semester/enroll">
+                                    <input type="hidden" name="semester_id" value="{{ semester.id }}">
+                                    <button type="submit" class="unlock-btn">🎓 Enroll Now ({{ semester.enrollment_cost }} credits)</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+        </div>{# /.dash-right-col #}
+
+    </div>{# /.dash-main-grid #}
 
     <!-- ⚽ Player Card Photo (LFA Football Player only) -->
     {% if user_license %}
