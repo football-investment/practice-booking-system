@@ -46,6 +46,10 @@ def public_player_card(
     if not lfa_license:
         return HTMLResponse("<h2>No active LFA Player license</h2>", status_code=404)
 
+    # Card theme
+    from app.services.card_theme_service import get_theme as _get_theme
+    card_theme = _get_theme(lfa_license.card_theme if lfa_license.card_theme else "default")
+
     # Skill profile
     from app.services.skill_progression_service import get_skill_profile
     from app.models.tournament_achievement import TournamentParticipation
@@ -155,4 +159,5 @@ def public_player_card(
         "photo_url": lfa_license.player_card_photo_url,
         "last_skill_delta": last_skill_delta,
         "participations_history": participations_history,
+        "card_theme": card_theme.id,
     })

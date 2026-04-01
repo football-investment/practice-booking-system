@@ -492,6 +492,21 @@ async def spec_dashboard(
     }
     spec_header_class = _spec_header_map.get(spec_enum, "hdr-football")
 
+    # Theme picker data
+    from ...services.card_theme_service import get_all_themes as _get_all_themes, is_unlocked as _is_unlocked
+    card_themes = [
+        {
+            "id": t.id,
+            "label": t.label,
+            "dot_color": t.dot_color,
+            "is_premium": t.is_premium,
+            "credit_cost": t.credit_cost,
+            "unlocked": _is_unlocked(user_license, t.id) if user_license else not t.is_premium,
+        }
+        for t in _get_all_themes()
+    ]
+    active_card_theme = user_license.card_theme if user_license and user_license.card_theme else "default"
+
     return templates.TemplateResponse(
         "dashboard_student_new.html",
         {
@@ -514,7 +529,10 @@ async def spec_dashboard(
             "age_range": age_range,
             "age_description": age_description,
             "user_age": user_age,
-            "spec_header_class": spec_header_class
+            "spec_header_class": spec_header_class,
+            # Card theme picker
+            "card_themes": card_themes,
+            "active_card_theme": active_card_theme,
         }
     )
 
@@ -570,3 +588,36 @@ async def student_delete_player_photo(
         lfa_license.player_card_photo_url = None
         db.commit()
     return JSONResponse({"ok": True})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PLAYER CARD THEME  (student self-service)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from ...services.card_theme_service import apply_theme as _apply_theme  # noqa: E402
+from pydantic import BaseModel as _BaseModel  # noqa: E402
+
+
+class _CardThemeRequest(_BaseModel):
+    theme: str
+
+
+@router.post("/dashboard/card-theme")
+async def student_set_card_theme(
+    payload: _CardThemeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Update the active colour theme for the authenticated student's player card."""
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+    try:
+        _apply_theme(db, lfa_license, payload.theme)
+        return JSONResponse({"ok": True, "theme": payload.theme})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)

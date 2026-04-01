@@ -171,6 +171,10 @@ class UserLicense(Base):
                              comment="6 football skill percentages for LFA Player specializations (heading, shooting, crossing, passing, dribbling, ball_control)")
     player_card_photo_url = Column(String(512), nullable=True,
                                    comment="LFA Football Player spec-specific card photo URL (not global avatar)")
+    card_theme = Column(String(32), nullable=False, default='default', server_default='default',
+                        comment="Active player card colour theme (e.g. default, midnight, gold)")
+    unlocked_card_themes = Column(JSON, nullable=False, default=list, server_default='[]',
+                                  comment="Premium theme IDs unlocked by this user (e.g. ['gold', 'crimson'])")
     skills_last_updated_at = Column(DateTime, nullable=True,
                                     comment="When skills were last updated")
     skills_updated_by = Column(Integer, ForeignKey("users.id"), nullable=True,
