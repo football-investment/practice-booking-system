@@ -165,6 +165,37 @@
 .btn-start:hover { background: #219a52; }
 .btn-success { background: #27ae60; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.25rem; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: background 0.15s; }
 .btn-success:hover { background: #219a52; }
+/* ── Instructor Roster ─────────────────────────────────────────────────── */
+.instructor-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0; border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; }
+.instructor-row:last-child { border-bottom: none; }
+.slot-badge { display: inline-block; padding: 0.18rem 0.55rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+.slot-planned    { background: #edf2f7; color: #4a5568; }
+.slot-confirmed  { background: #ebf8ff; color: #2b6cb0; }
+.slot-checked_in { background: #c6f6d5; color: #22543d; }
+.slot-absent     { background: #fed7d7; color: #742a2a; }
+.action-btn-green { background: #c6f6d5; color: #22543d; border-color: #9ae6b4; }
+.action-btn-green:hover { background: #9ae6b4; }
+.action-btn-red { background: #fed7d7; color: #742a2a; border-color: #feb2b2; }
+.action-btn-red:hover { background: #feb2b2; }
+/* ── Lifecycle Wizard ────────────────────────────────────── */
+.wiz-progress{display:flex;gap:0;margin-bottom:1.5rem;overflow-x:auto;}
+.wiz-progress-step{flex:1;min-width:80px;text-align:center;padding:.5rem .25rem;font-size:.72rem;font-weight:600;border-bottom:3px solid #e2e8f0;color:#a0aec0;}
+.wiz-progress-step.done{border-color:#48bb78;color:#276749;}
+.wiz-progress-step.active{border-color:#667eea;color:#434190;}
+.wiz-step{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:1rem;overflow:hidden;transition:box-shadow .2s;}
+.wiz-step.done{border-color:#c6f6d5;background:#f0fff4;}
+.wiz-step.active{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,.15);}
+.wiz-step.locked{background:#f7fafc;opacity:.65;pointer-events:none;}
+.wiz-step-header{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;cursor:pointer;user-select:none;}
+.wiz-step-header .wiz-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;}
+.wiz-step.done .wiz-num{background:#48bb78;color:#fff;}
+.wiz-step.active .wiz-num{background:#667eea;color:#fff;}
+.wiz-step.locked .wiz-num{background:#e2e8f0;color:#a0aec0;}
+.wiz-step-title{font-weight:700;font-size:.95rem;flex:1;}
+.wiz-step-subtitle{font-size:.8rem;color:#718096;}
+.wiz-step-body{padding:0.25rem 0 0.75rem;}
+.wiz-step.done:not(.expanded) .wiz-step-body,.wiz-step.locked .wiz-step-body{display:none;}
+.wiz-action-row{display:flex;justify-content:flex-end;padding:.75rem 1.25rem 0;margin-top:0.5rem;border-top:1px solid #e2e8f0;gap:.75rem;}
 </style>
 {% endblock %}
 
@@ -183,7 +214,42 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 <div class="warn-banner">⚠️ {{ error }}</div>
 {% endif %}
 
-{# ── SECTION 1: Alapadatok ─────────────────────────────────────────────────── #}
+{# ── Wizard step-state computation ─────────────────────────────────────────── #}
+{% set _status = t.tournament_status or 'DRAFT' %}
+{% set _all_results_done = (session_count > 0 and completed_session_count >= session_count) %}
+{% set _has_rankings = (existing_rankings | length > 0) %}
+{% set step1_state = 'done' if _status != 'DRAFT' else 'active' %}
+{% set step2_state = 'done' if _status not in ['DRAFT','ENROLLMENT_OPEN'] else ('active' if _status == 'ENROLLMENT_OPEN' else 'locked') %}
+{% set step3_state = 'done' if _status not in ['DRAFT','ENROLLMENT_OPEN','ENROLLMENT_CLOSED'] else ('active' if _status == 'ENROLLMENT_CLOSED' else 'locked') %}
+{% set step4_state = 'done' if _status in ['IN_PROGRESS','COMPLETED','REWARDS_DISTRIBUTED'] else ('active' if _status == 'CHECK_IN_OPEN' else 'locked') %}
+{% set step5_state = 'done' if (_status in ['COMPLETED','REWARDS_DISTRIBUTED'] or (_status == 'IN_PROGRESS' and _all_results_done)) else ('active' if _status == 'IN_PROGRESS' else 'locked') %}
+{% set step6_state = 'done' if _status in ['COMPLETED','REWARDS_DISTRIBUTED'] else ('active' if _status == 'IN_PROGRESS' and _all_results_done else 'locked') %}
+{% set step7_state = 'done' if _status == 'REWARDS_DISTRIBUTED' else ('active' if _status == 'COMPLETED' else 'locked') %}
+
+{# ── Wizard progress bar ──────────────────────────────────────────────────── #}
+<div class="wiz-progress">
+  <div class="wiz-progress-step {{ step1_state }}">1 · Configure</div>
+  <div class="wiz-progress-step {{ step2_state }}">2 · Enroll</div>
+  <div class="wiz-progress-step {{ step3_state }}">3 · Prepare</div>
+  <div class="wiz-progress-step {{ step4_state }}">4 · Check-in</div>
+  <div class="wiz-progress-step {{ step5_state }}">5 · Results</div>
+  <div class="wiz-progress-step {{ step6_state }}">6 · Finalize</div>
+  <div class="wiz-progress-step {{ step7_state }}">7 · Rewards</div>
+</div>
+
+{# ── STEP 1: Configure ────────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step1_state }}" id="wiz-step-1">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-1')">
+    <div class="wiz-num">{% if step1_state == 'done' %}✓{% else %}1{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Configure</div>
+      <div class="wiz-step-subtitle">{{ t.name }} · {{ t.format or 'Format not set' }}</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step1_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+
+{# ── SECTION 1: Basic Info ────────────────────────────────────────────────── #}
 <div class="card" id="section-basic">
     <div class="section-header">
         <span class="section-icon">📋</span>
@@ -192,6 +258,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         {% if ts == 'DRAFT' %}<span class="status-badge-inline status-draft">DRAFT</span>
         {% elif ts == 'ENROLLMENT_OPEN' %}<span class="status-badge-inline status-open">ENROLLMENT OPEN</span>
         {% elif ts == 'ENROLLMENT_CLOSED' %}<span class="status-badge-inline status-closed">ENROLLMENT CLOSED</span>
+        {% elif ts == 'CHECK_IN_OPEN' %}<span class="status-badge-inline" style="background:#fed7aa;color:#7c3b00;border-radius:4px;padding:.15rem .5rem;font-size:.78rem;font-weight:700;">CHECK-IN OPEN</span>
         {% elif ts == 'IN_PROGRESS' %}<span class="status-badge-inline status-progress">IN PROGRESS</span>
         {% elif ts == 'COMPLETED' %}<span class="status-badge-inline status-completed">COMPLETED</span>
         {% elif ts == 'CANCELLED' %}<span class="status-badge-inline status-cancelled">CANCELLED</span>
@@ -246,7 +313,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </div>
         <div class="form-group">
             <label>Campus</label>
-            <select id="basic-campus-id">
+            <select id="basic-campus-id" onchange="onCampusChange()">
                 <option value="">— No campus —</option>
                 {% for campus in campuses %}
                 <option value="{{ campus.id }}" data-location="{{ campus.location_id }}" {% if t.campus_id == campus.id %}selected{% endif %}>{{ campus.name }}</option>
@@ -254,14 +321,35 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             </select>
         </div>
     </div>
-    <div class="form-row">
+    {# ── Format selector (interactive toggle) ── #}
+    <div class="form-row" style="margin-bottom:0.5rem;">
+        <div class="form-group" style="flex:0 0 auto;">
+            <label>Tournament Format</label>
+            <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
+                <button type="button" id="btn-fmt-h2h"
+                        onclick="setTournamentFormat('HEAD_TO_HEAD')"
+                        style="padding:0.5rem 1rem;border-radius:6px;border:2px solid #bee3f8;background:#ebf4ff;color:#2b6cb0;font-weight:600;cursor:pointer;transition:all 0.15s;">
+                    ⚔️ Head-to-Head
+                </button>
+                <button type="button" id="btn-fmt-ir"
+                        onclick="setTournamentFormat('INDIVIDUAL_RANKING')"
+                        style="padding:0.5rem 1rem;border-radius:6px;border:2px solid #9ae6b4;background:#f0fff4;color:#276749;font-weight:600;cursor:pointer;transition:all 0.15s;">
+                    🏅 Individual Ranking
+                </button>
+            </div>
+            <span class="field-hint" id="fmt-hint"></span>
+        </div>
+    </div>
+
+    {# ── HEAD_TO_HEAD fields ── #}
+    <div class="form-row" id="group-h2h-fields">
         <div class="form-group">
             <label>Tournament Type</label>
             <select id="basic-tournament-type">
                 <option value="">— Not set —</option>
                 {% for tt in tournament_types %}
                 <option value="{{ tt.id }}" {% if cfg and cfg.tournament_type_id == tt.id %}selected{% endif %}>
-                    {{ tt.display_name }} ({{ tt.format }})
+                    {{ tt.display_name }}
                 </option>
                 {% endfor %}
             </select>
@@ -269,7 +357,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </div>
         <div class="form-group">
             <label>Participant Type</label>
-            <select id="basic-participant-type">
+            <select id="basic-participant-type-h2h">
                 <option value="INDIVIDUAL" {% if not cfg or cfg.participant_type == 'INDIVIDUAL' %}selected{% endif %}>👤 Individual</option>
                 <option value="TEAM" {% if cfg and cfg.participant_type == 'TEAM' %}selected{% endif %}>👥 Team</option>
                 <option value="MIXED" disabled {% if cfg and cfg.participant_type == 'MIXED' %}selected{% endif %}>🔀 Mixed (coming soon)</option>
@@ -277,19 +365,63 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             {% if cfg and cfg.participant_type == 'TEAM' %}
             <a href="/admin/tournaments/{{ t.id }}/teams" class="btn btn-sm btn-outline" style="margin-top:6px">👥 Manage Teams →</a>
             {% endif %}
-            <span class="field-hint">MIXED ranking stays a P3 feature — not yet wired up</span>
+        </div>
+        <div class="form-group">
+            <label>Game Preset</label>
+            <select id="basic-game-preset-id-h2h">
+                <option value="">— No preset —</option>
+                {% for gp in game_presets %}
+                <option value="{{ gp.id }}" {% if preset and gp.id == preset.id %}selected{% endif %}>{{ gp.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    {# ── INDIVIDUAL_RANKING fields ── #}
+    <div class="form-row" id="group-ir-fields">
+        <div class="form-group">
+            <label>Scoring Type</label>
+            <select id="basic-scoring-type">
+                <option value="PLACEMENT"      {% if cfg and cfg.scoring_type == 'PLACEMENT'      %}selected{% endif %}>Placement — ranked by position</option>
+                <option value="TIME_BASED"     {% if cfg and cfg.scoring_type == 'TIME_BASED'     %}selected{% endif %}>Time-based — e.g. 100m sprint</option>
+                <option value="SCORE_BASED"    {% if cfg and cfg.scoring_type == 'SCORE_BASED'    %}selected{% endif %}>Score-based — e.g. points, goals</option>
+                <option value="DISTANCE_BASED" {% if cfg and cfg.scoring_type == 'DISTANCE_BASED' %}selected{% endif %}>Distance-based — e.g. long jump</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Measurement Unit <span style="color:#a0aec0">(optional)</span></label>
+            <input type="text" id="basic-measurement-unit"
+                   value="{{ cfg.measurement_unit or '' }}"
+                   placeholder="e.g. seconds, meters, points">
+            <span class="field-hint">Displayed with results</span>
+        </div>
+        <div class="form-group">
+            <label>Ranking Direction</label>
+            <select id="basic-ranking-direction">
+                <option value="DESC" {% if not cfg or cfg.ranking_direction != 'ASC' %}selected{% endif %}>DESC — highest wins (score, distance)</option>
+                <option value="ASC"  {% if cfg and cfg.ranking_direction == 'ASC'    %}selected{% endif %}>ASC — lowest wins (time: sprint)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Participant Type</label>
+            <select id="basic-participant-type-ir">
+                <option value="INDIVIDUAL" {% if not cfg or cfg.participant_type == 'INDIVIDUAL' %}selected{% endif %}>👤 Individual</option>
+                <option value="TEAM" {% if cfg and cfg.participant_type == 'TEAM' %}selected{% endif %}>👥 Team</option>
+            </select>
         </div>
         <div class="form-group">
             <label>Number of Rounds</label>
             <input type="number" id="basic-rounds" value="{{ cfg.number_of_rounds if cfg else 1 }}" min="1" max="10">
-            <span class="field-hint">1–10 · INDIVIDUAL_RANKING only</span>
+            <span class="field-hint">1–10 rounds per session</span>
         </div>
         <div class="form-group">
-            <label>Game Preset <span style="color:#a0aec0">(read-only — set at creation)</span></label>
-            <input type="text" value="{{ preset.name if preset else '— No preset —' }}" disabled style="background:#f7fafc;color:#718096;">
-            {% if preset %}
-            <span class="field-hint">Skills: {{ preset.game_config.get('metadata', {}).get('skills', '') if preset.game_config else '' }}</span>
-            {% endif %}
+            <label>Game Preset</label>
+            <select id="basic-game-preset-id-ir">
+                <option value="">— No preset —</option>
+                {% for gp in game_presets %}
+                <option value="{{ gp.id }}" {% if preset and gp.id == preset.id %}selected{% endif %}>{{ gp.name }}</option>
+                {% endfor %}
+            </select>
         </div>
     </div>
 
@@ -332,6 +464,34 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <span class="field-hint">Number of simultaneous pitches/boards</span>
         </div>
     </div>
+
+    <div class="form-row" style="margin-top:1rem;">
+        <div class="form-group">
+            <label>Check-In Opens At (UTC)</label>
+            <input type="datetime-local" id="sched-checkin-opens-at"
+                   value="{{ schedule.checkin_opens_at[:16] if schedule.checkin_opens_at else '' }}">
+            <span class="field-hint">Scheduler auto-transitions ENROLLMENT_CLOSED → CHECK_IN_OPEN at this time. Leave blank for manual only.</span>
+        </div>
+    </div>
+
+    {% if t.format == 'HEAD_TO_HEAD' %}
+    <div class="form-row" style="margin-top:1rem;">
+        <div class="form-group">
+            <label>Number of Legs</label>
+            <input type="number" id="sched-number-of-legs"
+                   value="{{ schedule.number_of_legs or 1 }}" min="1" step="1" style="width:6rem;">
+            <span class="field-hint">1 = single round, 2 = home &amp; away, 3 = triple round, …</span>
+        </div>
+        <div class="form-group" style="align-self:flex-end;">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="checkbox" id="sched-track-home-away"
+                       {% if schedule.track_home_away %}checked{% endif %}>
+                Track Home / Away sides
+            </label>
+            <span class="field-hint">Even legs reverse each pairing so the &ldquo;home&rdquo; team becomes &ldquo;away&rdquo;.</span>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveScheduleConfig()">💾 Save Schedule Config</button>
@@ -392,11 +552,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </tbody>
     </table>
 
-    {# ── Skills ── #}
-    <p style="font-size:0.85rem;font-weight:700;color:#4a5568;margin-bottom:0.6rem;">
-        Skills (at least 1 must be enabled for reward distribution)
-    </p>
-    <div id="reward-skills-form" style="columns:2;column-gap:1.5rem;margin-bottom:1.25rem;"></div>
+    {# ── Skills — always driven by game preset (mandatory) ── #}
+    <div class="info-banner" style="margin-bottom:1.25rem;">
+        ℹ️ Skill rewards are automatically determined by the game preset
+        {% if t.game_preset %}<strong>({{ t.game_preset.name }})</strong>{% endif %}.
+    </div>
 
     <div class="save-row">
         <button class="btn btn-primary" onclick="saveRewardConfig()">💾 Save Reward Config</button>
@@ -404,66 +564,232 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
 </div>
 
-{# ── SECTION 4: Enrolled Players / Check-in Status ────────────────────────── #}
+    {% if step1_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">📢 Open Enrollment</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-1 #}
+
+{# ── STEP 2: Enrollment ───────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step2_state }}" id="wiz-step-2">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-2')">
+    <div class="wiz-num">{% if step2_state == 'done' %}✓{% else %}2{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Enrollment</div>
+      <div class="wiz-step-subtitle">{{ enrolled_count }} {{ 'team' if (cfg and cfg.participant_type == 'TEAM') else 'player' }}{{ 's' if enrolled_count != 1 else '' }} enrolled</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step2_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+
+{# ── SECTION 4: Enrolled Players / Teams ─────────────────────────────────── #}
+{% if cfg and cfg.participant_type == 'TEAM' %}
 <div class="card" id="section-checkin">
     <div class="section-header">
-        <span class="section-icon">✅</span>
+        <span class="section-icon">👥</span>
+        <h2>Enrolled Teams</h2>
+    </div>
+    <div class="stats-row" style="margin-bottom:1rem;">
+        <div class="stat-card">
+            <div class="val">{{ enrolled_teams|length }}</div>
+            <div class="lbl">Enrolled Teams</div>
+        </div>
+    </div>
+    <a href="/admin/tournaments/{{ t.id }}/teams" class="btn btn-primary" style="display:inline-block;">👥 Manage Teams →</a>
+</div>
+{% else %}
+<div class="card" id="section-checkin">
+    <div class="section-header">
+        <span class="section-icon">👤</span>
         <h2>Enrolled Players</h2>
     </div>
-
     <div class="stats-row" style="margin-bottom:1rem;">
         <div class="stat-card">
             <div class="val">{{ enrollments|length }}</div>
-            <div class="lbl">Enrolled</div>
+            <div class="lbl">Enrolled Players</div>
         </div>
-        <div class="stat-card">
-            <div class="val">{{ checked_in_count }}</div>
-            <div class="lbl">Checked In</div>
-        </div>
-        <div class="stat-card">
-            <div class="val">{{ enrollments|length - checked_in_count }}</div>
-            <div class="lbl">Pending Check-in</div>
-        </div>
-        {% if preset_min_players %}
-        <div class="stat-card">
-            <div class="val" style="{% if enrollments|length >= preset_min_players %}color:#27ae60{% else %}color:#e74c3c{% endif %}">{{ preset_min_players }}</div>
-            <div class="lbl">Min Players (preset)</div>
-        </div>
+    </div>
+    <a href="/admin/tournaments/{{ t.id }}/players" class="btn btn-primary" style="display:inline-block;">👤 Manage Players →</a>
+</div>
+{% endif %}
+
+    {% if step2_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-warning"
+              {% if enrolled_count < 2 %}disabled title="Need at least 2 participants" style="opacity:.5;cursor:not-allowed"{% endif %}
+              onclick="transitionStatus('ENROLLMENT_CLOSED')">🔒 Close Enrollment</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-2 #}
+
+{# ── STEP 3: Preparation ──────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step3_state }}" id="wiz-step-3">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-3')">
+    <div class="wiz-num">{% if step3_state == 'done' %}✓{% else %}3{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Preparation</div>
+      <div class="wiz-step-subtitle">{{ enrolled_count }} enrolled · {{ schedule.match_duration_minutes or 90 }} min matches · {{ schedule.parallel_fields or 1 }} field(s)</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step3_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+
+{# ── SECTION 4.5: Instructor Roster ───────────────────────────────────────── #}
+<div class="card" id="section-instructors">
+    <div class="section-header">
+        <span class="section-icon">🧑‍🏫</span>
+        <h2>Instructor Roster</h2>
+        {% set _field_slots_count = instructor_roster | selectattr("role","equalto","FIELD") | list | length %}
+        {% set _parallel = schedule.parallel_fields or 1 %}
+        {% if _field_slots_count != _parallel %}
+        <span id="instructor-mismatch-badge" style="margin-left:0.75rem; background:#fff3cd; color:#856404; border:1px solid #ffc107; border-radius:0.4rem; padding:0.2rem 0.6rem; font-size:0.8rem; font-weight:600;">
+            ⚠️ {{ _field_slots_count }}/{{ _parallel }} field instructors
+        </span>
+        {% else %}
+        <span id="instructor-mismatch-badge" style="display:none;"></span>
         {% endif %}
     </div>
 
-    {% if enrollments %}
-    <div class="info-banner">
-        Players self-check-in within 15 min of tournament start. If 0 check-ins occur, session
-        generation falls back to all approved enrollments automatically.
+    {% set master_slot = instructor_roster | selectattr("role","equalto","MASTER") | list | first %}
+    {% set field_slots = instructor_roster | selectattr("role","equalto","FIELD") | list %}
+
+    {# ── Master Instructor ── #}
+    <div style="margin-bottom:1.5rem;">
+        <div style="font-weight:700; color:#4a5568; margin-bottom:0.6rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em;">Master Instructor</div>
+        {% if master_slot %}
+        <div class="instructor-row" id="slot-row-{{ master_slot.slot_id }}">
+            <div style="flex:1;">
+                <span style="font-weight:600;">{{ master_slot.instructor_name }}</span>
+                {% if master_slot.notes %}<span style="color:#a0aec0; font-size:0.82rem;"> — {{ master_slot.notes }}</span>{% endif %}
+            </div>
+            <span class="slot-badge slot-{{ master_slot.status | lower }}">{{ master_slot.status }}</span>
+            {% if master_slot.status != "CHECKED_IN" %}
+            <button class="action-btn action-btn-green" onclick="slotCheckin({{ t.id }}, {{ master_slot.slot_id }})">✅ Check-in</button>
+            {% endif %}
+            {% if master_slot.status != "ABSENT" %}
+            <button class="action-btn action-btn-red" onclick="slotAbsent({{ t.id }}, {{ master_slot.slot_id }})">❌ Absent</button>
+            {% endif %}
+            <button class="action-btn" onclick="slotRemove({{ t.id }}, {{ master_slot.slot_id }})">🗑</button>
+        </div>
+        {% else %}
+        <div style="color:#a0aec0; font-style:italic; margin-bottom:0.8rem;">No master instructor assigned.</div>
+        {% endif %}
+
+        <form id="add-master-form" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+            <select name="instructor_id" style="flex:2; min-width:180px;" required>
+                <option value="">— Select instructor —</option>
+                {% for inst in eligible_instructors %}
+                <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.email }})</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="role" value="MASTER">
+            <input type="text" name="notes" placeholder="Notes (optional)" style="flex:2; min-width:150px;">
+            <button type="button" class="action-btn action-btn-primary" onclick="addSlot({{ t.id }}, 'add-master-form')">+ Assign Master</button>
+        </form>
     </div>
 
-    <div style="max-height:320px;overflow-y:auto;">
-        {% for enrollment in enrollments %}
-        {% set player = enrolled_users.get(enrollment.user_id) %}
-        <div class="checkin-row">
-            <div style="flex:1">
-                <div class="checkin-name">{{ player.full_name if player else 'User #' ~ enrollment.user_id }}</div>
-                <div class="checkin-email">{{ player.email if player else '' }}</div>
-            </div>
-            <div>
-                <span class="badge badge-{% if enrollment.request_status.value == 'APPROVED' %}student{% else %}instructor{% endif %}"
-                      style="font-size:0.75rem;">{{ enrollment.request_status.value }}</span>
-            </div>
-            <div class="checkin-status {% if enrollment.tournament_checked_in_at %}checked-in{% else %}not-checked-in{% endif %}">
-                {% if enrollment.tournament_checked_in_at %}
-                    ✅ {{ enrollment.tournament_checked_in_at.strftime('%H:%M') }}
-                {% else %}
-                    ⬜ Not checked in
+    {# ── Field Instructors ── #}
+    <div>
+        <div style="font-weight:700; color:#4a5568; margin-bottom:0.6rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.05em;">Field Instructors</div>
+        <div id="field-slots-container">
+            {% for slot in field_slots %}
+            <div class="instructor-row" id="slot-row-{{ slot.slot_id }}">
+                <div style="flex:1;">
+                    <span style="font-weight:600;">{{ slot.instructor_name }}</span>
+                    {% if slot.pitch_name %}<span style="color:#667eea; font-size:0.82rem; margin-left:0.4rem;">📍 {{ slot.pitch_name }}</span>{% endif %}
+                    {% if slot.notes %}<span style="color:#a0aec0; font-size:0.82rem;"> — {{ slot.notes }}</span>{% endif %}
+                </div>
+                <span class="slot-badge slot-{{ slot.status | lower }}">{{ slot.status }}</span>
+                {% if slot.status != "CHECKED_IN" %}
+                <button class="action-btn action-btn-green" onclick="slotCheckin({{ t.id }}, {{ slot.slot_id }})">✅ Check-in</button>
                 {% endif %}
+                {% if slot.status != "ABSENT" %}
+                <button class="action-btn action-btn-red" onclick="slotAbsent({{ t.id }}, {{ slot.slot_id }})">❌ Absent</button>
+                {% endif %}
+                <button class="action-btn" onclick="slotRemove({{ t.id }}, {{ slot.slot_id }})">🗑</button>
             </div>
+            {% else %}
+            <div style="color:#a0aec0; font-style:italic; margin-bottom:0.8rem;" id="no-field-slots">No field instructors assigned.</div>
+            {% endfor %}
         </div>
-        {% endfor %}
+
+        <form id="add-field-form" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.8rem;">
+            <select name="instructor_id" style="flex:2; min-width:180px;" required>
+                <option value="">— Select instructor —</option>
+                {% for inst in eligible_instructors %}
+                <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.email }})</option>
+                {% endfor %}
+            </select>
+            <select name="pitch_id" style="flex:1; min-width:150px;" required>
+                <option value="">— Select pitch —</option>
+                {% for p in pitches_for_roster %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="role" value="FIELD">
+            <input type="text" name="notes" placeholder="Notes (optional)" style="flex:2; min-width:150px;">
+            <button type="button" class="action-btn action-btn-primary" onclick="addSlot({{ t.id }}, 'add-field-form')">+ Add Field Instructor</button>
+        </form>
     </div>
-    {% else %}
-        <p style="color:#718096;font-style:italic;">No enrollments yet.</p>
+
+    {# ── Fallback Panel ── #}
+    {% if has_absent_field %}
+    <div id="fallback-panel" style="margin-top:1.5rem; padding:1rem 1.25rem; background:#fffbeb; border-left:4px solid #f6ad55; border-radius:8px;">
+        <div style="font-weight:700; color:#92400e; margin-bottom:0.4rem;">⚠️ Fallback available</div>
+        <div id="fallback-summary" style="color:#78350f; font-size:0.9rem; margin-bottom:0.8rem;">Loading fallback plan…</div>
+        <button class="action-btn action-btn-primary" onclick="loadAndApplyFallback({{ t.id }})">Fallback alkalmazása →</button>
+    </div>
     {% endif %}
 </div>
+
+    {% if step3_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-warning" onclick="transitionStatus('CHECK_IN_OPEN')">⏰ Open Check-In</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-3 #}
+
+{# ── STEP 4: Check-in ─────────────────────────────────────────────────────── #}
+<div class="wiz-step {{ step4_state }}" id="wiz-step-4">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-4')">
+    <div class="wiz-num">{% if step4_state == 'done' %}✓{% else %}4{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Check-in &amp; Start</div>
+      <div class="wiz-step-subtitle">Check-in open{% if t.checkin_opens_at %} since {{ t.checkin_opens_at.strftime('%Y-%m-%d %H:%M') }} UTC{% endif %}</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step4_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+    <div class="card">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1rem;">
+        <div class="stat-card"><div class="val">{{ enrolled_count }}</div><div class="lbl">Enrolled</div></div>
+        <div class="stat-card"><div class="val">{{ checked_in_count }}</div><div class="lbl">Checked In</div></div>
+      </div>
+      <div class="info-banner">ℹ️ Sessions will be auto-generated when you start the tournament.</div>
+    </div>
+    {% if step4_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-start" onclick="transitionStatus('IN_PROGRESS')">🚀 Start Tournament</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-4 #}
+
+{# ── STEP 5: Record Results ───────────────────────────────────────────────── #}
+<div class="wiz-step {{ step5_state }}" id="wiz-step-5">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-5')">
+    <div class="wiz-num">{% if step5_state == 'done' %}✓{% else %}5{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Record Results</div>
+      <div class="wiz-step-subtitle">{{ completed_session_count }} / {{ session_count }} sessions completed</div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step5_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
 
 {# ── SECTION 5: Session Generation ────────────────────────────────────────── #}
 <div class="card" id="section-sessions">
@@ -478,7 +804,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <div class="lbl">Sessions</div>
         </div>
         <div class="stat-card">
-            <div class="val">{{ '✅' if (cfg and cfg.sessions_generated) else '⬜' }}</div>
+            <div class="val">{{ '✅' if (cfg and cfg.sessions_generated) else '—' }}</div>
             <div class="lbl">Generated</div>
         </div>
         <div class="stat-card">
@@ -524,11 +850,13 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         <button class="btn btn-primary" id="btn-generate-sessions"
                 onclick="openSessionGenWizard()"
                 {% if t.tournament_status not in ['ENROLLMENT_CLOSED', 'IN_PROGRESS'] %}
+                disabled
                 title="Available when tournament is ENROLLMENT_CLOSED or IN_PROGRESS"
                 style="opacity:0.5;cursor:not-allowed"
                 {% endif %}>
             ⚡ Generate Sessions
         </button>
+        <a href="/admin/tournaments/{{ t.id }}/attendance" class="btn btn-secondary">📋 Attendance</a>
         {% if session_count > 0 %}
         <a href="/admin/sessions?semester_id={{ t.id }}" class="btn btn-secondary">📋 View All Sessions</a>
         {% endif %}
@@ -552,12 +880,26 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         {% for sess in sessions_result_status %}
         <div class="session-list-row" style="justify-content:space-between;padding:0.65rem 0;">
             <div style="flex:1;min-width:0;">
-                <span class="sess-time">{{ sess.date_start }}</span>
-                <span style="margin-left:0.5rem;font-size:0.88rem;">{{ sess.title }}</span>
+                <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.15rem;">
+                    <span class="sess-time">{{ sess.date_start }}</span>
+                    {% if sess.tournament_round %}
+                    <span style="background:#e2e8f0;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#4a5568;">R{{ sess.tournament_round }}</span>
+                    {% endif %}
+                    {% if sess.group_identifier %}
+                    <span style="background:#bee3f8;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#2b6cb0;">Group {{ sess.group_identifier }}</span>
+                    {% endif %}
+                </div>
+                {% if sess.matchup_label %}
+                <span style="font-weight:700;font-size:0.95rem;color:#2d3748;">{{ sess.matchup_label }}</span>
+                {% else %}
+                <span style="font-size:0.85rem;color:#718096;">{{ sess.title }}</span>
+                {% endif %}
                 <span class="sess-type" style="margin-left:0.4rem;">{{ sess.match_format }}</span>
             </div>
             <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
-                {% if sess.has_results %}
+                {% if sess.postponed_reason %}
+                    <span style="color:#c05621;font-weight:600;font-size:0.85rem;" title="{{ sess.postponed_reason }}">⏸ Postponed</span>
+                {% elif sess.has_results %}
                     <span style="color:#27ae60;font-weight:600;font-size:0.85rem;">✅ Results entered</span>
                 {% else %}
                     <span style="color:#a0aec0;font-size:0.85rem;">⬜ No results</span>
@@ -567,6 +909,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
                         style="font-size:0.78rem;padding:0.3rem 0.75rem;"
                         onclick="openResultModal({{ sess.id }}, '{{ sess.match_format }}', {{ sess.participant_user_ids | tojson }}, {{ sess.participant_team_ids | tojson }})">
                     ✏️ Enter Results
+                </button>
+                <button class="btn btn-secondary"
+                        style="font-size:0.78rem;padding:0.3rem 0.75rem;{% if sess.postponed_reason %}background:#fffaf0;border-color:#fed7aa;color:#c05621;{% endif %}"
+                        onclick="openPostponeModal({{ sess.id }}, {{ sess.postponed_reason | tojson }})">
+                    ⏸ {% if sess.postponed_reason %}Edit Postpone{% else %}Postpone{% endif %}
                 </button>
                 {% endif %}
             </div>
@@ -579,7 +926,24 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 </div>
 {% endif %}
 
-{# ── SECTION 8: Rankings & Skill Delta ────────────────────────────────────── #}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-5 #}
+
+{# ── STEP 6: Rank & Finalize ──────────────────────────────────────────────── #}
+<div class="wiz-step {{ step6_state }}" id="wiz-step-6">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-6')">
+    <div class="wiz-num">{% if step6_state == 'done' %}✓{% else %}6{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Rank &amp; Finalize</div>
+      <div class="wiz-step-subtitle">
+        {% if _has_rankings %}Rankings ready · {{ existing_rankings | length }} entries{% else %}Ready to calculate{% endif %}
+      </div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step6_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+
+{# ── SECTION 8: Rankings ──────────────────────────────────────────────────── #}
 {% if session_count > 0 and t.tournament_status in ['IN_PROGRESS', 'COMPLETED', 'REWARDS_DISTRIBUTED'] %}
 <div class="card" id="section-rankings">
     <div class="section-header">
@@ -587,20 +951,74 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         <h2>Rankings</h2>
         {% if existing_rankings %}
         <span style="font-size:0.8rem;color:#27ae60;margin-left:auto;">
-            ✅ {{ existing_rankings | length }} players ranked
+            ✅ {{ existing_rankings | length }} {% if cfg and cfg.participant_type == 'TEAM' %}teams{% else %}players{% endif %} ranked
         </span>
         {% endif %}
     </div>
 
     <div class="save-row" style="margin-bottom:1rem;">
+        {% if not existing_rankings and t.tournament_status == 'IN_PROGRESS' %}
         <button class="btn btn-primary" onclick="calculateRankings({{ t.id }})">
             🔢 Calculate Rankings
         </button>
+        {% endif %}
         <button class="btn btn-secondary" onclick="loadRankings({{ t.id }})">
             🔄 Refresh
         </button>
         <span id="ranking-status" style="font-size:0.85rem;color:#718096;"></span>
     </div>
+
+    {% if group_standings %}
+    <div style="margin-bottom:1.5rem;">
+        <h4 style="font-size:0.9rem;font-weight:700;color:#4a5568;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">
+            Group Stage Standings
+        </h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+            {% for grp, grp_rows in group_standings.items() %}
+            <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                <div style="background:#667eea;color:white;padding:0.4rem 0.75rem;font-weight:700;font-size:0.85rem;">
+                    Group {{ grp }}
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                    <thead>
+                        <tr style="background:#f7fafc;">
+                            <th style="padding:0.35rem 0.5rem;text-align:left;">#</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:left;">Team / Player</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:right;">Pts</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:right;">W/D/L</th>
+                            <th style="padding:0.35rem 0.5rem;text-align:right;">GF/GA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in grp_rows %}
+                        <tr style="border-top:1px solid #f0f0f0;">
+                            <td style="padding:0.35rem 0.5rem;">
+                                {% if r.rank == 1 %}🥇{% elif r.rank == 2 %}🥈{% elif r.rank == 3 %}🥉{% else %}{{ r.rank }}{% endif %}
+                            </td>
+                            <td style="padding:0.35rem 0.5rem;font-weight:600;">
+                                {% if r.team_id %}
+                                    🏆 {{ ranking_teams[r.team_id].name if r.team_id in ranking_teams else 'Team #' ~ r.team_id }}
+                                {% else %}
+                                    {% set p = ranking_users.get(r.user_id) %}
+                                    {{ p.full_name if p else 'Player #' ~ r.user_id }}
+                                {% endif %}
+                            </td>
+                            <td style="padding:0.35rem 0.5rem;text-align:right;font-weight:700;">{{ r.points | int }}</td>
+                            <td style="padding:0.35rem 0.5rem;text-align:right;color:#718096;">{{ r.wins }}/{{ r.draws }}/{{ r.losses }}</td>
+                            <td style="padding:0.35rem 0.5rem;text-align:right;color:#718096;">{{ r.goals_for }}/{{ r.goals_against }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin-bottom:1rem;">
+    <h4 style="font-size:0.9rem;font-weight:700;color:#4a5568;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.05em;">
+        Overall Rankings
+    </h4>
+    {% endif %}
 
     <div id="rankings-table-container">
         {% if existing_rankings %}
@@ -608,28 +1026,33 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <thead>
                 <tr>
                     <th style="text-align:left;">#</th>
-                    <th style="text-align:left;">Player</th>
+                    <th style="text-align:left;">{% if cfg and cfg.participant_type == 'TEAM' %}Team{% else %}Player{% endif %}</th>
                     <th style="text-align:right;">Score / Points</th>
                     <th style="text-align:right;">W / D / L</th>
-                    {% if t.tournament_status == 'REWARDS_DISTRIBUTED' %}
-                    <th style="text-align:right;">XP</th>
-                    <th style="text-align:right;">Credits</th>
-                    <th style="text-align:right;">Skill Δ</th>
-                    {% endif %}
+                    <th style="text-align:right;">GF / GA</th>
                 </tr>
             </thead>
             <tbody>
                 {% for r in existing_rankings %}
-                {% set player = ranking_users.get(r.user_id) %}
                 <tr>
                     <td style="padding:0.5rem;">
                         {% if r.rank == 1 %}🥇{% elif r.rank == 2 %}🥈{% elif r.rank == 3 %}🥉
                         {% else %}{{ r.rank }}{% endif %}
                     </td>
-                    <td style="padding:0.5rem;">{{ player.full_name if player else 'User #' ~ r.user_id }}</td>
+                    <td style="padding:0.5rem;font-weight:600;">
+                        {% if r.team_id %}
+                            🏆 {{ ranking_teams[r.team_id].name if r.team_id in ranking_teams else 'Team #' ~ r.team_id }}
+                        {% else %}
+                            {% set player = ranking_users.get(r.user_id) %}
+                            {{ player.full_name if player else 'Player #' ~ r.user_id }}
+                        {% endif %}
+                    </td>
                     <td style="padding:0.5rem;text-align:right;font-weight:600;">{{ r.points or 0 }}</td>
                     <td style="padding:0.5rem;text-align:right;color:#718096;">
                         {{ r.wins or 0 }} / {{ r.draws or 0 }} / {{ r.losses or 0 }}
+                    </td>
+                    <td style="padding:0.5rem;text-align:right;color:#718096;">
+                        {{ (r.goals_for or 0) | int }} / {{ (r.goals_against or 0) | int }}
                     </td>
                 </tr>
                 {% endfor %}
@@ -643,6 +1066,58 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
 </div>
 {% endif %}
+
+    {% if step6_state == 'active' %}
+    <div class="wiz-action-row">
+      {% if not _has_rankings %}
+      <button class="btn btn-primary" onclick="wizCalculateRankings({{ t.id }})">🔢 Calculate Rankings</button>
+      {% else %}
+      <button class="btn btn-warning" onclick="wizFinalize({{ t.id }})">🏁 Finalize Tournament</button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-6 #}
+
+{# ── STEP 7: Distribute Rewards ───────────────────────────────────────────── #}
+<div class="wiz-step {{ step7_state }}" id="wiz-step-7">
+  <div class="wiz-step-header" onclick="wizToggle('wiz-step-7')">
+    <div class="wiz-num">{% if step7_state == 'done' %}✓{% else %}7{% endif %}</div>
+    <div style="flex:1">
+      <div class="wiz-step-title">Distribute Rewards</div>
+      <div class="wiz-step-subtitle">
+        {% if step7_state == 'done' %}Rewards distributed · REWARDS_DISTRIBUTED
+        {% elif step7_state == 'active' %}Tournament completed — distribute rewards to {{ existing_rankings | length }} participants
+        {% else %}Complete the tournament first{% endif %}
+      </div>
+    </div>
+    <span style="color:#a0aec0;font-size:.8rem;">{% if step7_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
+  </div>
+  <div class="wiz-step-body">
+    {% if existing_rankings %}
+    <div class="card">
+      <p style="font-size:.85rem;font-weight:700;color:#4a5568;margin-bottom:.75rem;">Top Rankings</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;">
+        {% for r in existing_rankings[:3] %}
+        <div class="reward-tier">
+          <div class="tier-label">{% if r.rank == 1 %}🥇 1st{% elif r.rank == 2 %}🥈 2nd{% else %}🥉 3rd{% endif %}</div>
+          <div class="tier-credits" style="font-size:1rem;">
+            {% if r.team_id %}{{ ranking_teams[r.team_id].name if r.team_id in ranking_teams else 'Team #' ~ r.team_id }}
+            {% else %}{% set _p = ranking_users.get(r.user_id) %}{{ _p.full_name if _p else 'Player #' ~ r.user_id }}{% endif %}
+          </div>
+          <div class="tier-xp">{{ r.points or 0 }} pts</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if step7_state == 'active' %}
+    <div class="wiz-action-row">
+      <button class="btn btn-success" onclick="wizDistributeRewards({{ t.id }})">🎁 Distribute Rewards</button>
+    </div>
+    {% endif %}
+  </div>{# /wiz-step-body #}
+</div>{# /wiz-step-7 #}
 
 {# ── Result Entry Modal ────────────────────────────────────────────────────── #}
 <div id="result-modal-overlay"
@@ -671,8 +1146,8 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     </div>
 </div>
 
-{# ── SECTION 6: Results & Finalization ────────────────────────────────────── #}
-<div class="card" id="section-results">
+{# ── SECTION 6: Legacy Results & Finalization (hidden — wizard handles this) ── #}
+<div class="card" id="section-results" style="display:none">
     <div class="section-header">
         <span class="section-icon">🏅</span>
         <h2>Results &amp; Finalization</h2>
@@ -701,28 +1176,26 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             🔒 Close Enrollment
         </button>
         {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
+        <button class="btn btn-warning" onclick="transitionStatus('CHECK_IN_OPEN')">
+            ⏰ Open Check-In
+        </button>
+        {% elif t.tournament_status == 'CHECK_IN_OPEN' %}
         <button class="btn btn-start" onclick="transitionStatus('IN_PROGRESS')">
             🚀 Start Tournament
         </button>
         {% endif %}
 
-        <button class="btn btn-warning"
-                onclick="finalizeResults({{ t.id }})"
-                {% if t.tournament_status != 'IN_PROGRESS' %}
-                title="Only available for IN_PROGRESS tournaments"
-                style="opacity:0.5;cursor:not-allowed"
-                {% endif %}>
+        {% if t.tournament_status == 'IN_PROGRESS' and existing_rankings %}
+        <button class="btn btn-warning" onclick="finalizeResults({{ t.id }})">
             🏁 Finalize Tournament
         </button>
+        {% endif %}
 
-        <button class="btn btn-success"
-                onclick="distributeRewards({{ t.id }})"
-                {% if t.tournament_status not in ['IN_PROGRESS', 'COMPLETED'] %}
-                title="Available for IN_PROGRESS or COMPLETED tournaments"
-                style="opacity:0.5;cursor:not-allowed"
-                {% endif %}>
+        {% if t.tournament_status == 'COMPLETED' %}
+        <button class="btn btn-success" onclick="distributeRewards({{ t.id }})">
             🎁 Distribute Rewards
         </button>
+        {% endif %}
 
         <a href="/admin/tournaments" class="btn btn-secondary">← Back to Tournaments</a>
     </div>
@@ -741,12 +1214,63 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
   </div>
 </div>
 
+{# ── Postpone modal ────────────────────────────────────────────────────────── #}
+<div id="postpone-overlay" onclick="if(event.target===this)closePostponeModal()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:12px;padding:1.5rem 2rem;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <h3 style="margin:0 0 1rem;font-size:1.1rem;color:#2d3748;">⏸ Postpone Match</h3>
+        <p style="font-size:0.875rem;color:#718096;margin-bottom:0.75rem;">Provide a reason for postponing this match.</p>
+        <textarea id="postpone-reason-input"
+                  rows="3"
+                  placeholder="e.g. Pitch unavailable, weather conditions…"
+                  style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.75rem;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+        <div style="display:flex;gap:0.75rem;margin-top:1rem;justify-content:flex-end;">
+            <button onclick="closePostponeModal()" style="padding:0.5rem 1.25rem;border:1px solid #e2e8f0;border-radius:8px;background:white;color:#718096;cursor:pointer;font-weight:600;">Cancel</button>
+            <button onclick="submitPostpone()" style="padding:0.5rem 1.25rem;border:none;border-radius:8px;background:#ed8936;color:white;cursor:pointer;font-weight:700;">Save Postpone</button>
+            <button onclick="clearPostpone()" id="postpone-clear-btn" style="display:none;padding:0.5rem 1.25rem;border:1px solid #fed7aa;border-radius:8px;background:#fffaf0;color:#c05621;cursor:pointer;font-weight:600;">✗ Clear</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/session-gen-wizard.js"></script>
+<script src="/static/js/session-gen-wizard.js?v=2"></script>
 <script>
 const TOURN_ID = {{ t.id }};
+
+// ── Format toggle ─────────────────────────────────────────────────────────────
+let _currentFormat = '{{ t.format }}';
+
+function setTournamentFormat(fmt) {
+    _currentFormat = fmt;
+    const h2h = document.getElementById('group-h2h-fields');
+    const ir  = document.getElementById('group-ir-fields');
+    const btnH2H = document.getElementById('btn-fmt-h2h');
+    const btnIR  = document.getElementById('btn-fmt-ir');
+    const hint   = document.getElementById('fmt-hint');
+
+    if (fmt === 'HEAD_TO_HEAD') {
+        h2h.style.display = '';
+        ir.style.display  = 'none';
+        btnH2H.style.outline = '3px solid #2b6cb0';
+        btnH2H.style.boxShadow = '0 0 0 3px rgba(43,108,176,0.2)';
+        btnIR.style.outline = '';
+        btnIR.style.boxShadow = '';
+        hint.textContent = '⚔️ 1-vs-1 matches — bracket, league, or swiss system';
+    } else {
+        h2h.style.display = 'none';
+        ir.style.display  = '';
+        btnIR.style.outline = '3px solid #276749';
+        btnIR.style.boxShadow = '0 0 0 3px rgba(39,103,73,0.2)';
+        btnH2H.style.outline = '';
+        btnH2H.style.boxShadow = '';
+        hint.textContent = '🏅 All players compete individually — ranked by score, time, distance or placement';
+    }
+}
+
+// Initialise on page load
+document.addEventListener('DOMContentLoaded', () => setTournamentFormat(_currentFormat));
 
 // ── Section 1: Basic Info ─────────────────────────────────────────────────────
 async function saveBasicInfo() {
@@ -761,12 +1285,28 @@ async function saveBasicInfo() {
     };
     const maxP = document.getElementById('basic-max-players').value;
     if (maxP) body.max_players = parseInt(maxP);
-    const ttId = document.getElementById('basic-tournament-type').value;
-    if (ttId) body.tournament_type_id = parseInt(ttId);
-    const ptVal = document.getElementById('basic-participant-type').value;
-    if (ptVal) body.participant_type = ptVal;
-    const roundsVal = document.getElementById('basic-rounds').value;
-    if (roundsVal) body.number_of_rounds = parseInt(roundsVal);
+
+    if (_currentFormat === 'HEAD_TO_HEAD') {
+        const ttId = document.getElementById('basic-tournament-type').value;
+        if (ttId) body.tournament_type_id = parseInt(ttId);
+        const ptVal = document.getElementById('basic-participant-type-h2h').value;
+        if (ptVal) body.participant_type = ptVal;
+        const gpVal = document.getElementById('basic-game-preset-id-h2h').value;
+        if (gpVal) body.game_preset_id = parseInt(gpVal);
+    } else {
+        // INDIVIDUAL_RANKING: clear tournament_type_id, send scoring config
+        body.tournament_type_id = null;
+        body.scoring_type    = document.getElementById('basic-scoring-type').value;
+        body.ranking_direction = document.getElementById('basic-ranking-direction').value;
+        const muEl = document.getElementById('basic-measurement-unit');
+        if (muEl && muEl.value.trim()) body.measurement_unit = muEl.value.trim();
+        const ptVal = document.getElementById('basic-participant-type-ir').value;
+        if (ptVal) body.participant_type = ptVal;
+        const roundsVal = document.getElementById('basic-rounds').value;
+        if (roundsVal) body.number_of_rounds = parseInt(roundsVal);
+        const gpVal = document.getElementById('basic-game-preset-id-ir').value;
+        if (gpVal) body.game_preset_id = parseInt(gpVal);
+    }
 
     const statusEl = document.getElementById('basic-save-status');
     statusEl.textContent = 'Saving…';
@@ -793,16 +1333,34 @@ function filterEditCampuses() {
     if (selected && selected.hidden) campusSel.value = '';
 }
 
+function onCampusChange() {
+    const campusSel = document.getElementById('basic-campus-id');
+    const locSel = document.getElementById('basic-location-id');
+    const sel = campusSel.options[campusSel.selectedIndex];
+    if (sel && sel.dataset.location && !locSel.value) {
+        locSel.value = sel.dataset.location;
+    }
+}
+
 // ── Section 2: Schedule Config ────────────────────────────────────────────────
 async function saveScheduleConfig() {
     const matchVal = document.getElementById('sched-match-duration').value;
     const breakVal = document.getElementById('sched-break-duration').value;
     const parallelVal = document.getElementById('sched-parallel-fields').value;
+    const checkinVal = document.getElementById('sched-checkin-opens-at').value;
 
     const body = {};
     if (matchVal)   body.match_duration_minutes  = parseInt(matchVal);
     if (breakVal)   body.break_duration_minutes  = parseInt(breakVal);
     if (parallelVal) body.parallel_fields = parseInt(parallelVal);
+    // Send checkin_opens_at as ISO string (or null to clear)
+    body.checkin_opens_at = checkinVal ? checkinVal + ':00' : null;
+
+    // Multi-leg round robin (HEAD_TO_HEAD only — inputs absent for other formats)
+    const legsEl = document.getElementById('sched-number-of-legs');
+    const homeAwayEl = document.getElementById('sched-track-home-away');
+    if (legsEl) body.number_of_legs = parseInt(legsEl.value, 10) || 1;
+    if (homeAwayEl) body.track_home_away = homeAwayEl.checked;
 
     const statusEl = document.getElementById('sched-save-status');
     statusEl.textContent = 'Saving…';
@@ -811,9 +1369,22 @@ async function saveScheduleConfig() {
         statusEl.textContent = '✅ Saved';
         toast('Schedule config updated');
         setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        if (parallelVal) _updateInstructorMismatchBadge(parseInt(parallelVal));
     } catch (err) {
         statusEl.textContent = '❌ ' + err.message;
         toast(err.message, 'error');
+    }
+}
+
+function _updateInstructorMismatchBadge(newParallel) {
+    const badge = document.getElementById('instructor-mismatch-badge');
+    if (!badge) return;
+    const fieldSlotCount = document.querySelectorAll('#field-slots-container .instructor-row').length;
+    if (fieldSlotCount !== newParallel) {
+        badge.textContent = `⚠️ ${fieldSlotCount}/${newParallel} field instructors`;
+        badge.style.display = '';
+    } else {
+        badge.style.display = 'none';
     }
 }
 
@@ -880,18 +1451,7 @@ async function saveRewardConfig() {
             badges:         tierBadges[tier],
         };
     });
-    _SKILL_OPTS.forEach(opt => {
-        body.skill_mappings.push({
-            skill:    opt.skill,
-            category: opt.category,
-            weight:   parseFloat(document.getElementById(`sk-wt-${opt.skill}`)?.value) || 1.0,
-            enabled:  document.getElementById(`sk-en-${opt.skill}`)?.checked || false,
-        });
-    });
-    if (!body.skill_mappings.some(s => s.enabled)) {
-        toast('At least 1 skill must be enabled', 'error');
-        return;
-    }
+    // skill_mappings intentionally empty — game preset (mandatory) drives skill rewards
     const statusEl = document.getElementById('reward-save-status');
     statusEl.textContent = 'Saving…';
     try {
@@ -910,23 +1470,32 @@ function openSessionGenWizard() {
     SessionGenWizard.open({
         tournId:          {{ t.id }},
         tournName:        {{ t.name | tojson }},
-        enrolledCount:    {{ enrollments|length }},
+        enrolledCount:    {% if cfg and cfg.participant_type == 'TEAM' %}{{ enrolled_teams|length }}{% else %}{{ enrollments|length }}{% endif %},
+        participantType:  {{ (cfg.participant_type if cfg else 'INDIVIDUAL') | tojson }},
         presetMinPlayers: {{ preset_min_players | tojson }},
-        format:           {{ (game_cfg.format if game_cfg and game_cfg.format else 'PLACEMENT') | tojson }},
+        format:           {{ (cfg.format if cfg and cfg.format else 'INDIVIDUAL_RANKING') | tojson }},
         schedule: {
             match_duration_minutes: {{ schedule.match_duration_minutes | tojson }},
             break_duration_minutes: {{ schedule.break_duration_minutes | tojson }},
             parallel_fields:        {{ schedule.parallel_fields or 1 }},
+            number_of_rounds:       {{ cfg.number_of_rounds if cfg and cfg.number_of_rounds else 1 }},
+            number_of_legs:         {{ schedule.number_of_legs or 1 }},
+            track_home_away:        {{ 'true' if schedule.track_home_away else 'false' }},
         },
     });
 }
 
-// ── Section 6: Results ────────────────────────────────────────────────────────
+// ── Section 6: Legacy results (kept for backward compat) ─────────────────────
 async function finalizeResults(tournId) {
     if (!confirm('Finalize this tournament? This will lock results and calculate final rankings.')) return;
     try {
         const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/finalize-tournament`, {});
-        toast('Tournament finalized');
+        if (data && data.success === false) {
+            const n = (data.incomplete_matches || []).length;
+            toast(`${data.message || 'Cannot finalize'}${n ? ` (${n} session${n>1?'s':''} incomplete)` : ''}`, 'error');
+            return;
+        }
+        toast('Tournament finalized ✅');
         setTimeout(() => location.reload(), 1500);
     } catch (err) {
         toast(err.message, 'error');
@@ -936,7 +1505,7 @@ async function finalizeResults(tournId) {
 async function distributeRewards(tournId) {
     if (!confirm('Distribute rewards to all participants? This action awards XP, credits, and badges.')) return;
     try {
-        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
+        await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
         toast('Rewards distributed successfully');
         setTimeout(() => location.reload(), 1500);
     } catch (err) {
@@ -944,12 +1513,51 @@ async function distributeRewards(tournId) {
     }
 }
 
-// ── Section 6+: Status lifecycle transition ───────────────────────────────────
+// ── Wizard step actions ───────────────────────────────────────────────────────
+function wizToggle(stepId) {
+    const el = document.getElementById(stepId);
+    if (!el || el.classList.contains('locked')) return;
+    el.classList.toggle('expanded');
+}
+
+async function wizCalculateRankings(tournId) {
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/calculate-rankings`, {});
+        toast(`Rankings calculated — ${data.rankings_count ?? (data.rankings ?? []).length} entries`);
+        setTimeout(() => location.reload(), 1000);
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+async function wizFinalize(tournId) {
+    if (!confirm('Finalize tournament? Results will be locked.')) return;
+    try {
+        const data = await AdminAPI.post(`/api/v1/tournaments/${tournId}/finalize-tournament`, {});
+        if (data && data.success === false) {
+            const n = (data.incomplete_matches || []).length;
+            toast(`${data.message || 'Cannot finalize'}${n ? ` (${n} session${n>1?'s':''} incomplete)` : ''}`, 'error');
+            return;
+        }
+        toast('Tournament finalized ✅');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+async function wizDistributeRewards(tournId) {
+    if (!confirm('Distribute rewards to all ranked participants?')) return;
+    try {
+        await AdminAPI.post(`/api/v1/tournaments/${tournId}/distribute-rewards-v2`, {});
+        toast('Rewards distributed ✅');
+        setTimeout(() => location.reload(), 1500);
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Status lifecycle transition ───────────────────────────────────────────────
 async function transitionStatus(newStatus) {
     const labels = {
-        'ENROLLMENT_OPEN': 'open enrollment for this tournament',
+        'ENROLLMENT_OPEN':   'open enrollment for this tournament',
         'ENROLLMENT_CLOSED': 'close enrollment',
-        'IN_PROGRESS': 'start the tournament (sessions will be auto-generated)',
+        'CHECK_IN_OPEN':     'open check-in for this tournament',
+        'IN_PROGRESS':       'start the tournament (sessions will be auto-generated)',
     };
     if (!confirm(`Are you sure you want to ${labels[newStatus] || newStatus}?`)) return;
     try {
@@ -1042,7 +1650,7 @@ async function loadRankings(tournId) {
 
 // ── Section 7: Result Entry Modal ─────────────────────────────────────────────
 let _currentSessionId = null;
-let _currentFormat = null;
+let _currentMatchFormat = null;
 let _currentParticipantIds = [];
 let _currentTeamIds = [];
 
@@ -1061,7 +1669,7 @@ const ENROLLED_TEAM_NAMES = {
 
 function openResultModal(sessionId, matchFormat, participantIds, teamIds) {
     _currentSessionId = sessionId;
-    _currentFormat = matchFormat;
+    _currentMatchFormat = matchFormat;
     _currentTeamIds = teamIds && teamIds.length > 0 ? teamIds : [];
     _currentParticipantIds = participantIds && participantIds.length > 0
         ? participantIds
@@ -1149,7 +1757,7 @@ async function submitResults() {
                 results,
                 round_number: 1,
             });
-        } else if (_currentFormat === 'HEAD_TO_HEAD') {
+        } else if (_currentMatchFormat === 'HEAD_TO_HEAD') {
             const s0 = parseInt(document.getElementById('h2h-score-0').value) || 0;
             const s1 = parseInt(document.getElementById('h2h-score-1').value) || 0;
             const [p1, p2] = _currentParticipantIds;
@@ -1178,5 +1786,150 @@ async function submitResults() {
 
 document.addEventListener('DOMContentLoaded', initRewardForm);
 document.addEventListener('DOMContentLoaded', filterEditCampuses);
+
+// ── Instructor Roster JS ────────────────────────────────────────────────────
+
+const _csrf = () => (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];
+
+async function addSlot(tournId, formId) {
+    const form = document.getElementById(formId);
+    const fd = new FormData(form);
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots`, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Failed to add slot'), 'error');
+    }
+    toast('Instructor added to roster');
+    setTimeout(() => location.reload(), 800);
+}
+
+async function slotCheckin(tournId, slotId) {
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots/${slotId}/checkin`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Check-in failed'), 'error');
+    }
+    toast('Instructor checked in ✅');
+    setTimeout(() => location.reload(), 600);
+}
+
+async function slotAbsent(tournId, slotId) {
+    if (!confirm('Mark this instructor as ABSENT?')) return;
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots/${slotId}/absent`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Failed'), 'error');
+    }
+    toast('Instructor marked absent ❌');
+    setTimeout(() => location.reload(), 600);
+}
+
+async function slotRemove(tournId, slotId) {
+    if (!confirm('Remove this instructor from the roster?')) return;
+    const resp = await fetch(`/admin/tournaments/${tournId}/instructor-slots/${slotId}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return toast((err.detail || 'Remove failed'), 'error');
+    }
+    toast('Instructor removed');
+    setTimeout(() => location.reload(), 600);
+}
+
+async function loadAndApplyFallback(tournId) {
+    // Fetch plan
+    const r = await fetch(`/admin/tournaments/${tournId}/fallback-plan`, {
+        headers: { 'X-CSRF-Token': _csrf() },
+    });
+    if (!r.ok) return toast('Could not load fallback plan', 'error');
+    const plan = await r.json();
+
+    const msg = `Fallback plan:\n` +
+        `  • Absent field instructors: ${plan.absent_field_count}\n` +
+        `  • Suggested parallel_fields: ${plan.suggested_parallel_fields}\n` +
+        `  • Sessions to reassign: ${plan.affected_sessions_count}\n\nApply now?`;
+    if (!confirm(msg)) return;
+
+    const resp = await fetch(`/admin/tournaments/${tournId}/apply-fallback`, {
+        method: 'POST',
+        body: JSON.stringify(plan),
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _csrf() },
+    });
+    if (!resp.ok) return toast('Fallback apply failed', 'error');
+    const result = await resp.json();
+    toast(`Fallback applied — ${result.updated_sessions} sessions reassigned ✅`);
+    setTimeout(() => location.reload(), 1200);
+}
+
+// ── Postpone modal ────────────────────────────────────────────────────────────
+let _postponeSessionId = null;
+
+function openPostponeModal(sessionId, currentReason) {
+    _postponeSessionId = sessionId;
+    const overlay = document.getElementById('postpone-overlay');
+    const textarea = document.getElementById('postpone-reason-input');
+    const clearBtn = document.getElementById('postpone-clear-btn');
+    textarea.value = currentReason || '';
+    clearBtn.style.display = currentReason ? 'inline-block' : 'none';
+    overlay.style.display = 'flex';
+    textarea.focus();
+}
+
+function closePostponeModal() {
+    document.getElementById('postpone-overlay').style.display = 'none';
+    _postponeSessionId = null;
+}
+
+async function submitPostpone() {
+    const reason = document.getElementById('postpone-reason-input').value.trim();
+    if (!reason) { toast('Please enter a reason', 'warning'); return; }
+    try {
+        await AdminAPI.patch(`/admin/sessions/${_postponeSessionId}/postpone`, { reason });
+        toast('Match postponed');
+        closePostponeModal();
+        setTimeout(() => location.reload(), 800);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function clearPostpone() {
+    if (!confirm('Remove postponement and restore this match?')) return;
+    try {
+        await AdminAPI.patch(`/admin/sessions/${_postponeSessionId}/postpone`, { reason: '' });
+        toast('Postponement cleared');
+        closePostponeModal();
+        setTimeout(() => location.reload(), 800);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+// Auto-load fallback summary if panel is visible
+document.addEventListener('DOMContentLoaded', async () => {
+    const panel = document.getElementById('fallback-panel');
+    if (!panel) return;
+    const summary = document.getElementById('fallback-summary');
+    try {
+        const r = await fetch(`/admin/tournaments/${TOURN_ID}/fallback-plan`);
+        const plan = await r.json();
+        summary.textContent =
+            `${plan.absent_field_count} field instructor(s) absent — ` +
+            `suggested parallel_fields=${plan.suggested_parallel_fields}, ` +
+            `${plan.affected_sessions_count} session(s) would be reassigned.`;
+    } catch { summary.textContent = 'Could not load fallback details.'; }
+});
 </script>
 {% endblock %}

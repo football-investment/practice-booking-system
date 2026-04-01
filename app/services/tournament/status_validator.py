@@ -6,16 +6,43 @@ from typing import Optional, Tuple
 from app.models.semester import Semester
 
 
+def _count_active_participants(tournament) -> int:
+    """Count active enrollments for the tournament, respecting participant type.
+
+    TEAM tournaments store enrollments in TournamentTeamEnrollment (tournament_team_enrollments).
+    INDIVIDUAL tournaments use SemesterEnrollment (semester_enrollments relationship).
+    """
+    participant_type = getattr(tournament, 'participant_type', None)
+    if participant_type == 'TEAM':
+        from app.models.team import TournamentTeamEnrollment
+        from sqlalchemy.orm import Session as _Session
+        db: _Session = tournament.__dict__.get('_sa_instance_state').session
+        if db:
+            return db.query(TournamentTeamEnrollment).filter(
+                TournamentTeamEnrollment.semester_id == tournament.id,
+                TournamentTeamEnrollment.is_active == True,
+            ).count()
+        return 0
+    else:
+        enrollments = getattr(tournament, 'enrollments', [])
+        return len([e for e in enrollments if e.is_active])
+
+
 # Valid status transition graph
 # NOTE: READY_FOR_ENROLLMENT removed - it was redundant (no player visibility, no functionality)
-# Simplified workflow: INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN → ENROLLMENT_CLOSED → IN_PROGRESS
+# Two supported workflows:
+#   Fast-path (no instructor): DRAFT → ENROLLMENT_OPEN → ENROLLMENT_CLOSED → IN_PROGRESS
+#   Full instructor workflow:  DRAFT → SEEKING_INSTRUCTOR → … → INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN → …
+# NOTE: IN_PROGRESS guard still requires master_instructor_id — so a fast-path tournament
+#       can open enrollment without an instructor but cannot be started without one.
 VALID_TRANSITIONS = {
-    "DRAFT": ["SEEKING_INSTRUCTOR", "CANCELLED"],
+    "DRAFT": ["SEEKING_INSTRUCTOR", "ENROLLMENT_OPEN", "CANCELLED"],
     "SEEKING_INSTRUCTOR": ["PENDING_INSTRUCTOR_ACCEPTANCE", "CANCELLED"],
     "PENDING_INSTRUCTOR_ACCEPTANCE": ["INSTRUCTOR_CONFIRMED", "SEEKING_INSTRUCTOR", "CANCELLED"],
     "INSTRUCTOR_CONFIRMED": ["ENROLLMENT_OPEN", "CANCELLED"],  # Direct to ENROLLMENT_OPEN
     "ENROLLMENT_OPEN": ["ENROLLMENT_CLOSED", "CANCELLED"],
-    "ENROLLMENT_CLOSED": ["IN_PROGRESS", "CANCELLED"],  # Scheduled start (enrollment closed, waiting for start_date)
+    "ENROLLMENT_CLOSED": ["CHECK_IN_OPEN", "CANCELLED"],  # Direct IN_PROGRESS removed; check-in phase is mandatory
+    "CHECK_IN_OPEN": ["IN_PROGRESS", "ENROLLMENT_CLOSED", "CANCELLED"],  # IN_PROGRESS starts the tournament; ENROLLMENT_CLOSED reverts
     "IN_PROGRESS": ["COMPLETED", "CANCELLED", "ENROLLMENT_CLOSED"],  # ENROLLMENT_CLOSED: admin rollback for stuck (0 sessions)
     "COMPLETED": ["REWARDS_DISTRIBUTED", "ARCHIVED"],
     "REWARDS_DISTRIBUTED": ["ARCHIVED"],
@@ -73,17 +100,42 @@ def validate_status_transition(
             return False, "Cannot move to pending acceptance: No instructor assigned"
 
     if new_status == "ENROLLMENT_OPEN":
-        # Must have instructor assigned and confirmed
-        if not tournament.master_instructor_id:
+        # instructor check only on the full workflow path (INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN)
+        # Fast-path (DRAFT → ENROLLMENT_OPEN) is allowed without an instructor;
+        # IN_PROGRESS guard will enforce instructor assignment before the tournament can start.
+        if current_status == "INSTRUCTOR_CONFIRMED" and not tournament.master_instructor_id:
             return False, "Cannot open enrollment: No instructor assigned"
-        # Must have enrollment capacity and dates configured
-        if not hasattr(tournament, 'max_players') or tournament.max_players is None:
-            return False, "Cannot open enrollment: Max participants not configured"
+        # max_players is optional — unlimited if not set
         # Must have campus assigned — campus_id is required before sessions can be generated
         if not getattr(tournament, 'campus_id', None):
             return False, (
                 "Cannot open enrollment: No campus assigned. "
                 "Set campus_id via PATCH /{id} before opening enrollment."
+            )
+
+        # Tournament name must be non-empty
+        name = getattr(tournament, 'name', None)
+        if not name or not str(name).strip():
+            return False, "Cannot open enrollment: Tournament name is required"
+
+        # Dates must be valid: start not in the past, end >= start
+        from datetime import date as _date, datetime as _datetime
+        start = getattr(tournament, 'start_date', None)
+        end = getattr(tournament, 'end_date', None)
+        # Normalise to date — datetime is a subclass of date, so check datetime first
+        start_d = start.date() if isinstance(start, _datetime) else (start if isinstance(start, _date) else None)
+        end_d = end.date() if isinstance(end, _datetime) else (end if isinstance(end, _date) else None)
+        if start_d and start_d < _date.today():
+            return False, "Cannot open enrollment: Start date is in the past"
+        if start_d and end_d and end_d < start_d:
+            return False, "Cannot open enrollment: End date must be on or after start date"
+
+        # HEAD_TO_HEAD tournaments need a tournament type (league/knockout/etc.)
+        fmt = getattr(tournament, 'format', None)
+        if fmt == "HEAD_TO_HEAD" and not getattr(tournament, 'tournament_type_id', None):
+            return False, (
+                "Cannot open enrollment: Tournament type (league/knockout/etc.) "
+                "must be selected for HEAD_TO_HEAD format"
             )
 
     if new_status == "ENROLLMENT_CLOSED":
@@ -93,9 +145,7 @@ def validate_status_transition(
         # path (ENROLLMENT_OPEN → ENROLLMENT_CLOSED) and must NOT block a rewind.
         if current_status != "IN_PROGRESS":
             # Forward path: must have at least minimum participants
-            enrollments = getattr(tournament, 'enrollments', [])
-            active_enrollments = [e for e in enrollments if e.is_active]
-            player_count = len(active_enrollments)
+            player_count = _count_active_participants(tournament)
 
             # Get minimum from tournament type (fallback to 2 if no type configured)
             min_players_required = 2
@@ -116,14 +166,27 @@ def validate_status_transition(
         # else: rollback path (IN_PROGRESS → ENROLLMENT_CLOSED) — allow unconditionally
 
     if new_status == "IN_PROGRESS":
-        # Must have instructor and participants
-        if not tournament.master_instructor_id:
+        # Check instructor assignment: legacy field OR new TournamentInstructorSlot
+        has_instructor = bool(tournament.master_instructor_id)
+        if not has_instructor:
+            # Fallback: check TournamentInstructorSlot for a non-absent MASTER slot.
+            # Handles tournaments where the new planning system was used (slot exists
+            # but legacy master_instructor_id was never set).
+            from app.models.tournament_instructor_slot import TournamentInstructorSlot
+            _state = tournament.__dict__.get('_sa_instance_state')
+            _db = _state.session if _state else None
+            if _db:
+                master_slot = _db.query(TournamentInstructorSlot).filter(
+                    TournamentInstructorSlot.semester_id == tournament.id,
+                    TournamentInstructorSlot.role == 'MASTER',
+                    TournamentInstructorSlot.status.notin_(['ABSENT']),
+                ).first()
+                has_instructor = bool(master_slot)
+        if not has_instructor:
             return False, "Cannot start tournament: No instructor assigned"
 
         # Validate against tournament type's minimum player requirement
-        enrollments = getattr(tournament, 'enrollments', [])
-        active_enrollments = [e for e in enrollments if e.is_active]
-        player_count = len(active_enrollments)
+        player_count = _count_active_participants(tournament)
 
         # Get minimum from tournament type (fallback to 2 if no type configured)
         min_players_required = 2
@@ -143,13 +206,23 @@ def validate_status_transition(
             return False, f"Cannot start tournament: Minimum {min_players_required} participants required (current: {player_count})"
 
     if new_status == "COMPLETED":
-        # All sessions must have attendance records
         sessions = getattr(tournament, 'sessions', [])
         if not sessions:
             return False, "Cannot complete tournament: No sessions found"
 
-        # Note: Detailed attendance validation would go here in production
-        # For now, we just check sessions exist
+        # Require at least 1 TournamentRanking row before marking COMPLETED
+        from app.models.tournament_ranking import TournamentRanking
+        _state = tournament.__dict__.get('_sa_instance_state')
+        _db = _state.session if _state else None
+        if _db:
+            ranking_count = _db.query(TournamentRanking).filter(
+                TournamentRanking.tournament_id == tournament.id
+            ).count()
+            if ranking_count == 0:
+                return False, (
+                    "Cannot complete tournament: No rankings calculated yet. "
+                    "Call POST /{id}/calculate-rankings first."
+                )
 
     if new_status == "REWARDS_DISTRIBUTED":
         # Rankings must be submitted before distributing rewards

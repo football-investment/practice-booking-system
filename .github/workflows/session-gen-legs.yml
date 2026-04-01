@@ -1,0 +1,219 @@
+name: Session Gen — Multi-Leg Round Robin (LEGS-01..05 + SGM-11..12)
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'alembic/versions/2026_03_28_1200_number_of_legs.py'
+      - 'app/models/tournament_configuration.py'
+      - 'app/models/session.py'
+      - 'app/api/api_v1/endpoints/tournaments/schedule_config.py'
+      - 'app/api/api_v1/endpoints/tournaments/generate_sessions.py'
+      - 'app/services/tournament/session_generation/session_generator.py'
+      - 'app/services/tournament/session_generation/formats/league_generator.py'
+      - 'app/services/tournament/session_generation/formats/group_knockout_generator.py'
+      - 'app/templates/admin/tournament_edit.html'
+      - 'app/static/js/session-gen-wizard.js'
+      - 'tests/unit/tournament/test_legs_generation.py'
+      - 'tests/integration/web_flows/test_session_gen_team_matrix.py'
+      - '.github/workflows/session-gen-legs.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: session-gen-legs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-legs-secret-key-not-for-production
+
+jobs:
+  # ── Unit + Integration tests ────────────────────────────────────────────────
+  legs-tests:
+    name: "LEGS-01..05 (unit) + SGM-11..12 (integration) + schema verify"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-legs-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Migrate DB
+        run: alembic upgrade head
+
+      - name: Verify migration — number_of_legs schema
+        run: |
+          python - <<'PYEOF'
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ["DATABASE_URL"])
+          cur = conn.cursor()
+
+          # tournament_configurations: number_of_legs + track_home_away
+          cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name='tournament_configurations'
+            AND column_name IN ('number_of_legs','track_home_away')
+          """)
+          cols = [r[0] for r in cur.fetchall()]
+          assert 'number_of_legs' in cols, "number_of_legs column missing from tournament_configurations"
+          assert 'track_home_away' in cols, "track_home_away column missing from tournament_configurations"
+
+          # check constraint: number_of_legs >= 1
+          cur.execute("""
+            SELECT constraint_name FROM information_schema.table_constraints
+            WHERE table_name='tournament_configurations'
+            AND constraint_type='CHECK'
+            AND constraint_name='ck_tournament_configurations_number_of_legs_positive'
+          """)
+          assert cur.fetchone(), "check constraint ck_tournament_configurations_number_of_legs_positive missing"
+
+          # sessions: leg_number
+          cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name='sessions' AND column_name='leg_number'
+          """)
+          assert cur.fetchone(), "sessions.leg_number column missing"
+
+          # verify leg_number is nullable (NULL for non-leg formats)
+          cur.execute("""
+            SELECT is_nullable FROM information_schema.columns
+            WHERE table_name='sessions' AND column_name='leg_number'
+          """)
+          row = cur.fetchone()
+          assert row and row[0] == 'YES', f"sessions.leg_number must be nullable, got {row}"
+
+          conn.close()
+          print("✅ Schema verified: number_of_legs, track_home_away, sessions.leg_number all present")
+          PYEOF
+
+      - name: Run LEGS-01..05 unit tests
+        run: |
+          mkdir -p results
+          PYTHONPATH=. pytest tests/unit/tournament/test_legs_generation.py \
+            -v --tb=short \
+            --junitxml=results/legs-unit.xml
+
+      - name: Run SGM-11..12 integration tests
+        run: |
+          PYTHONPATH=. pytest tests/integration/web_flows/test_session_gen_team_matrix.py \
+            -v --tb=short \
+            -k "SGM_11 or SGM_12" \
+            --junitxml=results/sgm-legs-integration.xml
+
+      - name: Run regression — full unit/tournament suite
+        run: |
+          PYTHONPATH=. pytest tests/unit/tournament/ \
+            -q --tb=line \
+            --ignore=tests/unit/tournament/test_legs_generation.py \
+            --junitxml=results/unit-tournament-regression.xml
+
+      - name: Run regression — full web_flows suite
+        run: |
+          PYTHONPATH=. pytest tests/integration/web_flows/ \
+            -q --tb=line \
+            --ignore=tests/integration/web_flows/test_session_gen_team_matrix.py \
+            --junitxml=results/web-flows-regression.xml
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-session-gen-legs-${{ github.run_id }}
+          path: results/*.xml
+          retention-days: 14
+
+  # ── Summary gate ──────────────────────────────────────────────────────────
+  legs-gate:
+    name: "Multi-Leg Session Gen Gate"
+    runs-on: ubuntu-latest
+    needs: [legs-tests]
+    if: always()
+
+    steps:
+      - name: Gate check
+        run: |
+          echo "## Multi-Leg Round Robin Session Gen Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Unit Tests (pure mock, no DB)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-01 | number_of_legs=1 → standard round-robin count unchanged | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-02 | number_of_legs=2 (4 players) → exactly 2× sessions vs legs=1 | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-03 | track_home_away=True → leg-2 pairings are leg-1 reversed | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-04 | All sessions carry correct leg_number field | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-05 | 3 legs → 3× single-leg count | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-title | Multi-leg titles include '(Leg N)'; single-leg titles do not | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-config | structure_config carries leg_number + is_home_game | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-gk-double | group_knockout group stage doubles with legs=2 | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LEGS-gk-numbers | group_knockout group-stage sessions have leg_number ∈ {1,2} | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Integration Tests (real DB + API)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SGM-11 | INDIVIDUAL H2H league POST legs=2 → 2× sessions vs legs=1 | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SGM-12 | TEAM H2H league POST legs=2 + track_home_away → leg_number in DB; leg-2 reverses teams | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Schema" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Column | Migration | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| tournament_configurations.number_of_legs | 2026_03_28_1200 | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| tournament_configurations.track_home_away | 2026_03_28_1200 | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| sessions.leg_number (nullable) | 2026_03_28_1200 | ${{ needs.legs-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          RESULT="${{ needs.legs-tests.result }}"
+
+          if [ "$RESULT" = "success" ]; then
+            echo "### ✅ Multi-leg session gen tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated flows:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏆 N-leg round robin generation (league + group_knockout group stage)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔄 Home/away tracking: even legs reverse each pairing" >> $GITHUB_STEP_SUMMARY
+            echo "- 🗄️ sessions.leg_number persisted to DB (nullable for non-leg formats)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏷️ Session titles include '(Leg N)' when multi-leg; omitted when single-leg" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚙️ schedule-config PATCH/GET persists number_of_legs + track_home_away" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔗 Rankings unaffected — H2H strategy aggregates across all legs" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Multi-leg session gen gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

@@ -128,6 +128,31 @@ class TournamentConfiguration(Base):
         comment="Number of rounds for INDIVIDUAL_RANKING tournaments (1-10). Each round is a separate session. HEAD_TO_HEAD ignores this."
     )
 
+    number_of_legs = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+        comment="Number of legs for HEAD_TO_HEAD round robin. 1=single, 2=home+away, 3=triple, etc."
+    )
+
+    track_home_away = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="If True, even legs reverse each pairing so the home team becomes away in leg 2."
+    )
+
+    # Team cost
+    team_enrollment_cost = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+        comment="Credits deducted from captain when creating a team for this tournament. 0 = free."
+    )
+
     # Assignment Configuration
     assignment_type = Column(
         String(30),

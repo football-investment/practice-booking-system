@@ -176,3 +176,15 @@ def admin_login(page, app_url: str = APP_URL) -> None:
 # ── Re-export for test files ──────────────────────────────────────────────────
 
 __all__ = ["APP_URL", "screenshot", "admin_login", "SCREENSHOTS_DIR"]
+
+
+# ── Playwright video recording ────────────────────────────────────────────────
+
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    """Enable video recording when PLAYWRIGHT_VIDEO_DIR env var is set."""
+    video_dir = os.environ.get("PLAYWRIGHT_VIDEO_DIR")
+    if video_dir:
+        Path(video_dir).mkdir(parents=True, exist_ok=True)
+        return {**browser_context_args, "record_video_dir": video_dir}
+    return browser_context_args

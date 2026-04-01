@@ -17,7 +17,7 @@ from typing import Dict, Any
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.session import Session as SessionModel, EventCategory
-from app.dependencies import get_current_user
+from app.dependencies import get_current_admin_user_hybrid, get_current_admin_or_instructor_user_hybrid
 
 # Import shared services
 from app.repositories.tournament_repository import TournamentRepository
@@ -79,10 +79,10 @@ def get_session_or_404(
 # ============================================================================
 
 @router.post("/{tournament_id}/finalize-group-stage")
-def finalize_group_stage(
+async def finalize_group_stage(
     tournament_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ) -> Dict[str, Any]:
     """
     Finalize Group Stage and calculate group standings.
@@ -113,10 +113,10 @@ def finalize_group_stage(
 
 
 @router.post("/{tournament_id}/finalize-tournament")
-def finalize_tournament(
+async def finalize_tournament(
     tournament_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ) -> Dict[str, Any]:
     """
     Finalize Tournament and calculate FINAL RANKING.
@@ -149,11 +149,11 @@ def finalize_tournament(
 
 
 @router.post("/{tournament_id}/sessions/{session_id}/finalize")
-def finalize_individual_ranking_session(
+async def finalize_individual_ranking_session(
     tournament_id: int,
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ) -> Dict[str, Any]:
     """
     Finalize INDIVIDUAL_RANKING session and calculate final rankings.

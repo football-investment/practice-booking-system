@@ -510,7 +510,8 @@ class TestKnockoutFullBVA:
         )
         tid = data["tournament_id"]
         # Large-scale generation is async — poll until all 1024 sessions appear.
-        sessions = _wait_for_sessions(api_url, token, tid, min_count=1024, retries=60)
+        # retries=150 × 2s = 300s budget; 512p passes in ~60s so 1024p needs ~120-180s.
+        sessions = _wait_for_sessions(api_url, token, tid, min_count=1024, retries=150)
         assert len(sessions) == 1024, (
             f"knockout 1024p: expected 1024 sessions (1023 bracket + 1 playoff), "
             f"got {len(sessions)}"

@@ -474,6 +474,68 @@ async def admin_invitation_codes_page(
 # ADMIN USER CRUD
 # ============================================================================
 
+@router.post("/admin/users/create")
+async def admin_create_user(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    role: str = Form(...),
+    password: str = Form(...),
+    credit_balance: int = Form(default=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin-only: Create a new user account directly from the admin panel."""
+    _admin_guard(user)
+
+    # Validate role
+    try:
+        new_role = UserRole(role)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    new_email = email.lower().strip()
+    if db.query(User).filter(User.email == new_email).first():
+        return RedirectResponse(
+            url=f"/admin/users?create_error=Email+{new_email}+is+already+in+use",
+            status_code=303,
+        )
+
+    new_user = User(
+        email=new_email,
+        name=name.strip(),
+        password_hash=get_password_hash(password),
+        role=new_role,
+        is_active=True,
+        credit_balance=max(0, credit_balance),
+        credit_purchased=max(0, credit_balance),
+        onboarding_completed=False,
+        payment_verified=(credit_balance > 0),
+    )
+    db.add(new_user)
+    db.flush()
+
+    if credit_balance > 0:
+        db.add(CreditTransaction(
+            user_id=new_user.id,
+            transaction_type=TransactionType.ADMIN_ADJUSTMENT,
+            amount=credit_balance,
+            balance_after=credit_balance,
+            description="Initial credit balance set by admin on account creation",
+            created_by_admin_id=user.id,
+        ))
+
+    db.commit()
+    logger.info(
+        "admin_user_created",
+        extra={"admin": user.email, "new_user": new_user.email, "role": str(new_role)},
+    )
+    return RedirectResponse(url=f"/admin/users/{new_user.id}/edit", status_code=303)
+
+
 @router.post("/admin/users/{user_id}/toggle-status")
 async def admin_toggle_user_status(
     user_id: int,
@@ -3124,3 +3186,989 @@ async def admin_booking_attendance(
     booking.update_attendance_status()
     db.commit()
     return JSONResponse({"success": True, "message": f"Attendance marked: {attendance_status}"})
+
+
+# ── Pitches Management ──────────────────────────────────────────────────────
+
+from ...models.pitch import Pitch  # noqa: E402
+from ...models.pitch_instructor_assignment import (  # noqa: E402
+    PitchInstructorAssignment,
+    PitchAssignmentType,
+    PitchAssignmentStatus,
+)
+from ...services.tournament.pitch_instructor_service import (  # noqa: E402
+    assign_instructor_to_pitch_direct,
+)
+
+
+@router.get("/admin/pitches", response_class=HTMLResponse)
+async def admin_pitches_page(
+    request: Request,
+    campus_filter: int = 0,
+    location_filter: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: all pitches grouped by campus, with instructor assignment status."""
+    _admin_guard(user)
+
+    locations = db.query(Location).filter(Location.is_active == True).order_by(Location.name).all()  # noqa: E712
+    all_campuses = db.query(Campus).filter(Campus.is_active == True).order_by(Campus.name).all()  # noqa: E712
+
+    q = db.query(Pitch)
+    if campus_filter:
+        q = q.filter(Pitch.campus_id == campus_filter)
+    elif location_filter:
+        campus_ids = [c.id for c in db.query(Campus).filter(Campus.location_id == location_filter).all()]
+        q = q.filter(Pitch.campus_id.in_(campus_ids)) if campus_ids else q.filter(False)
+    pitches = q.order_by(Pitch.campus_id, Pitch.pitch_number).all()
+
+    # Batch-load active/pending assignments per pitch
+    pitch_ids = [p.id for p in pitches]
+    active_assignments: dict = defaultdict(list)
+    if pitch_ids:
+        for a in db.query(PitchInstructorAssignment).filter(
+            PitchInstructorAssignment.pitch_id.in_(pitch_ids),
+            PitchInstructorAssignment.status.in_([
+                PitchAssignmentStatus.ACTIVE.value,
+                PitchAssignmentStatus.PENDING.value,
+            ]),
+        ).all():
+            active_assignments[a.pitch_id].append(a)
+
+    campus_map = {c.id: c for c in all_campuses}
+    location_map = {loc.id: loc for loc in locations}
+
+    instructors = db.query(User).filter(
+        User.role == UserRole.INSTRUCTOR,
+        User.is_active == True,  # noqa: E712
+    ).order_by(User.name).all()
+
+    return templates.TemplateResponse(
+        "admin/pitches.html",
+        {
+            "request": request,
+            "user": user,
+            "pitches": pitches,
+            "active_assignments": active_assignments,
+            "campus_map": campus_map,
+            "location_map": location_map,
+            "locations": locations,
+            "all_campuses": all_campuses,
+            "instructors": instructors,
+            "campus_filter": campus_filter,
+            "location_filter": location_filter,
+        },
+    )
+
+
+@router.post("/admin/pitches/create")
+async def admin_create_pitch(
+    request: Request,
+    campus_id: int = Form(...),
+    pitch_number: int = Form(...),
+    name: str = Form(...),
+    capacity: int = Form(default=2),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: create a new pitch under a campus."""
+    _admin_guard(user)
+    campus = db.query(Campus).filter(Campus.id == campus_id).first()
+    if not campus:
+        return RedirectResponse(url="/admin/pitches?error=Campus+not+found", status_code=303)
+
+    existing = db.query(Pitch).filter(
+        Pitch.campus_id == campus_id,
+        Pitch.pitch_number == pitch_number,
+    ).first()
+    if existing:
+        return RedirectResponse(
+            url=f"/admin/pitches?error=Pitch+{pitch_number}+already+exists+on+this+campus",
+            status_code=303,
+        )
+
+    pitch = Pitch(
+        campus_id=campus_id,
+        pitch_number=pitch_number,
+        name=name.strip(),
+        capacity=max(1, capacity),
+        is_active=True,
+    )
+    db.add(pitch)
+    db.commit()
+    return RedirectResponse(
+        url=f"/admin/pitches?campus_filter={campus_id}&msg=Pitch+created",
+        status_code=303,
+    )
+
+
+@router.post("/admin/pitches/{pitch_id}/toggle")
+async def admin_toggle_pitch(
+    pitch_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: activate or deactivate a pitch."""
+    _admin_guard(user)
+    pitch = db.query(Pitch).filter(Pitch.id == pitch_id).first()
+    if not pitch:
+        raise HTTPException(status_code=404, detail="Pitch not found")
+    pitch.is_active = not pitch.is_active
+    db.commit()
+    return RedirectResponse(url="/admin/pitches", status_code=303)
+
+
+@router.post("/admin/pitches/{pitch_id}/assign-instructor")
+async def admin_assign_instructor_to_pitch(
+    request: Request,
+    pitch_id: int,
+    instructor_id: int = Form(...),
+    semester_id: int = Form(default=0),
+    is_master: bool = Form(default=False),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: directly assign an instructor to a pitch (DIRECT mode)."""
+    _admin_guard(user)
+    try:
+        assign_instructor_to_pitch_direct(
+            db=db,
+            pitch_id=pitch_id,
+            instructor_id=instructor_id,
+            assigned_by_id=user.id,
+            semester_id=semester_id if semester_id else None,
+            is_master=is_master,
+        )
+        db.commit()
+        return RedirectResponse(url="/admin/pitches?msg=Instructor+assigned", status_code=303)
+    except HTTPException as e:
+        return RedirectResponse(url=f"/admin/pitches?error={e.detail}", status_code=303)
+
+
+# ── Sport Directors Management ──────────────────────────────────────────────
+
+from ...models.instructor_assignment import SportDirectorAssignment  # noqa: E402
+
+
+@router.get("/admin/sport-directors", response_class=HTMLResponse)
+async def admin_sport_directors_page(
+    request: Request,
+    location_filter: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: list and manage sport director assignments per location."""
+    _admin_guard(user)
+
+    locations = db.query(Location).filter(Location.is_active == True).order_by(Location.name).all()  # noqa: E712
+
+    q = db.query(SportDirectorAssignment)
+    if location_filter:
+        q = q.filter(SportDirectorAssignment.location_id == location_filter)
+    assignments = q.order_by(SportDirectorAssignment.location_id, SportDirectorAssignment.is_active.desc()).all()
+
+    # Eligible candidates: users with SPORT_DIRECTOR role OR ADMIN (for assignment dropdown)
+    candidates = db.query(User).filter(
+        User.role.in_([UserRole.SPORT_DIRECTOR, UserRole.ADMIN]),
+        User.is_active == True,  # noqa: E712
+    ).order_by(User.name).all()
+
+    location_map = {loc.id: loc for loc in locations}
+
+    return templates.TemplateResponse(
+        "admin/sport_directors.html",
+        {
+            "request": request,
+            "user": user,
+            "assignments": assignments,
+            "locations": locations,
+            "candidates": candidates,
+            "location_map": location_map,
+            "location_filter": location_filter,
+        },
+    )
+
+
+@router.post("/admin/sport-directors/assign")
+async def admin_assign_sport_director(
+    request: Request,
+    user_id: int = Form(...),
+    location_id: int = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: assign a user as Sport Director for a location."""
+    _admin_guard(user)
+
+    # Deactivate existing active SD for this location
+    existing = db.query(SportDirectorAssignment).filter(
+        SportDirectorAssignment.location_id == location_id,
+        SportDirectorAssignment.is_active == True,  # noqa: E712
+    ).first()
+    if existing:
+        existing.is_active = False
+        existing.deactivated_at = datetime.now(timezone.utc)
+
+    assignment = SportDirectorAssignment(
+        user_id=user_id,
+        location_id=location_id,
+        is_active=True,
+        assigned_by=user.id,
+    )
+    db.add(assignment)
+    db.commit()
+    return RedirectResponse(url="/admin/sport-directors?msg=Sport+Director+assigned", status_code=303)
+
+
+@router.post("/admin/sport-directors/{assignment_id}/deactivate")
+async def admin_deactivate_sport_director(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: deactivate a sport director assignment."""
+    _admin_guard(user)
+    a = db.query(SportDirectorAssignment).filter(SportDirectorAssignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    a.is_active = False
+    a.deactivated_at = datetime.now(timezone.utc)
+    db.commit()
+    return RedirectResponse(url="/admin/sport-directors?msg=Assignment+deactivated", status_code=303)
+
+
+# ── Teams Management ────────────────────────────────────────────────────────
+
+from ...models.team import Team, TeamMember, TournamentTeamEnrollment  # noqa: E402
+
+
+@router.get("/admin/teams", response_class=HTMLResponse)
+async def admin_teams_page(
+    request: Request,
+    tournament_filter: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: global teams list, filterable by tournament."""
+    _admin_guard(user)
+
+    # All tournaments for filter dropdown (TEAM participant type)
+    tournaments = db.query(Semester).filter(
+        Semester.semester_category == SemesterCategory.TOURNAMENT,
+    ).order_by(Semester.start_date.desc()).all()
+
+    if tournament_filter:
+        enrolled_team_ids = [
+            e.team_id for e in db.query(TournamentTeamEnrollment).filter(
+                TournamentTeamEnrollment.semester_id == tournament_filter,
+                TournamentTeamEnrollment.is_active == True,  # noqa: E712
+            ).all()
+        ]
+        teams = db.query(Team).filter(
+            Team.id.in_(enrolled_team_ids),
+            Team.is_active == True,  # noqa: E712
+        ).order_by(Team.name).all() if enrolled_team_ids else []
+    else:
+        teams = db.query(Team).filter(Team.is_active == True).order_by(Team.name).all()  # noqa: E712
+
+    # Batch-load member counts
+    member_counts: dict = {}
+    if teams:
+        team_ids = [t.id for t in teams]
+        for row in db.query(
+            TeamMember.team_id,
+            sqlfunc.count(TeamMember.id),
+        ).filter(
+            TeamMember.team_id.in_(team_ids),
+            TeamMember.is_active == True,  # noqa: E712
+        ).group_by(TeamMember.team_id).all():
+            member_counts[row[0]] = row[1]
+
+    # Batch-load tournament enrollments per team
+    team_enrollments: dict = defaultdict(list)
+    if teams:
+        for enr in db.query(TournamentTeamEnrollment).filter(
+            TournamentTeamEnrollment.team_id.in_([t.id for t in teams]),
+            TournamentTeamEnrollment.is_active == True,  # noqa: E712
+        ).all():
+            team_enrollments[enr.team_id].append(enr)
+
+    return templates.TemplateResponse(
+        "admin/teams.html",
+        {
+            "request": request,
+            "user": user,
+            "teams": teams,
+            "tournaments": tournaments,
+            "member_counts": member_counts,
+            "team_enrollments": team_enrollments,
+            "tournament_filter": tournament_filter,
+        },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CLUB MANAGEMENT
+# ══════════════════════════════════════════════════════════════════════════════
+
+from fastapi import UploadFile, File  # noqa: E402
+from ...models.club import Club, CsvImportLog  # noqa: E402
+from ...services.club_service import create_club, get_club, list_clubs  # noqa: E402
+from ...services import csv_import_service  # noqa: E402
+
+# Maps club team age-group labels (U15, U18, Adult…) → canonical Semester.age_group values.
+# Semester.age_group is shared with season semesters (PRE/YOUTH/AMATEUR/PRO) so promotion
+# tournaments must use the same vocabulary to stay filter-compatible.
+_CLUB_AGE_GROUP_MAP: dict[str, str] = {
+    "U6": "PRE", "U7": "PRE", "U8": "PRE", "U9": "PRE",
+    "U10": "PRE", "U11": "PRE", "U12": "PRE",
+    "U13": "YOUTH", "U14": "YOUTH", "U15": "YOUTH",
+    "U16": "YOUTH", "U17": "YOUTH", "U18": "YOUTH",
+    "U19": "AMATEUR", "U20": "AMATEUR", "U21": "AMATEUR",
+    "U22": "AMATEUR", "U23": "AMATEUR",
+    "SENIOR": "AMATEUR", "ADULT": "AMATEUR",
+    "PRE": "PRE", "YOUTH": "YOUTH", "AMATEUR": "AMATEUR", "PRO": "PRO",
+}
+
+
+def _normalize_club_age_group(label: str) -> str:
+    """Map club team age-group label to the canonical Semester.age_group vocabulary."""
+    return _CLUB_AGE_GROUP_MAP.get(label.strip().upper(), "AMATEUR")
+
+
+@router.get("/admin/clubs", response_class=HTMLResponse)
+async def admin_clubs_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: list all clubs."""
+    _admin_guard(user)
+
+    clubs = list_clubs(db, active_only=False)
+    # Batch-load team counts
+    club_ids = [c.id for c in clubs]
+    team_counts: dict = {}
+    member_counts: dict = {}
+    if club_ids:
+        from ...models.team import TeamMember
+        for row in db.query(
+            Team.club_id, sqlfunc.count(Team.id)
+        ).filter(Team.club_id.in_(club_ids), Team.is_active == True).group_by(Team.club_id).all():  # noqa: E712
+            team_counts[row[0]] = row[1]
+
+        # total members per club via JOIN
+        team_id_by_club: dict = defaultdict(list)
+        for t in db.query(Team.id, Team.club_id).filter(Team.club_id.in_(club_ids), Team.is_active == True).all():  # noqa: E712
+            team_id_by_club[t.club_id].append(t.id)
+        all_team_ids = [tid for tids in team_id_by_club.values() for tid in tids]
+        if all_team_ids:
+            for row in db.query(
+                TeamMember.team_id, sqlfunc.count(TeamMember.id)
+            ).filter(TeamMember.team_id.in_(all_team_ids), TeamMember.is_active == True).group_by(TeamMember.team_id).all():  # noqa: E712
+                team_club_id = next((cid for cid, tids in team_id_by_club.items() if row[0] in tids), None)
+                if team_club_id:
+                    member_counts[team_club_id] = member_counts.get(team_club_id, 0) + row[1]
+
+    total_clubs = len(clubs)
+    total_teams = sum(team_counts.values())
+    total_players = sum(member_counts.values())
+
+    return templates.TemplateResponse(
+        "admin/clubs.html",
+        {
+            "request": request,
+            "user": user,
+            "clubs": clubs,
+            "team_counts": team_counts,
+            "member_counts": member_counts,
+            "total_clubs": total_clubs,
+            "total_teams": total_teams,
+            "total_players": total_players,
+        },
+    )
+
+
+@router.post("/admin/clubs/create")
+async def admin_create_club(
+    request: Request,
+    name: str = Form(...),
+    city: str = Form(""),
+    country: str = Form(""),
+    contact_email: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: create a new Club."""
+    _admin_guard(user)
+
+    try:
+        club = create_club(
+            db,
+            name=name,
+            city=city or None,
+            country=country or None,
+            contact_email=contact_email or None,
+            created_by_id=user.id,
+        )
+        db.commit()
+        logger.info("admin_club_created", extra={"admin": user.email, "club": club.name, "code": club.code})
+        return RedirectResponse(url=f"/admin/clubs/{club.id}?msg=Club+created", status_code=303)
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/admin/clubs?create_error={str(exc).replace(' ', '+')}",
+            status_code=303,
+        )
+
+
+@router.get("/admin/clubs/{club_id}", response_class=HTMLResponse)
+async def admin_club_detail(
+    club_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: club detail with teams + CSV import history."""
+    _admin_guard(user)
+
+    club = get_club(db, club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    # Load teams for this club
+    from ...models.team import TeamMember
+    teams = (
+        db.query(Team)
+        .filter(Team.club_id == club_id, Team.is_active == True)  # noqa: E712
+        .order_by(Team.age_group_label, Team.name)
+        .all()
+    )
+    team_ids = [t.id for t in teams]
+    member_counts: dict = {}
+    if team_ids:
+        for row in db.query(
+            TeamMember.team_id, sqlfunc.count(TeamMember.id)
+        ).filter(TeamMember.team_id.in_(team_ids), TeamMember.is_active == True).group_by(TeamMember.team_id).all():  # noqa: E712
+            member_counts[row[0]] = row[1]
+
+    # Import history
+    import_logs = (
+        db.query(CsvImportLog)
+        .filter(CsvImportLog.club_id == club_id)
+        .order_by(CsvImportLog.uploaded_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    # For promotion wizard: game presets + tournament types + campuses
+    from ...models.game_preset import GamePreset
+    from ...models.tournament_type import TournamentType
+    game_presets = db.query(GamePreset).order_by(GamePreset.name).all()
+    tournament_types = db.query(TournamentType).order_by(TournamentType.display_name).all()
+    campuses = db.query(Campus).filter(Campus.is_active == True).order_by(Campus.name).all()  # noqa: E712
+
+    # Unique age_groups from teams
+    age_groups = sorted({t.age_group_label for t in teams if t.age_group_label})
+
+    # Canonical age_group per team: U15 → YOUTH, U12 → PRE (for dual display in UI)
+    team_canonical = {
+        t.id: _normalize_club_age_group(t.age_group_label)
+        for t in teams if t.age_group_label
+    }
+
+    return templates.TemplateResponse(
+        "admin/club_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "club": club,
+            "teams": teams,
+            "member_counts": member_counts,
+            "import_logs": import_logs,
+            "game_presets": game_presets,
+            "tournament_types": tournament_types,
+            "campuses": campuses,
+            "age_groups": age_groups,
+            "team_canonical": team_canonical,
+        },
+    )
+
+
+@router.post("/admin/clubs/{club_id}/edit")
+async def admin_edit_club(
+    club_id: int,
+    request: Request,
+    name: str = Form(...),
+    city: str = Form(""),
+    country: str = Form(""),
+    contact_email: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: update club details."""
+    _admin_guard(user)
+    club = get_club(db, club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    club.name = name.strip()
+    club.city = city or None
+    club.country = country or None
+    club.contact_email = contact_email or None
+    db.commit()
+    return RedirectResponse(url=f"/admin/clubs/{club_id}?msg=Club+updated", status_code=303)
+
+
+@router.post("/admin/clubs/{club_id}/toggle")
+async def admin_toggle_club(
+    club_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: activate or deactivate a club."""
+    _admin_guard(user)
+    club = get_club(db, club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+    club.is_active = not club.is_active
+    db.commit()
+    return RedirectResponse(url=f"/admin/clubs/{club_id}?msg=Status+updated", status_code=303)
+
+
+@router.post("/admin/clubs/{club_id}/csv-import")
+async def admin_club_csv_import(
+    club_id: int,
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: upload + process a CSV file for a club."""
+    _admin_guard(user)
+
+    club = get_club(db, club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    content = await file.read()
+
+    # Create log entry first (need id for idempotency keys)
+    log = CsvImportLog(
+        club_id=club_id,
+        uploaded_by=user.id,
+        filename=file.filename or "upload.csv",
+        status="PROCESSING",
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+
+    # Parse + import
+    rows = csv_import_service.parse_csv(content)
+    csv_import_service.import_rows(db, rows, log, admin_user=user, default_club_id=club_id)
+    db.commit()
+
+    logger.info(
+        "admin_csv_import_done admin=%s club=%s file=%s created=%d updated=%d failed=%d",
+        user.email, club.name, file.filename,
+        log.rows_created, log.rows_updated, log.rows_failed,
+    )
+    return RedirectResponse(
+        url=f"/admin/clubs/{club_id}?import_log={log.id}",
+        status_code=303,
+    )
+
+
+@router.get("/admin/clubs/{club_id}/csv-import/{log_id}", response_class=HTMLResponse)
+async def admin_club_import_log(
+    club_id: int,
+    log_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: view a specific CSV import log in detail."""
+    _admin_guard(user)
+    log = db.query(CsvImportLog).filter(
+        CsvImportLog.id == log_id, CsvImportLog.club_id == club_id
+    ).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Import log not found")
+
+    club = get_club(db, club_id)
+    return templates.TemplateResponse(
+        "admin/club_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "club": club,
+            "import_log_detail": log,
+            "teams": [],
+            "member_counts": {},
+            "import_logs": [],
+            "game_presets": [],
+            "tournament_types": [],
+            "campuses": [],
+            "age_groups": [],
+        },
+    )
+
+
+@router.post("/admin/clubs/{club_id}/promotion")
+async def admin_club_promotion(
+    club_id: int,
+    request: Request,
+    tournament_name: str = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    campus_id: str = Form(""),
+    game_preset_id: str = Form(""),
+    tournament_type_id: str = Form(""),
+    age_groups: list[str] = Form(default=[]),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: create one TEAM tournament per selected age_group and enroll that age group's teams."""
+    _admin_guard(user)
+
+    club = get_club(db, club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if not age_groups:
+        return RedirectResponse(
+            url=f"/admin/clubs/{club_id}?error=Select+at+least+one+age+group",
+            status_code=303,
+        )
+
+    from datetime import datetime as _dt
+    from ...models.semester import SemesterStatus, SemesterCategory
+    from ...models.tournament_configuration import TournamentConfiguration
+    from ...models.game_configuration import GameConfiguration
+    from ...models.team import TournamentTeamEnrollment
+
+    created_ids = []
+    for ag in age_groups:
+        suffix = _dt.now().strftime("%H%M%S%f")[:9]
+        code = f"PROMO-{date.fromisoformat(start_date).strftime('%Y%m%d')}-{ag.upper()[:6]}-{suffix}"
+
+        t = Semester(
+            code=code,
+            name=f"{tournament_name} ({ag})",
+            start_date=date.fromisoformat(start_date),
+            end_date=date.fromisoformat(end_date),
+            status=SemesterStatus.DRAFT,
+            tournament_status="DRAFT",
+            semester_category=SemesterCategory.TOURNAMENT,
+            specialization_type="LFA_FOOTBALL_PLAYER",
+            age_group=_normalize_club_age_group(ag),  # U15 → YOUTH, U12 → PRE, etc.
+            enrollment_cost=0,
+            campus_id=int(campus_id) if campus_id.strip() else None,
+        )
+        db.add(t)
+        db.flush()
+
+        # Auto-derive location_id from campus (campus always belongs to a location)
+        if t.campus_id:
+            _campus = db.query(Campus).filter(Campus.id == t.campus_id).first()
+            if _campus and _campus.location_id:
+                t.location_id = _campus.location_id
+
+        cfg = TournamentConfiguration(
+            semester_id=t.id,
+            tournament_type_id=int(tournament_type_id) if tournament_type_id.strip() else None,
+            participant_type="TEAM",
+            number_of_rounds=1,
+        )
+        db.add(cfg)
+
+        if game_preset_id.strip():
+            db.add(GameConfiguration(semester_id=t.id, game_preset_id=int(game_preset_id)))
+
+        # Auto-enroll all teams from this club with matching age_group_label
+        teams_for_ag = (
+            db.query(Team)
+            .filter(Team.club_id == club_id, Team.age_group_label == ag, Team.is_active == True)  # noqa: E712
+            .all()
+        )
+        for team in teams_for_ag:
+            active_members = db.query(TeamMember).filter(
+                TeamMember.team_id == team.id,
+                TeamMember.is_active == True,  # noqa: E712
+            ).count()
+            if active_members == 0:
+                continue  # skip empty teams — they cannot participate
+            db.add(TournamentTeamEnrollment(
+                semester_id=t.id,
+                team_id=team.id,
+                is_active=True,
+                payment_verified=True,  # admin bypass — no credit cost
+            ))
+
+        db.flush()
+        created_ids.append(t.id)
+
+    db.commit()
+    logger.info(
+        "admin_promotion_created",
+        extra={"admin": user.email, "club": club.name, "age_groups": age_groups, "tournament_ids": created_ids},
+    )
+
+    # Redirect to tournaments list; flash is shown via query param
+    names_enc = "+".join(ag.replace(" ", "_") for ag in age_groups)
+    return RedirectResponse(
+        url=f"/admin/tournaments?flash=Promotion+tournaments+created+for+{names_enc}",
+        status_code=303,
+    )
+
+
+@router.get("/admin/clubs/{club_id}/teams/{team_id}", response_class=HTMLResponse)
+async def admin_club_team_detail(
+    request: Request,
+    club_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: team member list for a club team."""
+    _admin_guard(user)
+    club = get_club(db, club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+    team = db.query(Team).filter(Team.id == team_id, Team.club_id == club_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    from ...models.team import TeamMember
+    members = (
+        db.query(TeamMember)
+        .filter(TeamMember.team_id == team_id)
+        .order_by(TeamMember.role.desc(), TeamMember.joined_at)
+        .all()
+    )
+    canonical_age = _normalize_club_age_group(team.age_group_label) if team.age_group_label else None
+    return templates.TemplateResponse(
+        "admin/club_team_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "club": club,
+            "team": team,
+            "members": members,
+            "canonical_age": canonical_age,
+        },
+    )
+
+
+@router.get("/admin/users/{user_id}/profile", response_class=HTMLResponse)
+async def admin_user_profile(
+    request: Request,
+    user_id: int,
+    from_club: int = None,
+    from_team: int = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: FIFA EA Sports-style user profile page (29-skill system)."""
+    _admin_guard(user)
+
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # LFA Player license — 29-skill system via UserLicense.football_skills JSONB
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+
+    # 29-skill profile — only meaningful when onboarding_completed=True
+    lfa_skill_profile = None
+    if lfa_license and lfa_license.onboarding_completed:
+        from ...services.skill_progression_service import get_skill_profile
+        lfa_skill_profile = get_skill_profile(db, user_id)
+
+    # Tournament participations
+    from ...models.tournament_achievement import TournamentParticipation, TournamentBadge
+    participations = (
+        db.query(TournamentParticipation)
+        .filter(TournamentParticipation.user_id == user_id)
+        .order_by(TournamentParticipation.achieved_at.desc())
+        .all()
+    )
+    best_placement = min(
+        (p.placement for p in participations if p.placement), default=None
+    )
+    total_xp = sum(p.xp_awarded or 0 for p in participations)
+
+    # Win/loss/draw aggregates from tournament_rankings
+    from sqlalchemy import text
+    ranking_agg = db.execute(
+        text("SELECT SUM(wins), SUM(losses), SUM(draws) FROM tournament_rankings WHERE user_id=:uid"),
+        {"uid": user_id},
+    ).fetchone()
+    agg_wins   = int(ranking_agg[0] or 0) if ranking_agg else 0
+    agg_losses = int(ranking_agg[1] or 0) if ranking_agg else 0
+    agg_draws  = int(ranking_agg[2] or 0) if ranking_agg else 0
+
+    # Badges (newest first, max 12)
+    badges = (
+        db.query(TournamentBadge)
+        .filter(TournamentBadge.user_id == user_id)
+        .order_by(TournamentBadge.earned_at.desc())
+        .limit(12)
+        .all()
+    )
+
+    # ── Progression chart data (chronological, for Chart.js) ─────────────────
+    from ...models.semester import Semester as _SemModel
+    from ...services.skill_progression_service import get_avg_skill_level_checkpoints as _get_checkpoints
+    _checkpoints = _get_checkpoints(db, user_id)
+    progression_chart_data = []
+    _chart_rows = (
+        db.query(TournamentParticipation, _SemModel)
+        .join(_SemModel, TournamentParticipation.semester_id == _SemModel.id)
+        .filter(TournamentParticipation.user_id == user_id)
+        .filter(TournamentParticipation.skill_rating_delta.isnot(None))
+        .order_by(_SemModel.start_date.asc(), TournamentParticipation.id.asc())
+        .all()
+    )
+    if _chart_rows:
+        _PODIUM = {"CHAMPION", "RUNNER_UP", "THIRD_PLACE"}
+        _badge_by_sem = {b.semester_id: b for b in badges if b.badge_type in _PODIUM}
+        for _tp, _sem in _chart_rows:
+            _b = _badge_by_sem.get(_sem.id)
+            progression_chart_data.append({
+                "code": _sem.code or "",
+                "name": _sem.name or "",
+                "date": _sem.start_date.isoformat() if _sem.start_date else None,
+                "placement": _tp.placement,
+                "skill_delta": _tp.skill_rating_delta,
+                "badge_type": _b.badge_type if _b else None,
+                "is_champion": _tp.placement == 1,
+                "avg_level": _checkpoints.get(_sem.id),
+            })
+
+    # ── Average skill baseline for chart Y-axis origin ───────────────────────
+    avg_skill_baseline = 50.0
+    if lfa_license and isinstance(lfa_license.football_skills, dict):
+        _baselines = [
+            v.get("baseline", 50.0) if isinstance(v, dict) else float(v)
+            for v in lfa_license.football_skills.values()
+        ]
+        if _baselines:
+            avg_skill_baseline = round(sum(_baselines) / len(_baselines), 1)
+
+    # Back-navigation context (from club_team_detail link)
+    from ...models.club import Club
+    from ...models.team import Team, TeamMember
+    back_club = db.query(Club).filter(Club.id == from_club).first() if from_club else None
+    back_team = db.query(Team).filter(Team.id == from_team).first() if from_team else None
+
+    # Team memberships for profile display
+    target_teams_info = []
+    for tm in db.query(TeamMember).filter(TeamMember.user_id == user_id).all():
+        team = db.query(Team).filter(Team.id == tm.team_id).first()
+        club = db.query(Club).filter(Club.id == team.club_id).first() if (team and team.club_id) else None
+        target_teams_info.append({"team": team, "club": club, "role": tm.role})
+
+    # Age calculation
+    from datetime import date as _date
+    target_age = None
+    if target.date_of_birth:
+        today = _date.today()
+        dob = target.date_of_birth
+        target_age = today.year - dob.year - (
+            1 if (today.month, today.day) < (dob.month, dob.day) else 0
+        )
+
+    # Position: onboarding stores it in UserLicense.motivation_scores["position"]
+    # (STRIKER / MIDFIELDER / DEFENDER / GOALKEEPER)
+    # User.position column is only set via PATCH /api/v1/users/me — use as fallback
+    target_position = None
+    if lfa_license and lfa_license.motivation_scores:
+        target_position = lfa_license.motivation_scores.get("position")
+    if not target_position:
+        target_position = target.position
+
+    return templates.TemplateResponse(
+        "admin/user_profile.html",
+        {
+            "request": request,
+            "user": user,
+            "target": target,
+            "lfa_license": lfa_license,
+            "lfa_skill_profile": lfa_skill_profile,
+            "skill_categories": SKILL_CATEGORIES,
+            "participations": participations,
+            "best_placement": best_placement,
+            "total_xp": total_xp,
+            "agg_wins": agg_wins,
+            "agg_losses": agg_losses,
+            "agg_draws": agg_draws,
+            "badges": badges,
+            "back_club": back_club,
+            "back_team": back_team,
+            "target_teams_info": target_teams_info,
+            "target_age": target_age,
+            "target_position": target_position,
+            "progression_chart_data": progression_chart_data,
+            "avg_skill_baseline": avg_skill_baseline,
+        },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LFA PLAYER CARD PHOTO  (admin upload on behalf of any player)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from ...services.player_photo_service import (  # noqa: E402
+    save_player_photo,
+    delete_player_photo,
+)
+
+
+@router.post("/admin/users/{user_id}/lfa-player-photo")
+async def admin_upload_player_photo(
+    request: Request,
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    try:
+        url = save_player_photo(await file.read(), file.content_type or "", user_id)
+        lfa_license.player_card_photo_url = url
+        db.commit()
+        return JSONResponse({"ok": True, "photo_url": url})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/admin/users/{user_id}/lfa-player-photo/delete")
+async def admin_delete_player_photo(
+    request: Request,
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    delete_player_photo(user_id)
+    lfa_license.player_card_photo_url = None
+    db.commit()
+    return JSONResponse({"ok": True})

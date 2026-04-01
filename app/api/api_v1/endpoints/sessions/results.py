@@ -11,12 +11,95 @@ from typing import List, Optional
 import json
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.session import Session as SessionModel, EventCategory
 from app.models.tournament_enums import TournamentPhase  # Phase 2.1: Import enum
+from app.core.redis_pubsub import publish_tournament_update
 
 router = APIRouter()
+
+import logging as _logging
+_logger = _logging.getLogger(__name__)
+
+
+def _maybe_trigger_auto_ranking(db, tournament_id: int) -> None:
+    """
+    Trigger ranking calculation when ALL MATCH sessions in the tournament are completed.
+    Non-breaking: any failure is logged as WARNING, the result submission is not affected.
+    """
+    try:
+        remaining = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.event_category == EventCategory.MATCH,
+                SessionModel.session_status != "completed",
+            )
+            .count()
+        )
+        if remaining > 0:
+            return  # other sessions still pending
+        _logger.info(
+            f"[auto-ranking] All sessions completed for tournament {tournament_id}. "
+            f"Triggering ranking calculation."
+        )
+        from app.services.tournament.ranking.ranking_service import calculate_and_store_rankings
+        result = calculate_and_store_rankings(db, tournament_id)
+        _logger.info(
+            f"[auto-ranking] Rankings calculated for tournament {tournament_id}: "
+            f"{result['rankings_count']} rows."
+        )
+    except Exception as e:
+        _logger.warning(
+            f"[auto-ranking] Failed for tournament {tournament_id}: {e}",
+            exc_info=True,
+        )
+
+
+def _publish_session_result(db, session: SessionModel) -> None:
+    """
+    Publish a session_result event to Redis after db.commit().
+
+    Payload conforms to TournamentUpdateEvent (see app.core.redis_pubsub).
+    Failures are swallowed — live monitoring must never break the HTTP flow.
+    """
+    import datetime
+    try:
+        tournament_id = session.semester_id
+        if tournament_id is None:
+            return
+        completed = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.semester_id == tournament_id,
+                SessionModel.session_status == "completed",
+            )
+            .count()
+        )
+        total = (
+            db.query(SessionModel)
+            .filter(SessionModel.semester_id == tournament_id)
+            .count()
+        )
+        progress = round(completed / total, 4) if total > 0 else 0.0
+        publish_tournament_update(
+            tournament_id,
+            {
+                "type": "session_result",
+                "session_id": session.id,
+                "campus_id": getattr(session, "campus_id", None),
+                "pitch_id": getattr(session, "pitch_id", None),
+                "round_number": getattr(session, "tournament_round", None),
+                "status": "completed",
+                "completed_count": completed,
+                "total_count": total,
+                "progress_pct": progress,
+                "completed_at": datetime.datetime.utcnow().isoformat() + "Z",
+            },
+        )
+    except Exception:
+        pass  # live monitoring is best-effort
 
 
 class GameResultEntry(BaseModel):
@@ -58,7 +141,7 @@ def submit_game_results(
     session_id: int,
     request: SubmitGameResultsRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Submit game results for a tournament session
@@ -107,8 +190,12 @@ def submit_game_results(
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(session, "rounds_data")
 
+    session.session_status = "completed"
+
     db.commit()
     db.refresh(session)
+    _publish_session_result(db, session)
+    _maybe_trigger_auto_ranking(db, session.semester_id)
 
     return {
         "session_id": session_id,
@@ -122,7 +209,7 @@ def submit_game_results(
 def get_game_results(
     session_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Get game results for a tournament session
@@ -182,7 +269,7 @@ def submit_head_to_head_match_result(
     session_id: int,
     request: SubmitHeadToHeadMatchRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Submit HEAD_TO_HEAD match result for a tournament session (League/Knockout)
@@ -213,6 +300,17 @@ def submit_head_to_head_match_result(
         raise HTTPException(
             status_code=400,
             detail=f"This endpoint is for HEAD_TO_HEAD tournaments only. Tournament format: {semester.format}"
+        )
+
+    # Validate INDIVIDUAL participant type — TEAM tournaments must use /team-results
+    cfg = semester.tournament_config_obj
+    if cfg and cfg.participant_type == "TEAM":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "HEAD_TO_HEAD result submission is only supported for INDIVIDUAL tournaments. "
+                "TEAM tournaments must use PATCH /sessions/{id}/team-results instead."
+            ),
         )
 
     # Authorization: Only master instructor of the tournament or admin
@@ -303,6 +401,8 @@ def submit_head_to_head_match_result(
 
     db.commit()
     db.refresh(session)
+    _publish_session_result(db, session)
+    _maybe_trigger_auto_ranking(db, session.semester_id)
 
     # Phase 2.1: Use TournamentPhase enum for type-safe comparison
     progression_result = None
@@ -363,7 +463,7 @@ def submit_team_results(
     session_id: int,
     request: SubmitTeamResultsRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid),
 ):
     """
     Submit results for a TEAM tournament session.
@@ -415,7 +515,11 @@ def submit_team_results(
 
     session.rounds_data = rd
     flag_modified(session, "rounds_data")
+    session.session_status = "completed"
     db.commit()
+    db.refresh(session)
+    _publish_session_result(db, session)
+    _maybe_trigger_auto_ranking(db, session.semester_id)
 
     return {
         "session_id": session_id,

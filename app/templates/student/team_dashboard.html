@@ -1,0 +1,268 @@
+{% extends "student_base.html" %}
+
+{% block title %}{{ team.name }} — Team Dashboard{% endblock %}
+{% block active_page %}tournaments{% endblock %}
+
+{% block extra_styles %}
+<style>
+.team-container {
+    max-width: 860px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.75rem; color: #2d3748; margin: 0; }
+.page-header .code { font-family: monospace; font-size: .9rem; color: #718096; }
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.card h2 { font-size: 1.2rem; margin: 0 0 1rem; color: #2d3748; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: .6rem .8rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+th { font-size: .8rem; text-transform: uppercase; color: #718096; }
+.badge-captain { background: #fefcbf; color: #744210; padding: .15rem .5rem; border-radius: 10px; font-size: .78rem; }
+.badge-player { background: #ebf4ff; color: #2b6cb0; padding: .15rem .5rem; border-radius: 10px; font-size: .78rem; }
+.badge-status { padding: .15rem .5rem; border-radius: 10px; font-size: .78rem; font-weight: 600; }
+.badge-open { background: #c6f6d5; color: #276749; }
+.badge-closed { background: #fed7d7; color: #c53030; }
+.badge-progress { background: #bee3f8; color: #2b6cb0; }
+.invite-form { display: flex; gap: .5rem; flex-wrap: wrap; }
+.invite-form input[type=text] {
+    flex: 1;
+    min-width: 200px;
+    padding: .5rem .75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: .95rem;
+}
+.invite-form select {
+    flex: 1;
+    min-width: 200px;
+    padding: .5rem .75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: .95rem;
+}
+.btn { padding: .5rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-size: .9rem; font-weight: 600; }
+.btn-primary { background: #2f855a; color: white; }
+.btn-primary:hover { background: #276749; }
+.btn-danger { background: #e53e3e; color: white; font-size: .8rem; padding: .3rem .6rem; }
+.btn-danger:hover { background: #c53030; }
+.alert-success {
+    background: #f0fff4;
+    border-left: 4px solid #48bb78;
+    padding: .75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    color: #276749;
+}
+.alert-danger {
+    background: #fff5f5;
+    border-left: 4px solid #fc8181;
+    padding: .75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    color: #c53030;
+}
+.back-link { color: #2f855a; text-decoration: none; font-size: .95rem; }
+.back-link:hover { text-decoration: underline; }
+#search-results { border: 1px solid #e2e8f0; border-radius: 8px; max-height: 200px; overflow-y: auto; background: white; }
+#search-results .result-item {
+    padding: .5rem .75rem;
+    cursor: pointer;
+    font-size: .9rem;
+    border-bottom: 1px solid #f7fafc;
+}
+#search-results .result-item:hover { background: #f0fff4; }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="team-container">
+
+    {% if msg %}
+    <div class="alert-success">{{ msg }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="page-header">
+        <div>
+            <h1>{{ team.name }}</h1>
+            <span class="code">{{ team.code }}</span>
+        </div>
+        <a href="/tournaments" class="back-link">← Tournaments</a>
+    </div>
+
+    <!-- Members -->
+    <div class="card">
+        <h2>Team Members ({{ members | length }})</h2>
+        {% if members %}
+        <table>
+            <thead><tr><th>Player</th><th>Role</th><th>Joined</th></tr></thead>
+            <tbody>
+            {% for m in members %}
+            <tr>
+                <td>{{ m.user.name if m.user else '—' }}</td>
+                <td>
+                    {% if m.role == 'CAPTAIN' %}
+                    <span class="badge-captain">Captain</span>
+                    {% else %}
+                    <span class="badge-player">Player</span>
+                    {% endif %}
+                </td>
+                <td>{{ m.joined_at.strftime('%Y-%m-%d') if m.joined_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#718096;">No members yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Pending Invites -->
+    <div class="card">
+        <h2>Pending Invites ({{ pending_invites | length }})</h2>
+        {% if pending_invites %}
+        <table>
+            <thead><tr><th>Invited User</th><th>Sent</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for inv in pending_invites %}
+            <tr>
+                <td>{{ inv.invited_user.name if inv.invited_user else inv.invited_user_id }}</td>
+                <td>{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '—' }}</td>
+                <td>
+                    <form method="POST" action="/teams/{{ team.id }}/invites/{{ inv.id }}/cancel"
+                          onsubmit="return confirm('Cancel this invite?')">
+                        <button type="submit" class="btn btn-danger">Cancel</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#718096;">No pending invites.</p>
+        {% endif %}
+    </div>
+
+    <!-- Enrolled Tournaments -->
+    <div class="card">
+        <h2>Enrolled Tournaments ({{ enrollments | length }})</h2>
+        {% if enrollments %}
+        <table>
+            <thead><tr><th>Tournament</th><th>Status</th><th>Enrolled</th></tr></thead>
+            <tbody>
+            {% for enrollment, tournament in enrollments %}
+            <tr>
+                <td>{{ tournament.name }}</td>
+                <td>
+                    {% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}
+                    <span class="badge-status badge-open">Enrollment Open</span>
+                    {% elif tournament.tournament_status == 'IN_PROGRESS' %}
+                    <span class="badge-status badge-progress">In Progress</span>
+                    {% elif tournament.tournament_status == 'ENROLLMENT_CLOSED' %}
+                    <span class="badge-status badge-closed">Enrollment Closed</span>
+                    {% else %}
+                    <span class="badge-status" style="background:#e2e8f0;color:#4a5568;">{{ tournament.tournament_status }}</span>
+                    {% endif %}
+                </td>
+                <td style="color:#718096;font-size:.9rem;">{{ enrollment.enrolled_at.strftime('%Y-%m-%d') if enrollment.enrolled_at else '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#718096;">Not enrolled in any tournaments yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Join a Tournament -->
+    {% if user.id == team.captain_user_id %}
+    <div class="card">
+        <h2>Join a Tournament</h2>
+        {% if available_tournaments %}
+        <table>
+            <thead><tr><th>Tournament</th><th>Cost</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for tournament, cfg in available_tournaments %}
+            <tr>
+                <td>{{ tournament.name }}</td>
+                <td>{{ cfg.team_enrollment_cost }} credits</td>
+                <td>
+                    <form method="POST" action="/tournaments/{{ tournament.id }}/teams/{{ team.id }}/enroll">
+                        <button type="submit" class="btn btn-primary" style="font-size:.8rem;padding:.3rem .75rem;">Enroll</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#718096;">No open team tournaments available right now.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Invite Form -->
+    <div class="card">
+        <h2>Invite a Player</h2>
+        <p style="color:#718096;font-size:.9rem;">Search by name or email, then send the invite.</p>
+
+        <!-- Live search -->
+        <div style="margin-bottom:.75rem;">
+            <input type="text" id="user-search" placeholder="Search name or email…"
+                   style="width:100%;padding:.5rem .75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:.95rem;box-sizing:border-box;"
+                   autocomplete="off">
+            <div id="search-results"></div>
+        </div>
+
+        <form method="POST" action="/teams/{{ team.id }}/invite" id="invite-form">
+            <input type="hidden" name="invited_user_id" id="invited-user-id">
+            <div style="display:flex;gap:.5rem;align-items:center;">
+                <span id="selected-user-name" style="flex:1;color:#2d3748;font-weight:600;min-height:1.5rem;"></span>
+                <button type="submit" class="btn btn-primary" id="invite-btn" disabled>Send Invite</button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<script>
+const searchInput = document.getElementById('user-search');
+const resultsDiv  = document.getElementById('search-results');
+const hiddenId    = document.getElementById('invited-user-id');
+const selectedName = document.getElementById('selected-user-name');
+const inviteBtn   = document.getElementById('invite-btn');
+let debounce;
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(async () => {
+        const q = searchInput.value.trim();
+        if (q.length < 2) { resultsDiv.innerHTML = ''; return; }
+        const resp = await fetch(`/teams/invite-search?q=${encodeURIComponent(q)}&team_id={{ team.id }}`);
+        const users = await resp.json();
+        resultsDiv.innerHTML = users.map(u =>
+            `<div class="result-item" data-id="${u.id}" data-name="${u.name}">${u.name} <small style="color:#718096;">${u.email}</small></div>`
+        ).join('') || '<div class="result-item" style="color:#718096;">No results</div>';
+    }, 300);
+});
+
+resultsDiv.addEventListener('click', e => {
+    const item = e.target.closest('.result-item[data-id]');
+    if (!item) return;
+    hiddenId.value = item.dataset.id;
+    selectedName.textContent = item.dataset.name;
+    searchInput.value = '';
+    resultsDiv.innerHTML = '';
+    inviteBtn.disabled = false;
+});
+</script>
+{% endblock %}

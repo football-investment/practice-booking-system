@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_current_admin_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.schemas.tournament_rewards import (
@@ -34,7 +34,7 @@ def distribute_tournament_rewards_v2(
     tournament_id: int,
     request: DistributeRewardsRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ):
     """
     Distribute tournament rewards (V2 - Unified System)

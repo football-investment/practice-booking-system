@@ -61,7 +61,9 @@ class TournamentSessionGenerator:
         session_duration_minutes: int = 90,
         break_minutes: int = 15,
         number_of_rounds: int = 1,
-        campus_ids: List[int] = None
+        campus_ids: List[int] = None,
+        number_of_legs: int = 1,
+        track_home_away: bool = False,
     ) -> Tuple[bool, str, List[Dict[str, Any]]]:
         """
         Generate all tournament sessions based on tournament type and enrolled player count
@@ -215,10 +217,14 @@ class TournamentSessionGenerator:
                     f"investigate _player_filter and concurrent DB state before proceeding."
                 )
 
-            # Validate player count against GamePreset min_players (applies to ALL formats)
-            # This guard runs before format routing so it covers both INDIVIDUAL_RANKING
-            # and HEAD_TO_HEAD tournaments equally.
-            if tournament.game_config_obj and tournament.game_config_obj.game_preset:
+            # Detect TEAM participant_type early (needed for preset check below)
+            _early_cfg = tournament.tournament_config_obj
+            _is_team_early = _early_cfg and _early_cfg.participant_type == "TEAM"
+
+            # Validate player count against GamePreset min_players (INDIVIDUAL only).
+            # Skip for TEAM tournaments: player_count uses SemesterEnrollment (= 0 for
+            # team-type tournaments); team member count is validated later per format.
+            if not _is_team_early and tournament.game_config_obj and tournament.game_config_obj.game_preset:
                 _preset = tournament.game_config_obj.game_preset
                 _preset_min = _preset.game_config.get("metadata", {}).get("min_players", 0)
                 if _preset_min and player_count < _preset_min:
@@ -249,6 +255,14 @@ class TournamentSessionGenerator:
                         TournamentTeamEnrollment.semester_id == tournament_id,
                         TournamentTeamEnrollment.is_active == True,
                     ).all()
+                    # Opt-in attendance filter: if ANY team has checked in, use only checked-in teams
+                    if any(e.checked_in_at is not None for e in team_enrollments):
+                        checked_in = [e for e in team_enrollments if e.checked_in_at is not None]
+                        logger.info(
+                            f"   Attendance filter active: {len(checked_in)}/{len(team_enrollments)} "
+                            f"checked-in teams selected"
+                        )
+                        team_enrollments = checked_in
                     team_ids = [e.team_id for e in team_enrollments]
                     team_count = len(team_ids)
                     logger.info(f"   TEAM mode: {team_count} enrolled teams: {team_ids}")
@@ -300,61 +314,87 @@ class TournamentSessionGenerator:
                 if not tournament_type:
                     return False, "HEAD_TO_HEAD tournaments require a tournament type", []
 
-                # Validate player count against tournament type constraints
-                is_valid, error_msg = tournament_type.validate_player_count(player_count)
+                # ── Resolve participant pool: TEAM counts teams, INDIVIDUAL counts players ──
+                if is_team_tournament:
+                    from app.models.team import TournamentTeamEnrollment
+                    _h2h_team_enrs = self.db.query(TournamentTeamEnrollment).filter(
+                        TournamentTeamEnrollment.semester_id == tournament_id,
+                        TournamentTeamEnrollment.is_active == True,
+                    ).all()
+                    # Attendance opt-in: if any team has checked in, use only checked-in teams
+                    if any(e.checked_in_at is not None for e in _h2h_team_enrs):
+                        _h2h_team_enrs = [e for e in _h2h_team_enrs if e.checked_in_at is not None]
+                    h2h_team_ids = [e.team_id for e in _h2h_team_enrs]
+                    participant_count = len(h2h_team_ids)
+                    logger.info(f"   TEAM HEAD_TO_HEAD: {participant_count} teams: {h2h_team_ids}")
+                else:
+                    h2h_team_ids = None
+                    participant_count = player_count
+
+                # Validate participant count against tournament type constraints
+                is_valid, error_msg = tournament_type.validate_player_count(participant_count)
                 if not is_valid:
-                    return False, error_msg, []
+                    unit = "teams" if is_team_tournament else "players"
+                    return False, error_msg.replace("players", unit), []
 
                 # Generate session structure based on tournament type
+                _h2h_kwargs = dict(
+                    tournament=tournament,
+                    tournament_type=tournament_type,
+                    player_count=participant_count,
+                    parallel_fields=parallel_fields,
+                    session_duration=session_duration_minutes,
+                    break_minutes=break_minutes,
+                    campus_ids=campus_ids,
+                    team_ids=h2h_team_ids,
+                    team_mode=is_team_tournament,
+                )
                 if tournament_type.code == "league":
                     sessions = self.league_generator.generate(
-                        tournament=tournament,
-                        tournament_type=tournament_type,
-                        player_count=player_count,
-                        parallel_fields=parallel_fields,
-                        session_duration=session_duration_minutes,
-                        break_minutes=break_minutes,
-                        campus_ids=campus_ids,
+                        **_h2h_kwargs,
+                        number_of_legs=number_of_legs,
+                        track_home_away=track_home_away,
                     )
                 elif tournament_type.code == "knockout":
-                    sessions = self.knockout_generator.generate(
-                        tournament=tournament,
-                        tournament_type=tournament_type,
-                        player_count=player_count,
-                        parallel_fields=parallel_fields,
-                        session_duration=session_duration_minutes,
-                        break_minutes=break_minutes,
-                        campus_ids=campus_ids,
-                    )
+                    sessions = self.knockout_generator.generate(**_h2h_kwargs)
                 elif tournament_type.code == "group_knockout":
                     sessions = self.group_knockout_generator.generate(
-                        tournament=tournament,
-                        tournament_type=tournament_type,
-                        player_count=player_count,
-                        parallel_fields=parallel_fields,
-                        session_duration=session_duration_minutes,
-                        break_minutes=break_minutes,
-                        campus_ids=campus_ids,
+                        **_h2h_kwargs,
                         campus_configs=campus_configs,
+                        number_of_legs=number_of_legs,
+                        track_home_away=track_home_away,
                     )
                 elif tournament_type.code == "swiss":
-                    sessions = self.swiss_generator.generate(
-                        tournament=tournament,
-                        tournament_type=tournament_type,
-                        player_count=player_count,
-                        parallel_fields=parallel_fields,
-                        session_duration=session_duration_minutes,
-                        break_minutes=break_minutes,
-                        campus_ids=campus_ids,
-                    )
+                    sessions = self.swiss_generator.generate(**_h2h_kwargs)
                 else:
                     return False, f"Unknown tournament type: {tournament_type.code}", []
 
-            # Fetch seeding pool (mirrors the player_count query above)
-            enrolled_players = self.db.query(SemesterEnrollment).filter(
-                *_player_filter
+            # Fetch seeding pool for logging / capacity
+            if is_team_tournament:
+                # TEAM tournaments seed from TournamentTeamEnrollment, not SemesterEnrollment
+                enrolled_players = []
+                logger.info("👥 TEAM tournament — participant pool is teams, not individual players")
+            else:
+                enrolled_players = self.db.query(SemesterEnrollment).filter(
+                    *_player_filter
+                ).all()
+                logger.info(f"👥 Fetched {len(enrolled_players)} players in seeding pool from database")
+
+            # Build pitch → instructor map from TournamentInstructorSlot (FIELD slots)
+            # Fallback priority: CHECKED_IN > CONFIRMED > PLANNED > master_instructor_id
+            from app.models.tournament_instructor_slot import TournamentInstructorSlot
+            _slot_priority = {"CHECKED_IN": 0, "CONFIRMED": 1, "PLANNED": 2}
+            _field_slots = self.db.query(TournamentInstructorSlot).filter(
+                TournamentInstructorSlot.semester_id == tournament_id,
+                TournamentInstructorSlot.role == "FIELD",
+                TournamentInstructorSlot.pitch_id.isnot(None),
             ).all()
-            logger.info(f"👥 Fetched {len(enrolled_players)} players in seeding pool from database")
+            # Keep highest-priority slot per pitch (in case of data inconsistency)
+            _pitch_instructor_map: dict = {}
+            for _s in sorted(_field_slots, key=lambda s: _slot_priority.get(s.status, 99)):
+                if _s.pitch_id not in _pitch_instructor_map:
+                    _pitch_instructor_map[_s.pitch_id] = _s.instructor_id
+            logger.info(f"🧑‍🏫 Pitch→instructor map: {_pitch_instructor_map} (master fallback: {tournament.master_instructor_id})")
 
             # Create session records in database (bulk insert — no per-session flush)
             created_sessions = []
@@ -367,12 +407,19 @@ class TournamentSessionGenerator:
                     logger.info(f"🔍 DEBUG: group_identifier value: {session_data.get('group_identifier')}")
                     logger.info(f"🔍 DEBUG: tournament_phase value: {session_data.get('tournament_phase')}")
                 try:
+                    # Use field instructor for the session's pitch; fall back to master
+                    _session_pitch_id = session_data.get("pitch_id")
+                    _instructor_id = (
+                        _pitch_instructor_map.get(_session_pitch_id)
+                        if _session_pitch_id
+                        else None
+                    ) or tournament.master_instructor_id
                     session = SessionModel(
                         semester_id=tournament_id,
-                        instructor_id=tournament.master_instructor_id,
+                        instructor_id=_instructor_id,
                         event_category=EventCategory.MATCH,
                         auto_generated=True,
-                        capacity=player_count,  # Tournament sessions support all enrolled players
+                        capacity=player_count or 0,  # 0 for TEAM tournaments (not player-based)
                         **session_data
                     )
                     self.db.add(session)

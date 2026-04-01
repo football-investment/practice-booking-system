@@ -84,6 +84,7 @@
     .badge-draft      { background: #edf2f7; color: #4a5568; }
     .badge-enrollment { background: #ebf8ff; color: #2b6cb0; }
     .badge-closed     { background: #fefcbf; color: #744210; }
+    .badge-checkin    { background: #e6fffa; color: #234e52; }
     .badge-progress   { background: #c6f6d5; color: #22543d; }
     .badge-completed  { background: #e9d8fd; color: #553c9a; }
     .badge-cancelled  { background: #fed7d7; color: #742a2a; }
@@ -127,6 +128,8 @@
     .action-btn.btn-delete:hover { background: #f56565; }
     .action-btn.btn-rollback { background: #63b3ed; color: white; border-color: #63b3ed; }
     .action-btn.btn-rollback:hover { background: #4299e1; }
+    .action-btn.btn-live  { background: #6366f1; color: white; border-color: #6366f1; }
+    .action-btn.btn-live:hover { background: #4f46e5; }
     .action-btn.btn-stub { color: #a0aec0; cursor: default; }
     .action-btn.btn-stub:hover { background: white; }
 
@@ -301,6 +304,8 @@
                         <span class="badge badge-enrollment">📬 ENROLLMENT_OPEN</span>
                         {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
                         <span class="badge badge-closed">🔒 ENROLLMENT_CLOSED</span>
+                        {% elif t.tournament_status == 'CHECK_IN_OPEN' %}
+                        <span class="badge badge-checkin">🎫 CHECK_IN_OPEN</span>
                         {% elif t.tournament_status == 'CANCELLED' %}
                         <span class="badge badge-cancelled">🚫 CANCELLED</span>
                         {% elif t.tournament_status == 'SEEKING_INSTRUCTOR' %}
@@ -348,6 +353,13 @@
                     <div class="action-btns">
                         <!-- Edit → tournament edit page -->
                         <a href="/admin/tournaments/{{ t.id }}/edit" class="action-btn" style="text-decoration:none;">✏️ Edit</a>
+                        <!-- Public event page -->
+                        <a href="/events/{{ t.id }}" class="action-btn" target="_blank" style="text-decoration:none;">👁 View</a>
+
+                        <!-- Live Monitoring (IN_PROGRESS, not stuck) -->
+                        {% if t.tournament_status == 'IN_PROGRESS' and not is_stuck %}
+                        <a href="/admin/tournaments/{{ t.id }}/live" class="action-btn btn-live" style="text-decoration:none;">📡 Live</a>
+                        {% endif %}
 
                         <!-- Start (ENROLLMENT_CLOSED only) -->
                         {% if t.tournament_status == 'ENROLLMENT_CLOSED' %}

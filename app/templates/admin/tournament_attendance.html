@@ -1,0 +1,552 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Attendance — {{ t.name }}{% endblock %}
+{% block page_heading %}📋 Attendance{% endblock %}
+{% block page_subtitle %}{{ t.name }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ── Breadcrumb ────────────────────────────────────────────────── */
+    .breadcrumb {
+        font-size: 0.85rem; color: #718096; margin-bottom: 1.5rem;
+        display: flex; align-items: center; gap: 0.4rem;
+    }
+    .breadcrumb a { color: #667eea; text-decoration: none; font-weight: 600; }
+    .breadcrumb a:hover { text-decoration: underline; }
+
+    /* ── Summary cards ─────────────────────────────────────────────── */
+    .summary-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem; margin-bottom: 1.75rem;
+    }
+    .summary-card {
+        background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 1rem 1.25rem; text-align: center;
+    }
+    .summary-card .s-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #a0aec0; margin-bottom: 0.25rem; }
+    .summary-card .s-value { font-size: 1.5rem; font-weight: 800; color: #2d3748; }
+    .summary-card .s-total { font-size: 0.8rem; color: #718096; }
+
+    /* ── Section cards ─────────────────────────────────────────────── */
+    .section-card {
+        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+        overflow: hidden; margin-bottom: 1.5rem;
+    }
+    .section-header {
+        padding: 1rem 1.5rem; background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-header h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #2d3748; }
+    .section-body { padding: 0; }
+
+    /* ── Tables ────────────────────────────────────────────────────── */
+    .att-table { width: 100%; border-collapse: collapse; }
+    .att-table th {
+        padding: 0.6rem 1.25rem; text-align: left;
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.06em; color: #a0aec0;
+        border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+    }
+    .att-table td {
+        padding: 0.75rem 1.25rem; border-bottom: 1px solid #f0f4f8;
+        font-size: 0.875rem; color: #4a5568; vertical-align: middle;
+    }
+    .att-table tr:last-child td { border-bottom: none; }
+    .att-table tr:hover td { background: #fafbff; }
+
+    /* ── Status badges ─────────────────────────────────────────────── */
+    .badge {
+        display: inline-block; padding: 2px 10px; border-radius: 20px;
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .badge-grey    { background: #edf2f7; color: #718096; }
+    .badge-blue    { background: #ebf8ff; color: #2b6cb0; }
+    .badge-green   { background: #f0fff4; color: #276749; }
+    .badge-red     { background: #fff5f5; color: #c53030; }
+    .badge-orange  { background: #fffaf0; color: #c05621; }
+
+    /* ── Buttons ───────────────────────────────────────────────────── */
+    .btn-checkin {
+        padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+        border: none; cursor: pointer; transition: background 0.15s;
+        background: #667eea; color: white;
+    }
+    .btn-checkin:hover { background: #5a67d8; }
+    .btn-uncheckin {
+        padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+        border: 1px solid #e2e8f0; cursor: pointer; transition: background 0.15s;
+        background: white; color: #718096;
+    }
+    .btn-uncheckin:hover { background: #f7fafc; }
+
+    /* ── Accordion (player panels) ─────────────────────────────────── */
+    .accordion-toggle {
+        width: 100%; text-align: left; border: none; cursor: pointer;
+        padding: 0.75rem 1.25rem; background: transparent;
+        display: flex; align-items: center; justify-content: space-between;
+        font-size: 0.875rem; color: #4a5568; font-weight: 600;
+    }
+    .accordion-toggle:hover { background: #f7fafc; }
+    .accordion-body { display: none; border-top: 1px solid #f0f4f8; }
+    .accordion-body.open { display: block; }
+    .accordion-chevron { transition: transform 0.2s; }
+    .accordion-toggle.open .accordion-chevron { transform: rotate(180deg); }
+
+    /* ── Empty state ───────────────────────────────────────────────── */
+    .empty-state {
+        padding: 2rem; text-align: center; color: #a0aec0; font-size: 0.875rem;
+    }
+
+    /* ── Timestamp ─────────────────────────────────────────────────── */
+    .ts { font-size: 0.75rem; color: #a0aec0; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="breadcrumb">
+    <a href="/admin/tournaments">Tournaments</a>
+    <span>›</span>
+    <a href="/admin/tournaments/{{ t.id }}/edit">{{ t.name }}</a>
+    <span>›</span>
+    <span>Attendance</span>
+</div>
+
+<!-- Summary cards -->
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="s-label">Instructors</div>
+        <div class="s-value">{{ summary.instructors_checked_in }}</div>
+        <div class="s-total">/ {{ summary.instructors_total }} checked in</div>
+    </div>
+    <div class="summary-card">
+        <div class="s-label">Teams</div>
+        <div class="s-value">{{ summary.teams_checked_in }}</div>
+        <div class="s-total">/ {{ summary.teams_total }} checked in</div>
+    </div>
+    <div class="summary-card">
+        <div class="s-label">Players</div>
+        <div class="s-value">{{ summary.players_checked_in }}</div>
+        <div class="s-total">/ {{ summary.players_total }} checked in</div>
+    </div>
+    <div class="summary-card">
+        <div class="s-label">Sessions</div>
+        <div class="s-value">{{ summary.sessions_generated }}</div>
+        <div class="s-total">{{ summary.sessions_postponed }} postponed</div>
+    </div>
+</div>
+
+<!-- ── Section 1: Instructor Roster (read-only) ─────────────────────── -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>⚽ Instructor Roster</h3>
+        <span class="badge badge-grey">Read-only — manage via <a href="/admin/tournaments/{{ t.id }}/edit#section-instructors" style="color:#667eea">Edit page</a></span>
+    </div>
+    <div class="section-body">
+        {% if instructors %}
+        <table class="att-table">
+            <thead>
+                <tr>
+                    <th>Instructor</th>
+                    <th>Role</th>
+                    <th>Pitch</th>
+                    <th>Status</th>
+                    <th>Checked In At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for slot in instructors %}
+                <tr>
+                    <td><strong>{{ slot.instructor_name or '—' }}</strong></td>
+                    <td>
+                        {% if slot.role == 'MASTER' %}
+                            <span class="badge badge-blue">Master</span>
+                        {% else %}
+                            <span class="badge badge-grey">Field</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ slot.pitch_name or '—' }}</td>
+                    <td>
+                        {% if slot.status == 'CHECKED_IN' %}
+                            <span class="badge badge-green">✓ Checked In</span>
+                        {% elif slot.status == 'ABSENT' %}
+                            <span class="badge badge-red">✗ Absent</span>
+                        {% elif slot.status == 'CONFIRMED' %}
+                            <span class="badge badge-blue">Confirmed</span>
+                        {% else %}
+                            <span class="badge badge-grey">Planned</span>
+                        {% endif %}
+                    </td>
+                    <td class="ts">{{ slot.checked_in_at or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No instructors assigned yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if summary.instructors_checked_in == 0 %}
+<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:0.85rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:0.75rem;">
+    <span style="font-size:1.25rem">⚠️</span>
+    <span><strong>Instructor check-in required</strong> — At least one instructor must be <span class="badge badge-green" style="font-size:0.75rem">✓ Checked In</span> before player/team check-in is enabled. Go to the <a href="/admin/tournaments/{{ t.id }}/edit#section-instructors" style="color:#856404">Edit page → Instructors</a>.</span>
+</div>
+{% endif %}
+
+{% if participant_type == 'TEAM' %}
+
+<!-- ── Section 2: Team Check-In (TEAM tournaments) ──────────────────── -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>🏆 Team Check-In</h3>
+    </div>
+    <div class="section-body">
+        {% if teams %}
+        <table class="att-table">
+            <thead>
+                <tr>
+                    <th>Team</th>
+                    <th>Players</th>
+                    <th>Status</th>
+                    <th>Checked In At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="teams-tbody">
+                {% for team in teams %}
+                <tr id="team-row-{{ team.team_id }}">
+                    <td><strong>{{ team.team_name }}</strong></td>
+                    <td>{{ team.player_count }}</td>
+                    <td id="team-status-{{ team.team_id }}">
+                        {% if team.checked_in_at %}
+                            <span class="badge badge-green">✓ Present</span>
+                        {% else %}
+                            <span class="badge badge-grey">Not checked in</span>
+                        {% endif %}
+                    </td>
+                    <td class="ts" id="team-ts-{{ team.team_id }}">{{ team.checked_in_at or '—' }}</td>
+                    <td>
+                        {% if team.checked_in_at %}
+                        <button class="btn-uncheckin"
+                                onclick="teamUncheckin({{ team.team_id }})">
+                            Undo
+                        </button>
+                        {% else %}
+                        <button class="btn-checkin"
+                                onclick="teamCheckin({{ team.team_id }})"
+                                {% if summary.instructors_checked_in == 0 %}disabled title="Instructor check-in required"{% endif %}>
+                            Check In
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No teams enrolled in this tournament.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Section 3: Player Check-In per team (TEAM tournaments) ──────── -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>👤 Player Check-In</h3>
+    </div>
+    <div class="section-body">
+        {% if teams %}
+            {% for team in teams %}
+            <div class="accordion-item" style="border-bottom: 1px solid #f0f4f8;">
+                <button class="accordion-toggle" onclick="toggleAccordion(this, {{ team.team_id }})">
+                    <span>
+                        {{ team.team_name }}
+                        <span class="badge badge-grey" style="margin-left:0.5rem">{{ team.players_checked_in }}/{{ team.player_count }}</span>
+                    </span>
+                    <span class="accordion-chevron">▼</span>
+                </button>
+                <div class="accordion-body" id="players-{{ team.team_id }}">
+                    {% if team.players %}
+                    <table class="att-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Status</th>
+                                <th>Checked In At</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="player-tbody-{{ team.team_id }}">
+                            {% for player in team.players %}
+                            <tr id="player-row-{{ team.team_id }}-{{ player.user_id }}">
+                                <td>{{ player.name }}</td>
+                                <td id="player-status-{{ team.team_id }}-{{ player.user_id }}">
+                                    {% if player.checked_in_at %}
+                                        <span class="badge badge-green">✓ Present</span>
+                                    {% else %}
+                                        <span class="badge badge-grey">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="ts" id="player-ts-{{ team.team_id }}-{{ player.user_id }}">
+                                    {{ player.checked_in_at or '—' }}
+                                </td>
+                                <td>
+                                    {% if player.checked_in_at %}
+                                    <button class="btn-uncheckin"
+                                            onclick="playerUncheckin({{ team.team_id }}, {{ player.user_id }})">
+                                        Undo
+                                    </button>
+                                    {% else %}
+                                    <button class="btn-checkin"
+                                            onclick="playerCheckin({{ team.team_id }}, {{ player.user_id }})"
+                                            {% if summary.instructors_checked_in == 0 %}disabled title="Instructor check-in required"{% endif %}>
+                                        Check In
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="empty-state" style="padding:1rem">No members found.</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">No teams enrolled.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+
+<!-- ── Section 2+3: Individual Player Check-In (INDIVIDUAL tournaments) -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>👤 Player Check-In</h3>
+        <span class="badge badge-grey">{{ summary.players_checked_in }}/{{ summary.players_total }} checked in</span>
+    </div>
+    <div class="section-body">
+        {% if individual_players %}
+        <table class="att-table">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Checked In At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="individual-players-tbody">
+                {% for player in individual_players %}
+                <tr id="ind-player-row-{{ player.user_id }}">
+                    <td><strong>{{ player.name }}</strong></td>
+                    <td style="color:#718096;font-size:0.85rem;">{{ player.email or '—' }}</td>
+                    <td id="ind-player-status-{{ player.user_id }}">
+                        {% if player.checked_in_at %}
+                            <span class="badge badge-green">✓ Present</span>
+                        {% else %}
+                            <span class="badge badge-grey">Not checked in</span>
+                        {% endif %}
+                    </td>
+                    <td class="ts" id="ind-player-ts-{{ player.user_id }}">
+                        {{ player.checked_in_at or '—' }}
+                    </td>
+                    <td>
+                        {% if player.checked_in_at %}
+                        <button class="btn-uncheckin"
+                                onclick="indPlayerUncheckin({{ player.user_id }})">
+                            Undo
+                        </button>
+                        {% else %}
+                        <button class="btn-checkin"
+                                onclick="indPlayerCheckin({{ player.user_id }})"
+                                {% if summary.instructors_checked_in == 0 %}disabled title="Instructor check-in required"{% endif %}>
+                            Check In
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">No enrolled players found.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+
+<!-- ── Back to edit page ─────────────────────────────────────────────── -->
+<div style="margin-top:1rem">
+    <a href="/admin/tournaments/{{ t.id }}/edit"
+       style="display:inline-flex;align-items:center;gap:0.4rem;color:#667eea;font-weight:600;text-decoration:none">
+        ← Back to tournament edit
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TOURNAMENT_ID = {{ t.id }};
+
+/* ── Accordion ─────────────────────────────────────────────────────── */
+function toggleAccordion(btn, teamId) {
+    const body = document.getElementById(`players-${teamId}`);
+    body.classList.toggle('open');
+    btn.classList.toggle('open');
+}
+
+/* ── Team check-in ─────────────────────────────────────────────────── */
+async function teamCheckin(teamId) {
+    try {
+        const data = await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/teams/${teamId}/checkin`
+        );
+        _updateTeamRow(teamId, data.checked_in_at, true);
+        toast('Team checked in');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function teamUncheckin(teamId) {
+    try {
+        await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/teams/${teamId}/uncheckin`
+        );
+        _updateTeamRow(teamId, null, false);
+        toast('Check-in removed');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function _updateTeamRow(teamId, checkedInAt, isCheckedIn) {
+    const statusEl = document.getElementById(`team-status-${teamId}`);
+    const tsEl     = document.getElementById(`team-ts-${teamId}`);
+    const row      = document.getElementById(`team-row-${teamId}`);
+
+    if (statusEl) {
+        statusEl.innerHTML = isCheckedIn
+            ? '<span class="badge badge-green">✓ Present</span>'
+            : '<span class="badge badge-grey">Not checked in</span>';
+    }
+    if (tsEl) tsEl.textContent = checkedInAt ? _formatTs(checkedInAt) : '—';
+
+    // Swap action button
+    const actionTd = row ? row.querySelector('td:last-child') : null;
+    if (actionTd) {
+        actionTd.innerHTML = isCheckedIn
+            ? `<button class="btn-uncheckin" onclick="teamUncheckin(${teamId})">Undo</button>`
+            : `<button class="btn-checkin" onclick="teamCheckin(${teamId})">Check In</button>`;
+    }
+}
+
+/* ── Player check-in ───────────────────────────────────────────────── */
+async function playerCheckin(teamId, userId) {
+    try {
+        const data = await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/players/${userId}/checkin`,
+            { team_id: teamId }
+        );
+        _updatePlayerRow(teamId, userId, data.checked_in_at, true);
+        toast('Player checked in');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function playerUncheckin(teamId, userId) {
+    try {
+        await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/players/${userId}/uncheckin`
+        );
+        _updatePlayerRow(teamId, userId, null, false);
+        toast('Check-in removed');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function _updatePlayerRow(teamId, userId, checkedInAt, isCheckedIn) {
+    const statusEl = document.getElementById(`player-status-${teamId}-${userId}`);
+    const tsEl     = document.getElementById(`player-ts-${teamId}-${userId}`);
+    const row      = document.getElementById(`player-row-${teamId}-${userId}`);
+
+    if (statusEl) {
+        statusEl.innerHTML = isCheckedIn
+            ? '<span class="badge badge-green">✓ Present</span>'
+            : '<span class="badge badge-grey">—</span>';
+    }
+    if (tsEl) tsEl.textContent = checkedInAt ? _formatTs(checkedInAt) : '—';
+
+    const actionTd = row ? row.querySelector('td:last-child') : null;
+    if (actionTd) {
+        actionTd.innerHTML = isCheckedIn
+            ? `<button class="btn-uncheckin" onclick="playerUncheckin(${teamId}, ${userId})">Undo</button>`
+            : `<button class="btn-checkin" onclick="playerCheckin(${teamId}, ${userId})">Check In</button>`;
+    }
+}
+
+/* ── Individual player check-in (INDIVIDUAL tournaments) ──────────── */
+async function indPlayerCheckin(userId) {
+    try {
+        const data = await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/players/${userId}/checkin`,
+            {}
+        );
+        _updateIndPlayerRow(userId, data.checked_in_at, true);
+        toast('Player checked in');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function indPlayerUncheckin(userId) {
+    try {
+        await AdminAPI.post(
+            `/admin/tournaments/${TOURNAMENT_ID}/players/${userId}/uncheckin`
+        );
+        _updateIndPlayerRow(userId, null, false);
+        toast('Check-in removed');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function _updateIndPlayerRow(userId, checkedInAt, isCheckedIn) {
+    const statusEl = document.getElementById(`ind-player-status-${userId}`);
+    const tsEl     = document.getElementById(`ind-player-ts-${userId}`);
+    const row      = document.getElementById(`ind-player-row-${userId}`);
+
+    if (statusEl) {
+        statusEl.innerHTML = isCheckedIn
+            ? '<span class="badge badge-green">✓ Present</span>'
+            : '<span class="badge badge-grey">Not checked in</span>';
+    }
+    if (tsEl) tsEl.textContent = checkedInAt ? _formatTs(checkedInAt) : '—';
+
+    const actionTd = row ? row.querySelector('td:last-child') : null;
+    if (actionTd) {
+        actionTd.innerHTML = isCheckedIn
+            ? `<button class="btn-uncheckin" onclick="indPlayerUncheckin(${userId})">Undo</button>`
+            : `<button class="btn-checkin" onclick="indPlayerCheckin(${userId})">Check In</button>`;
+    }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────── */
+function _formatTs(isoStr) {
+    if (!isoStr) return '—';
+    try {
+        return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (_) { return isoStr; }
+}
+</script>
+{% endblock %}

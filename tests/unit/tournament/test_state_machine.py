@@ -5,10 +5,11 @@ Tournament State Machine Unit Tests
 Covers every edge of the VALID_TRANSITIONS graph plus all guard conditions
 in validate_status_transition().  All tests are DB-free (SimpleNamespace).
 
-Transition graph (11 states, 22 allowed edges):
+Transition graph (12 states, 22 allowed edges):
 
     NULL  ──────────────────────────────────────► DRAFT
-    DRAFT ──────────────────────────────────────► SEEKING_INSTRUCTOR
+    DRAFT ──────────────────────────────────────► SEEKING_INSTRUCTOR   ← full workflow
+          ├─────────────────────────────────────► ENROLLMENT_OPEN      ← fast-path (no instructor)
           └─────────────────────────────────────► CANCELLED
     SEEKING_INSTRUCTOR ──────────────────────────► PENDING_INSTRUCTOR_ACCEPTANCE
                        └─────────────────────────► CANCELLED
@@ -19,8 +20,11 @@ Transition graph (11 states, 22 allowed edges):
                          └───────────────────────► CANCELLED
     ENROLLMENT_OPEN ─────────────────────────────► ENROLLMENT_CLOSED
                     └────────────────────────────► CANCELLED
-    ENROLLMENT_CLOSED ───────────────────────────► IN_PROGRESS
+    ENROLLMENT_CLOSED ───────────────────────────► CHECK_IN_OPEN       ← check-in mandatory
                       └──────────────────────────► CANCELLED
+    CHECK_IN_OPEN ───────────────────────────────► IN_PROGRESS         ← "Start Tournament"
+                  ├──────────────────────────────► ENROLLMENT_CLOSED   ← admin revert
+                  └──────────────────────────────► CANCELLED
     IN_PROGRESS ─────────────────────────────────► COMPLETED
                 ├────────────────────────────────► CANCELLED
                 └────────────────────────────────► ENROLLMENT_CLOSED  ← rollback
@@ -31,14 +35,16 @@ Transition graph (11 states, 22 allowed edges):
     ARCHIVED  (terminal — no outgoing edges)
 
 Guards:
-  SEEKING_INSTRUCTOR:      sessions non-empty, name/start_date/end_date set
+  SEEKING_INSTRUCTOR:           sessions non-empty, name/start_date/end_date set
   PENDING_INSTRUCTOR_ACCEPTANCE: master_instructor_id set
-  ENROLLMENT_OPEN:         master_instructor_id, max_players, campus_id all set
-  ENROLLMENT_CLOSED:       active enrollments >= min_players (2 if no type)
-  IN_PROGRESS:             master_instructor_id, active enrollments >= min_players
-  COMPLETED:               sessions non-empty
-  REWARDS_DISTRIBUTED:     (no guard — pass-through)
-  CANCELLED / ARCHIVED:    (no guard)
+  ENROLLMENT_OPEN (full path):  master_instructor_id (only when source=INSTRUCTOR_CONFIRMED),
+                                campus_id  [max_players optional — unlimited if not set]
+  ENROLLMENT_OPEN (fast-path):  campus_id  (no instructor required from DRAFT)
+  ENROLLMENT_CLOSED:            active enrollments >= min_players (2 if no type)
+  IN_PROGRESS:                  master_instructor_id, active enrollments >= min_players
+  COMPLETED:                    sessions non-empty + TournamentRanking rows exist
+  REWARDS_DISTRIBUTED:          (no guard — pass-through)
+  CANCELLED / ARCHIVED:         (no guard)
 
 Special edge:
   IN_PROGRESS → ENROLLMENT_CLOSED  (admin rollback for stuck tournaments)
@@ -256,24 +262,27 @@ class TestPendingInstructorAcceptanceGuards:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestEnrollmentOpenGuards:
-    """INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN guards: instructor, max_players, campus_id."""
+    """ENROLLMENT_OPEN guards: full workflow (INSTRUCTOR_CONFIRMED) vs fast-path (DRAFT)."""
+
+    # ── Full workflow (INSTRUCTOR_CONFIRMED → ENROLLMENT_OPEN) ────────────────
 
     def test_all_guards_satisfied(self):
         t = _tournament(master_instructor_id=1, max_players=16, campus_id=7)
         ok, err = validate_status_transition("INSTRUCTOR_CONFIRMED", "ENROLLMENT_OPEN", t)
         assert ok is True
 
-    def test_no_instructor_blocked(self):
+    def test_no_instructor_blocked_on_full_path(self):
+        """Full workflow: instructor required when coming from INSTRUCTOR_CONFIRMED."""
         t = _tournament(master_instructor_id=None, max_players=16, campus_id=7)
         ok, err = validate_status_transition("INSTRUCTOR_CONFIRMED", "ENROLLMENT_OPEN", t)
         assert ok is False
         assert "instructor" in err.lower()
 
-    def test_no_max_players_blocked(self):
+    def test_no_max_players_allowed(self):
+        """max_players is optional (unlimited capacity if not set) — must not block."""
         t = _tournament(master_instructor_id=1, max_players=None, campus_id=7)
         ok, err = validate_status_transition("INSTRUCTOR_CONFIRMED", "ENROLLMENT_OPEN", t)
-        assert ok is False
-        assert "participant" in err.lower() or "max" in err.lower()
+        assert ok is True, f"max_players=None must not block enrollment open, got: {err}"
 
     # ── Campus precondition (isolated) ────────────────────────────────────────
 
@@ -307,6 +316,33 @@ class TestEnrollmentOpenGuards:
             # NO campus_id attribute
         )
         ok, err = validate_status_transition("INSTRUCTOR_CONFIRMED", "ENROLLMENT_OPEN", t)
+        assert ok is False
+        assert "campus" in err.lower()
+
+    # ── Fast-path (DRAFT → ENROLLMENT_OPEN) ───────────────────────────────────
+
+    def test_draft_to_enrollment_open_without_instructor_ok(self):
+        """Fast-path: no instructor required when source is DRAFT."""
+        t = _tournament(master_instructor_id=None, max_players=16, campus_id=7)
+        ok, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert ok is True, f"DRAFT fast-path should allow no instructor, got: {err}"
+
+    def test_draft_to_enrollment_open_with_instructor_also_ok(self):
+        """Fast-path: having an instructor assigned is fine too."""
+        t = _tournament(master_instructor_id=42, max_players=16, campus_id=7)
+        ok, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert ok is True
+
+    def test_draft_fast_path_no_max_players_allowed(self):
+        """Fast-path: max_players is optional — unlimited capacity if not set."""
+        t = _tournament(master_instructor_id=None, max_players=None, campus_id=7)
+        ok, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert ok is True, f"max_players=None must not block fast-path enrollment open, got: {err}"
+
+    def test_draft_fast_path_still_needs_campus_id(self):
+        """Fast-path: campus_id guard still applies."""
+        t = _tournament(master_instructor_id=None, max_players=16, campus_id=None)
+        ok, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
         assert ok is False
         assert "campus" in err.lower()
 
@@ -370,29 +406,36 @@ class TestEnrollmentClosedGuards:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestInProgressGuards:
-    """ENROLLMENT_CLOSED → IN_PROGRESS guards: instructor + player count."""
+    """CHECK_IN_OPEN → IN_PROGRESS guards: instructor + player count."""
 
     def test_all_guards_satisfied(self):
         t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(4))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is True
 
     def test_no_instructor_blocked(self):
         t = _tournament(master_instructor_id=None, enrollments=_active_enrollments(4))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is False
         assert "instructor" in err.lower()
 
     def test_insufficient_players_blocked(self):
         t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(1))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is False
         assert "minimum" in err.lower() or "participant" in err.lower()
 
     def test_exactly_minimum_ok(self):
         t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(2))
-        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        ok, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
         assert ok is True
+
+    def test_enrollment_closed_to_in_progress_now_invalid(self):
+        """ENROLLMENT_CLOSED → IN_PROGRESS is no longer a valid transition (CHECK_IN_OPEN is required)."""
+        t = _tournament(master_instructor_id=1, enrollments=_active_enrollments(4))
+        ok, err = validate_status_transition("ENROLLMENT_CLOSED", "IN_PROGRESS", t)
+        assert ok is False
+        assert "not allowed" in err.lower() or "invalid" in err.lower()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -623,7 +666,7 @@ class TestGraphCompleteness:
     EXPECTED_STATES = {
         "DRAFT", "SEEKING_INSTRUCTOR", "PENDING_INSTRUCTOR_ACCEPTANCE",
         "INSTRUCTOR_CONFIRMED", "ENROLLMENT_OPEN", "ENROLLMENT_CLOSED",
-        "IN_PROGRESS", "COMPLETED", "REWARDS_DISTRIBUTED",
+        "CHECK_IN_OPEN", "IN_PROGRESS", "COMPLETED", "REWARDS_DISTRIBUTED",
         "CANCELLED", "ARCHIVED",
     }
 
@@ -648,13 +691,15 @@ class TestGraphCompleteness:
         """Verify the exact number of allowed edges to catch accidental additions.
 
         Manual count:
-          DRAFT(2) + SEEKING_INSTRUCTOR(2) + PENDING_INSTRUCTOR_ACCEPTANCE(3)
+          DRAFT(3) + SEEKING_INSTRUCTOR(2) + PENDING_INSTRUCTOR_ACCEPTANCE(3)
           + INSTRUCTOR_CONFIRMED(2) + ENROLLMENT_OPEN(2) + ENROLLMENT_CLOSED(2)
-          + IN_PROGRESS(3) + COMPLETED(2) + REWARDS_DISTRIBUTED(1)
-          + CANCELLED(1) + ARCHIVED(0) = 20
+          + CHECK_IN_OPEN(3) + IN_PROGRESS(3) + COMPLETED(2) + REWARDS_DISTRIBUTED(1)
+          + CANCELLED(1) + ARCHIVED(0) = 24
+          (+3 vs previous: CHECK_IN_OPEN state added with 3 outgoing edges;
+           ENROLLMENT_CLOSED → IN_PROGRESS removed, CHECK_IN_OPEN → {IN_PROGRESS, ENROLLMENT_CLOSED, CANCELLED} added)
         """
         total = sum(len(v) for v in VALID_TRANSITIONS.values())
-        assert total == 20, (
-            f"Expected 20 allowed edges in VALID_TRANSITIONS, found {total}. "
+        assert total == 24, (
+            f"Expected 24 allowed edges in VALID_TRANSITIONS, found {total}. "
             "Update this test if a new edge is intentionally added."
         )

@@ -1,0 +1,307 @@
+name: Tournament Type Matrix (SRL-09..15 + Seed + E2E)
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/api/api_v1/endpoints/tournaments/calculate_rankings.py'
+      - 'app/services/tournament/ranking/**'
+      - 'app/services/tournament/session_generation/**'
+      - 'app/services/tournament/rewards/**'
+      - 'app/services/tournament/tournament_finalizer.py'
+      - 'tests/integration/web_flows/test_lifecycle_reward_matrix.py'
+      - 'tests/e2e/test_tournament_type_matrix.py'
+      - 'scripts/seed_all_tournament_types.py'
+      - '.github/workflows/tournament-type-matrix.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: tournament-type-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-tournament-matrix-secret-not-for-production
+
+# ── Job 1: SRL-09..15 Integration tests ───────────────────────────────────────
+jobs:
+  integration:
+    name: "SRL-09..15 Lifecycle Reward Matrix"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-tournament-matrix-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Migrate DB
+        run: alembic upgrade head
+
+      - name: Run SRL-09..15 — New tournament type lifecycle tests
+        run: |
+          mkdir -p results
+          PYTHONPATH=. pytest tests/integration/web_flows/test_lifecycle_reward_matrix.py \
+            -v --tb=short \
+            -k "SRL_09 or SRL_10 or SRL_11 or SRL_12 or SRL_13 or SRL_15" \
+            --junitxml=results/srl-new.xml
+
+      - name: Run SRL-01..08 — Regression (existing lifecycle tests)
+        run: |
+          PYTHONPATH=. pytest tests/integration/web_flows/test_lifecycle_reward_matrix.py \
+            -v --tb=short \
+            -k "SRL_01 or SRL_02 or SRL_03 or SRL_04 or SRL_05 or SRL_06 or SRL_07 or SRL_08" \
+            --junitxml=results/srl-existing.xml
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-srl-integration-${{ github.run_id }}
+          path: results/*.xml
+          retention-days: 14
+
+  # ── Job 2: Seed script validation ─────────────────────────────────────────
+  seed-check:
+    name: "Seed All Tournament Types"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-tournament-matrix-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Migrate DB
+        run: alembic upgrade head
+
+      - name: Seed reference data (tournament_types)
+        run: |
+          PYTHONPATH=. python scripts/seed_tournament_types.py
+
+      - name: Run seed_all_tournament_types.py
+        run: |
+          PYTHONPATH=. python scripts/seed_all_tournament_types.py
+
+      - name: Verify seed output — 9 tournaments created
+        run: |
+          PYTHONPATH=. python - <<'PYEOF'
+          import os, sys
+          from sqlalchemy import create_engine, text
+
+          engine = create_engine(os.environ["DATABASE_URL"])
+          with engine.connect() as conn:
+              row = conn.execute(text(
+                  "SELECT COUNT(*) FROM semesters WHERE tournament_status = 'REWARDS_DISTRIBUTED' "
+                  "AND code LIKE 'SATT-%'"
+              )).scalar()
+          print(f"SATT tournaments with REWARDS_DISTRIBUTED: {row}")
+          if row < 9:
+              print(f"ERROR: expected 9, got {row}", file=sys.stderr)
+              sys.exit(1)
+          print("OK — all 9 seed tournaments verified")
+          PYEOF
+
+  # ── Job 3: Playwright E2E (requests-based, no browser) ────────────────────
+  playwright-e2e:
+    name: "E2E Tournament Type Matrix (TM-02..04)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [integration, seed-check]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-tournament-matrix-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          python -m playwright install chromium
+
+      - name: Migrate DB + seed
+        run: |
+          alembic upgrade head
+          PYTHONPATH=. python scripts/seed_tournament_types.py
+          PYTHONPATH=. python scripts/seed_all_tournament_types.py
+
+      - name: Start app server
+        run: |
+          PYTHONPATH=. uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          # Wait for server to be ready
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run TM-02..04 — requests-based E2E (no browser)
+        run: |
+          mkdir -p results
+          PYTHONPATH=. pytest tests/e2e/test_tournament_type_matrix.py \
+            -v --tb=short \
+            -k "not slow" \
+            --junitxml=results/tm-e2e.xml
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-tm-e2e-${{ github.run_id }}
+          path: results/*.xml
+          retention-days: 14
+
+  # ── Summary gate ──────────────────────────────────────────────────────────
+  tournament-matrix-gate:
+    name: "Tournament Type Matrix Gate"
+    runs-on: ubuntu-latest
+    needs: [integration, seed-check, playwright-e2e]
+    if: always()
+
+    steps:
+      - name: Gate check
+        run: |
+          echo "## Tournament Type Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-09..15 Integration | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Seed All Types | ${{ needs.seed-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E TM-02..04 | ${{ needs.playwright-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Coverage Matrix" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test ID | Format | Participant | Type | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|-------------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-01 | H2H | INDIVIDUAL | league | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-08 | H2H | TEAM | league | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-09 | H2H | INDIVIDUAL | knockout | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-10 | H2H | INDIVIDUAL | group_knockout | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-11 | INDIVIDUAL_RANKING | INDIVIDUAL | SCORE_BASED | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-12 | INDIVIDUAL_RANKING | TEAM | SCORE_BASED | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-13 | H2H | TEAM | knockout | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-14 | H2H | TEAM | group_knockout | ⚠️ arch-gap (not tested) |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-15 | H2H | TEAM | league (2-legs) | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Known Gaps (documented, not blocking)" >> $GITHUB_STEP_SUMMARY
+          echo "- **SRL-14 (TEAM+group_knockout)**: finalize path checks game_results, not rounds_data — architectural gap, tracked separately" >> $GITHUB_STEP_SUMMARY
+          echo "- **Swiss ranking**: no strategy (SGR-06 — returns 400); Swiss session gen works (SGM-03/08/10)" >> $GITHUB_STEP_SUMMARY
+          echo "- **TM-01 (wizard browser test)**: marked \`@pytest.mark.slow\`, requires running server — excluded from CI" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          INT="${{ needs.integration.result }}"
+          SEED="${{ needs.seed-check.result }}"
+          E2E="${{ needs.playwright-e2e.result }}"
+
+          if [ "$INT" = "success" ] && [ "$SEED" = "success" ] && [ "$E2E" = "success" ]; then
+            echo "### ✅ All jobs PASSED — tournament type matrix validated" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

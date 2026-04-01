@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.api.api_v1.endpoints.auth import get_current_user
+from app.dependencies import get_current_admin_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.specialization import SpecializationType
@@ -49,6 +49,10 @@ class TournamentUpdateRequest(BaseModel):
     number_of_rounds: Optional[int] = Field(None, ge=1, le=10, description="Number of rounds for INDIVIDUAL_RANKING tournaments (⚠️ WARNING: Triggers session regeneration if changed)")
     campus_id: Optional[int] = Field(None, description="Campus ID where tournament will be held")
     location_id: Optional[int] = Field(None, description="Location ID where tournament will be held")
+    game_preset_id: Optional[int] = Field(None, description="Game preset ID (updates GameConfiguration)")
+    theme: Optional[str] = Field(None, description="Marketing theme / headline (e.g. 'Spring 2026 Edition')")
+    winner_count: Optional[int] = Field(None, ge=1, description="Number of winners (INDIVIDUAL_RANKING)")
+    team_enrollment_cost: Optional[int] = Field(None, ge=0, description="Credit cost per team enrollment (TEAM tournaments)")
 
 
 # ============================================================================
@@ -60,7 +64,7 @@ def update_tournament(
     tournament_id: int,
     request: TournamentUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ):
     """
     Update tournament fields (Admin only)
@@ -208,29 +212,46 @@ def update_tournament(
             )
         updates["campus_id"] = {"old": tournament.campus_id, "new": request.campus_id}
         tournament.campus_id = request.campus_id
+        # Auto-derive location from campus if tournament has no location set
+        if campus.location_id and not tournament.location_id:
+            tournament.location_id = campus.location_id
+            updates["location_id_derived"] = {"source": "campus", "value": campus.location_id}
 
     # Update tournament_type_id (lives in TournamentConfiguration — ⚠️ auto-deletes sessions on change)
-    if request.tournament_type_id is not None:
-        from app.models.tournament_type import TournamentType
-        tournament_type = db.query(TournamentType).filter(TournamentType.id == request.tournament_type_id).first()
-        if not tournament_type:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tournament type {request.tournament_type_id} not found"
-            )
-
-        # Auto-delete existing sessions if type changes
-        if tournament.sessions_generated and tournament.tournament_type_id != request.tournament_type_id:
-            from app.models.session import Session as SessionModel
-            deleted_count = db.query(SessionModel).filter(SessionModel.semester_id == tournament.id).delete()
+    # Use model_fields_set to detect explicit null (IR switch) vs omitted field
+    if 'tournament_type_id' in request.model_fields_set:
+        old_type_id = tournament.tournament_type_id
+        if request.tournament_type_id is None:
+            # Switching to INDIVIDUAL_RANKING: clear tournament_type_id
+            if tournament.sessions_generated:
+                from app.models.session import Session as SessionModel
+                deleted_count = db.query(SessionModel).filter(SessionModel.semester_id == tournament.id).delete()
+                if tournament.tournament_config_obj:
+                    tournament.tournament_config_obj.sessions_generated = False
+                    tournament.tournament_config_obj.sessions_generated_at = None
+                updates["sessions_deleted"] = {"count": deleted_count, "reason": "format_switched_to_individual_ranking"}
+            updates["tournament_type_id"] = {"old": old_type_id, "new": None, "format_switch": "INDIVIDUAL_RANKING"}
             if tournament.tournament_config_obj:
-                tournament.tournament_config_obj.sessions_generated = False
-                tournament.tournament_config_obj.sessions_generated_at = None
-            updates["sessions_deleted"] = {"count": deleted_count, "reason": "tournament_type_changed"}
-
-        updates["tournament_type_id"] = {"old": tournament.tournament_type_id, "new": request.tournament_type_id}
-        if tournament.tournament_config_obj:
-            tournament.tournament_config_obj.tournament_type_id = request.tournament_type_id
+                tournament.tournament_config_obj.tournament_type_id = None
+        else:
+            from app.models.tournament_type import TournamentType
+            tournament_type = db.query(TournamentType).filter(TournamentType.id == request.tournament_type_id).first()
+            if not tournament_type:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Tournament type {request.tournament_type_id} not found"
+                )
+            # Auto-delete existing sessions if type changes
+            if tournament.sessions_generated and old_type_id != request.tournament_type_id:
+                from app.models.session import Session as SessionModel
+                deleted_count = db.query(SessionModel).filter(SessionModel.semester_id == tournament.id).delete()
+                if tournament.tournament_config_obj:
+                    tournament.tournament_config_obj.sessions_generated = False
+                    tournament.tournament_config_obj.sessions_generated_at = None
+                updates["sessions_deleted"] = {"count": deleted_count, "reason": "tournament_type_changed"}
+            updates["tournament_type_id"] = {"old": old_type_id, "new": request.tournament_type_id}
+            if tournament.tournament_config_obj:
+                tournament.tournament_config_obj.tournament_type_id = request.tournament_type_id
 
     # ⚠️ ADMIN OVERRIDE: Update tournament_status (bypasses state machine validation)
     if request.tournament_status is not None:
@@ -352,6 +373,45 @@ def update_tournament(
             )
         updates["location_id"] = {"old": tournament.location_id, "new": request.location_id}
         tournament.location_id = request.location_id
+
+    # Update game_preset_id (lives in GameConfiguration)
+    if request.game_preset_id is not None:
+        from app.models.game_preset import GamePreset
+        from app.models.game_configuration import GameConfiguration
+        preset = db.query(GamePreset).filter(
+            GamePreset.id == request.game_preset_id,
+            GamePreset.is_active == True,
+        ).first()
+        if not preset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Game preset {request.game_preset_id} not found or inactive",
+            )
+        game_cfg = db.query(GameConfiguration).filter(
+            GameConfiguration.semester_id == tournament_id
+        ).first()
+        if game_cfg:
+            updates["game_preset_id"] = {"old": game_cfg.game_preset_id, "new": request.game_preset_id}
+            game_cfg.game_preset_id = request.game_preset_id
+
+    # Update theme (direct Semester column)
+    if request.theme is not None:
+        updates["theme"] = {"old": tournament.theme, "new": request.theme}
+        tournament.theme = request.theme
+
+    # Update winner_count (direct Semester column — for INDIVIDUAL_RANKING)
+    if request.winner_count is not None:
+        updates["winner_count"] = {"old": tournament.winner_count, "new": request.winner_count}
+        tournament.winner_count = request.winner_count
+
+    # Update team_enrollment_cost (lives in TournamentConfiguration)
+    if request.team_enrollment_cost is not None:
+        updates["team_enrollment_cost"] = {
+            "old": getattr(tournament.tournament_config_obj, 'team_enrollment_cost', None),
+            "new": request.team_enrollment_cost,
+        }
+        if tournament.tournament_config_obj:
+            tournament.tournament_config_obj.team_enrollment_cost = request.team_enrollment_cost
 
     # If no updates, return early
     if not updates:

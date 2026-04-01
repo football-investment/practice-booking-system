@@ -782,33 +782,6 @@
         "title": "AssessmentResponse",
         "type": "object"
       },
-      "AssignInstructorRequest": {
-        "description": "Request to assign an instructor to a tournament",
-        "properties": {
-          "instructor_id": {
-            "description": "ID of the instructor to assign",
-            "title": "Instructor Id",
-            "type": "integer"
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional message to instructor",
-            "title": "Message"
-          }
-        },
-        "required": [
-          "instructor_id"
-        ],
-        "title": "AssignInstructorRequest",
-        "type": "object"
-      },
       "AssignmentCreate": {
         "description": "Schema for creating instructor assignment",
         "properties": {
@@ -1952,6 +1925,100 @@
         "title": "BatchEnrollResponse",
         "type": "object"
       },
+      "Body_admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post": {
+        "properties": {
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pitch_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pitch Id"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instructor_id",
+          "role"
+        ],
+        "title": "Body_admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post",
+        "type": "object"
+      },
+      "Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post",
+        "type": "object"
+      },
+      "Body_admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post": {
+        "properties": {
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "is_master": {
+            "default": false,
+            "title": "Is Master",
+            "type": "boolean"
+          },
+          "semester_id": {
+            "default": 0,
+            "title": "Semester Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "instructor_id"
+        ],
+        "title": "Body_admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post",
+        "type": "object"
+      },
+      "Body_admin_assign_sport_director_admin_sport_directors_assign_post": {
+        "properties": {
+          "location_id": {
+            "title": "Location Id",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "location_id"
+        ],
+        "title": "Body_admin_assign_sport_director_admin_sport_directors_assign_post",
+        "type": "object"
+      },
       "Body_admin_booking_attendance_admin_bookings__booking_id__attendance_post": {
         "properties": {
           "attendance_status": {
@@ -1979,6 +2046,66 @@
           }
         },
         "title": "Body_admin_booking_cancel_admin_bookings__booking_id__cancel_post",
+        "type": "object"
+      },
+      "Body_admin_club_csv_import_admin_clubs__club_id__csv_import_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_admin_club_csv_import_admin_clubs__club_id__csv_import_post",
+        "type": "object"
+      },
+      "Body_admin_club_promotion_admin_clubs__club_id__promotion_post": {
+        "properties": {
+          "age_groups": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Age Groups",
+            "type": "array"
+          },
+          "campus_id": {
+            "default": "",
+            "title": "Campus Id",
+            "type": "string"
+          },
+          "end_date": {
+            "title": "End Date",
+            "type": "string"
+          },
+          "game_preset_id": {
+            "default": "",
+            "title": "Game Preset Id",
+            "type": "string"
+          },
+          "start_date": {
+            "title": "Start Date",
+            "type": "string"
+          },
+          "tournament_name": {
+            "title": "Tournament Name",
+            "type": "string"
+          },
+          "tournament_type_id": {
+            "default": "",
+            "title": "Tournament Type Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tournament_name",
+          "start_date",
+          "end_date"
+        ],
+        "title": "Body_admin_club_promotion_admin_clubs__club_id__promotion_post",
         "type": "object"
       },
       "Body_admin_create_camp_admin_camps_post": {
@@ -2055,6 +2182,34 @@
           "name"
         ],
         "title": "Body_admin_create_campus_admin_locations__location_id__campuses_post",
+        "type": "object"
+      },
+      "Body_admin_create_club_admin_clubs_create_post": {
+        "properties": {
+          "city": {
+            "default": "",
+            "title": "City",
+            "type": "string"
+          },
+          "contact_email": {
+            "default": "",
+            "title": "Contact Email",
+            "type": "string"
+          },
+          "country": {
+            "default": "",
+            "title": "Country",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_admin_create_club_admin_clubs_create_post",
         "type": "object"
       },
       "Body_admin_create_coupon_admin_coupons_post": {
@@ -2191,6 +2346,34 @@
         "title": "Body_admin_create_location_admin_locations_post",
         "type": "object"
       },
+      "Body_admin_create_pitch_admin_pitches_create_post": {
+        "properties": {
+          "campus_id": {
+            "title": "Campus Id",
+            "type": "integer"
+          },
+          "capacity": {
+            "default": 2,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pitch_number": {
+            "title": "Pitch Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "campus_id",
+          "pitch_number",
+          "name"
+        ],
+        "title": "Body_admin_create_pitch_admin_pitches_create_post",
+        "type": "object"
+      },
       "Body_admin_create_tournament_admin_tournaments_post": {
         "properties": {
           "age_group": {
@@ -2259,6 +2442,39 @@
         "title": "Body_admin_create_tournament_admin_tournaments_post",
         "type": "object"
       },
+      "Body_admin_create_user_admin_users_create_post": {
+        "properties": {
+          "credit_balance": {
+            "default": 0,
+            "title": "Credit Balance",
+            "type": "integer"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "role",
+          "password"
+        ],
+        "title": "Body_admin_create_user_admin_users_create_post",
+        "type": "object"
+      },
       "Body_admin_deduct_credit_admin_users__user_id__deduct_credit_post": {
         "properties": {
           "amount": {
@@ -2275,6 +2491,34 @@
           "reason"
         ],
         "title": "Body_admin_deduct_credit_admin_users__user_id__deduct_credit_post",
+        "type": "object"
+      },
+      "Body_admin_edit_club_admin_clubs__club_id__edit_post": {
+        "properties": {
+          "city": {
+            "default": "",
+            "title": "City",
+            "type": "string"
+          },
+          "contact_email": {
+            "default": "",
+            "title": "Contact Email",
+            "type": "string"
+          },
+          "country": {
+            "default": "",
+            "title": "Country",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_admin_edit_club_admin_clubs__club_id__edit_post",
         "type": "object"
       },
       "Body_admin_edit_game_preset_submit_admin_game_presets__preset_id__edit_post": {
@@ -2514,6 +2758,19 @@
         "title": "Body_admin_revoke_license_admin_users__user_id__revoke_license__license_id__post",
         "type": "object"
       },
+      "Body_admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post": {
+        "properties": {
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "Body_admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post",
+        "type": "object"
+      },
       "Body_admin_tournament_teams_enroll_admin_tournaments__tournament_id__teams_enroll_post": {
         "properties": {
           "team_id": {
@@ -2680,6 +2937,20 @@
           "country"
         ],
         "title": "Body_admin_update_location_admin_locations__location_id__edit_post",
+        "type": "object"
+      },
+      "Body_admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post",
         "type": "object"
       },
       "Body_age_verification_submit_age_verification_post": {
@@ -3219,6 +3490,20 @@
         "title": "Body_specialization_unlock_specialization_unlock_post",
         "type": "object"
       },
+      "Body_student_upload_player_photo_dashboard_lfa_player_photo_post": {
+        "properties": {
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_student_upload_player_photo_dashboard_lfa_player_photo_post",
+        "type": "object"
+      },
       "Body_submit_quiz_quizzes__quiz_id__submit_post": {
         "properties": {
           "attempt_id": {
@@ -3246,6 +3531,32 @@
           "time_spent"
         ],
         "title": "Body_submit_quiz_quizzes__quiz_id__submit_post",
+        "type": "object"
+      },
+      "Body_team_create_submit_tournaments__tournament_id__team_create_post": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Body_team_create_submit_tournaments__tournament_id__team_create_post",
+        "type": "object"
+      },
+      "Body_team_invite_teams__team_id__invite_post": {
+        "properties": {
+          "invited_user_id": {
+            "title": "Invited User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "invited_user_id"
+        ],
+        "title": "Body_team_invite_teams__team_id__invite_post",
         "type": "object"
       },
       "Booking": {
@@ -5082,6 +5393,23 @@
         "title": "DeclineApplicationRequest",
         "type": "object"
       },
+      "DeclineRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "DeclineRequest",
+        "type": "object"
+      },
       "DemoteRequest": {
         "description": "Request body for demoting a level",
         "example": {
@@ -5157,6 +5485,34 @@
           "tournament_id"
         ],
         "title": "DistributeRewardsRequest",
+        "type": "object"
+      },
+      "EligibleInstructorResponse": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ],
+        "title": "EligibleInstructorResponse",
         "type": "object"
       },
       "EnrollmentConflict": {
@@ -9231,6 +9587,19 @@
             "description": "Break between consecutive matches in minutes. 0 = back-to-back.",
             "title": "Break Duration Minutes"
           },
+          "checkin_opens_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "UTC datetime when check-in auto-opens. Naive strings and offset datetimes are normalised to UTC. Null = manual-only (admin must press 'Open Check-In').",
+            "title": "Checkin Opens At"
+          },
           "match_duration_minutes": {
             "anyOf": [
               {
@@ -9245,6 +9614,19 @@
             "description": "Duration of each match in minutes. Applies to all campuses unless overridden per-campus. Typical values: 90 (football), 5 (chess rapid), 1-3 (speed trials).",
             "title": "Match Duration Minutes"
           },
+          "number_of_legs": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of legs for HEAD_TO_HEAD round robin. 1 = single round, 2 = home & away, 3 = triple round, etc. Ignored for INDIVIDUAL_RANKING tournaments.",
+            "title": "Number Of Legs"
+          },
           "parallel_fields": {
             "anyOf": [
               {
@@ -9258,6 +9640,18 @@
             ],
             "description": "Number of pitches/courts/boards available simultaneously across the tournament. Per-campus overrides in CampusScheduleConfig take priority.",
             "title": "Parallel Fields"
+          },
+          "track_home_away": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "If True, even legs reverse each pairing so the home team becomes away in leg 2. Only meaningful when number_of_legs >= 2.",
+            "title": "Track Home Away"
           }
         },
         "title": "MatchDurationConfig",
@@ -10421,6 +10815,191 @@
           "period"
         ],
         "title": "PeriodGenerationResponse",
+        "type": "object"
+      },
+      "PitchAssignmentResponse": {
+        "properties": {
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "assigned_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned By"
+          },
+          "assignment_type": {
+            "title": "Assignment Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "is_master": {
+            "title": "Is Master",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pitch_id": {
+            "title": "Pitch Id",
+            "type": "integer"
+          },
+          "required_age_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Age Group"
+          },
+          "required_license_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required License Type"
+          },
+          "semester_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semester Id"
+          },
+          "sessions_updated": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessions Updated"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "pitch_id",
+          "instructor_id",
+          "semester_id",
+          "is_master",
+          "assignment_type",
+          "status",
+          "required_license_type",
+          "required_age_group",
+          "assigned_by",
+          "created_at",
+          "activated_at",
+          "ended_at",
+          "notes"
+        ],
+        "title": "PitchAssignmentResponse",
+        "type": "object"
+      },
+      "PitchResponse": {
+        "properties": {
+          "campus_id": {
+            "title": "Campus Id",
+            "type": "integer"
+          },
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pitch_number": {
+            "title": "Pitch Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "campus_id",
+          "pitch_number",
+          "name",
+          "capacity",
+          "is_active",
+          "created_at"
+        ],
+        "title": "PitchResponse",
         "type": "object"
       },
       "PlacementRewardConfig": {
@@ -15114,6 +15693,13 @@
             "description": "Per-campus schedule overrides keyed by campus_id (as string). Each entry can override match_duration_minutes, break_duration_minutes, and parallel_fields. Example: {\"42\": {\"match_duration_minutes\": 60, \"parallel_fields\": 3}}",
             "title": "Campus Schedule Overrides"
           },
+          "number_of_legs": {
+            "default": 1,
+            "description": "Number of legs for HEAD_TO_HEAD round robin. 1 = single round (default), 2 = home & away, 3 = triple round, etc. Ignored for INDIVIDUAL_RANKING tournaments.",
+            "minimum": 1.0,
+            "title": "Number Of Legs",
+            "type": "integer"
+          },
           "number_of_rounds": {
             "default": 1,
             "description": "Number of rounds for INDIVIDUAL_RANKING tournaments (e.g., 3 attempts for 100m sprint)",
@@ -15137,6 +15723,12 @@
             "minimum": 1.0,
             "title": "Session Duration Minutes",
             "type": "integer"
+          },
+          "track_home_away": {
+            "default": false,
+            "description": "If True, even legs reverse each pairing so the home team becomes away in leg 2. Only meaningful when number_of_legs >= 2.",
+            "title": "Track Home Away",
+            "type": "boolean"
           }
         },
         "title": "SessionGenerationRequest",
@@ -15810,104 +16402,6 @@
         "title": "SkillAuditRow",
         "type": "object"
       },
-      "SkillAverages": {
-        "description": "Skill averages for LFA Player (7 skills)",
-        "properties": {
-          "ball_control_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ball Control Avg"
-          },
-          "crossing_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Crossing Avg"
-          },
-          "defending_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Defending Avg"
-          },
-          "dribbling_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dribbling Avg"
-          },
-          "heading_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Heading Avg"
-          },
-          "passing_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Passing Avg"
-          },
-          "shooting_avg": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Shooting Avg"
-          }
-        },
-        "title": "SkillAverages",
-        "type": "object"
-      },
       "SkillData": {
         "description": "Individual skill progression data",
         "properties": {
@@ -16163,52 +16657,6 @@
           "timeline"
         ],
         "title": "SkillTimelineResponse",
-        "type": "object"
-      },
-      "SkillUpdate": {
-        "description": "Request to update a skill",
-        "properties": {
-          "new_avg": {
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "New Avg",
-            "type": "number"
-          },
-          "skill_name": {
-            "description": "heading, shooting, crossing, passing, dribbling, ball_control, defending",
-            "title": "Skill Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "skill_name",
-          "new_avg"
-        ],
-        "title": "SkillUpdate",
-        "type": "object"
-      },
-      "SkillUpdateResponse": {
-        "description": "Response after skill update",
-        "properties": {
-          "new_avg": {
-            "title": "New Avg",
-            "type": "number"
-          },
-          "overall_avg": {
-            "title": "Overall Avg",
-            "type": "number"
-          },
-          "skill_name": {
-            "title": "Skill Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "skill_name",
-          "new_avg",
-          "overall_avg"
-        ],
-        "title": "SkillUpdateResponse",
         "type": "object"
       },
       "SpecializationRequest": {
@@ -17692,6 +18140,18 @@
             "description": "Tournament format (HEAD_TO_HEAD or INDIVIDUAL_RANKING)",
             "title": "Format"
           },
+          "game_preset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Game preset ID (updates GameConfiguration)",
+            "title": "Game Preset Id"
+          },
           "location_id": {
             "anyOf": [
               {
@@ -17815,6 +18275,31 @@
             "description": "Tournament start date (ISO format)",
             "title": "Start Date"
           },
+          "team_enrollment_cost": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Credit cost per team enrollment (TEAM tournaments)",
+            "title": "Team Enrollment Cost"
+          },
+          "theme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Marketing theme / headline (e.g. 'Spring 2026 Edition')",
+            "title": "Theme"
+          },
           "tournament_status": {
             "anyOf": [
               {
@@ -17838,6 +18323,19 @@
             ],
             "description": "Tournament type ID (\u26a0\ufe0f WARNING: Can only change if no sessions generated)",
             "title": "Tournament Type Id"
+          },
+          "winner_count": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of winners (INDIVIDUAL_RANKING)",
+            "title": "Winner Count"
           }
         },
         "title": "TournamentUpdateRequest",
@@ -19119,6 +19617,7 @@
       "UserRole": {
         "enum": [
           "admin",
+          "sport_director",
           "instructor",
           "student"
         ],
@@ -21163,7 +21662,7 @@
         "type": "object"
       },
       "app__api__api_v1__endpoints__lfa_player__licenses__LicenseCreate": {
-        "description": "Request to create LFA Player license",
+        "description": "Request to create LFA Player license \u2014 kept for schema compat, endpoint is deprecated",
         "properties": {
           "age_group": {
             "description": "Age group: PRE, YOUTH, AMATEUR, PRO",
@@ -21175,16 +21674,6 @@
             "minimum": 0.0,
             "title": "Initial Credits",
             "type": "integer"
-          },
-          "initial_skills": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SkillAverages"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -21196,16 +21685,8 @@
       "app__api__api_v1__endpoints__lfa_player__licenses__LicenseResponse": {
         "description": "LFA Player license response",
         "properties": {
-          "age_group": {
-            "title": "Age Group",
-            "type": "string"
-          },
-          "created_at": {
-            "title": "Created At",
-            "type": "string"
-          },
-          "credit_balance": {
-            "title": "Credit Balance",
+          "current_level": {
+            "title": "Current Level",
             "type": "integer"
           },
           "id": {
@@ -21216,14 +21697,15 @@
             "title": "Is Active",
             "type": "boolean"
           },
-          "overall_avg": {
-            "title": "Overall Avg",
-            "type": "number"
+          "onboarding_completed": {
+            "title": "Onboarding Completed",
+            "type": "boolean"
           },
-          "skills": {
-            "$ref": "#/components/schemas/SkillAverages"
+          "specialization_type": {
+            "title": "Specialization Type",
+            "type": "string"
           },
-          "updated_at": {
+          "started_at": {
             "anyOf": [
               {
                 "type": "string"
@@ -21232,7 +21714,7 @@
                 "type": "null"
               }
             ],
-            "title": "Updated At"
+            "title": "Started At"
           },
           "user_id": {
             "title": "User Id",
@@ -21242,14 +21724,74 @@
         "required": [
           "id",
           "user_id",
-          "age_group",
-          "credit_balance",
-          "overall_avg",
-          "skills",
+          "specialization_type",
+          "current_level",
           "is_active",
-          "created_at"
+          "onboarding_completed"
         ],
         "title": "LicenseResponse",
+        "type": "object"
+      },
+      "app__api__api_v1__endpoints__pitches__AssignInstructorRequest": {
+        "properties": {
+          "instructor_id": {
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "is_master": {
+            "default": false,
+            "title": "Is Master",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "required_age_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Age Group"
+          },
+          "required_license_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required License Type"
+          },
+          "semester_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semester Id"
+          }
+        },
+        "required": [
+          "instructor_id"
+        ],
+        "title": "AssignInstructorRequest",
         "type": "object"
       },
       "app__api__api_v1__endpoints__semester_enrollments__schemas__EnrollmentResponse": {
@@ -21613,6 +22155,33 @@
           "created_at"
         ],
         "title": "TournamentCreateResponse",
+        "type": "object"
+      },
+      "app__api__api_v1__endpoints__tournaments__lifecycle_instructor__AssignInstructorRequest": {
+        "description": "Request to assign an instructor to a tournament",
+        "properties": {
+          "instructor_id": {
+            "description": "ID of the instructor to assign",
+            "title": "Instructor Id",
+            "type": "integer"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional message to instructor",
+            "title": "Message"
+          }
+        },
+        "required": [
+          "instructor_id"
+        ],
+        "title": "AssignInstructorRequest",
         "type": "object"
       },
       "app__schemas__tournament__EnrollmentResponse": {
@@ -22407,6 +22976,409 @@
           }
         },
         "summary": "Admin Toggle Campus",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs": {
+      "get": {
+        "description": "Admin: list all clubs.",
+        "operationId": "admin_clubs_list_admin_clubs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Clubs List",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/create": {
+      "post": {
+        "description": "Admin: create a new Club.",
+        "operationId": "admin_create_club_admin_clubs_create_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_club_admin_clubs_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Club",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/{club_id}": {
+      "get": {
+        "description": "Admin: club detail with teams + CSV import history.",
+        "operationId": "admin_club_detail_admin_clubs__club_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Club Detail",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/{club_id}/csv-import": {
+      "post": {
+        "description": "Admin: upload + process a CSV file for a club.",
+        "operationId": "admin_club_csv_import_admin_clubs__club_id__csv_import_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_club_csv_import_admin_clubs__club_id__csv_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Club Csv Import",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/{club_id}/csv-import/{log_id}": {
+      "get": {
+        "description": "Admin: view a specific CSV import log in detail.",
+        "operationId": "admin_club_import_log_admin_clubs__club_id__csv_import__log_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "log_id",
+            "required": true,
+            "schema": {
+              "title": "Log Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Club Import Log",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/{club_id}/edit": {
+      "post": {
+        "description": "Admin: update club details.",
+        "operationId": "admin_edit_club_admin_clubs__club_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_edit_club_admin_clubs__club_id__edit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Edit Club",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/{club_id}/promotion": {
+      "post": {
+        "description": "Admin: create one TEAM tournament per selected age_group and enroll that age group's teams.",
+        "operationId": "admin_club_promotion_admin_clubs__club_id__promotion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_club_promotion_admin_clubs__club_id__promotion_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Club Promotion",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/{club_id}/teams/{team_id}": {
+      "get": {
+        "description": "Admin: team member list for a club team.",
+        "operationId": "admin_club_team_detail_admin_clubs__club_id__teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Club Team Detail",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/clubs/{club_id}/toggle": {
+      "post": {
+        "description": "Admin: activate or deactivate a club.",
+        "operationId": "admin_toggle_club_admin_clubs__club_id__toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "club_id",
+            "required": true,
+            "schema": {
+              "title": "Club Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle Club",
         "tags": [
           "web"
         ]
@@ -23494,6 +24466,192 @@
         ]
       }
     },
+    "/admin/pitches": {
+      "get": {
+        "description": "Admin: all pitches grouped by campus, with instructor assignment status.",
+        "operationId": "admin_pitches_page_admin_pitches_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "campus_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Campus Filter",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Location Filter",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Pitches Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/pitches/create": {
+      "post": {
+        "description": "Admin: create a new pitch under a campus.",
+        "operationId": "admin_create_pitch_admin_pitches_create_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_pitch_admin_pitches_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Pitch",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/pitches/{pitch_id}/assign-instructor": {
+      "post": {
+        "description": "Admin: directly assign an instructor to a pitch (DIRECT mode).",
+        "operationId": "admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_assign_instructor_to_pitch_admin_pitches__pitch_id__assign_instructor_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Assign Instructor To Pitch",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/pitches/{pitch_id}/toggle": {
+      "post": {
+        "description": "Admin: activate or deactivate a pitch.",
+        "operationId": "admin_toggle_pitch_admin_pitches__pitch_id__toggle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Toggle Pitch",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/programs": {
       "get": {
         "description": "Admin-only: Programs operational hub (Semesters + Enrollments)",
@@ -23511,6 +24669,28 @@
           }
         },
         "summary": "Admin Programs Hub Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/promotion-events": {
+      "get": {
+        "description": "Admin: list all promotion tournaments (TEAM and INDIVIDUAL).",
+        "operationId": "admin_promotion_events_list_admin_promotion_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Admin Promotion Events List",
         "tags": [
           "web"
         ]
@@ -23781,6 +24961,177 @@
           }
         },
         "summary": "Admin Sessions Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sessions/{session_id}/postpone": {
+      "patch": {
+        "description": "Set or clear a postponement reason for a session/match.",
+        "operationId": "admin_session_postpone_admin_sessions__session_id__postpone_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Session Postpone",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sport-directors": {
+      "get": {
+        "description": "Admin: list and manage sport director assignments per location.",
+        "operationId": "admin_sport_directors_page_admin_sport_directors_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "location_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Location Filter",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Sport Directors Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sport-directors/assign": {
+      "post": {
+        "description": "Admin: assign a user as Sport Director for a location.",
+        "operationId": "admin_assign_sport_director_admin_sport_directors_assign_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_assign_sport_director_admin_sport_directors_assign_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Assign Sport Director",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/sport-directors/{assignment_id}/deactivate": {
+      "post": {
+        "description": "Admin: deactivate a sport director assignment.",
+        "operationId": "admin_deactivate_sport_director_admin_sport_directors__assignment_id__deactivate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Deactivate Sport Director",
         "tags": [
           "web"
         ]
@@ -24096,6 +25447,50 @@
         ]
       }
     },
+    "/admin/teams": {
+      "get": {
+        "description": "Admin: global teams list, filterable by tournament.",
+        "operationId": "admin_teams_page_admin_teams_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tournament_filter",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Tournament Filter",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Teams Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments": {
       "get": {
         "description": "Admin: list all tournaments (all statuses) + create form.",
@@ -24146,6 +25541,184 @@
           }
         },
         "summary": "Admin Create Tournament",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/apply-fallback": {
+      "post": {
+        "description": "Apply the fallback plan \u2014 reassign sessions + update parallel_fields.",
+        "operationId": "admin_apply_fallback_admin_tournaments__tournament_id__apply_fallback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Apply Fallback",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/attendance": {
+      "get": {
+        "description": "Attendance management page: instructor status + team/player check-in.",
+        "operationId": "admin_tournament_attendance_admin_tournaments__tournament_id__attendance_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Attendance",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/available-players": {
+      "get": {
+        "description": "Return LFA-licensed players not yet enrolled in this tournament.\n\nFilters: ?q=name/email search, ?club_id=, ?team_id=\nLimit: 100",
+        "operationId": "admin_available_players_admin_tournaments__tournament_id__available_players_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "club_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Club Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Available Players",
         "tags": [
           "web"
         ]
@@ -24261,6 +25834,702 @@
           }
         },
         "summary": "Admin Tournament Edit Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/enroll-player": {
+      "post": {
+        "description": "Bulk-enroll one or more players (admin bypass \u2014 no credit deduction).",
+        "operationId": "admin_enroll_player_admin_tournaments__tournament_id__enroll_player_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Enroll Player",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/enrollment-clubs": {
+      "get": {
+        "description": "Return clubs (and their teams) that are eligible for player enrollment.\n\nIf the tournament has a campus_id, returns clubs linked to that campus's\nlocation. Otherwise returns all clubs (for non-campus tournaments).",
+        "operationId": "admin_enrollment_clubs_admin_tournaments__tournament_id__enrollment_clubs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Enrollment Clubs",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/fallback-plan": {
+      "get": {
+        "description": "Get the semi-automatic fallback plan for absent field instructors (JSON).",
+        "operationId": "admin_get_fallback_plan_admin_tournaments__tournament_id__fallback_plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Get Fallback Plan",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots": {
+      "get": {
+        "description": "Return the instructor roster for a tournament (JSON).",
+        "operationId": "admin_get_instructor_slots_admin_tournaments__tournament_id__instructor_slots_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Get Instructor Slots",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Add an instructor slot to the tournament roster.",
+        "operationId": "admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_add_instructor_slot_admin_tournaments__tournament_id__instructor_slots_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Add Instructor Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}": {
+      "delete": {
+        "description": "Remove an instructor slot.",
+        "operationId": "admin_remove_instructor_slot_admin_tournaments__tournament_id__instructor_slots__slot_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Remove Instructor Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/absent": {
+      "post": {
+        "description": "Mark an instructor slot as ABSENT.",
+        "operationId": "admin_absent_instructor_slot_admin_tournaments__tournament_id__instructor_slots__slot_id__absent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Absent Instructor Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/checkin": {
+      "post": {
+        "description": "Mark an instructor slot as CHECKED_IN.",
+        "operationId": "admin_checkin_instructor_slot_admin_tournaments__tournament_id__instructor_slots__slot_id__checkin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Checkin Instructor Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/live": {
+      "get": {
+        "description": "Admin live monitoring dashboard for a specific tournament.\n\nShows per-campus/pitch progress, active instructors, and a live feed of\nthe last 20 completed sessions.  Updates arrive via WebSocket.",
+        "operationId": "tournament_live_dashboard_admin_tournaments__tournament_id__live_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tournament Live Dashboard",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players": {
+      "get": {
+        "description": "Admin: manage individual player enrollments for an INDIVIDUAL tournament.",
+        "operationId": "admin_tournament_players_page_admin_tournaments__tournament_id__players_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/enroll": {
+      "post": {
+        "description": "Enroll a single player into an INDIVIDUAL tournament (admin bypass).",
+        "operationId": "admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_tournament_players_enroll_admin_tournaments__tournament_id__players_enroll_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/enroll-from-team": {
+      "post": {
+        "description": "Bulk-enroll active members of one or more selected teams as individual players.",
+        "operationId": "admin_tournament_players_enroll_from_team_admin_tournaments__tournament_id__players_enroll_from_team_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Enroll From Team",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/{player_user_id}/checkin": {
+      "post": {
+        "description": "Check in an individual player for the tournament.",
+        "operationId": "admin_player_checkin_admin_tournaments__tournament_id__players__player_user_id__checkin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "player_user_id",
+            "required": true,
+            "schema": {
+              "title": "Player User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Player Checkin",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/{player_user_id}/remove": {
+      "post": {
+        "description": "Remove a player's active enrollment from an INDIVIDUAL tournament.",
+        "operationId": "admin_tournament_players_remove_admin_tournaments__tournament_id__players__player_user_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "player_user_id",
+            "required": true,
+            "schema": {
+              "title": "Player User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Players Remove",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/players/{player_user_id}/uncheckin": {
+      "post": {
+        "description": "Remove pre-tournament check-in for a player.",
+        "operationId": "admin_player_uncheckin_admin_tournaments__tournament_id__players__player_user_id__uncheckin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "player_user_id",
+            "required": true,
+            "schema": {
+              "title": "Player User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Player Uncheckin",
         "tags": [
           "web"
         ]
@@ -24427,6 +26696,152 @@
         ]
       }
     },
+    "/admin/tournaments/{tournament_id}/teams/enroll-bulk": {
+      "post": {
+        "description": "Bulk-enroll multiple teams into a TEAM tournament from club-grouped checkboxes.",
+        "operationId": "admin_tournament_teams_enroll_bulk_admin_tournaments__tournament_id__teams_enroll_bulk_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Teams Enroll Bulk",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/checkin": {
+      "post": {
+        "description": "Mark a team as checked-in for the tournament.",
+        "operationId": "admin_team_checkin_admin_tournaments__tournament_id__teams__team_id__checkin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Team Checkin",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/members": {
+      "post": {
+        "description": "Admin directly adds a user to a team, bypassing the invite flow.",
+        "operationId": "admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_add_team_member_direct_admin_tournaments__tournament_id__teams__team_id__members_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Add Team Member Direct",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/admin/tournaments/{tournament_id}/teams/{team_id}/remove": {
       "post": {
         "description": "Remove a team from a TEAM tournament.",
@@ -24467,6 +26882,197 @@
           }
         },
         "summary": "Admin Tournament Teams Remove",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/uncheckin": {
+      "post": {
+        "description": "Remove check-in for a team.",
+        "operationId": "admin_team_uncheckin_admin_tournaments__tournament_id__teams__team_id__uncheckin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Team Uncheckin",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/unverify": {
+      "post": {
+        "description": "Revoke payment verification for a team enrollment (admin only).",
+        "operationId": "admin_tournament_team_unverify_admin_tournaments__tournament_id__teams__team_id__unverify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Team Unverify",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/verify": {
+      "post": {
+        "description": "Mark a team's enrollment payment as verified (admin only).",
+        "operationId": "admin_tournament_team_verify_admin_tournaments__tournament_id__teams__team_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Tournament Team Verify",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/tournaments/{tournament_id}/unenroll-player": {
+      "post": {
+        "description": "Remove a player's active enrollment (admin action).",
+        "operationId": "admin_unenroll_player_admin_tournaments__tournament_id__unenroll_player_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Admin Unenroll Player",
         "tags": [
           "web"
         ]
@@ -24541,6 +27147,46 @@
           }
         },
         "summary": "Admin Users Page",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/create": {
+      "post": {
+        "description": "Admin-only: Create a new user account directly from the admin panel.",
+        "operationId": "admin_create_user_admin_users_create_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_create_user_admin_users_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create User",
         "tags": [
           "web"
         ]
@@ -24786,6 +27432,157 @@
           }
         },
         "summary": "Admin Grant License",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/lfa-player-photo": {
+      "post": {
+        "operationId": "admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_upload_player_photo_admin_users__user_id__lfa_player_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Upload Player Photo",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/lfa-player-photo/delete": {
+      "post": {
+        "operationId": "admin_delete_player_photo_admin_users__user_id__lfa_player_photo_delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Player Photo",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/users/{user_id}/profile": {
+      "get": {
+        "description": "Admin: FIFA EA Sports-style user profile page (29-skill system).",
+        "operationId": "admin_user_profile_admin_users__user_id__profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_club",
+            "required": false,
+            "schema": {
+              "title": "From Club",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_team",
+            "required": false,
+            "schema": {
+              "title": "From Team",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin User Profile",
         "tags": [
           "web"
         ]
@@ -28898,6 +31695,69 @@
         "summary": "Confirm Booking",
         "tags": [
           "bookings"
+        ]
+      }
+    },
+    "/api/v1/campuses/{campus_id}/pitches": {
+      "get": {
+        "description": "List all pitches for a campus.",
+        "operationId": "list_campus_pitches_api_v1_campuses__campus_id__pitches_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campus_id",
+            "required": true,
+            "schema": {
+              "title": "Campus Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_inactive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Inactive",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PitchResponse"
+                  },
+                  "title": "Response List Campus Pitches Api V1 Campuses  Campus Id  Pitches Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Campus Pitches",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
         ]
       }
     },
@@ -36635,7 +39495,7 @@
     },
     "/api/v1/lfa-player/licenses": {
       "get": {
-        "description": "Get all LFA Player licenses (Admin only)\n\nReturns a list of all active LFA Player licenses in the system.",
+        "description": "Get all LFA Player licenses (Admin only)\n\nReturns a list of all active LFA_FOOTBALL_PLAYER licenses in the system.\nSkills are stored in UserLicense.football_skills JSONB (29 skills, baseline 50.0).",
         "operationId": "list_all_licenses_api_v1_lfa_player_licenses_get",
         "responses": {
           "200": {
@@ -36664,7 +39524,7 @@
         ]
       },
       "post": {
-        "description": "Create a new LFA Player license for the current user\n\n**Cost:** 100 credits (deducted from user's credit_balance)\n\n**Age Groups:**\n- PRE: Pre-academy\n- YOUTH: Youth academy\n- AMATEUR: Amateur level\n- PRO: Professional level",
+        "description": "Create a new LFA Player license \u2014 **DEPRECATED (410 Gone)**\n\nLicense creation is now handled via the specialization unlock flow.\nUse POST /onboarding/specialization to unlock LFA Football Player.",
         "operationId": "create_license_api_v1_lfa_player_licenses_post",
         "requestBody": {
           "content": {
@@ -36677,12 +39537,10 @@
           "required": true
         },
         "responses": {
-          "201": {
+          "410": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/app__api__api_v1__endpoints__lfa_player__licenses__LicenseResponse"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -36738,7 +39596,7 @@
     },
     "/api/v1/lfa-player/licenses/{license_id}/skills": {
       "put": {
-        "description": "Update a skill average for a license\n\n**Valid skill names:**\n- heading\n- shooting\n- crossing\n- passing\n- dribbling\n- ball_control\n- defending\n\n**Note:** overall_avg is auto-computed from all 7 skill averages\n\n**Permissions:**\n- Students can update their own license\n- Instructors can update assigned students' licenses\n- Admins can update any license",
+        "description": "Update a skill average \u2014 **DEPRECATED (410 Gone)**\n\nSkill updates are now handled via the 29-skill system.\nUse PUT /licenses/{license_id}/football-skills instead.",
         "operationId": "update_skill_api_v1_lfa_player_licenses__license_id__skills_put",
         "parameters": [
           {
@@ -36751,23 +39609,11 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SkillUpdate"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
-          "200": {
+          "410": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SkillUpdateResponse"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -39784,6 +42630,359 @@
         ]
       }
     },
+    "/api/v1/pitch-assignments/{assignment_id}/accept": {
+      "post": {
+        "description": "Instructor accepts a PENDING pitch assignment.\n\nSide effect when is_master=True: all sessions on that pitch (and semester)\nget session.instructor_id updated to this instructor.",
+        "operationId": "accept_assignment_api_v1_pitch_assignments__assignment_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PitchAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Assignment",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitch-assignments/{assignment_id}/decline": {
+      "post": {
+        "description": "Instructor declines a PENDING pitch assignment.",
+        "operationId": "decline_assignment_api_v1_pitch_assignments__assignment_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assignment_id",
+            "required": true,
+            "schema": {
+              "title": "Assignment Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PitchAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decline Assignment",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitches/{pitch_id}/assign-instructor": {
+      "post": {
+        "description": "DIRECT mode: admin, sport director, or campus master invites an instructor to a pitch.\n\nCreates a PENDING assignment. The instructor then accepts or declines.\n\n- is_master=True requires: no other ACTIVE master on this pitch/semester\n- required_license_type: if set, instructor must have active InstructorSpecialization",
+        "operationId": "assign_instructor_api_v1_pitches__pitch_id__assign_instructor_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__api_v1__endpoints__pitches__AssignInstructorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PitchAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assign Instructor",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitches/{pitch_id}/assignments": {
+      "get": {
+        "description": "List all assignments for a pitch, optionally filtered by semester and status.",
+        "operationId": "list_pitch_assignments_api_v1_pitches__pitch_id__assignments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "semester_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Semester Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PitchAssignmentResponse"
+                  },
+                  "title": "Response List Pitch Assignments Api V1 Pitches  Pitch Id  Assignments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Pitch Assignments",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
+    "/api/v1/pitches/{pitch_id}/eligible-instructors": {
+      "get": {
+        "description": "List instructors eligible to be assigned to this pitch.\n\nFilters:\n- role=INSTRUCTOR, is_active=True\n- If license_type: must have active InstructorSpecialization\n- Excludes instructors already ACTIVE on this pitch for the same semester",
+        "operationId": "eligible_instructors_api_v1_pitches__pitch_id__eligible_instructors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pitch_id",
+            "required": true,
+            "schema": {
+              "title": "Pitch Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "semester_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Semester Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "license_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "License Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "age_group",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Age Group"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EligibleInstructorResponse"
+                  },
+                  "title": "Response Eligible Instructors Api V1 Pitches  Pitch Id  Eligible Instructors Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Eligible Instructors",
+        "tags": [
+          "pitches",
+          "pitch-instructor-assignments"
+        ]
+      }
+    },
     "/api/v1/progression/progress": {
       "get": {
         "description": "Get current user's progression status",
@@ -41265,7 +44464,7 @@
     },
     "/api/v1/public/users/{user_id}/profile/lfa-player": {
       "get": {
-        "description": "Get FIFA-style LFA Football Player profile\n\n**Returns:**\n- User basic info (name, email, photo)\n- Position preference\n- 7 football skills with radar chart data\n- Overall rating (0-100)\n- Level & progress\n- Recent assessments\n- Achievements",
+        "description": "Get FIFA-style LFA Football Player profile\n\n**Returns:**\n- User basic info (name, email)\n- Position preference\n- 29 football skills with tier data (from UserLicense.football_skills JSONB)\n- Overall rating (0-100, average of 29 skills)\n- Level & progress\n- Recent assessments",
         "operationId": "get_lfa_player_profile_api_v1_public_users__user_id__profile_lfa_player_get",
         "parameters": [
           {
@@ -45544,6 +48743,279 @@
         ]
       }
     },
+    "/api/v1/teams/invites/my": {
+      "get": {
+        "description": "Get all pending invites for the current user.",
+        "operationId": "my_invites_api_v1_teams_invites_my_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Invites",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/invites/{invite_id}/accept": {
+      "post": {
+        "description": "Accept a pending team invite.",
+        "operationId": "accept_invite_api_v1_teams_invites__invite_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/invites/{invite_id}/reject": {
+      "post": {
+        "description": "Reject a pending team invite.",
+        "operationId": "reject_invite_api_v1_teams_invites__invite_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{team_id}": {
+      "get": {
+        "description": "Get team details (members + pending invites). Captain or admin only.",
+        "operationId": "get_team_api_v1_teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Team",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{team_id}/invites": {
+      "post": {
+        "description": "Captain invites a player. Caller must be the team captain.",
+        "operationId": "create_invite_api_v1_teams__team_id__invites_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "invited_user_id",
+            "required": true,
+            "schema": {
+              "title": "Invited User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{team_id}/invites/{invite_id}": {
+      "delete": {
+        "description": "Captain cancels a pending invite.",
+        "operationId": "cancel_invite_api_v1_teams__team_id__invites__invite_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Invite",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
     "/api/v1/tournament-types/": {
       "get": {
         "description": "List all available tournament types (Admin only)\n\nReturns tournament type metadata including:\n- Basic info (id, code, display_name, description)\n- Player constraints (min_players, max_players, requires_power_of_two)\n- Timing defaults (session_duration_minutes, break_between_sessions_minutes)\n- Full config (JSON with detailed rules)\n\n**Authorization:** Admin only\n\n**Response Example:**\n```json\n[\n    {\n        \"id\": 1,\n        \"code\": \"league\",\n        \"display_name\": \"League (Round Robin)\",\n        \"description\": \"Every player plays against every other player once...\",\n        \"min_players\": 4,\n        \"max_players\": 16,\n        \"requires_power_of_two\": false,\n        \"session_duration_minutes\": 90,\n        \"break_between_sessions_minutes\": 15,\n        \"config\": {...}\n    }\n]\n```",
@@ -46747,7 +50219,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AssignInstructorRequest"
+                "$ref": "#/components/schemas/app__api__api_v1__endpoints__tournaments__lifecycle_instructor__AssignInstructorRequest"
               }
             }
           },
@@ -50408,6 +53880,85 @@
         ]
       }
     },
+    "/api/v1/users/invite-search": {
+      "get": {
+        "description": "Search active users by name/email for the invite form.\nExcludes the caller, existing active members of the given team, and users\nwith a PENDING invite to that team.",
+        "operationId": "invite_search_users_api_v1_users_invite_search_get",
+        "parameters": [
+          {
+            "description": "Name or email prefix",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "Name or email prefix",
+              "minLength": 2,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclude existing members of this team",
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclude existing members of this team",
+              "title": "Team Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Invite Search Users",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
     "/api/v1/users/me": {
       "get": {
         "description": "Get current user profile with licenses",
@@ -51046,6 +54597,64 @@
         ]
       }
     },
+    "/dashboard/lfa-player-photo": {
+      "post": {
+        "operationId": "student_upload_player_photo_dashboard_lfa_player_photo_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_student_upload_player_photo_dashboard_lfa_player_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Student Upload Player Photo",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-player-photo/delete": {
+      "post": {
+        "operationId": "student_delete_player_photo_dashboard_lfa_player_photo_delete_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Student Delete Player Photo",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/dashboard/{spec_type}": {
       "get": {
         "description": "Spec-specific dashboard for unlocked specializations",
@@ -51084,6 +54693,48 @@
           }
         },
         "summary": "Spec Dashboard",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/events/{tournament_id}": {
+      "get": {
+        "operationId": "public_event_detail_events__tournament_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Event Detail",
         "tags": [
           "web"
         ]
@@ -51872,6 +55523,48 @@
           }
         },
         "summary": "Onboarding Start",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/players/{user_id}/card": {
+      "get": {
+        "operationId": "public_player_card_players__user_id__card_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Player Card",
         "tags": [
           "web"
         ]
@@ -53110,6 +56803,540 @@
         ]
       }
     },
+    "/sport-director/tournaments": {
+      "get": {
+        "description": "List TEAM tournaments scoped to the SD's location(s).",
+        "operationId": "sd_tournament_list_sport_director_tournaments_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sd Tournament List",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/sport-director/tournaments/{tournament_id}/teams": {
+      "get": {
+        "description": "Show enrolled teams + eligible club teams for enrollment.",
+        "operationId": "sd_tournament_teams_sport_director_tournaments__tournament_id__teams_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "msg",
+            "required": false,
+            "schema": {
+              "title": "Msg",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "title": "Error",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sd Tournament Teams",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/sport-director/tournaments/{tournament_id}/teams/{team_id}/enroll": {
+      "post": {
+        "description": "Enroll a club team in the tournament (SD/admin bypass \u2014 no credit cost).",
+        "operationId": "sd_enroll_team_sport_director_tournaments__tournament_id__teams__team_id__enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sd Enroll Team",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/sport-director/tournaments/{tournament_id}/teams/{team_id}/remove": {
+      "post": {
+        "description": "Remove a team's enrollment (only allowed when tournament is ENROLLMENT_OPEN).",
+        "operationId": "sd_remove_team_sport_director_tournaments__tournament_id__teams__team_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sd Remove Team",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/invite-search": {
+      "get": {
+        "description": "Cookie-auth AJAX endpoint for the team invite search box.\nReturns JSON list of {id, name, email} matching the query string,\nexcluding the caller and existing/pending team members.",
+        "operationId": "invite_search_web_teams_invite_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "minLength": 2,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invite Search Web",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/invites": {
+      "get": {
+        "operationId": "my_invites_teams_invites_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "msg",
+            "required": false,
+            "schema": {
+              "title": "Msg",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Invites",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/invites/{invite_id}/accept": {
+      "post": {
+        "operationId": "accept_invite_teams_invites__invite_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/invites/{invite_id}/reject": {
+      "post": {
+        "operationId": "reject_invite_teams_invites__invite_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/{team_id}": {
+      "get": {
+        "operationId": "team_dashboard_teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "msg",
+            "required": false,
+            "schema": {
+              "title": "Msg",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "title": "Error",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Dashboard",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/{team_id}/invite": {
+      "post": {
+        "operationId": "team_invite_teams__team_id__invite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_team_invite_teams__team_id__invite_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/teams/{team_id}/invites/{invite_id}/cancel": {
+      "post": {
+        "operationId": "team_cancel_invite_teams__team_id__invites__invite_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "title": "Invite Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Cancel Invite",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/tournaments": {
       "get": {
         "description": "Browse ENROLLMENT_OPEN / IN_PROGRESS tournaments available to the student.",
@@ -53170,6 +57397,146 @@
           }
         },
         "summary": "Tournament Enroll",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/tournaments/{tournament_id}/team/create": {
+      "get": {
+        "operationId": "team_create_form_tournaments__tournament_id__team_create_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Create Form",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "operationId": "team_create_submit_tournaments__tournament_id__team_create_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_team_create_submit_tournaments__tournament_id__team_create_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Create Submit",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/tournaments/{tournament_id}/teams/{team_id}/enroll": {
+      "post": {
+        "description": "Captain enrolls their existing team into an ENROLLMENT_OPEN TEAM tournament.",
+        "operationId": "team_enroll_tournaments__tournament_id__teams__team_id__enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Team Enroll",
         "tags": [
           "web"
         ]

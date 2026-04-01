@@ -102,6 +102,50 @@ body {
     color: #5a4a9a;
 }
 
+/* ── Nav Dropdown Groups ───────────────────────────────────────────── */
+.nav-group {
+    position: relative;
+}
+.nav-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    min-width: 160px;
+    z-index: 200;
+    padding: 0.35rem 0;
+}
+.nav-group:hover .nav-dropdown,
+.nav-group.dropdown-open .nav-dropdown {
+    display: block;
+}
+.nav-dropdown-item {
+    display: block;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #444;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.12s, color 0.12s;
+}
+.nav-dropdown-item:hover {
+    background: #f3f0ff;
+    color: #5a4a9a;
+}
+.nav-dropdown-item.active {
+    background: #ece8ff;
+    color: #5a4a9a;
+    font-weight: 700;
+}
+.nav-group.active > .nav-item {
+    background: rgba(255,255,255,0.95);
+    color: #5a4a9a;
+}
+
 /* ── Main Container ────────────────────────────────────────────────── */
 .admin-container {
     max-width: 1400px;
@@ -385,6 +429,31 @@ td { padding: 0.85rem 0.75rem; color: #4a5568; }
         padding-bottom: 0.75rem;
     }
     .nav-item { width: 100%; padding: 0.5rem 0.85rem; }
+
+    /* Dropdown groups — accordion style on mobile */
+    .nav-group { width: 100%; }
+    .nav-dropdown {
+        position: static;
+        background: rgba(255,255,255,0.08);
+        border-radius: 4px;
+        box-shadow: none;
+        min-width: unset;
+        padding: 0;
+        margin-bottom: 0.15rem;
+    }
+    .nav-group:hover .nav-dropdown { display: none; }
+    .nav-group.dropdown-open .nav-dropdown { display: block; }
+    .nav-dropdown-item {
+        color: rgba(255,255,255,0.78);
+        padding: 0.4rem 1.5rem;
+        font-size: 0.78rem;
+    }
+    .nav-dropdown-item:hover,
+    .nav-dropdown-item.active {
+        background: rgba(255,255,255,0.15);
+        color: white;
+    }
+    .admin-nav.nav-open { max-height: 960px; }
 
     /* Stats compact — 2-column grid on mobile */
     .stats-row { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }

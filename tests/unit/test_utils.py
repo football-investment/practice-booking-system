@@ -244,14 +244,14 @@ class TestValidateLicenseOwnership:
     def test_admin_always_allowed(self):
         db = MagicMock()
         user = _user(UserRole.ADMIN)
-        result = validate_license_ownership(db, user, 1, "lfa_player_licenses")
+        result = validate_license_ownership(db, user, 1, "user_licenses")
         assert result is True
         db.execute.assert_not_called()
 
     def test_instructor_always_allowed(self):
         db = MagicMock()
         user = _user(UserRole.INSTRUCTOR)
-        result = validate_license_ownership(db, user, 1, "lfa_player_licenses")
+        result = validate_license_ownership(db, user, 1, "user_licenses")
         assert result is True
         db.execute.assert_not_called()
 
@@ -259,7 +259,7 @@ class TestValidateLicenseOwnership:
         db = MagicMock()
         user = _user(UserRole.STUDENT, user_id=42)
         db.execute.return_value.fetchone.return_value = (42,)
-        result = validate_license_ownership(db, user, 7, "lfa_player_licenses")
+        result = validate_license_ownership(db, user, 7, "user_licenses")
         assert result is True
 
     def test_student_not_owner_raises_403(self):
@@ -267,7 +267,7 @@ class TestValidateLicenseOwnership:
         user = _user(UserRole.STUDENT, user_id=42)
         db.execute.return_value.fetchone.return_value = (99,)  # different owner
         with pytest.raises(HTTPException) as exc:
-            validate_license_ownership(db, user, 7, "lfa_player_licenses")
+            validate_license_ownership(db, user, 7, "user_licenses")
         assert exc.value.status_code == 403
 
     def test_license_not_found_raises_404(self):
@@ -275,7 +275,7 @@ class TestValidateLicenseOwnership:
         user = _user(UserRole.STUDENT, user_id=42)
         db.execute.return_value.fetchone.return_value = None
         with pytest.raises(HTTPException) as exc:
-            validate_license_ownership(db, user, 99, "lfa_player_licenses")
+            validate_license_ownership(db, user, 99, "user_licenses")
         assert exc.value.status_code == 404
 
 

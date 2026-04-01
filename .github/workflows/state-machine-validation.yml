@@ -1,0 +1,78 @@
+name: State Machine Graph Validation
+
+on:
+  pull_request:
+    branches: [ main, develop, feature/* ]
+    paths:
+      - 'app/services/tournament/status_validator.py'
+      - 'tests/unit/tournament/test_state_machine.py'
+      - 'app/api/web_routes/tournaments.py'
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: state-machine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  state-machine:
+    name: "State Machine — all 24 graph edges + guards"
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: pip
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+    - name: Run state machine unit tests (DB-free logic, postgres for conftest)
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test"
+        SECRET_KEY: "ci-test-secret"
+      run: |
+        python -m pytest tests/unit/tournament/test_state_machine.py \
+          -v \
+          --tb=short \
+          --no-header \
+          -q
+
+    - name: Verify graph edge count
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lfa_intern_system_test"
+        SECRET_KEY: "ci-test-secret"
+      run: |
+        python - <<'EOF'
+        from app.services.tournament.status_validator import VALID_TRANSITIONS
+        total = sum(len(v) for v in VALID_TRANSITIONS.values())
+        print(f"Graph: {len(VALID_TRANSITIONS)} states, {total} edges")
+        assert total == 24, f"Expected 24 edges, found {total} — update test_state_machine.py SM-16"
+        for src, targets in VALID_TRANSITIONS.items():
+            for tgt in targets:
+                assert tgt in VALID_TRANSITIONS, f"Unknown target state {tgt!r} from {src}"
+        print("Graph integrity OK")
+        EOF

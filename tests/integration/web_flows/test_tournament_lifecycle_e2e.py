@@ -58,7 +58,7 @@ from sqlalchemy import event
 from app.main import app
 from app.database import engine, get_db
 from app.models.session import Session as SessionModel, SessionType, EventCategory
-from app.dependencies import get_current_user_web, get_current_user
+from app.dependencies import get_current_user_web, get_current_user, get_current_admin_user_hybrid, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester, SemesterStatus, SemesterCategory
 from app.models.tournament_configuration import TournamentConfiguration
@@ -70,6 +70,8 @@ from app.models.tournament_type import TournamentType
 from app.models.game_preset import GamePreset
 from app.core.security import get_password_hash
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+from app.models.location import Location, LocationType
+from app.models.campus import Campus
 from tests.factories.game_factory import PlayerFactory, TournamentFactory
 
 
@@ -142,6 +144,8 @@ def admin_client(test_db: Session, admin_user: User) -> TestClient:
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user_web] = lambda: admin_user
     app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_user_hybrid] = lambda: admin_user
+    app.dependency_overrides[get_current_admin_or_instructor_user_hybrid] = lambda: admin_user
 
     with TestClient(app, headers={"Authorization": "Bearer test-csrf-bypass"}) as c:
         yield c
@@ -1291,8 +1295,9 @@ class TestTournamentFieldBindings:
         assert resp.status_code == 200, resp.text
         html = resp.text
 
-        assert 'id="basic-participant-type"' in html, (
-            "Edit page must render <select id='basic-participant-type'>"
+        # H2H tournaments render basic-participant-type-h2h
+        assert 'id="basic-participant-type-h2h"' in html, (
+            "Edit page must render <select id='basic-participant-type-h2h'> for HEAD_TO_HEAD"
         )
         assert 'value="INDIVIDUAL"' in html, "INDIVIDUAL option must exist in dropdown"
         assert 'value="TEAM"' in html, "TEAM option must exist in dropdown (now implemented)"
@@ -1396,6 +1401,156 @@ class TestTournamentFieldBindings:
         )
 
 
+# ── Format Branching (HEAD_TO_HEAD vs INDIVIDUAL_RANKING) ────────────────────
+
+
+class TestFormatBranching:
+    """
+    FORMAT-01  INDIVIDUAL_RANKING torna:
+               - POST /admin/tournaments (tournament_type üresen)
+               - PATCH scoring_type=SCORE_BASED, measurement_unit="points", ranking_direction=DESC
+               - GET edit page → IR badge, tournament_type dropdown HIÁNYZIK,
+                 scoring_type selector LÁTHATÓ és értéke SCORE_BASED
+
+    FORMAT-02  HEAD_TO_HEAD torna:
+               - POST /admin/tournaments (tournament_type=league)
+               - GET edit page → H2H badge, tournament_type dropdown LÁTHATÓ,
+                 scoring_type selector HIÁNYZIK
+    """
+
+    def test_FORMAT01_individual_ranking_edit_page_shows_ir_fields(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+    ):
+        """
+        INDIVIDUAL_RANKING torna (tournament_type_id=None):
+        - Edit oldal mutatja az 'Individual Ranking' badge-et
+        - Tournament Type dropdown NEM szerepel az oldalon
+        - scoring_type selector LÁTHATÓ
+        - PATCH scoring_type=SCORE_BASED + measurement_unit + ranking_direction → persists
+        """
+        from app.models.semester import Semester as _Sem
+        from app.models.tournament_configuration import TournamentConfiguration as _Cfg
+
+        # 1. Létrehozás tournament_type nélkül → INDIVIDUAL_RANKING
+        payload = {
+            "name": f"FORMAT01-IR-{uuid.uuid4().hex[:6]}",
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-31",
+            "age_group": "AMATEUR",
+            "enrollment_cost": "0",
+            "location_id": "",
+            "campus_id": "",
+            "assignment_type": "OPEN_ASSIGNMENT",
+            "tournament_type_id": "",   # ← üres → INDIVIDUAL_RANKING
+            "game_preset_id": "",
+            "participant_type": "INDIVIDUAL",
+            "number_of_rounds": "1",
+        }
+        resp = admin_client.post("/admin/tournaments", data=payload)
+        assert resp.status_code in (200, 303), resp.text
+
+        t = test_db.query(_Sem).filter(_Sem.name == payload["name"]).first()
+        assert t is not None, "Tournament must be created"
+        assert t.format == "INDIVIDUAL_RANKING", f"Expected INDIVIDUAL_RANKING, got {t.format}"
+
+        # 2. PATCH scoring mezők
+        patch_resp = admin_client.patch(
+            f"/api/v1/tournaments/{t.id}",
+            json={
+                "scoring_type": "SCORE_BASED",
+                "measurement_unit": "points",
+                "ranking_direction": "DESC",
+            },
+        )
+        assert patch_resp.status_code == 200, patch_resp.text
+
+        test_db.refresh(t)
+        cfg = test_db.query(_Cfg).filter(_Cfg.semester_id == t.id).first()
+        assert cfg.scoring_type == "SCORE_BASED", f"scoring_type={cfg.scoring_type}"
+        assert cfg.measurement_unit == "points", f"measurement_unit={cfg.measurement_unit}"
+        assert cfg.ranking_direction == "DESC", f"ranking_direction={cfg.ranking_direction}"
+
+        # 3. Edit page tartalom
+        page = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert page.status_code == 200, page.text
+        html = page.text
+
+        # Format toggle gombok jelen vannak
+        assert 'id="btn-fmt-h2h"' in html, "H2H toggle button must be present"
+        assert 'id="btn-fmt-ir"' in html, "IR toggle button must be present"
+        # JS init: _currentFormat = 'INDIVIDUAL_RANKING'
+        assert "_currentFormat = 'INDIVIDUAL_RANKING'" in html, (
+            "JS _currentFormat must be initialised to INDIVIDUAL_RANKING"
+        )
+        # Mindkét mező-csoport jelen van (JS toggle kezeli a láthatóságot)
+        assert 'id="group-h2h-fields"' in html, "H2H field group must exist in DOM"
+        assert 'id="group-ir-fields"' in html, "IR field group must exist in DOM"
+        # IR-specifikus mezők jelen vannak
+        assert 'id="basic-scoring-type"' in html, "scoring_type selector must be present"
+        assert 'id="basic-measurement-unit"' in html, "measurement_unit field must be present"
+        assert 'id="basic-ranking-direction"' in html, "ranking_direction selector must be present"
+        # SCORE_BASED selected (PATCH után)
+        assert 'value="SCORE_BASED"' in html, "SCORE_BASED must appear as selected option"
+
+    def test_FORMAT02_head_to_head_edit_page_shows_h2h_fields(
+        self,
+        test_db: Session,
+        admin_client: TestClient,
+        tournament_type: TournamentType,
+    ):
+        """
+        HEAD_TO_HEAD torna (tournament_type_id=league):
+        - JS _currentFormat = 'HEAD_TO_HEAD' inicializálva
+        - Format toggle gombok jelen vannak
+        - Tournament Type dropdown (group-h2h-fields) jelen van
+        - scoring_type/IR mezők is jelen vannak (JS elrejti őket)
+        """
+        from app.models.semester import Semester as _Sem
+
+        payload = {
+            "name": f"FORMAT02-H2H-{uuid.uuid4().hex[:6]}",
+            "start_date": "2026-08-01",
+            "end_date": "2026-08-31",
+            "age_group": "AMATEUR",
+            "enrollment_cost": "0",
+            "location_id": "",
+            "campus_id": "",
+            "assignment_type": "OPEN_ASSIGNMENT",
+            "tournament_type_id": str(tournament_type.id),
+            "game_preset_id": "",
+            "participant_type": "INDIVIDUAL",
+            "number_of_rounds": "1",
+        }
+        resp = admin_client.post("/admin/tournaments", data=payload)
+        assert resp.status_code in (200, 303), resp.text
+
+        t = test_db.query(_Sem).filter(_Sem.name == payload["name"]).first()
+        assert t is not None, "Tournament must be created"
+        assert t.format == "HEAD_TO_HEAD", f"Expected HEAD_TO_HEAD, got {t.format}"
+
+        # Edit page tartalom
+        page = admin_client.get(f"/admin/tournaments/{t.id}/edit")
+        assert page.status_code == 200, page.text
+        html = page.text
+
+        # Format toggle gombok jelen vannak
+        assert 'id="btn-fmt-h2h"' in html, "H2H toggle button must be present"
+        assert 'id="btn-fmt-ir"' in html, "IR toggle button must be present"
+        # JS init: _currentFormat = 'HEAD_TO_HEAD'
+        assert "_currentFormat = 'HEAD_TO_HEAD'" in html, (
+            "JS _currentFormat must be initialised to HEAD_TO_HEAD"
+        )
+        # Mindkét mező-csoport jelen van
+        assert 'id="group-h2h-fields"' in html, "H2H field group must exist in DOM"
+        assert 'id="group-ir-fields"' in html, "IR field group must exist in DOM"
+        # Tournament type dropdown jelen van
+        assert 'id="basic-tournament-type"' in html, (
+            "tournament-type dropdown must be present in DOM for HEAD_TO_HEAD"
+        )
+
+
 # ── Multi-round Session Generation Validation ────────────────────────────────
 
 
@@ -1446,6 +1601,20 @@ class TestMultiRoundSessionGeneration:
         INDIVIDUAL_RANKING must NOT have tournament_type_id — format is derived
         from scoring_type being non-HEAD_TO_HEAD (see Semester.format property).
         """
+        uid = uuid.uuid4().hex[:8]
+        loc = Location(
+            name=f"SESS Location {uid}",
+            city=f"SESSCity-{uid}",
+            country="HU",
+            is_active=True,
+            location_type=LocationType.CENTER,
+        )
+        db.add(loc)
+        db.flush()
+        camp = Campus(location_id=loc.id, name=f"SESS Campus {uid}", is_active=True)
+        db.add(camp)
+        db.flush()
+
         code = f"SESS-{uuid.uuid4().hex[:8].upper()}"
         t = Semester(
             code=code,
@@ -1458,6 +1627,7 @@ class TestMultiRoundSessionGeneration:
             end_date=date(2026, 6, 30),
             enrollment_cost=0,
             specialization_type="LFA_FOOTBALL_PLAYER",
+            campus_id=camp.id,
         )
         db.add(t)
         db.flush()

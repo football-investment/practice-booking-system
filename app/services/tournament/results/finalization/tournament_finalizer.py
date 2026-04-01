@@ -93,6 +93,12 @@ class TournamentFinalizer:
                 ).count() > 0
                 if rounds_complete or has_rankings:
                     continue
+            # TEAM tournaments (and any session using the rounds endpoint) write results
+            # into rounds_data["round_results"] rather than game_results.
+            # Accept as complete if at least one round has been recorded.
+            rd = s.rounds_data or {}
+            if rd.get("round_results"):
+                continue
             incomplete_matches.append({"session_id": s.id, "title": s.title})
 
         return len(incomplete_matches) == 0, incomplete_matches

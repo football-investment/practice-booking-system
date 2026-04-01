@@ -172,9 +172,14 @@ class LocationMasterInstructor(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # Location (UNIQUE per active master)
+    # Location (city-level) — kept for backwards compatibility
     location_id = Column(Integer, ForeignKey('locations.id', ondelete='CASCADE'),
-                        nullable=False, comment="Location for master instructor")
+                        nullable=False, comment="Location (city) for master instructor")
+
+    # Campus (venue-level) — new: master can be scoped to a specific campus
+    campus_id = Column(Integer, ForeignKey('campuses.id', ondelete='SET NULL'),
+                       nullable=True, index=True,
+                       comment="Specific campus for master instructor (NULL = entire location)")
 
     # Master instructor
     instructor_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'),
@@ -261,6 +266,11 @@ class InstructorPosition(Base):
     # Location context
     location_id = Column(Integer, ForeignKey('locations.id', ondelete='CASCADE'),
                         nullable=False, comment="Location for position")
+
+    # Optional: pitch-specific position (links to a specific pálya)
+    pitch_id = Column(Integer, ForeignKey('pitches.id', ondelete='SET NULL'),
+                      nullable=True, index=True,
+                      comment="Specific pitch if position is for a single pálya")
 
     # Posted by (admin for master positions, master for assistant positions)
     posted_by = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'),
@@ -426,3 +436,58 @@ class InstructorAssignment(Base):
                 f"spec={self.specialization_type}/{self.age_group}, "
                 f"period={self.time_period_start}-{self.time_period_end}, "
                 f"active={self.is_active})>")
+
+
+class SportDirectorAssignment(Base):
+    """
+    Sport Director assignment — location-level management role.
+
+    A Sport Director oversees ALL campuses within a location and can:
+    - Manage tournaments across all campuses at that location
+    - Assign campus master instructors
+    - Enroll players and manage data on behalf of users (promotion context)
+
+    Only 1 active Sport Director per location (partial unique constraint).
+    """
+    __tablename__ = "sport_director_assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # The user with Sport Director role assigned to this location
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    # Location scope (manages all campuses here)
+    location_id = Column(
+        Integer,
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Who assigned this Sport Director (usually admin)
+    assigned_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    created_at     = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    deactivated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    user     = relationship("User", foreign_keys=[user_id], backref="sport_director_assignments")
+    location = relationship("Location", foreign_keys=[location_id],
+                            backref="sport_director_assignments")
+    assigner = relationship("User", foreign_keys=[assigned_by],
+                            backref="sport_director_assignments_created")
+
+    def __repr__(self):
+        return (
+            f"<SportDirectorAssignment("
+            f"user_id={self.user_id}, "
+            f"location_id={self.location_id}, "
+            f"active={self.is_active})>"
+        )

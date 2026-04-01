@@ -1,0 +1,663 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Player Management — {{ tournament.name }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* ── Status badge ──────────────────────────────────────────── */
+.ts-badge {
+    display: inline-block;
+    padding: .18rem .55rem;
+    border-radius: 99px;
+    font-size: .72rem;
+    font-weight: 700;
+    margin-left: .5rem;
+    vertical-align: middle;
+}
+.ts-enroll  { background:#c6f6d5; color:#276749; }
+.ts-closed  { background:#fed7d7; color:#c53030; }
+.ts-live    { background:#bee3f8; color:#2b6cb0; }
+.ts-done    { background:#e9d8fd; color:#553c9a; }
+.ts-default { background:#e2e8f0; color:#4a5568; }
+
+/* ── Club header above accordion groups ───────────────────── */
+.club-header {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 1.4rem 0 .4rem;
+    font-size: .8rem;
+    font-weight: 700;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.club-badge {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border-radius: 99px;
+    background: #ebf8ff;
+    color: #2b6cb0;
+    font-size: .72rem;
+    font-weight: 700;
+}
+.club-divider { flex: 1; height: 1px; background: #e2e8f0; }
+
+/* ── Accordion ────────────────────────────────────────────── */
+.accordion-item { margin-bottom: .35rem; }
+.accordion-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .55rem .9rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: .88rem;
+    font-weight: 600;
+    color: #2d3748;
+    text-align: left;
+    transition: background .1s;
+}
+.accordion-toggle:hover  { background: #f7fafc; }
+.accordion-toggle.open   { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+.accordion-chevron { margin-left: auto; font-size: .75rem; color: #a0aec0; transition: transform .18s; }
+.accordion-toggle.open .accordion-chevron { transform: rotate(180deg); }
+
+.ag-chip {
+    display: inline-block;
+    padding: .08rem .4rem;
+    border-radius: 99px;
+    background: #e9d8fd;
+    color: #553c9a;
+    font-size: .67rem;
+    font-weight: 700;
+}
+.count-chip {
+    display: inline-block;
+    padding: .08rem .4rem;
+    border-radius: 99px;
+    background: #edf2f7;
+    color: #4a5568;
+    font-size: .72rem;
+    font-weight: 600;
+}
+.role-cap {
+    display: inline-block;
+    padding: .05rem .35rem;
+    border-radius: 4px;
+    background: #fefcbf;
+    color: #744210;
+    font-size: .67rem;
+    font-weight: 700;
+}
+
+.accordion-body {
+    display: none;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: white;
+    overflow: hidden;
+}
+.accordion-body.open { display: block; }
+
+.player-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.player-table th {
+    background: #f7fafc;
+    padding: .4rem .75rem;
+    text-align: left;
+    font-size: .72rem;
+    font-weight: 700;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid #e2e8f0;
+}
+.player-table td {
+    padding: .48rem .75rem;
+    border-bottom: 1px solid #f0f4f8;
+    vertical-align: middle;
+}
+.player-table tr:last-child td { border-bottom: none; }
+.player-table tr:hover td { background: #fafbfc; }
+.player-name { font-weight: 600; color: #1a202c; text-decoration: none; }
+.player-name:hover { color: #667eea; }
+.player-email { font-family: monospace; color: #718096; font-size: .82rem; }
+
+/* ── Enroll panel ─────────────────────────────────────────── */
+.enroll-panel {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem 1.25rem;
+}
+.enroll-step {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: .75rem;
+}
+.enroll-step label {
+    width: 4.5rem;
+    font-size: .82rem;
+    font-weight: 700;
+    color: #4a5568;
+    flex-shrink: 0;
+}
+.enroll-step select, .enroll-step input {
+    flex: 1;
+    padding: .38rem .65rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: .85rem;
+    background: white;
+    color: #2d3748;
+}
+.player-checklist {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-top: .5rem;
+}
+.player-check-row {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .38rem .75rem;
+    border-bottom: 1px solid #f0f4f8;
+    font-size: .85rem;
+    cursor: pointer;
+}
+.player-check-row:last-child { border-bottom: none; }
+.player-check-row:hover { background: #f7fafc; }
+.player-check-row input[type=checkbox] { cursor: pointer; }
+.pcr-name { font-weight: 600; color: #2d3748; }
+.pcr-email { color: #718096; font-size: .78rem; font-family: monospace; }
+.enroll-action {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: .75rem;
+}
+.btn-enroll-sel {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: .42rem .9rem;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.btn-enroll-sel:hover { background: #5a67d8; }
+.btn-enroll-sel:disabled { background: #a0aec0; cursor: not-allowed; }
+.enroll-msg { font-size: .82rem; color: #718096; }
+
+/* ── Remove button ────────────────────────────────────────── */
+.btn-remove {
+    background: none;
+    border: 1px solid #fed7d7;
+    border-radius: 5px;
+    color: #c53030;
+    font-size: .75rem;
+    padding: .2rem .5rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.btn-remove:hover { background: #fff5f5; }
+
+.empty-group { color: #a0aec0; font-size: .85rem; padding: .75rem; }
+
+/* ── Enroll tabs ──────────────────────────────────────────── */
+.enroll-tab {
+    padding: .3rem .8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    color: #4a5568;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.enroll-tab.active { background: #667eea; color: white; border-color: #667eea; }
+.enroll-tab:not(.active):hover { background: #f7fafc; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="page-header">
+    <div>
+        <h1>👤 Player Management</h1>
+        <p class="subtitle">
+            {{ tournament.name }}
+            {% set ts = tournament.tournament_status %}
+            {% if ts == 'ENROLLMENT_OPEN' %}<span class="ts-badge ts-enroll">Enrollment Open</span>
+            {% elif ts == 'ENROLLMENT_CLOSED' %}<span class="ts-badge ts-closed">Enrollment Closed</span>
+            {% elif ts == 'IN_PROGRESS' %}<span class="ts-badge ts-live">In Progress</span>
+            {% elif ts == 'COMPLETED' %}<span class="ts-badge ts-done">Completed</span>
+            {% elif ts %}<span class="ts-badge ts-default">{{ ts }}</span>
+            {% endif %}
+        </p>
+    </div>
+    <a href="/admin/tournaments/{{ tournament.id }}/edit" class="btn btn-secondary">← Back to Tournament</a>
+</div>
+
+{% if flash %}<div class="alert alert-success">{{ flash }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<!-- ── Enrolled Players ──────────────────────────────────────── -->
+<section class="card">
+    <div class="card-header" style="display:flex;align-items:center;gap:.75rem;">
+        <h2 style="margin:0;">Enrolled Players</h2>
+        <span class="count-chip" id="total-count">{{ total_enrolled }}</span>
+    </div>
+    <div class="card-body">
+
+    {% set all_groups = enrolled_groups + ([{"club_id": None, "club_name": None, "team_id": 0, "team_name": "Unaffiliated", "age_group": "", "players": unaffiliated_players}] if unaffiliated_players else []) %}
+
+    {% if all_groups %}
+
+        {% set ns = namespace(last_club=None) %}
+        {% for group in all_groups %}
+
+            {# Club divider #}
+            {% if group.club_name != ns.last_club %}
+            {% set ns.last_club = group.club_name %}
+            <div class="club-header">
+                {% if group.club_name and group.club_name != "—" %}
+                <span class="club-badge">{{ group.club_name }}</span>
+                {% else %}
+                <span style="color:#a0aec0;font-style:italic;font-size:.78rem;">No club</span>
+                {% endif %}
+                <span class="club-divider"></span>
+            </div>
+            {% endif %}
+
+            {# Accordion item #}
+            <div class="accordion-item" id="group-{{ group.team_id }}">
+                <button class="accordion-toggle open" onclick="toggleGroup(this, {{ group.team_id }})">
+                    <span style="font-weight:700;">{{ group.team_name }}</span>
+                    {% if group.age_group %}<span class="ag-chip">{{ group.age_group }}</span>{% endif %}
+                    <span class="count-chip" id="group-count-{{ group.team_id }}">{{ group.players | length }} player{% if group.players | length != 1 %}s{% endif %}</span>
+                    <span class="accordion-chevron">▼</span>
+                </button>
+                <div class="accordion-body open" id="body-{{ group.team_id }}">
+                    {% if group.players %}
+                    <table class="player-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Enrolled</th>
+                                {% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}<th></th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-{{ group.team_id }}">
+                        {% for item in group.players %}
+                        <tr id="player-row-{{ item.user.id if item.user else item.enrollment.user_id }}">
+                            <td>
+                                <a href="/admin/users/{{ item.user.id if item.user else item.enrollment.user_id }}/profile" class="player-name">
+                                    {{ item.user.name if item.user else 'User #' ~ item.enrollment.user_id }}
+                                </a>
+                            </td>
+                            <td class="player-email">{{ item.user.email if item.user else '—' }}</td>
+                            <td>
+                                {% if item.role == 'CAPTAIN' %}
+                                <span class="role-cap">C</span>
+                                {% else %}
+                                <span style="color:#a0aec0;font-size:.8rem;">—</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:#718096;font-size:.82rem;">
+                                {{ item.enrollment.enrolled_at.strftime('%Y-%m-%d') if item.enrollment.enrolled_at else '—' }}
+                            </td>
+                            {% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}
+                            <td>
+                                <button class="btn-remove"
+                                    onclick="removePlayer({{ item.user.id if item.user else item.enrollment.user_id }}, {{ group.team_id }}, this)">
+                                    ✕ Remove
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="empty-group">No players in this group.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+        <p class="text-muted">No players enrolled yet.</p>
+    {% endif %}
+    </div>
+</section>
+
+<!-- ── Enroll Players (AJAX hierarchical) ─────────────────── -->
+{% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}
+<section class="card mt-4">
+    <div class="card-header">
+        <h2>➕ Enroll Players</h2>
+    </div>
+    <div class="card-body">
+        <div class="enroll-panel">
+
+            <!-- Tab switcher -->
+            <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+                <button id="tab-club" class="enroll-tab active" onclick="switchEnrollTab('club')">By Club / Team</button>
+                <button id="tab-search" class="enroll-tab" onclick="switchEnrollTab('search')">Direct Search</button>
+            </div>
+
+            <!-- ── Tab: Club / Team ── -->
+            <div id="enroll-club-section">
+                <div class="enroll-step">
+                    <label for="enroll-club">Club</label>
+                    <select id="enroll-club" onchange="onEnrollClubChange()">
+                        <option value="">— select club —</option>
+                    </select>
+                </div>
+                <div class="enroll-step">
+                    <label for="enroll-team">Team</label>
+                    <select id="enroll-team" onchange="loadEnrollPlayers()" disabled>
+                        <option value="">— select team —</option>
+                    </select>
+                </div>
+                <div id="enroll-players-wrap" style="display:none;">
+                    <div class="enroll-step" style="margin-bottom:.35rem;">
+                        <label style="width:4.5rem;">Players</label>
+                        <input type="text" id="enroll-search" placeholder="Search name / email…"
+                            oninput="filterEnrollPlayers()" style="flex:1;">
+                    </div>
+                    <div class="player-checklist" id="enroll-checklist"></div>
+                    <div class="enroll-action">
+                        <button class="btn-enroll-sel" id="enroll-btn" onclick="enrollSelected()" disabled>
+                            ➕ Enroll Selected (0)
+                        </button>
+                        <span class="enroll-msg" id="enroll-msg"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Tab: Direct Search ── -->
+            <div id="enroll-search-section" style="display:none;">
+                <div class="enroll-step">
+                    <label for="direct-search" style="width:4.5rem;">Search</label>
+                    <input type="text" id="direct-search" placeholder="Name or email (min. 2 chars)…" style="flex:1;"
+                        oninput="directSearchDebounce()">
+                    <button class="btn-enroll-sel" style="flex-shrink:0;" onclick="directSearch()">🔍 Search</button>
+                </div>
+                <div class="player-checklist" id="direct-checklist" style="display:none;margin-top:.5rem;"></div>
+                <div class="enroll-action" id="direct-action" style="display:none;margin-top:.75rem;">
+                    <button class="btn-enroll-sel" id="direct-enroll-btn" onclick="directEnrollSelected()" disabled>
+                        ➕ Enroll Selected (0)
+                    </button>
+                    <span class="enroll-msg" id="direct-enroll-msg"></span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% endblock admin_content %}
+
+{% block scripts %}
+<script>
+const TID = {{ tournament.id }};
+let _allClubs  = [];   // [{club_id, club_name, teams:[{team_id,team_name,member_count}]}]
+let _allPlayers = [];  // [{user_id, name, email}]
+
+function _csrf() {
+    return (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1] || '';
+}
+
+// ── Init ────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadEnrollClubs);
+
+// ── Accordion ───────────────────────────────────────────────
+function toggleGroup(btn, teamId) {
+    const body = document.getElementById(`body-${teamId}`);
+    body.classList.toggle('open');
+    btn.classList.toggle('open');
+}
+
+// ── Enrollment: step 1 — load clubs ─────────────────────────
+async function loadEnrollClubs() {
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/enrollment-clubs`);
+        _allClubs = await res.json();
+        const sel = document.getElementById('enroll-club');
+        if (!sel) return;
+        _allClubs.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.club_id;
+            opt.textContent = c.club_name;
+            sel.appendChild(opt);
+        });
+    } catch(e) { console.error('loadEnrollClubs', e); }
+}
+
+// ── Enrollment: step 2 — filter teams ───────────────────────
+function onEnrollClubChange() {
+    const clubId = parseInt(document.getElementById('enroll-club').value);
+    const teamSel = document.getElementById('enroll-team');
+    teamSel.innerHTML = '<option value="">— select team —</option>';
+    teamSel.disabled = true;
+    document.getElementById('enroll-players-wrap').style.display = 'none';
+    document.getElementById('enroll-checklist').innerHTML = '';
+
+    if (!clubId) return;
+    const club = _allClubs.find(c => c.club_id === clubId);
+    if (!club) return;
+    club.teams.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.team_id;
+        opt.textContent = `${t.team_name} (${t.member_count})`;
+        teamSel.appendChild(opt);
+    });
+    teamSel.disabled = false;
+}
+
+// ── Enrollment: step 3 — load players ───────────────────────
+async function loadEnrollPlayers() {
+    const teamId = document.getElementById('enroll-team').value;
+    const wrap = document.getElementById('enroll-players-wrap');
+    if (!teamId) { wrap.style.display = 'none'; return; }
+
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/available-players?team_id=${teamId}`);
+        _allPlayers = await res.json();
+        wrap.style.display = 'block';
+        renderEnrollPlayers(_allPlayers);
+    } catch(e) { console.error('loadEnrollPlayers', e); }
+}
+
+function renderEnrollPlayers(players) {
+    _renderPlayerCheckboxes(players, 'enroll-checklist', updateEnrollBtn);
+}
+
+function filterEnrollPlayers() {
+    const q = document.getElementById('enroll-search').value.toLowerCase();
+    const filtered = _allPlayers.filter(p =>
+        p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)
+    );
+    renderEnrollPlayers(filtered);
+}
+
+function updateEnrollBtn() {
+    const n = document.querySelectorAll('#enroll-checklist input:checked').length;
+    const btn = document.getElementById('enroll-btn');
+    btn.disabled = n === 0;
+    btn.textContent = `➕ Enroll Selected (${n})`;
+}
+
+// ── Enrollment: enroll selected ──────────────────────────────
+async function enrollSelected() {
+    const ids = [...document.querySelectorAll('#enroll-checklist input:checked')].map(cb => parseInt(cb.value));
+    if (!ids.length) return;
+    const btn = document.getElementById('enroll-btn');
+    const msg = document.getElementById('enroll-msg');
+    btn.disabled = true;
+    msg.textContent = 'Enrolling…';
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/enroll-player`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _csrf()},
+            body: JSON.stringify({user_ids: ids}),
+        });
+        const data = await res.json();
+        const enrolled = (data.enrolled || []).length;
+        const skipped  = (data.skipped  || []).length;
+        msg.textContent = `✅ ${enrolled} enrolled${skipped ? `, ${skipped} skipped` : ''}`;
+        // Reload to reflect new groups
+        setTimeout(() => location.reload(), 800);
+    } catch(e) {
+        msg.textContent = '❌ Error — please try again';
+        btn.disabled = false;
+    }
+}
+
+// ── Tab switcher ─────────────────────────────────────────────
+function switchEnrollTab(tab) {
+    const isClub = tab === 'club';
+    document.getElementById('tab-club').classList.toggle('active', isClub);
+    document.getElementById('tab-search').classList.toggle('active', !isClub);
+    document.getElementById('enroll-club-section').style.display  = isClub ? '' : 'none';
+    document.getElementById('enroll-search-section').style.display = isClub ? 'none' : '';
+}
+
+// ── Direct Search tab ─────────────────────────────────────────
+let _directDebounce = null;
+function directSearchDebounce() {
+    clearTimeout(_directDebounce);
+    _directDebounce = setTimeout(directSearch, 350);
+}
+
+async function directSearch() {
+    const q = document.getElementById('direct-search').value.trim();
+    const list = document.getElementById('direct-checklist');
+    const action = document.getElementById('direct-action');
+    if (q.length < 2) {
+        list.style.display = 'none';
+        action.style.display = 'none';
+        return;
+    }
+    list.innerHTML = '<p style="padding:.6rem .75rem;color:#a0aec0;font-size:.85rem;">Searching…</p>';
+    list.style.display = 'block';
+    action.style.display = 'none';
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/available-players?q=${encodeURIComponent(q)}`);
+        const players = await res.json();
+        _renderPlayerCheckboxes(players, 'direct-checklist', updateDirectBtn);
+        action.style.display = 'flex';
+        updateDirectBtn();
+    } catch(e) {
+        list.innerHTML = '<p style="padding:.6rem .75rem;color:#c53030;font-size:.85rem;">Search failed</p>';
+    }
+}
+
+function updateDirectBtn() {
+    const n = document.querySelectorAll('#direct-checklist input:checked').length;
+    const btn = document.getElementById('direct-enroll-btn');
+    btn.disabled = n === 0;
+    btn.textContent = `➕ Enroll Selected (${n})`;
+}
+
+async function directEnrollSelected() {
+    const ids = [...document.querySelectorAll('#direct-checklist input:checked')].map(cb => parseInt(cb.value));
+    if (!ids.length) return;
+    const btn = document.getElementById('direct-enroll-btn');
+    const msg = document.getElementById('direct-enroll-msg');
+    btn.disabled = true;
+    msg.textContent = 'Enrolling…';
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/enroll-player`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _csrf()},
+            body: JSON.stringify({user_ids: ids}),
+        });
+        const data = await res.json();
+        const enrolled = (data.enrolled || []).length;
+        const skipped  = (data.skipped  || []).length;
+        msg.textContent = `✅ ${enrolled} enrolled${skipped ? `, ${skipped} skipped` : ''}`;
+        setTimeout(() => location.reload(), 800);
+    } catch(e) {
+        msg.textContent = '❌ Error — please try again';
+        btn.disabled = false;
+    }
+}
+
+// ── Shared: render player checkboxes into any container ──────
+function _renderPlayerCheckboxes(players, containerId, updateFn) {
+    const list = document.getElementById(containerId);
+    list.innerHTML = '';
+    if (!players.length) {
+        list.innerHTML = '<p style="padding:.6rem .75rem;color:#a0aec0;font-size:.85rem;">No available players</p>';
+        if (updateFn) updateFn();
+        return;
+    }
+    players.forEach(p => {
+        const row = document.createElement('label');
+        row.className = 'player-check-row';
+        const teamInfo = p.team_name ? `<span style="color:#a0aec0;font-size:.75rem;margin-left:.3rem;">(${p.team_name})</span>` : '';
+        row.innerHTML = `
+            <input type="checkbox" value="${p.user_id}" onchange="${updateFn.name}()">
+            <span class="pcr-name">${p.name}</span>${teamInfo}
+            <span class="pcr-email">${p.email}</span>`;
+        list.appendChild(row);
+    });
+    if (updateFn) updateFn();
+}
+
+// ── Remove player (AJAX) ─────────────────────────────────────
+async function removePlayer(userId, teamId, btn) {
+    if (!confirm('Remove this player from the tournament?')) return;
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/admin/tournaments/${TID}/unenroll-player`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _csrf()},
+            body: JSON.stringify({user_id: userId}),
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Remove the row
+            const row = document.getElementById(`player-row-${userId}`);
+            if (row) row.remove();
+            // Update group count
+            const tbody = document.getElementById(`tbody-${teamId}`);
+            const remaining = tbody ? tbody.querySelectorAll('tr').length : 0;
+            const countEl = document.getElementById(`group-count-${teamId}`);
+            if (countEl) countEl.textContent = `${remaining} player${remaining !== 1 ? 's' : ''}`;
+            if (remaining === 0) {
+                const groupEl = document.getElementById(`group-${teamId}`);
+                if (groupEl) groupEl.style.opacity = '0.4';
+            }
+            // Update total
+            const totalEl = document.getElementById('total-count');
+            if (totalEl) {
+                const cur = parseInt(totalEl.textContent) || 0;
+                totalEl.textContent = Math.max(0, cur - 1);
+            }
+        } else {
+            alert('Could not remove player.');
+            btn.disabled = false;
+        }
+    } catch(e) {
+        alert('Error — please try again.');
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

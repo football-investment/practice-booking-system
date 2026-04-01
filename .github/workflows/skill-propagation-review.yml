@@ -3,6 +3,8 @@ name: Skill Propagation Weekly Review
 # Changelog (append a line when you modify this workflow):
 # 2026-03-12  Initial version — weekly review + manual dispatch
 #             Author: backend-leads  Ref: docs/release_notes/2026-03-12_skill-propagation.md
+# 2026-03-23  Fix: remove CORS_ALLOWED_ORIGINS from .env — plain string fails list[str] JSON parse;
+#             get_cors_origins() returns localhost list automatically when ENVIRONMENT=test
 
 # Runs every Monday at 07:00 UTC after tournament cycles complete.
 # Also triggerable manually via workflow_dispatch for post-tournament spot-checks.
@@ -87,7 +89,6 @@ jobs:
           ADMIN_EMAIL=admin@test.com
           ADMIN_PASSWORD=admin123
           ADMIN_NAME=Test Admin
-          CORS_ALLOWED_ORIGINS=http://localhost:3000
           ENABLE_RATE_LIMITING=false
           ENABLE_TOURNAMENT_SKILL_PROPAGATION=true
           EOF

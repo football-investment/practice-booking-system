@@ -201,6 +201,61 @@ def system_events_purge_job() -> None:
         db.close()
 
 
+def auto_checkin_open_job() -> None:
+    """
+    Minute-by-minute maintenance job: auto-transition ENROLLMENT_CLOSED → CHECK_IN_OPEN.
+
+    Finds all ENROLLMENT_CLOSED tournaments whose `checkin_opens_at` has passed and
+    transitions them to CHECK_IN_OPEN so that players/teams can check in.
+
+    The status history entry uses changed_by=NULL to indicate a system-initiated action.
+    """
+    from datetime import timezone as _tz
+    from app.models.semester import Semester
+    from app.api.api_v1.endpoints.tournaments.lifecycle import record_status_change
+
+    job_start = datetime.now()
+    logger.info("⏰ auto_checkin_open_job running at %s", job_start.isoformat())
+
+    db = SessionLocal()
+    try:
+        now = datetime.now(_tz.utc)
+        ready = db.query(Semester).filter(
+            Semester.tournament_status == "ENROLLMENT_CLOSED",
+            Semester.checkin_opens_at.isnot(None),
+            Semester.checkin_opens_at <= now,
+        ).all()
+
+        for t in ready:
+            old_status = t.tournament_status
+            t.tournament_status = "CHECK_IN_OPEN"
+            record_status_change(
+                db=db,
+                tournament_id=t.id,
+                old_status=old_status,
+                new_status="CHECK_IN_OPEN",
+                changed_by=None,  # NULL = system / scheduler action
+                reason=f"Auto-opened by scheduler at {now.isoformat()}",
+            )
+            logger.info("✅ Tournament %d (%s) auto-transitioned → CHECK_IN_OPEN", t.id, t.name)
+
+        if ready:
+            db.commit()
+            logger.info("Committed CHECK_IN_OPEN for %d tournament(s)", len(ready))
+        else:
+            logger.debug("auto_checkin_open_job: no tournaments ready for check-in")
+
+    except Exception as exc:
+        db.rollback()
+        logger.warning(
+            "AUTO_CHECKIN_OPEN_FAILED — error=%s",
+            type(exc).__name__,
+            exc_info=True,
+        )
+    finally:
+        db.close()
+
+
 def start_scheduler():
     """
     Start the background scheduler
@@ -244,6 +299,17 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=60  # 1 minute grace period
+    )
+
+    # Every minute: auto-open check-in for ENROLLMENT_CLOSED tournaments
+    scheduler.add_job(
+        func=auto_checkin_open_job,
+        trigger=IntervalTrigger(minutes=1),
+        id='auto_checkin_open',
+        name='Auto Check-In Opener',
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=60,  # 1 minute grace
     )
 
     # Nightly: purge old resolved system_events (02:00 UTC)

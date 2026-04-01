@@ -1444,6 +1444,9 @@ def run_ops_scenario(
                     parallel_fields=1,   # Default to 1 field per campus (nullable=True but CHECK constraint requires >= 1)
                     is_active=True,
                 ))
+        # Sync campus_id onto the Semester so generation_validator passes its campus check
+        if not getattr(tournament, 'campus_id', None):
+            tournament.campus_id = campus_ids[0]
         db.flush()
 
     campus_overrides_raw = None

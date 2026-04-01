@@ -28,7 +28,7 @@ from sqlalchemy import event
 
 from app.main import app
 from app.database import engine, get_db
-from app.dependencies import get_current_user_web, get_current_user
+from app.dependencies import get_current_user_web, get_current_user, get_current_admin_user_hybrid, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
@@ -662,27 +662,28 @@ class TestSmoke07Navigation:
         )
 
     def test_analytics_nav_strip_present(self, admin_client):
-        """GET /admin/analytics → nav strip includes all 10 top-level links."""
+        """GET /admin/analytics → nav strip includes all top-level links (dropdown nav)."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
-        for link in ["/admin/users", "/admin/programs", "/admin/sessions",
-                     "/admin/events", "/admin/payments", "/admin/locations",
-                     "/admin/config", "/admin/analytics", "/admin/system-events"]:
+        # Dropdown nav: hub URLs replaced by primary sub-page URLs
+        for link in ["/admin/users", "/admin/semesters", "/admin/sessions",
+                     "/admin/tournaments", "/admin/payments", "/admin/locations",
+                     "/admin/game-presets", "/admin/analytics", "/admin/system-events"]:
             assert link in resp.text, f"Nav link {link} missing from analytics.html"
 
     def test_semesters_nav_strip_present(self, admin_client):
-        """GET /admin/semesters → nav strip contains Programs hub link."""
+        """GET /admin/semesters → nav strip contains Programs dropdown link."""
         resp = admin_client.get("/admin/semesters")
         assert resp.status_code == 200
-        for link in ["/admin/analytics", "/admin/sessions", "/admin/programs"]:
+        for link in ["/admin/analytics", "/admin/sessions", "/admin/semesters"]:
             assert link in resp.text, f"Nav link {link} missing from semesters.html"
 
     def test_users_page_has_analytics_and_programs_links(self, admin_client):
-        """GET /admin/users → header nav contains Analytics + Programs links."""
+        """GET /admin/users → header nav contains Analytics + Semesters links."""
         resp = admin_client.get("/admin/users")
         assert resp.status_code == 200
         assert "/admin/analytics" in resp.text
-        assert "/admin/programs" in resp.text
+        assert "/admin/semesters" in resp.text
 
     def test_pagination_on_users_page(self, admin_client):
         """GET /admin/users → page renders with valid page structure."""
@@ -2524,6 +2525,19 @@ class TestSmoke22GamePresetPlayerCountGuard:
         """Create an INDIVIDUAL_RANKING tournament in IN_PROGRESS status."""
         from datetime import date, timedelta
         today = date.today()
+        uid = uuid.uuid4().hex[:8]
+        loc = Location(
+            name=f"S22 Location {uid}",
+            city=f"S22City-{uid}",
+            country="HU",
+            is_active=True,
+            location_type=LocationType.CENTER,
+        )
+        test_db.add(loc)
+        test_db.flush()
+        camp = Campus(location_id=loc.id, name=f"S22 Campus {uid}", is_active=True)
+        test_db.add(camp)
+        test_db.flush()
         tourn = Semester(
             code=f"S22{suffix}-{uuid.uuid4().hex[:6]}",
             name=f"SMOKE-22{suffix} Preset Guard Test",
@@ -2531,6 +2545,7 @@ class TestSmoke22GamePresetPlayerCountGuard:
             end_date=today + timedelta(days=7),
             tournament_status="IN_PROGRESS",
             master_instructor_id=admin_user.id,
+            campus_id=camp.id,
             tournament_config_obj=TournamentConfiguration(
                 tournament_type_id=None,
                 participant_type="INDIVIDUAL",
@@ -2813,6 +2828,7 @@ class TestSmoke23TournamentEditPage:
 
         app.dependency_overrides[get_db] = _db
         app.dependency_overrides[get_current_user] = lambda: admin_user
+        app.dependency_overrides[get_current_admin_user_hybrid] = lambda: admin_user
 
         with TestClient(app) as c:
             yield c
@@ -2906,7 +2922,8 @@ class TestSmoke23TournamentEditPage:
     def test_23d_edit_page_shows_enrolled_players_and_checkin_status(
         self, test_db: Session, admin_user: User, web_client: TestClient
     ):
-        """Edit page lists enrolled players with check-in status indicators."""
+        """Edit page shows enrollment count + Manage Players link (dedicated page pattern).
+        Player details are on /admin/tournaments/{id}/players."""
         tourn = self._make_tournament(test_db, admin_user, suffix="d")
         player, enroll = self._enroll_player(test_db, tourn.id)
 
@@ -2914,14 +2931,21 @@ class TestSmoke23TournamentEditPage:
         assert resp.status_code == 200
 
         html = resp.text
-        # Player appears in the check-in section
-        assert player.email in html, "Enrolled player email not shown on edit page"
-        # Check-in status indicator present
-        assert "Not checked in" in html or "Checked In" in html or "checked-in" in html, (
-            "Check-in status indicator missing from edit page"
-        )
-        # Enrollment count stat visible
+        # Enrollment section present
         assert "section-checkin" in html, "Check-in section missing"
+        # Enrolled Players card present with count
+        assert "Enrolled Players" in html, "Enrolled Players heading missing"
+        # Link to dedicated players management page
+        assert f"/admin/tournaments/{tourn.id}/players" in html, (
+            "Manage Players link missing from edit page"
+        )
+
+        # Players page shows the actual player email and check-in status
+        resp2 = web_client.get(f"/admin/tournaments/{tourn.id}/players")
+        assert resp2.status_code == 200
+        html2 = resp2.text
+        assert player.email in html2, "Enrolled player email not shown on players page"
+        assert "Enrolled Players" in html2, "Enrolled Players heading missing on players page"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2951,6 +2975,19 @@ class TestSmoke24SessionGenWizard:
     ) -> Semester:
         """INDIVIDUAL_RANKING tournament (scoring_type=PLACEMENT, no tournament_type_id)."""
         today = date.today()
+        uid = uuid.uuid4().hex[:8]
+        loc = Location(
+            name=f"S24 Location {uid}",
+            city=f"S24City-{uid}",
+            country="HU",
+            is_active=True,
+            location_type=LocationType.CENTER,
+        )
+        test_db.add(loc)
+        test_db.flush()
+        camp = Campus(location_id=loc.id, name=f"S24 Campus {uid}", is_active=True)
+        test_db.add(camp)
+        test_db.flush()
         tourn = Semester(
             code=f"S24{suffix}-{uuid.uuid4().hex[:6]}",
             name=f"SMOKE-24{suffix} Wizard Test",
@@ -2958,6 +2995,7 @@ class TestSmoke24SessionGenWizard:
             end_date=today + timedelta(days=7),
             tournament_status=status,
             master_instructor_id=admin_user.id,
+            campus_id=camp.id,
             tournament_config_obj=TournamentConfiguration(
                 participant_type="INDIVIDUAL",
                 scoring_type="PLACEMENT",  # → INDIVIDUAL_RANKING format
@@ -3046,6 +3084,7 @@ class TestSmoke24SessionGenWizard:
 
         app.dependency_overrides[get_db] = _db
         app.dependency_overrides[get_current_user] = lambda: admin_user
+        app.dependency_overrides[get_current_admin_or_instructor_user_hybrid] = lambda: admin_user
         with TestClient(app) as c:
             yield c
         app.dependency_overrides.clear()
@@ -3388,28 +3427,27 @@ class TestSmoke27NavHubs:
     # ── SMOKE-27c ──────────────────────────────────────────────────────────────
 
     def test_27c_nav_has_10_items(self, admin_client):
-        """GET /admin/analytics → admin nav contains exactly the 10 top-level items."""
+        """GET /admin/analytics → admin dropdown nav contains all destinations."""
         resp = admin_client.get("/admin/analytics")
         assert resp.status_code == 200
         html = resp.text
-        # Verify the 10 nav destinations are all present
+        # Verify all nav destinations present (dropdown nav: hubs replaced by primary sub-pages)
         nav_links = [
             "/dashboard",
             "/admin/users",
-            "/admin/programs",
+            "/admin/semesters",    # Programs trigger now links directly to semesters
             "/admin/sessions",
-            "/admin/events",       # Events hub (replaces Tournaments nav item)
-            "/admin/payments",     # Commerce entry point
-            "/admin/locations",    # Locations module
-            "/admin/config",
+            "/admin/tournaments",  # Events trigger now links directly to tournaments
+            "/admin/payments",     # Finance entry point
+            "/admin/locations",    # Venues module
+            "/admin/game-presets", # Game Config trigger now links directly to game-presets
             "/admin/analytics",
             "/admin/system-events",
         ]
         for link in nav_links:
             assert link in html, f"Expected nav link '{link}' missing"
-        # Old direct nav links should NOT appear as nav items any more
-        # (they may appear inside page content, so we only verify Commerce label)
-        assert "🛒 Commerce" in html, "Commerce nav label missing"
+        # Dropdown labels present
+        assert "💰 Finance" in html, "Finance nav label missing"
         assert "Tier milestones reached" in html, "Tier milestone count label missing"
 
 

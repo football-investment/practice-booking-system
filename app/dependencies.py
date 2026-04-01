@@ -71,6 +71,26 @@ def get_current_admin_or_instructor_user(current_user: User = Depends(get_curren
     return current_user
 
 
+def get_current_sport_director_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current user if they are admin or sport director"""
+    if current_user.role not in {UserRole.ADMIN, UserRole.SPORT_DIRECTOR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sport Director role required"
+        )
+    return current_user
+
+
+def get_current_pitch_manager_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current user if they can manage pitch assignments (admin, sport director, or instructor)."""
+    if current_user.role not in {UserRole.ADMIN, UserRole.SPORT_DIRECTOR, UserRole.INSTRUCTOR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions to manage pitch assignments"
+        )
+    return current_user
+
+
 async def get_current_user_optional(
     request: Request,
     db: Session = Depends(get_db)
@@ -131,6 +151,24 @@ async def get_current_admin_user_web(
     return user
 
 
+async def get_current_sport_director_user_web(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
+    """Cookie-auth Sport Director dependency (for web pages / browser form submissions).
+
+    Accepts session cookie (same as get_current_user_web).
+    Raises 401 if not authenticated, 403 if authenticated but not ADMIN or SPORT_DIRECTOR.
+    """
+    user = await get_current_user_web(request, db)
+    if user.role not in {UserRole.ADMIN, UserRole.SPORT_DIRECTOR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sport Director role required",
+        )
+    return user
+
+
 async def get_current_admin_user_hybrid(
     request: Request,
     db: Session = Depends(get_db),
@@ -159,6 +197,48 @@ async def get_current_admin_user_hybrid(
     user = await get_current_user_optional(request, db)
     if user:
         if user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions",
+            )
+        return user
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+async def get_current_admin_or_instructor_user_hybrid(
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+) -> User:
+    """Accept both Bearer (API clients) and cookie (browser JS fetches) for ADMIN or INSTRUCTOR.
+
+    Same pattern as get_current_admin_user_hybrid but permits INSTRUCTOR role too.
+    """
+    _allowed = {UserRole.ADMIN, UserRole.INSTRUCTOR}
+
+    # 1. Bearer token path
+    if credentials:
+        token = credentials.credentials
+        username = verify_token(token, "access")
+        if username:
+            user = db.query(User).filter(User.email == username).first()
+            if user and user.is_active:
+                if user.role not in _allowed:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Not enough permissions",
+                    )
+                return user
+
+    # 2. Cookie path (browser JS fetch from admin pages)
+    user = await get_current_user_optional(request, db)
+    if user:
+        if user.role not in _allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions",

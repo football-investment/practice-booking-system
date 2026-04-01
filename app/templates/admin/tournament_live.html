@@ -1,0 +1,707 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Live — {{ tournament.name }}{% endblock %}
+{% block page_heading %}Live Monitoring{% endblock %}
+{% block page_subtitle %}{{ tournament.name }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.live-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+    margin: 0 20px 30px;
+}
+@media (max-width: 960px) { .live-grid { grid-template-columns: 1fr; } }
+
+/* ── Banners ─────────────────────────────────────────────────────────────── */
+.live-banner {
+    margin: 12px 20px 0;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.live-banner.warn  { background: #fff8e1; border: 1px solid #ffe082; color: #5d4037; }
+.live-banner.error { background: #ffebee; border: 1px solid #ef9a9a; color: #b71c1c; }
+.live-banner.info  { background: #e3f2fd; border: 1px solid #90caf9; color: #0d47a1; }
+.live-banner.hidden { display: none; }
+.live-banner button {
+    margin-left: auto; background: none; border: 1px solid currentColor;
+    border-radius: 4px; padding: 3px 10px; cursor: pointer; font-size: 12px;
+    color: inherit;
+}
+
+/* ── Status bar ──────────────────────────────────────────────────────────── */
+.live-status-bar {
+    margin: 10px 20px 16px;
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.live-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #ff4444;
+    flex-shrink: 0;
+}
+.live-dot.connected { background: #00cc66; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.ws-meta { color: #aaa; font-size: 12px; }
+.ws-meta span { color: #fff; font-weight: 600; }
+.rate-pill {
+    background: #2a2a4e;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #7eb8f7;
+}
+
+/* ── Card base ───────────────────────────────────────────────────────────── */
+.card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    margin-bottom: 16px;
+}
+.card h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ── Progress bar ────────────────────────────────────────────────────────── */
+.progress-bar-outer {
+    height: 24px;
+    background: #eee;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #1a6b5a, #2ea87a);
+    border-radius: 12px;
+    transition: width .4s ease;
+    min-width: 0;
+}
+.progress-label {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #555;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ── KPI pills ───────────────────────────────────────────────────────────── */
+.kpi-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.kpi-pill {
+    background: #f0f7f4;
+    border-radius: 8px;
+    padding: 10px 18px;
+    min-width: 110px;
+    text-align: center;
+}
+.kpi-pill strong { color: #1a6b5a; font-size: 22px; display: block; }
+.kpi-pill small  { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+
+/* ── Pitch table ─────────────────────────────────────────────────────────── */
+.pitch-row {
+    display: grid;
+    grid-template-columns: 12px 1fr 80px 70px;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 12px;
+}
+.pitch-row:last-child { border-bottom: none; }
+.p-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #ccc;
+}
+.p-dot.active  { background: #00cc66; }
+.p-dot.pending { background: #ffaa00; }
+.p-dot.stale   { background: #ff4444; }
+.p-name { font-weight: 600; color: #333; }
+.p-idle { color: #aaa; font-size: 11px; text-align: right; }
+.p-count { color: #1a6b5a; font-size: 11px; text-align: right; }
+
+/* ── Live feed ───────────────────────────────────────────────────────────── */
+.feed-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    height: 560px;
+    display: flex;
+    flex-direction: column;
+}
+#feed-list {
+    flex: 1;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+#feed-list li {
+    padding: 7px 8px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 12px;
+    display: grid;
+    grid-template-columns: 50px 44px 1fr;
+    gap: 6px;
+    align-items: start;
+}
+.f-time  { color: #bbb; font-size: 11px; }
+.f-badge { background: #e8f5e9; color: #2e7d32; border-radius: 4px;
+           padding: 1px 5px; font-size: 10px; font-weight: 700; text-align: center; }
+.f-txt   { color: #333; }
+
+/* ── Completion rate ─────────────────────────────────────────────────────── */
+.rate-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+.rate-box {
+    background: #f8f8f8;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #555;
+    border-left: 3px solid #1a6b5a;
+}
+.rate-box strong { color: #1a6b5a; }
+
+/* ── Alerts panel ────────────────────────────────────────────────────────── */
+#alerts-panel {
+    margin: 8px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.alert-item {
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn .2s ease;
+}
+@keyframes slideIn { from { opacity:0; transform:translateY(-4px) } to { opacity:1; transform:none } }
+.alert-item.idle  { background: #fff3e0; border: 1px solid #ffb74d; color: #e65100; }
+.alert-item.stats { background: #e8eaf6; border: 1px solid #9fa8da; color: #283593; }
+.alert-item button {
+    margin-left: auto; background: none; border: 1px solid currentColor;
+    border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 11px;
+    color: inherit; flex-shrink: 0;
+}
+
+/* ── Throttle stats pill in status bar ───────────────────────────────────── */
+.drop-pill {
+    background: #2a2a4e;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #ef9a9a;
+}
+.drop-pill.ok { color: #a5d6a7; }
+/* ── Instructor live panel ───────────────────────────────────────────── */
+.instructor-live-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid #2d3748; }
+.instructor-live-row:last-child { border-bottom: none; }
+.instr-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.instr-green  { background: #48bb78; }
+.instr-red    { background: #fc8181; }
+.instr-yellow { background: #f6e05e; }
+.instr-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.7rem; font-weight: 700; }
+.instr-badge-planned    { background: #4a5568; color: #e2e8f0; }
+.instr-badge-confirmed  { background: #2b6cb0; color: #ebf8ff; }
+.instr-badge-checked_in { background: #276749; color: #c6f6d5; }
+.instr-badge-absent     { background: #742a2a; color: #fed7d7; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- ── Redis-unavailable banner (shown after 30 s without WS) ──────────── -->
+<div id="banner-redis-down" class="live-banner error hidden">
+    ⚠️ Live data unavailable — Redis connection failed.
+    The table below shows the last known state (may be stale).
+    <button onclick="location.reload()">Refresh page</button>
+</div>
+
+<!-- ── Stale-data warning (shown after 60 s without any event) ─────────── -->
+<div id="banner-stale" class="live-banner warn hidden">
+    🕐 No new events for <span id="stale-secs">60</span> s — data may be stale.
+    <button onclick="location.reload()">Reload</button>
+</div>
+
+<!-- ── Alerts panel (idle + throttle stats) ────────────────────────────── -->
+<div id="alerts-panel"></div>
+
+<!-- ── Status bar ──────────────────────────────────────────────────────── -->
+<div class="live-status-bar">
+    <div class="live-dot" id="ws-dot"></div>
+    <div class="ws-meta">WS: <span id="ws-status-text">Connecting…</span></div>
+    <div class="rate-pill">⚡ <span id="rate-display">—</span> events/min</div>
+    <div class="drop-pill ok" id="drop-pill" title="Dropped events (throttle)">↓ drop: <span id="drop-display">—</span></div>
+    <div class="ws-meta" style="margin-left:auto">
+        #{{ tournament.id }} &nbsp;|&nbsp;
+        <a href="/admin/tournaments/{{ tournament.id }}/edit" style="color:#7eb8f7">← Edit</a>
+    </div>
+</div>
+
+<div class="live-grid">
+    <!-- ── Left: progress + KPIs + pitch table ────────────────────────── -->
+    <div>
+        <!-- Progress -->
+        <div class="card">
+            <h3>Overall progress
+                <span style="font-weight:400;font-size:12px;color:#aaa" id="last-event-ts">—</span>
+            </h3>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="main-bar"
+                     style="width:{{ ((completed_sessions/total_sessions*100) if total_sessions > 0 else 0)|round(1) }}%">
+                </div>
+            </div>
+            <div class="progress-label">
+                <span><strong id="kpi-completed">{{ completed_sessions }}</strong> completed</span>
+                <span id="kpi-pct">
+                    {{ ((completed_sessions/total_sessions*100) if total_sessions > 0 else 0)|round(1) }}%
+                </span>
+                <span><strong id="kpi-total">{{ total_sessions }}</strong> total</span>
+            </div>
+        </div>
+
+        <!-- KPI pills -->
+        <div class="kpi-row">
+            <div class="kpi-pill">
+                <strong id="kpi2-completed">{{ completed_sessions }}</strong>
+                <small>Completed</small>
+            </div>
+            <div class="kpi-pill">
+                <strong id="kpi2-remaining">{{ total_sessions - completed_sessions }}</strong>
+                <small>Remaining</small>
+            </div>
+            <div class="kpi-pill">
+                <strong id="kpi2-total">{{ total_sessions }}</strong>
+                <small>Total sessions</small>
+            </div>
+            <div class="kpi-pill" style="background:#fff3e0">
+                <strong id="kpi2-eta" style="color:#e65100;font-size:16px">—</strong>
+                <small>Est. finish</small>
+            </div>
+        </div>
+
+        <!-- Completion rate row -->
+        <div class="rate-row" style="margin-bottom:16px">
+            <div class="rate-box">
+                Avg rate: <strong><span id="avg-rate">—</span> sessions/min</strong>
+            </div>
+            <div class="rate-box">
+                Est. remaining: <strong><span id="est-remaining-time">—</span></strong>
+            </div>
+        </div>
+
+        <!-- Pitch activity -->
+        <div class="card">
+            <h3>Pitch activity
+                <span style="font-weight:400;font-size:11px;color:#bbb">
+                    (🟢 active &nbsp; 🟡 pending &nbsp; 🔴 idle &gt;5 min)
+                </span>
+            </h3>
+            <div id="pitches-container">
+                <div style="color:#aaa;font-size:12px;padding:8px 0">
+                    Waiting for first session result…
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Right: live feed + instructor status ──────────────────────── -->
+    <div>
+        <!-- Instructor Status Panel -->
+        {% if instructor_roster %}
+        <div class="card" id="instructor-status-card" style="margin-bottom:1rem;">
+            <h3 style="margin-bottom:0.8rem;">🧑‍🏫 Instructors</h3>
+            <div id="instructor-grid">
+                {% for slot in instructor_roster %}
+                <div class="instructor-live-row"
+                     id="instr-slot-{{ slot.slot_id }}"
+                     data-slot="{{ slot.slot_id }}"
+                     data-status="{{ slot.status }}">
+                    <div class="instr-dot
+                        {% if slot.status == 'CHECKED_IN' %}instr-green
+                        {% elif slot.status == 'ABSENT' %}instr-red
+                        {% else %}instr-yellow{% endif %}">
+                    </div>
+                    <div style="flex:1; font-size:0.85rem;">
+                        <div style="font-weight:600;">{{ slot.instructor_name }}</div>
+                        <div style="color:#aaa; font-size:0.75rem;">
+                            {{ slot.role }}{% if slot.pitch_name %} · {{ slot.pitch_name }}{% endif %}
+                        </div>
+                    </div>
+                    <span class="instr-badge instr-badge-{{ slot.status | lower }}">{{ slot.status }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Live feed -->
+        <div class="feed-card">
+            <h3>Live feed
+                <span style="font-weight:400;font-size:11px;color:#bbb">latest 20</span>
+            </h3>
+            <ul id="feed-list">
+                <li>
+                    <span class="f-time">—</span>
+                    <span class="f-badge" style="background:#f5f5f5;color:#aaa">—</span>
+                    <span class="f-txt" style="color:#bbb">No events yet</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% endblock admin_content %}
+
+{% block scripts %}
+<script>
+(function () {
+    "use strict";
+
+    /* ── Constants ─────────────────────────────────────────────────────── */
+    const TOURNAMENT_ID       = {{ tournament.id }};
+    const STALE_THRESHOLD_S   = 60;   // show warning after 60 s without events
+    const REDIS_DOWN_TIMEOUT  = 30;   // show error banner after 30 s without WS
+    const PITCH_IDLE_WARN_S   = 300;  // mark pitch 🔴 if idle > 5 min
+
+    /* ── State ─────────────────────────────────────────────────────────── */
+    let completedCount  = {{ completed_sessions }};
+    let totalCount      = {{ total_sessions }};
+    const pitchState    = {};        // pitch_id → { campus, session, ts, count }
+    const rateBucket    = [];        // timestamps of last events (for rate calc)
+    let lastEventTs     = null;      // Date when last event was received
+    let sessionStartTs  = Date.now(); // page load time for ETA calc
+    let startCompleted  = completedCount;
+
+    /* ── DOM refs ──────────────────────────────────────────────────────── */
+    const dot             = document.getElementById("ws-dot");
+    const wsStatusTxt     = document.getElementById("ws-status-text");
+    const mainBar         = document.getElementById("main-bar");
+    const kpiCompleted    = document.getElementById("kpi-completed");
+    const kpiPct          = document.getElementById("kpi-pct");
+    const kpiTotal        = document.getElementById("kpi-total");
+    const kpi2Completed   = document.getElementById("kpi2-completed");
+    const kpi2Remaining   = document.getElementById("kpi2-remaining");
+    const kpi2Eta         = document.getElementById("kpi2-eta");
+    const avgRateEl       = document.getElementById("avg-rate");
+    const estRemainingEl  = document.getElementById("est-remaining-time");
+    const rateDisplay     = document.getElementById("rate-display");
+    const dropDisplay     = document.getElementById("drop-display");
+    const dropPill        = document.getElementById("drop-pill");
+    const lastEventTsEl   = document.getElementById("last-event-ts");
+    const feedList        = document.getElementById("feed-list");
+    const pitchesCon      = document.getElementById("pitches-container");
+    const alertsPanel     = document.getElementById("alerts-panel");
+    const bannerRedis     = document.getElementById("banner-redis-down");
+    const bannerStale     = document.getElementById("banner-stale");
+    const staleSecsEl     = document.getElementById("stale-secs");
+
+    /* ── Helpers ───────────────────────────────────────────────────────── */
+    function nowStr() { return new Date().toTimeString().slice(0, 8); }
+
+    function setWsStatus(connected) {
+        dot.className = "live-dot" + (connected ? " connected" : "");
+        wsStatusTxt.textContent = connected ? "Connected" : "Reconnecting…";
+    }
+
+    function updateProgress(completed, total) {
+        completedCount = completed;
+        totalCount     = total;
+        const pct = total > 0 ? (completed / total * 100) : 0;
+        mainBar.style.width   = pct.toFixed(1) + "%";
+        kpiCompleted.textContent  = completed;
+        kpiPct.textContent        = pct.toFixed(1) + "%";
+        kpi2Completed.textContent = completed;
+        kpi2Remaining.textContent = Math.max(0, total - completed);
+    }
+
+    function pushRateSample() {
+        const now = Date.now();
+        rateBucket.push(now);
+        // Keep only last 60 s
+        const cutoff = now - 60000;
+        while (rateBucket.length && rateBucket[0] < cutoff) rateBucket.shift();
+    }
+
+    function computeRates() {
+        // Events per minute (rolling 60 s window)
+        const eventsPerMin = rateBucket.length; // bucket holds last-60s events
+
+        // Sessions per minute since page load (long-term trend)
+        const elapsedMin = (Date.now() - sessionStartTs) / 60000;
+        const sessionsDone = completedCount - startCompleted;
+        const sessPerMin   = elapsedMin > 0 ? (sessionsDone / elapsedMin) : 0;
+
+        rateDisplay.textContent   = eventsPerMin;
+        avgRateEl.textContent     = sessPerMin > 0 ? sessPerMin.toFixed(1) : "—";
+
+        const remaining = totalCount - completedCount;
+        if (sessPerMin > 0 && remaining > 0) {
+            const minsLeft    = remaining / sessPerMin;
+            const etaDate     = new Date(Date.now() + minsLeft * 60000);
+            const etaStr      = etaDate.toTimeString().slice(0, 5);
+            kpi2Eta.textContent      = etaStr;
+            estRemainingEl.textContent = `${minsLeft.toFixed(0)} min (by ${etaStr})`;
+        } else if (remaining <= 0) {
+            kpi2Eta.textContent      = "Done!";
+            estRemainingEl.textContent = "All sessions completed";
+        } else {
+            kpi2Eta.textContent      = "—";
+            estRemainingEl.textContent = "—";
+        }
+    }
+
+    function secondsAgo(ts) {
+        return Math.floor((Date.now() - ts) / 1000);
+    }
+
+    function idleLabel(secs) {
+        if (secs < 60)  return secs + "s ago";
+        if (secs < 3600) return Math.floor(secs / 60) + "m ago";
+        return Math.floor(secs / 3600) + "h ago";
+    }
+
+    function rebuildPitchTable() {
+        const entries = Object.entries(pitchState)
+            .sort((a, b) => Number(a[0]) - Number(b[0]));
+        if (!entries.length) return;
+
+        pitchesCon.innerHTML = entries.map(([pid, s]) => {
+            const idle = secondsAgo(s.ts);
+            const dotCls = idle > PITCH_IDLE_WARN_S ? "p-dot stale"
+                         : s.status === "completed"  ? "p-dot active"
+                         :                             "p-dot pending";
+            const campusLbl = s.campus ? "C" + s.campus : "—";
+            return `<div class="pitch-row">
+                <div class="${dotCls}"></div>
+                <span class="p-name">Pitch #${pid} <span style="color:#aaa;font-weight:400">(${campusLbl})</span></span>
+                <span class="p-count">×${s.count} done</span>
+                <span class="p-idle">${idleLabel(idle)}</span>
+            </div>`;
+        }).join("");
+    }
+
+    function prependFeed(msg) {
+        // Remove placeholder
+        if (feedList.children.length === 1 &&
+            feedList.firstChild.querySelector(".f-txt[style]")) {
+            feedList.innerHTML = "";
+        }
+        const campus  = msg.campus_id  ? "C" + msg.campus_id  : "?";
+        const pitch   = msg.pitch_id   ? "/" + "P" + msg.pitch_id : "";
+        const round   = msg.round_number ? " R" + msg.round_number : "";
+        const li = document.createElement("li");
+        li.innerHTML = `
+            <span class="f-time">${nowStr()}</span>
+            <span class="f-badge">${campus}${pitch}${round}</span>
+            <span class="f-txt">Session #${msg.session_id}</span>
+        `;
+        feedList.insertBefore(li, feedList.firstChild);
+        while (feedList.children.length > 20) feedList.removeChild(feedList.lastChild);
+    }
+
+    /* ── Alert helpers ──────────────────────────────────────────────────── */
+    function showAlert(cls, icon, text, id) {
+        // Replace existing alert with same id (dedup)
+        if (id) {
+            const existing = document.getElementById("alert-" + id);
+            if (existing) existing.remove();
+        }
+        const div = document.createElement("div");
+        div.className = "alert-item " + cls;
+        if (id) div.id = "alert-" + id;
+        div.innerHTML = `${icon} ${text} <button onclick="this.parentElement.remove()">Dismiss</button>`;
+        alertsPanel.prepend(div);
+        // Auto-dismiss after 5 min
+        setTimeout(() => { if (div.parentElement) div.remove(); }, 300000);
+    }
+
+    function handleThrottleStats(msg) {
+        const rate = msg.drop_rate_pct || 0;
+        dropDisplay.textContent = `${msg.dropped} (${rate.toFixed(1)}%)`;
+        if (rate > 50) {
+            dropPill.className = "drop-pill";
+            showAlert("stats", "📊",
+                `Throttle stats: ${msg.forwarded} delivered, ${msg.dropped} dropped (${rate.toFixed(1)}% drop rate). High drop rate means Redis is producing faster than WS can deliver — clients see latest state only, no count data lost.`,
+                "throttle-stats");
+        } else {
+            dropPill.className = "drop-pill ok";
+        }
+    }
+
+    function handlePitchIdleAlert(msg) {
+        const mins = Math.floor(msg.idle_seconds / 60);
+        const secs = msg.idle_seconds % 60;
+        const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        showAlert("idle", "⚠️",
+            `Pitch #${msg.pitch_id}${msg.campus_id ? " (Campus " + msg.campus_id + ")" : ""} idle for <strong>${timeStr}</strong> — no result submitted. Check instructor assignment.`,
+            "pitch-idle-" + msg.pitch_id);
+    }
+
+    function handleInstructorStatusChange(msg) {
+        // Update the instructor row in real-time
+        const row = document.getElementById("instr-slot-" + msg.slot_id);
+        if (!row) return;
+        row.dataset.status = msg.new_status;
+        // Update dot colour
+        const dot = row.querySelector(".instr-dot");
+        if (dot) {
+            dot.className = "instr-dot " + (
+                msg.new_status === "CHECKED_IN" ? "instr-green" :
+                msg.new_status === "ABSENT"     ? "instr-red"   : "instr-yellow"
+            );
+        }
+        // Update badge
+        const badge = row.querySelector(".instr-badge");
+        if (badge) {
+            badge.className = "instr-badge instr-badge-" + msg.new_status.toLowerCase();
+            badge.textContent = msg.new_status;
+        }
+        // Show alert if absent + fallback available
+        if (msg.new_status === "ABSENT" && msg.fallback_available) {
+            showAlert("absent", "❌",
+                `<strong>${msg.instructor_name}</strong> (${msg.role}${msg.pitch_id ? " · Pitch #" + msg.pitch_id : ""}) marked absent. <a href="/admin/tournaments/${TOURNAMENT_ID}/edit#section-instructors" style="color:#f6e05e">Apply fallback →</a>`,
+                "instructor-absent-" + msg.slot_id);
+        }
+    }
+
+    function handleMessage(msg) {
+        if (msg.type === "throttle_stats") { handleThrottleStats(msg); return; }
+        if (msg.type === "pitch_idle_alert") { handlePitchIdleAlert(msg); return; }
+        if (msg.type === "instructor_status_change") { handleInstructorStatusChange(msg); return; }
+        if (msg.type !== "session_result") return;
+
+        lastEventTs = Date.now();
+        lastEventTsEl.textContent = "last: " + nowStr();
+        bannerStale.classList.add("hidden");  // reset stale warning
+
+        pushRateSample();
+        updateProgress(msg.completed_count, msg.total_count);
+        computeRates();
+        prependFeed(msg);
+
+        // Update pitch state
+        if (msg.pitch_id) {
+            const prev = pitchState[msg.pitch_id] || { count: 0 };
+            pitchState[msg.pitch_id] = {
+                campus: msg.campus_id,
+                session: msg.session_id,
+                status: msg.status,
+                ts: Date.now(),
+                count: prev.count + 1,
+            };
+            rebuildPitchTable();
+        }
+    }
+
+    /* ── Stale-data watchdog ────────────────────────────────────────────── */
+    setInterval(() => {
+        if (lastEventTs === null) return;
+        const secs = secondsAgo(lastEventTs);
+        if (secs >= STALE_THRESHOLD_S) {
+            staleSecsEl.textContent = secs;
+            bannerStale.classList.remove("hidden");
+        }
+        // Also refresh pitch table (idle colours age over time)
+        if (Object.keys(pitchState).length) rebuildPitchTable();
+    }, 5000);
+
+    /* ── WebSocket ──────────────────────────────────────────────────────── */
+    function getToken() {
+        for (const c of document.cookie.split("; ")) {
+            if (c.startsWith("access_token=")) {
+                return decodeURIComponent(c.split("=").slice(1).join("="))
+                       .replace(/^Bearer\s+/i, "");
+            }
+        }
+        return null;
+    }
+
+    let ws          = null;
+    let retryMs     = 2000;
+    let retryTmo    = null;
+    let connectedAt = null;
+    let redisDownTmo = null;
+
+    function connect() {
+        const token = getToken();
+        if (!token) { wsStatusTxt.textContent = "Not authenticated"; return; }
+
+        // Show redis-down banner if still not connected after REDIS_DOWN_TIMEOUT
+        if (redisDownTmo) clearTimeout(redisDownTmo);
+        redisDownTmo = setTimeout(() => {
+            if (!connectedAt) bannerRedis.classList.remove("hidden");
+        }, REDIS_DOWN_TIMEOUT * 1000);
+
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        const url = `${proto}://${location.host}/ws/tournaments/${TOURNAMENT_ID}/live?token=${encodeURIComponent(token)}`;
+        ws = new WebSocket(url);
+
+        ws.onopen = () => {
+            connectedAt = Date.now();
+            setWsStatus(true);
+            bannerRedis.classList.add("hidden");
+            if (redisDownTmo) clearTimeout(redisDownTmo);
+            retryMs = 2000;
+        };
+
+        ws.onmessage = (ev) => {
+            try { handleMessage(JSON.parse(ev.data)); }
+            catch { /* ignore malformed */ }
+        };
+
+        ws.onclose = (ev) => {
+            connectedAt = null;
+            setWsStatus(false);
+            if (ev.code === 4001 || ev.code === 4003) {
+                wsStatusTxt.textContent = ev.reason || "Auth error";
+                return;
+            }
+            // Exponential back-off: 2 → 4 → 8 → … → 30 s
+            retryTmo = setTimeout(() => {
+                retryMs = Math.min(retryMs * 2, 30000);
+                connect();
+            }, retryMs);
+        };
+
+        ws.onerror = () => {};  // onclose fires right after
+    }
+
+    connect();
+})();
+</script>
+{% endblock %}

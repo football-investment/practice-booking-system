@@ -195,25 +195,28 @@ def page(browser):
     """
     Playwright page instance (new page in browser context).
 
-    Usage in tests:
-        def test_my_feature(page):
-            page.goto("http://localhost:8501")
-            page.fill("input", "test@example.com")
-            # ... test logic ...
-            # page.close() handled automatically
+    Video recording: set PLAYWRIGHT_VIDEO_DIR=test-results/videos to enable.
+    Videos are finalized when the context closes after the test.
 
-    Scope: function (new page per test)
-
-    Note: Skipped if playwright is not installed (integration_critical tests don't need it).
+    Scope: function (new context + page per test)
     """
     if not PLAYWRIGHT_AVAILABLE:
         pytest.skip("Playwright not available - skipping browser-based test")
 
-    page = browser.new_page()
+    video_dir = os.environ.get("PLAYWRIGHT_VIDEO_DIR", "")
+    ctx_kwargs: dict = {}
+    if video_dir:
+        Path(video_dir).mkdir(parents=True, exist_ok=True)
+        ctx_kwargs["record_video_dir"] = video_dir
+        ctx_kwargs["record_video_size"] = {"width": 1280, "height": 720}
+
+    context = browser.new_context(**ctx_kwargs)
+    page = context.new_page()
 
     yield page
 
     page.close()
+    context.close()  # finalizes the video file
 
 
 # ============================================================================
@@ -398,15 +401,15 @@ def e2e_test_users():
 @pytest.fixture(scope="session", autouse=True)
 def seed_ops_players(request):
     """
-    OPS seed players fixture — creates 64 @lfa-seed.hu test players for OPS scenarios.
+    OPS seed players fixture — creates 1024 @lfa-seed.hu test players for OPS scenarios.
 
     **Activation:** Auto-activates when tests marked with @pytest.mark.ops_seed are collected.
     **Scope:** Session (created once, cleaned up after all tests)
     **Idempotent:** Checks if users exist, skips creation if already present.
 
     Creates:
-        - 64 active users with @lfa-seed.hu emails
-        - Deterministic emails: ops.player.001@lfa-seed.hu ... ops.player.064@lfa-seed.hu
+        - 1024 active users with @lfa-seed.hu emails
+        - Deterministic emails: ops.player.0001@lfa-seed.hu ... ops.player.1024@lfa-seed.hu
         - LFA_FOOTBALL_PLAYER licenses with baseline skills
         - Password: "opstest123" (all users)
 
@@ -441,7 +444,7 @@ def seed_ops_players(request):
         yield  # Yield nothing but satisfy fixture contract
         return
 
-    print("\n🌱 OPS Seed Players Setup (512 @lfa-seed.hu users)...")
+    print("\n🌱 OPS Seed Players Setup (1024 @lfa-seed.hu users)...")
 
     # Database setup
     db_url = settings.DATABASE_URL
@@ -487,10 +490,10 @@ def seed_ops_players(request):
 
         db.commit()
 
-        # Create 512 players with deterministic emails.
-        # 512 covers the largest @slow boundary test (256p + 512p knockout).
-        for i in range(1, 513):  # ops.player.001 ... ops.player.512
-            email = f"ops.player.{i:03d}@lfa-seed.hu"
+        # Create 1024 players with deterministic emails.
+        # 1024 covers the largest @slow boundary test (test_knockout_maximum_1024).
+        for i in range(1, 1025):  # ops.player.001 ... ops.player.1024
+            email = f"ops.player.{i:04d}@lfa-seed.hu"
             password = "opstest123"
 
             # Check if user already exists (idempotent)
@@ -506,8 +509,8 @@ def seed_ops_players(request):
             player = User(
                 email=email,
                 password_hash=get_password_hash(password),
-                name=f"OPS Player {i:03d}",
-                nickname=f"OPS{i:03d}",
+                name=f"OPS Player {i:04d}",
+                nickname=f"OPS{i:04d}",
                 role="STUDENT",
                 is_active=True,
                 onboarding_completed=True,
@@ -539,7 +542,7 @@ def seed_ops_players(request):
                 continue
 
         db.commit()
-        print(f"   ✅ OPS seed complete: {len(created_user_ids)} players created, {512 - len(created_user_ids)} already existed")
+        print(f"   ✅ OPS seed complete: {len(created_user_ids)} players created, {1024 - len(created_user_ids)} already existed")
 
     except Exception as exc:
         db.rollback()

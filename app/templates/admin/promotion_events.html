@@ -1,0 +1,362 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Promotion Events{% endblock %}
+{% block page_heading %}🚀 Promotion Events{% endblock %}
+{% block page_subtitle %}All promotion tournaments — team and individual formats{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* ── Status color map (left border + badge background) ────────── */
+:root {
+    --c-draft:    #a0aec0;
+    --c-enroll:   #48bb78;
+    --c-closed:   #ed8936;
+    --c-checkin:  #667eea;
+    --c-live:     #e53e3e;
+    --c-done:     #38a169;
+    --c-rewards:  #d69e2e;
+    --c-cancel:   #718096;
+    --c-stuck:    #c53030;
+}
+
+/* ── Filter bar ───────────────────────────────────────────────── */
+.filter-bar {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+.filter-bar select {
+    padding: 0.38rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: white;
+    color: #2d3748;
+    cursor: pointer;
+}
+.filter-count {
+    margin-left: auto;
+    color: #718096;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+/* ── Flash ────────────────────────────────────────────────────── */
+.alert-success {
+    padding: 0.75rem 1.1rem;
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* ── Event list ───────────────────────────────────────────────── */
+.event-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+/* ── Single event row ─────────────────────────────────────────── */
+.event-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    background: white;
+    border-radius: 9px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 4px solid #a0aec0;
+    padding: 0.6rem 1rem 0.6rem 0.85rem;
+    transition: box-shadow 0.12s;
+    min-width: 0;
+}
+.event-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.10); }
+
+/* Status border colors */
+.event-row.s-DRAFT              { border-left-color: var(--c-draft); }
+.event-row.s-ENROLLMENT_OPEN    { border-left-color: var(--c-enroll); }
+.event-row.s-ENROLLMENT_CLOSED  { border-left-color: var(--c-closed); }
+.event-row.s-CHECK_IN_OPEN      { border-left-color: var(--c-checkin); }
+.event-row.s-IN_PROGRESS        { border-left-color: var(--c-live); }
+.event-row.s-COMPLETED          { border-left-color: var(--c-done); }
+.event-row.s-REWARDS_DISTRIBUTED{ border-left-color: var(--c-rewards); }
+.event-row.s-CANCELLED          { border-left-color: var(--c-cancel); opacity: 0.72; }
+.event-row.s-STUCK              { border-left-color: var(--c-stuck); }
+
+/* ── Main info block ──────────────────────────────────────────── */
+.event-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+}
+.event-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #1a202c;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.event-meta {
+    font-size: 0.76rem;
+    color: #718096;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+}
+.meta-sep { color: #cbd5e0; }
+.meta-club { color: #4a5568; font-weight: 600; }
+
+/* ── Age group chip ───────────────────────────────────────────── */
+.ag-chip {
+    display: inline-block;
+    padding: 0.08rem 0.45rem;
+    border-radius: 99px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: #ebf8ff;
+    color: #2b6cb0;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.fmt-chip      { background: #e9d8fd; color: #553c9a; }
+.type-chip     { background: #e6fffa; color: #234e52; }
+.scoring-chip  { background: #fef3c7; color: #92400e; }
+.direction-chip{ background: #dbeafe; color: #1e40af; }
+
+/* ── Warning flag ─────────────────────────────────────────────── */
+.warn-flag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--c-stuck);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Right side ───────────────────────────────────────────────── */
+.event-right {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+/* ── Status badge ─────────────────────────────────────────────── */
+.sbadge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 99px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    text-transform: uppercase;
+    color: white;
+    background: var(--c-draft);
+}
+.sbadge.s-DRAFT              { background: var(--c-draft);   color: #2d3748; }
+.sbadge.s-ENROLLMENT_OPEN    { background: var(--c-enroll); }
+.sbadge.s-ENROLLMENT_CLOSED  { background: var(--c-closed); }
+.sbadge.s-CHECK_IN_OPEN      { background: var(--c-checkin); }
+.sbadge.s-IN_PROGRESS        { background: var(--c-live); }
+.sbadge.s-COMPLETED          { background: var(--c-done); }
+.sbadge.s-REWARDS_DISTRIBUTED{ background: var(--c-rewards); color: #1a202c; }
+.sbadge.s-CANCELLED          { background: var(--c-cancel); }
+.sbadge.s-STUCK              { background: var(--c-stuck); }
+
+/* Badge labels */
+.sbadge.s-DRAFT::after               { content: "Draft"; }
+.sbadge.s-ENROLLMENT_OPEN::after     { content: "Enroll"; }
+.sbadge.s-ENROLLMENT_CLOSED::after   { content: "Closed"; }
+.sbadge.s-CHECK_IN_OPEN::after       { content: "Check-in"; }
+.sbadge.s-IN_PROGRESS::after         { content: "Live"; }
+.sbadge.s-COMPLETED::after           { content: "Done"; }
+.sbadge.s-REWARDS_DISTRIBUTED::after { content: "Rewards"; }
+.sbadge.s-CANCELLED::after           { content: "Cancelled"; }
+.sbadge.s-STUCK::after               { content: "⚠ Stuck"; }
+
+/* ── Action buttons ───────────────────────────────────────────── */
+.btn {
+    padding: 0.28rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+    border: 1px solid #e2e8f0;
+    color: #2d3748;
+    background: white;
+    transition: background 0.12s;
+    cursor: pointer;
+}
+.btn:hover    { background: #f7fafc; }
+.btn-primary  { background: #667eea; color: white; border-color: #667eea; }
+.btn-primary:hover { background: #5a67d8; }
+.btn-icon     { padding: 0.28rem 0.45rem; color: #718096; }
+.btn-live     { background: #fff5f5; color: #c53030; border-color: #fed7d7; }
+.btn-live:hover { background: #fed7d7; }
+
+/* ── Empty state ──────────────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #718096;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.empty-state h3 { font-size: 1.05rem; color: #4a5568; margin-bottom: 0.4rem; }
+.empty-state p  { font-size: 0.88rem; }
+
+/* ── Mobile ───────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .filter-bar { flex-direction: column; align-items: stretch; }
+    .filter-count { margin-left: 0; }
+    .event-meta { flex-wrap: wrap; }
+    .sbadge { display: none; }   /* badge redundant when border shows status */
+    .btn-icon { display: none; } /* hide View icon on small screens */
+}
+</style>
+{% endblock %}
+
+{% block admin_content %}
+{% if flash %}
+<div class="alert-success">✅ {{ flash }}</div>
+{% endif %}
+
+<!-- Filter bar -->
+<div class="filter-bar">
+    <select id="statusFilter" onchange="applyFilters()">
+        <option value="all">All statuses</option>
+        <option value="DRAFT">Draft</option>
+        <option value="ENROLLMENT_OPEN">Enrollment Open</option>
+        <option value="ENROLLMENT_CLOSED">Enrollment Closed</option>
+        <option value="CHECK_IN_OPEN">Check-In Open</option>
+        <option value="IN_PROGRESS">In Progress</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="REWARDS_DISTRIBUTED">Rewards Distributed</option>
+        <option value="CANCELLED">Cancelled</option>
+    </select>
+    <select id="fmtFilter" onchange="applyFilters()">
+        <option value="all">All formats</option>
+        <option value="HEAD_TO_HEAD">Head-to-Head (Team)</option>
+        <option value="INDIVIDUAL_RANKING">Individual Ranking</option>
+    </select>
+    <select id="agFilter" onchange="applyFilters()">
+        <option value="all">All age groups</option>
+        <option value="PRE">U12 (Pre)</option>
+        <option value="YOUTH">U13–U18 (Youth)</option>
+        <option value="AMATEUR">U19+ (Amateur)</option>
+    </select>
+    <span class="filter-count" id="filterCount">{{ promo_info|length }} event{% if promo_info|length != 1 %}s{% endif %}</span>
+</div>
+
+{% if promo_info %}
+<div class="event-list" id="eventList">
+    {% for info in promo_info %}
+    {% set t = info.tournament %}
+    {% set status = t.tournament_status or 'DRAFT' %}
+    {% set is_stuck = status == 'IN_PROGRESS' and info.session_count == 0 %}
+    {% set row_class = 'STUCK' if is_stuck else status %}
+
+    <div class="event-row s-{{ row_class }}" data-status="{{ status }}" data-ag="{{ t.age_group or '' }}" data-fmt="{{ info.fmt or '' }}">
+
+        <!-- Main info -->
+        <div class="event-main">
+            <div class="event-title">
+                {{ t.name }}
+                {% if is_stuck %}
+                <span class="warn-flag">⚠ no sessions</span>
+                {% elif info.has_absent_field %}
+                <span class="warn-flag">⚠ instructor absent</span>
+                {% endif %}
+            </div>
+            <div class="event-meta">
+                {% if info.source_club %}
+                <a href="/admin/clubs/{{ info.source_club.id }}" class="meta-club" style="color:#667eea;text-decoration:none;">{{ info.source_club.name }}</a>
+                <span class="meta-sep">·</span>
+                {% endif %}
+                {% if t.age_group %}<span class="ag-chip">{{ t.age_group }}</span><span class="meta-sep">·</span>{% endif %}
+                <span class="ag-chip type-chip">{% if info.type_code == 'league' %}League{% elif info.type_code == 'knockout' %}Knockout{% elif info.type_code == 'group_knockout' %}Group+KO{% elif info.type_code == 'swiss' %}Swiss{% elif info.type_code %}{{ info.type_code }}{% else %}IR{% endif %}</span><span class="meta-sep">·</span>
+                <span class="ag-chip fmt-chip">{% if info.participant_type == 'TEAM' %}Teams{% else %}Indiv.{% endif %}</span><span class="meta-sep">·</span>
+                {% if info.fmt == 'INDIVIDUAL_RANKING' %}
+                {% if info.scoring_type %}<span class="ag-chip scoring-chip">{%- if info.scoring_type == 'SCORE_BASED' -%}Score{%- elif info.scoring_type == 'TIME_BASED' -%}Time{%- elif info.scoring_type == 'DISTANCE_BASED' -%}Distance{%- else -%}Ranking{%- endif -%}{%- if info.measurement_unit %} ({{ info.measurement_unit }}){%- endif -%}</span><span class="meta-sep">·</span>{% endif %}
+                {% if info.ranking_direction %}<span class="ag-chip direction-chip">{%- if info.ranking_direction == 'DESC' -%}↑ High wins{%- else -%}↓ Low wins{%- endif -%}</span><span class="meta-sep">·</span>{% endif %}
+                {% endif %}
+                {% if t.start_date %}
+                {{ t.start_date.strftime('%Y. %m. %d.') }}{% if t.end_date %} – {{ t.end_date.strftime('%m. %d.') }}{% endif %}
+                <span class="meta-sep">·</span>
+                {% endif %}
+                {% if info.participant_type == 'INDIVIDUAL' %}
+                    {% if info.max_players %}<span>{{ info.player_count }} / {{ info.max_players }} players</span>{% else %}<span>{{ info.player_count }} players</span>{% endif %}
+                {% else %}
+                    {% if info.max_players %}<span>{{ info.team_count }} / {{ info.max_players }} teams</span>{% else %}<span>{{ info.team_count }} teams</span>{% endif %}
+                {% endif %}
+                {% if info.session_count > 0 %}<span class="meta-sep">·</span><span>{{ info.session_count }} {% if info.participant_type == 'INDIVIDUAL' %}rounds{% else %}matches{% endif %}</span>{% endif %}
+            </div>
+        </div>
+
+        <!-- Right: badge + actions -->
+        <div class="event-right">
+            <span class="sbadge s-{{ row_class }}"></span>
+
+            <a href="/admin/tournaments/{{ t.id }}/edit" class="btn btn-primary">✏ Edit</a>
+
+            {% if status == 'IN_PROGRESS' and not is_stuck %}
+            <a href="/admin/tournaments/{{ t.id }}/live" class="btn btn-live">📡</a>
+            {% endif %}
+
+            <a href="/events/{{ t.id }}" class="btn btn-icon" target="_blank" title="Public view">👁</a>
+        </div>
+
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">🚀</div>
+    <h3>No promotion events yet</h3>
+    <p>Create one from a <a href="/admin/clubs" style="color:#667eea;">club page</a> using the Promotion Event wizard.</p>
+</div>
+{% endif %}
+{% endblock admin_content %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+    const statusVal = document.getElementById('statusFilter').value;
+    const fmtVal    = document.getElementById('fmtFilter').value;
+    const agVal     = document.getElementById('agFilter').value;
+    const rows      = document.querySelectorAll('#eventList .event-row');
+    let visible = 0;
+    rows.forEach(row => {
+        const statusOk = statusVal === 'all' || row.dataset.status === statusVal;
+        const fmtOk    = fmtVal === 'all' || row.dataset.fmt === fmtVal;
+        const agOk     = agVal === 'all' || row.dataset.ag === agVal;
+        row.style.display = (statusOk && fmtOk && agOk) ? '' : 'none';
+        if (statusOk && fmtOk && agOk) visible++;
+    });
+    document.getElementById('filterCount').textContent =
+        visible + ' / {{ promo_info|length }} event' + ({{ promo_info|length }} !== 1 ? 's' : '');
+}
+</script>
+{% endblock %}

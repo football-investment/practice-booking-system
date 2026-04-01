@@ -269,7 +269,8 @@ class TestLfaplayerSmoke:
 
         # Accept 200, 201, 404 (if resource doesn't exist in test DB)
         # 402: endpoint requires credits to unlock specialization; admin has 0 in test DB
-        assert response.status_code in [200, 201, 202, 204, 400, 401, 402, 403, 404, 405, 409, 422], (
+        # 410: endpoint deprecated — use POST /onboarding/specialization instead
+        assert response.status_code in [200, 201, 202, 204, 400, 401, 402, 403, 404, 405, 409, 410, 422], (
             f"POST /licenses failed: {response.status_code} "
             f"{response.text}"
         )
@@ -386,8 +387,9 @@ class TestLfaPlayerEdgeCases:
             json={"skill_name": "passing", "new_avg": -1.0},
             headers=headers,
         )
-        assert response.status_code == 422, (
-            f"new_avg=-1.0 must violate ge=0 constraint (422), "
+        # 410: PUT /licenses/{id}/skills deprecated; 422: body validation rejected
+        assert response.status_code in [410, 422], (
+            f"new_avg=-1.0 must violate ge=0 constraint (422) or endpoint deprecated (410), "
             f"got {response.status_code}: {response.text[:200]}"
         )
 
@@ -403,8 +405,9 @@ class TestLfaPlayerEdgeCases:
             json={"skill_name": "passing", "new_avg": 101.0},
             headers=headers,
         )
-        assert response.status_code == 422, (
-            f"new_avg=101.0 must violate le=100 constraint (422), "
+        # 410: PUT /licenses/{id}/skills deprecated; 422: body validation rejected
+        assert response.status_code in [410, 422], (
+            f"new_avg=101.0 must violate le=100 constraint (422) or endpoint deprecated (410), "
             f"got {response.status_code}: {response.text[:200]}"
         )
 
@@ -420,8 +423,9 @@ class TestLfaPlayerEdgeCases:
             json={"new_avg": 75.0},
             headers=headers,
         )
-        assert response.status_code == 422, (
-            f"Missing required skill_name must be 422, "
+        # 410: PUT /licenses/{id}/skills deprecated; 422: body validation rejected
+        assert response.status_code in [410, 422], (
+            f"Missing required skill_name must be 422 or endpoint deprecated (410), "
             f"got {response.status_code}: {response.text[:200]}"
         )
 

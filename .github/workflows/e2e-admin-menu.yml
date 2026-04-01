@@ -1,0 +1,439 @@
+name: E2E Admin Menu Restructure
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/**'
+      - 'app/templates/admin/**'
+      - 'app/static/css/admin.css'
+      - 'tests/e2e/admin_ui/test_admin_menu_restructure.py'
+      - '.github/workflows/e2e-admin-menu.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-admin-menu-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-admin-menu-e2e-secret-key-not-for-production
+  API_URL: http://localhost:8000
+  PYTEST_HEADLESS: "true"
+  ADMIN_EMAIL: admin@lfa.com
+  ADMIN_PASSWORD: admin123
+
+jobs:
+  # ── Job 1: NR-01 Nav dropdown structure ────────────────────────────────────
+  admin-nav-dropdown:
+    name: "NR-01 Nav Dropdown Structure (6 groups + active states)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-admin-menu-e2e-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          python -m playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
+
+      - name: Start backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+
+      - name: NR-01 Nav Dropdown tests
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/nav-dropdown
+        run: |
+          mkdir -p results test-results/videos/nav-dropdown
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_admin_menu_restructure.py::TestNRNavDropdown \
+            --junitxml=results/nr01_nav.xml \
+            -v --tb=short -s
+
+      - name: Upload artifacts (screenshots + videos)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-nav-dropdown-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/nav-dropdown/
+          retention-days: 7
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-nr01-nav
+          path: results/nr01_nav.xml
+
+  # ── Job 2: NR-02 /admin/pitches page ────────────────────────────────────────
+  admin-pitches-page:
+    name: "NR-02 /admin/pitches — filter bar + data table"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-admin-menu-e2e-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          python -m playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
+
+      - name: Start backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+
+      - name: NR-02 Pitches page tests
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/pitches
+        run: |
+          mkdir -p results test-results/videos/pitches
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_admin_menu_restructure.py::TestNRPitchesPage \
+            --junitxml=results/nr02_pitches.xml \
+            -v --tb=short -s
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-pitches-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/pitches/
+          retention-days: 7
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-nr02-pitches
+          path: results/nr02_pitches.xml
+
+  # ── Job 3: NR-03 /admin/sport-directors + NR-04 /admin/teams ───────────────
+  admin-sport-directors-teams:
+    name: "NR-03 Sport Directors + NR-04 Teams pages"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-admin-menu-e2e-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          python -m playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
+
+      - name: Start backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+
+      - name: NR-03 Sport Directors + NR-04 Teams tests
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/sport-dirs-teams
+        run: |
+          mkdir -p results test-results/videos/sport-dirs-teams
+          PYTHONPATH=. pytest \
+            tests/e2e/admin_ui/test_admin_menu_restructure.py::TestNRSportDirectorsPage \
+            tests/e2e/admin_ui/test_admin_menu_restructure.py::TestNRTeamsPage \
+            --junitxml=results/nr03_nr04.xml \
+            -v --tb=short -s
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-sport-dirs-teams-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/sport-dirs-teams/
+          retention-days: 7
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-nr03-nr04
+          path: results/nr03_nr04.xml
+
+  # ── Job 4: NR-05 Live button on IN_PROGRESS tournament ─────────────────────
+  admin-live-button:
+    name: "NR-05 Live button on IN_PROGRESS tournament"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-admin-menu-e2e-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          ADMIN_NAME=CI Admin
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+          python -m playwright install chromium
+
+      - name: Run DB migrations
+        run: alembic upgrade head
+
+      - name: Seed test data
+        run: |
+          python scripts/seed_e2e_users.py
+          python scripts/seed_8_physical_campuses.py
+          python scripts/seed_tournament_types.py
+
+      - name: Start backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+
+      - name: NR-05 Live button tests
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/live-button
+        run: |
+          mkdir -p results test-results/videos/live-button
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_admin_menu_restructure.py::TestNRLiveButton \
+            --junitxml=results/nr05_live.xml \
+            -v --tb=short -s
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-live-button-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/live-button/
+          retention-days: 7
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-nr05-live
+          path: results/nr05_live.xml
+
+  # ── Summary gate ────────────────────────────────────────────────────────────
+  admin-menu-gate:
+    name: "Admin Menu E2E Gate (NR-01..05 must all pass)"
+    runs-on: ubuntu-latest
+    needs: [admin-nav-dropdown, admin-pitches-page, admin-sport-directors-teams, admin-live-button]
+    if: always()
+
+    steps:
+      - name: Gate check
+        run: |
+          echo "## Admin Menu Restructure E2E Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| NR-01 Nav Dropdown | 6 groups, sub-links, active states, hover | ${{ needs.admin-nav-dropdown.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| NR-02 Pitches | /admin/pitches: filter bar + data table | ${{ needs.admin-pitches-page.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| NR-03 Sport Directors | /admin/sport-directors: assign form + table | ${{ needs.admin-sport-directors-teams.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| NR-04 Teams | /admin/teams: tournament filter + table | ${{ needs.admin-sport-directors-teams.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| NR-05 Live Button | IN_PROGRESS tournament → .btn-live visible | ${{ needs.admin-live-button.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 🎥 Artifacts: screenshots + videos uploaded per job (retention: 7 days)." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          NAV="${{ needs.admin-nav-dropdown.result }}"
+          PITCHES="${{ needs.admin-pitches-page.result }}"
+          SD_TEAMS="${{ needs.admin-sport-directors-teams.result }}"
+          LIVE="${{ needs.admin-live-button.result }}"
+
+          if [ "$NAV" = "success" ] && [ "$PITCHES" = "success" ] && [ "$SD_TEAMS" = "success" ] && [ "$LIVE" = "success" ]; then
+            echo "### ✅ All admin menu E2E tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🧭 Dropdown nav: 6 groups, correct sub-links, .active states, hover reveals" >> $GITHUB_STEP_SUMMARY
+            echo "- 📍 /admin/pitches: renders with campus+location filter + data table" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏅 /admin/sport-directors: renders with assign form + assignments table" >> $GITHUB_STEP_SUMMARY
+            echo "- 👥 /admin/teams: renders with tournament filter + teams table" >> $GITHUB_STEP_SUMMARY
+            echo "- 📡 Live button: IN_PROGRESS tournament → .btn-live present in list" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Admin Menu E2E gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Failing job(s):" >> $GITHUB_STEP_SUMMARY
+            [ "$NAV" != "success" ]      && echo "- NR-01 Nav Dropdown: $NAV" >> $GITHUB_STEP_SUMMARY
+            [ "$PITCHES" != "success" ]  && echo "- NR-02 Pitches: $PITCHES" >> $GITHUB_STEP_SUMMARY
+            [ "$SD_TEAMS" != "success" ] && echo "- NR-03/NR-04 Sport Directors + Teams: $SD_TEAMS" >> $GITHUB_STEP_SUMMARY
+            [ "$LIVE" != "success" ]     && echo "- NR-05 Live Button: $LIVE" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

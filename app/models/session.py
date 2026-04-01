@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Boolean, ARRAY, case
+from sqlalchemy import Column, Integer, SmallInteger, String, Text, DateTime, ForeignKey, Enum, Boolean, ARRAY, case
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -58,6 +58,7 @@ class Session(Base):
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)  # FIXED: Made nullable to allow sessions without groups
     instructor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     campus_id = Column(Integer, ForeignKey("campuses.id"), nullable=True, comment="Campus/venue for multi-campus tournaments")
+    pitch_id = Column(Integer, ForeignKey("pitches.id"), nullable=True, index=True, comment="Specific pitch/field within the campus")
 
     # 🎓 NEW: Specialization fields
     target_specialization = Column(
@@ -87,6 +88,11 @@ class Session(Base):
         String(20),
         default="scheduled",
         comment="Session status: scheduled, in_progress, completed"
+    )
+    postponed_reason = Column(
+        String(500),
+        nullable=True,
+        comment="Reason for postponing this match (set by admin; NULL = not postponed)",
     )
 
     # 🔓 Quiz Access Control (HYBRID sessions only)
@@ -169,6 +175,12 @@ class Session(Base):
         Integer,
         nullable=True,
         comment="Round number within the tournament (1, 2, 3, ...)"
+    )
+
+    leg_number = Column(
+        SmallInteger,
+        nullable=True,
+        comment="Leg number within a multi-leg round robin (1-N). NULL for knockout/swiss/INDIVIDUAL_RANKING."
     )
 
     tournament_match_number = Column(
@@ -300,6 +312,7 @@ class Session(Base):
     semester = relationship("Semester", back_populates="sessions")
     group = relationship("Group", back_populates="sessions")
     instructor = relationship("User", back_populates="taught_sessions")
+    pitch = relationship("Pitch", back_populates="sessions")
     bookings = relationship("Booking", back_populates="session")
     attendances = relationship("Attendance", back_populates="session")
     feedbacks = relationship("Feedback", back_populates="session")

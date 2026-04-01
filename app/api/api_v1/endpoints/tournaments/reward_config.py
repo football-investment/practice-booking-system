@@ -13,7 +13,7 @@ from typing import Dict, Any, List
 from .....database import get_db
 from .....models.tournament_reward_config import TournamentRewardConfig as TournamentRewardConfigModel
 from .....models.user import User, UserRole
-from .....dependencies import get_current_active_user
+from .....dependencies import get_current_active_user, get_current_admin_user_hybrid
 from .....repositories import TournamentRepository
 from .....schemas.reward_config import TournamentRewardConfig, REWARD_CONFIG_TEMPLATES
 
@@ -67,7 +67,7 @@ def save_tournament_reward_config(
     tournament_id: int,
     reward_config: TournamentRewardConfig,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user_hybrid)
 ):
     """
     Save reward configuration for a tournament.
@@ -93,13 +93,7 @@ def save_tournament_reward_config(
     # Get tournament
     tournament = TournamentRepository(db).get_or_404(tournament_id)
 
-    # 🔒 VALIDATION GUARD: Check enabled skills
-    is_valid, error_message = reward_config.validate_enabled_skills()
-    if not is_valid:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid skill configuration: {error_message}. You must select at least 1 skill for this tournament."
-        )
+    # Skill validation skipped — game preset (mandatory) drives skill_weights in reward distribution
 
     # Validate and serialize config
     try:

@@ -1,1 +1,0 @@
-# Credits component package

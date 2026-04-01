@@ -31,15 +31,18 @@ describe('Admin Dashboard — Unified Layout', {
     cy.webLoginAs('admin');
     cy.visit('/dashboard');
 
-    // Admin nav (from admin_base.html — 9 items after nav restructure commit 3aa0414)
+    // Admin nav (from admin_base.html — dropdown nav after menu restructure)
+    // Flat: Analytics, Game Config (/game-presets), System (/system-events)
+    // Dropdown groups: People→users/instructors/sport-directors, Venues→locations/pitches,
+    //   Programs→semesters/enrollments, Events→tournaments, Sessions, Finance→payments/coupons
     cy.get('.admin-nav').should('be.visible');
     cy.get('.admin-nav a[href="/admin/users"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/programs"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/semesters"]').should('exist');
     cy.get('.admin-nav a[href="/admin/sessions"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/events"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/tournaments"]').should('exist');
     cy.get('.admin-nav a[href="/admin/payments"]').should('exist');
     cy.get('.admin-nav a[href="/admin/locations"]').should('exist');
-    cy.get('.admin-nav a[href="/admin/config"]').should('exist');
+    cy.get('.admin-nav a[href="/admin/game-presets"]').should('exist');
     cy.get('.admin-nav a[href="/admin/analytics"]').should('exist');
     cy.get('.admin-nav a[href="/admin/system-events"]').should('exist');
   });

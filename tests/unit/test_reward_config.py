@@ -171,16 +171,18 @@ class TestSaveTournamentRewardConfig:
         assert exc.value.status_code == 403
         assert "admin" in exc.value.detail.lower()
 
-    def test_400_no_enabled_skills(self):
+    def test_no_enabled_skills_saves_successfully(self):
+        # Skill validation was removed — game preset (mandatory) drives skill_weights.
+        # Config with disabled skills is now accepted; no 400 is raised.
         t = _tournament()
+        t.reward_config = None
+        db = _db_seq(_q(first=None))
         with patch(_REPO) as MockRepo:
             MockRepo.return_value.get_or_404.return_value = t
-            with pytest.raises(HTTPException) as exc:
-                save_tournament_reward_config(
-                    1, _invalid_config(), db=MagicMock(), current_user=_admin()
-                )
-        assert exc.value.status_code == 400
-        assert "skill" in exc.value.detail.lower()
+            # Should not raise — no 400 guard for disabled skills anymore
+            save_tournament_reward_config(
+                1, _invalid_config(), db=db, current_user=_admin()
+            )
 
     def test_creates_new_config_when_none_exists(self):
         t = _tournament()

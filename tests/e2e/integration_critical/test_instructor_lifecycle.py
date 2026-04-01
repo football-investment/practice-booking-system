@@ -220,10 +220,29 @@ def test_instructor_full_lifecycle(
     print(f"✅ Step 3.75: Enrollment closed (status=ENROLLMENT_CLOSED)")
 
     # ==================================================================
-    # STEP 3.9: Admin starts tournament (ENROLLMENT_CLOSED → IN_PROGRESS)
+    # STEP 3.9: Admin opens check-in (ENROLLMENT_CLOSED → CHECK_IN_OPEN)
     # ==================================================================
 
-    print(f"[Step 3.9] Admin starting tournament...")
+    print(f"[Step 3.9] Admin opening check-in phase...")
+    checkin_open_response = requests.patch(
+        f"{api_url}/api/v1/tournaments/{tournament_id}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "new_status": "CHECK_IN_OPEN",
+            "reason": "Opening check-in (E2E test)"
+        }
+    )
+
+    assert checkin_open_response.status_code in [200, 201], \
+        f"Open check-in failed: {checkin_open_response.text}"
+
+    print(f"✅ Step 3.9: Check-in opened (status=CHECK_IN_OPEN)")
+
+    # ==================================================================
+    # STEP 3.95: Admin starts tournament (CHECK_IN_OPEN → IN_PROGRESS)
+    # ==================================================================
+
+    print(f"[Step 3.95] Admin starting tournament...")
     start_tournament_response = requests.patch(
         f"{api_url}/api/v1/tournaments/{tournament_id}/status",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -236,7 +255,7 @@ def test_instructor_full_lifecycle(
     assert start_tournament_response.status_code in [200, 201], \
         f"Start tournament failed: {start_tournament_response.text}"
 
-    print(f"✅ Step 3.9: Tournament started (status=IN_PROGRESS)")
+    print(f"✅ Step 3.95: Tournament started (status=IN_PROGRESS)")
 
     # ==================================================================
     # STEP 4: Verify sessions were auto-generated (IN_PROGRESS transition auto-generates)

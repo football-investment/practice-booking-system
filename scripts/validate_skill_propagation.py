@@ -86,16 +86,16 @@ with engine.connect() as conn:
          AND ul.specialization_type = 'LFA_FOOTBALL_PLAYER'
          AND ul.is_active = TRUE
         WHERE tp.skill_rating_delta IS NOT NULL
-          AND tp.created_at >= :since
+          AND tp.achieved_at >= :since
           AND NOT EXISTS (
               SELECT 1
               FROM football_skill_assessments fsa
               WHERE fsa.user_license_id = ul.id
                 AND fsa.archived_reason LIKE 'tournament_progression_delta%%'
-                AND fsa.archived_at >= tp.created_at - INTERVAL '1 minute'
-                AND fsa.archived_at <= tp.created_at + INTERVAL '5 minutes'
+                AND fsa.archived_at >= tp.achieved_at - INTERVAL '1 minute'
+                AND fsa.archived_at <= tp.achieved_at + INTERVAL '5 minutes'
           )
-        ORDER BY tp.created_at DESC
+        ORDER BY tp.achieved_at DESC
         LIMIT 20
     """), {"since": window_start}).fetchall()
 
@@ -220,8 +220,8 @@ with engine.connect() as conn:
         JOIN user_licenses ul ON fsa.user_license_id = ul.id
         JOIN tournament_participations tp
           ON tp.user_id = ul.user_id
-         AND fsa.archived_at >= tp.created_at - INTERVAL '1 minute'
-         AND fsa.archived_at <= tp.created_at + INTERVAL '5 minutes'
+         AND fsa.archived_at >= tp.achieved_at - INTERVAL '1 minute'
+         AND fsa.archived_at <= tp.achieved_at + INTERVAL '5 minutes'
         WHERE fsa.status = 'ARCHIVED'
           AND fsa.archived_reason LIKE 'tournament_progression_delta%%'
           AND fsa.archived_at >= :since

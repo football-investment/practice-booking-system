@@ -24,13 +24,12 @@ def get_lfa_player_profile(
     Get FIFA-style LFA Football Player profile
 
     **Returns:**
-    - User basic info (name, email, photo)
+    - User basic info (name, email)
     - Position preference
-    - 7 football skills with radar chart data
-    - Overall rating (0-100)
+    - 29 football skills with tier data (from UserLicense.football_skills JSONB)
+    - Overall rating (0-100, average of 29 skills)
     - Level & progress
     - Recent assessments
-    - Achievements
     """
     try:
         # 1. Get user basic info
@@ -49,66 +48,49 @@ def get_lfa_player_profile(
                 detail=f"User {user_id} not found"
             )
 
-        # 2. Get LFA Player license with skills
-        license_result = db.execute(
-            text("""
-                SELECT
-                    lpl.id,                    -- 0
-                    lpl.age_group,             -- 1
-                    lpl.credit_balance,        -- 2
-                    lpl.heading_avg,           -- 3
-                    lpl.shooting_avg,          -- 4
-                    lpl.crossing_avg,          -- 5
-                    lpl.passing_avg,           -- 6
-                    lpl.dribbling_avg,         -- 7
-                    lpl.ball_control_avg,      -- 8
-                    lpl.defending_avg,         -- 9
-                    lpl.overall_avg,           -- 10
-                    lpl.created_at,            -- 11
-                    ul.current_level,          -- 12
-                    ul.max_achieved_level,     -- 13
-                    ul.motivation_scores       -- 14
-                FROM lfa_player_licenses lpl
-                JOIN user_licenses ul ON ul.user_id = lpl.user_id
-                    AND ul.specialization_type LIKE 'LFA_PLAYER%'
-                WHERE lpl.user_id = :user_id
-                    AND lpl.is_active = true
-                ORDER BY lpl.created_at DESC
-                LIMIT 1
-            """),
-            {"user_id": user_id}
-        ).fetchone()
+        # 2. Get LFA Player license via UserLicense ORM
+        #    football_skills JSONB column holds all 29 skills (DEFAULT_BASELINE=50.0 each)
+        lfa_license = db.query(UserLicense).filter(
+            UserLicense.user_id == user_id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            UserLicense.is_active == True,
+        ).first()
 
-        if not license_result:
+        if not lfa_license:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"User {user_id} does not have an active LFA Player license"
             )
 
-        # 3. Get position preference from motivation_scores
-        motivation_scores = license_result[14]  # motivation_scores column (index 14)
-        position_preference = "Unknown"
-        if motivation_scores:
-            # motivation_scores is already a dict (JSONB from PostgreSQL)
-            position_preference = motivation_scores.get("preferred_position", "Unknown") if isinstance(motivation_scores, dict) else "Unknown"
+        # 3. Get 29-skill profile (EMA-updated values + tier info)
+        #    Only meaningful after onboarding_completed=True; otherwise skills stay at baseline 50.0
+        from app.services.skill_progression_service import get_skill_profile
+        skill_profile = None
+        if lfa_license.onboarding_completed:
+            skill_profile = get_skill_profile(db, user_id)
+        # skill_profile structure:
+        # {"skills": {key: {"current_level", "total_delta", "tier", "tier_emoji", ...}},
+        #  "average_level": float, "total_tournaments": int, "total_assessments": int}
 
-        # 3b. Calculate correct age_group from user's date_of_birth (always up-to-date!)
+        # 4. Position preference from motivation_scores (stored on UserLicense by onboarding)
+        position_preference = "Unknown"
+        motivation_scores = lfa_license.motivation_scores
+        if motivation_scores and isinstance(motivation_scores, dict):
+            position_preference = motivation_scores.get("position", "Unknown")
+
+        # 5. Calculate age_group from user's date_of_birth (always up-to-date)
         from datetime import datetime
-        correct_age_group = "AMATEUR"  # Default
-        if user_result[3]:  # date_of_birth exists
+        correct_age_group = "AMATEUR"
+        if user_result[3]:
             dob = user_result[3]
             today = datetime.today()
             age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-
             if age < 7:
-                correct_age_group = "PRE"  # 4-6 years
+                correct_age_group = "PRE"
             elif age < 15:
-                correct_age_group = "YOUTH"  # 7-14 years
-            else:
-                correct_age_group = "AMATEUR"  # 15+ years
-                # NOTE: PRO is NOT automatic - it's a professional qualification!
+                correct_age_group = "YOUTH"
 
-        # 4. Get recent skill assessments (last 5)
+        # 6. Get recent skill assessments (last 5)
         assessments_results = db.execute(
             text("""
                 SELECT
@@ -128,7 +110,7 @@ def get_lfa_player_profile(
             {"user_id": user_id}
         ).fetchall()
 
-        # 5. Build FIFA-style profile
+        # 7. Build FIFA-style profile (29-skill system)
         profile = {
             # Basic Info
             "user_id": user_result[0],
@@ -139,23 +121,20 @@ def get_lfa_player_profile(
 
             # Player Info
             "position": position_preference,
-            "age_group": correct_age_group,  # Auto-calculated from DOB (always current!)
-            "level": license_result[12],      # index 12
-            "max_level_achieved": license_result[13],  # index 13
+            "age_group": correct_age_group,
+            "level": lfa_license.current_level,
+            "max_level_achieved": lfa_license.max_achieved_level,
+            "onboarding_completed": lfa_license.onboarding_completed,
 
-            # Overall Rating (FIFA-style 0-100)
-            "overall_rating": round(float(license_result[10]), 1) if license_result[10] else 0.0,  # index 10
+            # Overall Rating — average of all 29 skills (0-100)
+            "overall_rating": round(skill_profile["average_level"], 1) if skill_profile else 0.0,
 
-            # 7 Football Skills (0-100 scale for radar chart)
-            "skills": {
-                "heading": round(float(license_result[3]), 1) if license_result[3] else 0.0,        # index 3
-                "shooting": round(float(license_result[4]), 1) if license_result[4] else 0.0,       # index 4
-                "crossing": round(float(license_result[5]), 1) if license_result[5] else 0.0,       # index 5
-                "passing": round(float(license_result[6]), 1) if license_result[6] else 0.0,        # index 6
-                "dribbling": round(float(license_result[7]), 1) if license_result[7] else 0.0,      # index 7
-                "ball_control": round(float(license_result[8]), 1) if license_result[8] else 0.0,   # index 8
-                "defending": round(float(license_result[9]), 1) if license_result[9] else 0.0,      # index 9
-            },
+            # 29 Football Skills: {skill_key: {"current_level", "tier", "tier_emoji", "total_delta", ...}}
+            # Empty dict when onboarding not yet completed (all skills at 50.0 baseline)
+            "skills": skill_profile["skills"] if skill_profile else {},
+
+            # Tournament stats
+            "total_tournaments": skill_profile["total_tournaments"] if skill_profile else 0,
 
             # Recent Assessments
             "recent_assessments": [
@@ -170,9 +149,7 @@ def get_lfa_player_profile(
                 for row in assessments_results
             ],
 
-            # Credits & Progress
-            "credit_balance": user_result[5],  # User's centralized credit balance (index 5)
-            "license_created_at": license_result[11].isoformat() if license_result[11] else None,  # index 11
+            "license_started_at": lfa_license.started_at.isoformat() if lfa_license.started_at else None,
         }
 
         return profile
@@ -309,7 +286,6 @@ def get_instructor_profile(
                 "renewal_cost": lic.renewal_cost,
             }
 
-            # Add belt/level display name (NO EMOJI in belt_name, only in belt_emoji)
             if lic.specialization_type == "PLAYER":
                 belt_names = {
                     1: "Bamboo Student (White)",

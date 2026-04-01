@@ -19,6 +19,11 @@ from . import (
     admin,
     tournaments,
     communications,
+    teams,
+    tournament_live,
+    public_player,
+    public_tournament,
+    sport_director,
 )
 
 # Create main router with tags
@@ -39,3 +44,8 @@ router.include_router(instructor_dashboard.router)
 router.include_router(admin.router)
 router.include_router(tournaments.router)
 router.include_router(communications.router)
+router.include_router(teams.router)
+router.include_router(tournament_live.router)  # ✅ Live monitoring (WebSocket + admin page)
+router.include_router(public_player.router)      # 🌐 Public player card (no auth)
+router.include_router(public_tournament.router)  # 🌐 Public event detail page (no auth)
+router.include_router(sport_director.router)     # 🏅 Sport Director team enrollment

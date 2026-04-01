@@ -583,8 +583,12 @@ class TestTransitionTournamentStatus:
             )
         assert result.new_status == "IN_PROGRESS"
 
-    def test_in_progress_regen_with_enrolled_players_in_snapshot(self):
-        """needs_regeneration=True, enrolled players → snapshot includes player_ids."""
+    def test_in_progress_regen_with_enrolled_players(self):
+        """needs_regeneration=True (H2H, sessions not generated) → sessions generated at IN_PROGRESS.
+
+        Architecture note: The enrollment snapshot is saved at CHECK_IN_OPEN (not IN_PROGRESS).
+        IN_PROGRESS re-generates sessions using check-in-filtered participant lists.
+        """
         enrolled = MagicMock()
         enrolled.user_id = 77
         enrolled.id = 200
@@ -612,10 +616,6 @@ class TestTransitionTournamentStatus:
                 db=db, current_user=_user()
             )
         assert result.new_status == "IN_PROGRESS"
-        # Enrollment snapshot saved
-        snap = t.tournament_config_obj.enrollment_snapshot
-        assert snap["total_enrolled"] == 1
-        assert 77 in snap["player_ids"]
 
 
 # ─────────────────────────────────────────────────────────────────

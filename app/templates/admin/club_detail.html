@@ -1,0 +1,410 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}{{ club.name if club else 'Club Detail' }}{% endblock %}
+{% block page_heading %}🏟️ {{ club.name if club else 'Club' }}{% endblock %}
+{% block page_subtitle %}{{ club.city or '' }}{% if club.city and club.country %}, {% endif %}{{ club.country or '' }}{% if not club.city and not club.country %}Club detail{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .module-strip {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.75rem 0; margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0; flex-wrap: wrap;
+    }
+    .module-strip-label { font-size: 0.75rem; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.08em; padding-right: 0.5rem; border-right: 1px solid #e2e8f0; }
+    .module-link { padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; color: #718096; transition: background 0.15s; }
+    .module-link:hover { background: #f0f4ff; color: #5a4a9a; }
+    .module-link.active { background: #ece8ff; color: #5a4a9a; }
+
+    .club-header-card {
+        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+        padding: 1.5rem 2rem; margin-bottom: 1.5rem;
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .club-meta { display: flex; flex-direction: column; gap: 0.3rem; }
+    .club-meta .club-name { font-size: 1.4rem; font-weight: 800; color: #2d3748; }
+    .club-meta .club-detail { font-size: 0.875rem; color: #718096; }
+    .club-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+    .section-card {
+        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+        margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .section-header {
+        padding: 1rem 1.5rem; border-bottom: 1px solid #f0f0f0;
+        display: flex; align-items: center; justify-content: space-between;
+        background: #f7fafc;
+    }
+    .section-header h3 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #2d3748; }
+    .section-body { padding: 1.5rem; }
+
+    .team-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+    .team-row {
+        display: flex; align-items: center; gap: 1rem;
+        padding: 0.75rem 1rem; background: #f7fafc; border-radius: 8px;
+        flex-wrap: wrap;
+    }
+    .team-badge {
+        background: #667eea; color: white; padding: 0.2rem 0.6rem;
+        border-radius: 99px; font-size: 0.7rem; font-weight: 700; min-width: 40px; text-align: center;
+    }
+    .team-name { font-weight: 700; color: #2d3748; flex: 1; }
+    .team-count { font-size: 0.8rem; color: #718096; }
+    .canonical-label { font-size: 0.72rem; opacity: 0.65; font-weight: 400; margin-left: 3px; }
+    .view-team-btn {
+        margin-left: auto; padding: 4px 14px;
+        background: #667eea; color: #fff;
+        border-radius: 6px; font-size: 0.78rem; font-weight: 600; text-decoration: none;
+        white-space: nowrap;
+    }
+    .view-team-btn:hover { background: #5a6fd6; }
+
+    .import-log-row {
+        display: flex; align-items: center; gap: 1rem; padding: 0.75rem 0;
+        border-bottom: 1px solid #f0f0f0; font-size: 0.875rem;
+    }
+    .import-log-row:last-child { border-bottom: none; }
+    .log-filename { font-weight: 600; color: #2d3748; flex: 1; }
+    .log-stats { font-size: 0.8rem; color: #718096; }
+
+    /* Upload form */
+    .upload-zone {
+        border: 2px dashed #e2e8f0; border-radius: 10px;
+        padding: 2rem; text-align: center; cursor: pointer;
+        transition: border-color 0.2s; background: #fafafa;
+    }
+    .upload-zone:hover { border-color: #667eea; background: #f0f4ff; }
+    .upload-zone input[type="file"] { display: none; }
+    .upload-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .upload-zone .hint { font-size: 0.8rem; color: #a0aec0; margin-top: 0.5rem; }
+    .upload-btn {
+        background: #1a6b5a; color: white; border: none; padding: 0.5rem 1.5rem;
+        border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-top: 1rem;
+        display: none;
+    }
+    .upload-btn.visible { display: inline-block; }
+
+    /* Import result panel */
+    .import-result-panel {
+        background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 10px;
+        padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+    }
+    .import-result-panel h4 { margin: 0 0 0.75rem; color: #276749; font-size: 0.95rem; }
+    .result-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .result-pill {
+        padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 700;
+    }
+    .pill-created { background: #c6f6d5; color: #276749; }
+    .pill-updated { background: #bee3f8; color: #2a69ac; }
+    .pill-failed { background: #fed7d7; color: #9b2c2c; }
+
+    /* Promotion wizard modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-box { background: white; border-radius: 12px; padding: 2rem; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .modal-box h3 { margin: 0 0 1.5rem; font-size: 1.1rem; color: #2d3748; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #718096; margin-bottom: 0.3rem; }
+    .form-group input, .form-group select { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; }
+    .form-row { display: flex; gap: 1rem; }
+    .form-row .form-group { flex: 1; }
+    .age-group-list { display: flex; flex-direction: column; gap: 0.4rem; }
+    .age-group-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem; background: #f7fafc; border-radius: 6px; font-size: 0.9rem; }
+    .age-group-item input[type=checkbox] { width: 16px; height: 16px; }
+    .age-group-item .ag-badge { background: #667eea; color: white; padding: 0.1rem 0.5rem; border-radius: 99px; font-size: 0.7rem; font-weight: 700; }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+    .btn-primary { background: #1a6b5a; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .btn-secondary { background: white; color: #718096; border: 1px solid #e2e8f0; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; }
+    .btn-action { padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; border: 1px solid #e2e8f0; background: white; color: #4a5568; cursor: pointer; display: inline-block; }
+    .btn-action:hover { background: #f0f4ff; border-color: #667eea; color: #667eea; }
+    .btn-promotion { background: #1a6b5a; color: white; border: none; }
+    .btn-promotion:hover { background: #155a4a; color: white; border-color: transparent; }
+    .alert-bar { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .alert-success { background: #f0fff4; border: 1px solid #9ae6b4; color: #276749; }
+    .alert-error { background: #fff5f5; border: 1px solid #feb2b2; color: #9b2c2c; }
+    .no-teams { color: #a0aec0; font-size: 0.875rem; text-align: center; padding: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- Module strip -->
+<div class="module-strip">
+    <span class="module-strip-label">People</span>
+    <a href="/admin/users" class="module-link">👥 Users</a>
+    <a href="/admin/instructors" class="module-link">👨‍🏫 Instructors</a>
+    <a href="/admin/sport-directors" class="module-link">🎯 Sport Directors</a>
+    <a href="/admin/clubs" class="module-link">🏟️ Clubs</a>
+</div>
+
+{% if request.query_params.get('msg') %}
+<div class="alert-bar alert-success">✅ {{ request.query_params.get('msg')|replace('+', ' ') }}</div>
+{% endif %}
+{% if request.query_params.get('error') %}
+<div class="alert-bar alert-error">⚠️ {{ request.query_params.get('error')|replace('+', ' ') }}</div>
+{% endif %}
+
+{% if club %}
+
+<!-- Club header -->
+<div class="club-header-card">
+    <div class="club-meta">
+        <div class="club-name">{{ club.name }}</div>
+        <div class="club-detail">
+            Code: <code style="background:#f7fafc;padding:0.1rem 0.4rem;border-radius:4px;">{{ club.code }}</code>
+            {% if club.city %}· {{ club.city }}{% endif %}
+            {% if club.country %}· {{ club.country }}{% endif %}
+            {% if club.contact_email %}· <a href="mailto:{{ club.contact_email }}" style="color:#667eea;">{{ club.contact_email }}</a>{% endif %}
+        </div>
+        <div style="margin-top:0.25rem;">
+            {% if club.is_active %}
+            <span style="background:#c6f6d5;color:#276749;padding:0.2rem 0.6rem;border-radius:99px;font-size:0.75rem;font-weight:700;">✅ Active</span>
+            {% else %}
+            <span style="background:#fed7d7;color:#9b2c2c;padding:0.2rem 0.6rem;border-radius:99px;font-size:0.75rem;font-weight:700;">❌ Inactive</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="club-actions">
+        <button onclick="document.getElementById('edit-club-modal').style.display='flex'" class="btn-action">✏️ Edit</button>
+        {% if teams %}
+        <button onclick="document.getElementById('promotion-modal').style.display='flex'" class="btn-action btn-promotion">🚀 Promotion Event</button>
+        {% endif %}
+        <form method="POST" action="/admin/clubs/{{ club.id }}/toggle" style="display:inline;">
+            <input type="hidden" name="csrf_token" id="toggle-csrf">
+            <button type="submit" class="btn-action" onclick="return confirm('Toggle club status?')">
+                {% if club.is_active %}🔒 Deactivate{% else %}🔓 Activate{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Import result flash (from redirect) -->
+{% set import_log_id = request.query_params.get('import_log') %}
+{% if import_log_id %}
+{% for log in import_logs if log.id == import_log_id|int %}
+<div class="import-result-panel">
+    <h4>📥 Import: {{ log.filename }}</h4>
+    <div class="result-row">
+        <span class="result-pill pill-created">✅ {{ log.rows_created }} created</span>
+        <span class="result-pill pill-updated">🔄 {{ log.rows_updated }} updated</span>
+        {% if log.rows_failed > 0 %}
+        <span class="result-pill pill-failed">❌ {{ log.rows_failed }} failed</span>
+        {% endif %}
+    </div>
+    {% if log.errors %}
+    <div style="margin-top:0.75rem;">
+        <strong style="font-size:0.8rem;color:#9b2c2c;">Errors:</strong>
+        <ul style="margin:0.3rem 0 0;padding-left:1.25rem;font-size:0.8rem;color:#9b2c2c;">
+        {% for err in log.errors[:10] %}
+        <li>Row {{ err.row }}: {{ err.reason }}</li>
+        {% endfor %}
+        {% if log.errors|length > 10 %}
+        <li>... and {{ log.errors|length - 10 }} more</li>
+        {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Teams section -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>👕 Teams ({{ teams|length }})</h3>
+        <span style="font-size:0.8rem;color:#a0aec0;">Grouped by age group</span>
+    </div>
+    <div class="section-body">
+    {% if teams %}
+    <div class="team-grid">
+        {% for team in teams %}
+        <div class="team-row">
+            {% if team.age_group_label %}
+            <span class="team-badge">
+                {{ team.age_group_label }}
+                {% if team_canonical.get(team.id) %}
+                <span class="canonical-label">({{ team_canonical[team.id] }})</span>
+                {% endif %}
+            </span>
+            {% endif %}
+            <span class="team-name">{{ team.name }}</span>
+            <span class="team-count">{{ member_counts.get(team.id, 0) }} players</span>
+            <a href="/admin/clubs/{{ club.id }}/teams/{{ team.id }}" class="view-team-btn">View members</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-teams">No teams yet. Import players via CSV to create teams automatically.</div>
+    {% endif %}
+    </div>
+</div>
+
+<!-- CSV Import section -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>📥 CSV Import</h3>
+        <span style="font-size:0.8rem;color:#a0aec0;">Bulk player + team creation</span>
+    </div>
+    <div class="section-body">
+        <form method="POST" action="/admin/clubs/{{ club.id }}/csv-import" enctype="multipart/form-data" id="csv-upload-form">
+            <input type="hidden" name="csrf_token" id="csv-csrf">
+            <div class="upload-zone" onclick="document.getElementById('csv-file-input').click()">
+                <div class="icon">📁</div>
+                <div id="file-label">Click to select CSV file</div>
+                <div class="hint">Expected columns: first_name, last_name, email, date_of_birth, position, age_group, team_name, club_name, initial_credits</div>
+                <input type="file" name="file" accept=".csv,text/csv" id="csv-file-input" required
+                       onchange="document.getElementById('file-label').textContent=this.files[0].name; document.getElementById('upload-submit').classList.add('visible');">
+            </div>
+            <button type="submit" class="upload-btn" id="upload-submit">⬆️ Import CSV</button>
+        </form>
+
+        {% if import_logs %}
+        <div style="margin-top:1.5rem;">
+            <strong style="font-size:0.85rem;color:#718096;">Recent imports:</strong>
+            <div style="margin-top:0.75rem;">
+            {% for log in import_logs %}
+            <div class="import-log-row">
+                <span class="log-filename">{{ log.filename or 'upload.csv' }}</span>
+                <span class="log-stats">
+                    ✅ {{ log.rows_created }} · 🔄 {{ log.rows_updated }}
+                    {% if log.rows_failed > 0 %}· <span style="color:#e53e3e;">❌ {{ log.rows_failed }}</span>{% endif %}
+                </span>
+                <span style="font-size:0.75rem;color:#a0aec0;">{{ log.uploaded_at.strftime('%Y-%m-%d %H:%M') if log.uploaded_at else '' }}</span>
+                <a href="/admin/clubs/{{ club.id }}/csv-import/{{ log.id }}" style="font-size:0.8rem;color:#667eea;text-decoration:none;">Details</a>
+            </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}{# end if club #}
+
+<!-- Edit Club Modal -->
+<div id="edit-club-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>✏️ Edit Club</h3>
+        <form method="POST" action="/admin/clubs/{{ club.id }}/edit">
+            <input type="hidden" name="csrf_token" id="ec-csrf">
+            <div class="form-group">
+                <label>Club Name *</label>
+                <input name="name" type="text" required value="{{ club.name if club else '' }}">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>City</label>
+                    <input name="city" type="text" value="{{ club.city or '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Country</label>
+                    <input name="country" type="text" value="{{ club.country or '' }}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Contact Email</label>
+                <input name="contact_email" type="email" value="{{ club.contact_email or '' }}">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('edit-club-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Promotion Wizard Modal -->
+{% if teams %}
+<div id="promotion-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>🚀 Create Promotion Event</h3>
+        <p style="font-size:0.85rem;color:#718096;margin:0 0 1.25rem;">One TEAM tournament will be created per selected age group. Teams are auto-enrolled.</p>
+        <form method="POST" action="/admin/clubs/{{ club.id }}/promotion">
+            <input type="hidden" name="csrf_token" id="prom-csrf">
+            <div class="form-group">
+                <label>Tournament Name *</label>
+                <input name="tournament_name" type="text" required placeholder="e.g. {{ club.name }} Cup 2026">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Start Date *</label>
+                    <input name="start_date" type="date" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date *</label>
+                    <input name="end_date" type="date" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Campus (optional)</label>
+                <select name="campus_id">
+                    <option value="">— No campus —</option>
+                    {% for campus in campuses %}
+                    <option value="{{ campus.id }}">{{ campus.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tournament Type</label>
+                    <select name="tournament_type_id">
+                        <option value="">— Select type —</option>
+                        {% for tt in tournament_types %}
+                        <option value="{{ tt.id }}">{{ tt.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Game Preset</label>
+                    <select name="game_preset_id">
+                        <option value="">— None —</option>
+                        {% for gp in game_presets %}
+                        <option value="{{ gp.id }}">{{ gp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Age Groups (select which brackets to create)</label>
+                <div class="age-group-list">
+                {% if age_groups %}
+                    {% for ag in age_groups %}
+                    {% set ag_teams = teams | selectattr('age_group_label', 'equalto', ag) | list %}
+                    <label class="age-group-item">
+                        <input type="checkbox" name="age_groups" value="{{ ag }}" checked>
+                        <span class="ag-badge">{{ ag }}</span>
+                        <span>{{ ag_teams|length }} team{{ 's' if ag_teams|length != 1 else '' }}</span>
+                    </label>
+                    {% endfor %}
+                {% else %}
+                    <div style="color:#a0aec0;font-size:0.85rem;">No age groups assigned yet. Import players with age_group column first.</div>
+                {% endif %}
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('promotion-modal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn-primary">🚀 Create Tournaments</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function() {
+    var csrf = (document.cookie.split('; ').find(function(r){ return r.startsWith('csrf_token='); }) || '').split('=')[1];
+    ['cc-csrf','ec-csrf','prom-csrf','toggle-csrf','csv-csrf'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.value = csrf || '';
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            ['edit-club-modal','promotion-modal'].forEach(function(id) {
+                document.getElementById(id).style.display = 'none';
+            });
+        }
+    });
+})();
+</script>
+
+{% endblock %}

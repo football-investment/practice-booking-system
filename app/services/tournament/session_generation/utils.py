@@ -29,6 +29,64 @@ def pick_campus(session_index: int, campus_ids: Optional[List[int]]) -> Optional
     return campus_ids[session_index % len(campus_ids)]
 
 
+def pick_pitch(
+    session_index: int,
+    campus_id: Optional[int],
+    parallel_fields: int,
+    db: "DBSession",
+) -> Optional[int]:
+    """
+    Round-robin pitch selection within a campus based on parallel_fields.
+
+    For each session on a campus, assigns a pitch in rotating order:
+      parallel_fields=1 → always Field 1
+      parallel_fields=2 → Field 1, Field 2, Field 1, Field 2, ...
+
+    Pitches are auto-created if they don't exist yet (idempotent flush, no commit).
+    Returns None when campus_id is None (single-campus mode without explicit campus).
+
+    Args:
+        session_index: Zero-based index of the session being created.
+        campus_id:     Campus the session belongs to (None = no pitch assignment).
+        parallel_fields: Number of concurrent fields available at this campus.
+        db:            Database session (for get-or-create of Pitch records).
+
+    Returns:
+        int | None: Pitch ID to assign to this session, or None.
+    """
+    if not campus_id:
+        return None
+    effective_fields = max(parallel_fields, 1)
+    pitch_number = (session_index % effective_fields) + 1  # 1-based
+    return _get_or_create_pitch(db, campus_id, pitch_number).id
+
+
+def _get_or_create_pitch(db: "DBSession", campus_id: int, pitch_number: int):
+    """
+    Get existing Pitch or create a new one (flush-only, SAVEPOINT-safe).
+
+    Auto-generated name follows the pattern: "Field {pitch_number}"
+    (admin can rename via the pitches API later).
+    """
+    from app.models.pitch import Pitch
+
+    pitch = (
+        db.query(Pitch)
+        .filter(Pitch.campus_id == campus_id, Pitch.pitch_number == pitch_number)
+        .first()
+    )
+    if not pitch:
+        pitch = Pitch(
+            campus_id=campus_id,
+            pitch_number=pitch_number,
+            name=f"Field {pitch_number}",
+            capacity=2,
+        )
+        db.add(pitch)
+        db.flush()  # Get the ID without committing (SAVEPOINT-compatible)
+    return pitch
+
+
 def get_tournament_venue(tournament: Semester) -> str:
     """
     Get tournament venue with proper fallback chain.

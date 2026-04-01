@@ -43,4 +43,5 @@ class Campus(Base):
 
     # Relationships
     location = relationship("Location", back_populates="campuses")
+    pitches = relationship("Pitch", back_populates="campus", cascade="all, delete-orphan")
     # sessions = relationship("Session", back_populates="campus")  # TODO: Add when migrating sessions

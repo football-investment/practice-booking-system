@@ -1,7 +1,8 @@
+import json
 import os
 import sys
 import secrets
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, EnvSettingsSource
 from pydantic import ConfigDict
 
 
@@ -80,6 +81,66 @@ def get_cors_origins() -> list[str]:
             )
 
     return origins
+
+
+# IMPORTANT: pydantic-settings / CORS env-var interception
+#
+# pydantic-settings parses env vars *before* pydantic validators run, so a
+# @field_validator(mode="before") on CORS_ALLOWED_ORIGINS is never reached.
+#
+# Execution order when CORS_ALLOWED_ORIGINS is set:
+#   EnvSettingsSource.__call__()
+#     → prepare_field_value()
+#       → decode_complex_value()   ← json.loads(value) raises JSONDecodeError
+#     ← except ValueError → re-raises as SettingsError("error parsing value…")
+#   ← SettingsError propagates to BaseSettings.__init__() → Settings.__init__()
+#
+# Strategy: subclass EnvSettingsSource, catch ValueError *inside*
+# decode_complex_value before __call__ can re-wrap it, and raise a custom
+# _CORSFormatError (not a ValueError) that escapes the except-ValueError guard.
+# Settings.__init__() then catches _CORSFormatError specifically and re-raises
+# as a plain ValueError with a human-readable hint.
+#
+# Regression note: previously failed in CI with
+#   SettingsError: error parsing value for field "CORS_ALLOWED_ORIGINS"
+#   Caused by: JSONDecodeError: Expecting value
+# when CORS_ALLOWED_ORIGINS was set to a plain URL string in the CI .env file.
+# Fixed 2026-03-23. See tests/unit/test_cors_config.py for regression lock.
+
+
+class _CORSFormatError(Exception):
+    """Raised by _CORSSafeEnvSource when CORS_ALLOWED_ORIGINS cannot be JSON-decoded.
+
+    Must NOT subclass ValueError: pydantic-settings' __call__() catches ValueError
+    and re-wraps it as SettingsError, losing the friendly message.  A plain Exception
+    subclass bypasses that catch and surfaces directly to Settings.__init__().
+    """
+
+
+class _CORSSafeEnvSource(EnvSettingsSource):
+    """EnvSettingsSource that raises _CORSFormatError (not opaque SettingsError)
+    when CORS_ALLOWED_ORIGINS value is not valid JSON.
+
+    Why a custom source (not @field_validator): pydantic-settings calls
+    decode_complex_value() during env collection, before pydantic validators run.
+    A @field_validator(mode="before") would never be reached when the source raises.
+    """
+
+    def decode_complex_value(self, field_name: str, field: object, value: object) -> object:
+        # super().decode_complex_value() does json.loads(value) → JSONDecodeError (ValueError)
+        # on bad input.  We intercept here, before __call__()'s `except ValueError` wrapper
+        # converts it to an opaque SettingsError.  _CORSFormatError is NOT a ValueError, so
+        # it escapes __call__() and surfaces directly to Settings.__init__().
+        try:
+            return super().decode_complex_value(field_name, field, value)
+        except ValueError:
+            if field_name == "CORS_ALLOWED_ORIGINS":
+                raise _CORSFormatError(
+                    f"CORS_ALLOWED_ORIGINS must be a JSON array, got: {value!r}\n"
+                    "  Correct  : CORS_ALLOWED_ORIGINS=[\"https://app.lfa.com\",\"https://admin.lfa.com\"]\n"
+                    "  Dev/test : omit this variable — localhost list is configured automatically."
+                ) from None
+            raise
 
 
 class Settings(BaseSettings):
@@ -228,8 +289,21 @@ class Settings(BaseSettings):
 
     model_config = ConfigDict(env_file=".env")
 
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings,
+                                   dotenv_settings, file_secret_settings):
+        return (
+            init_settings,
+            _CORSSafeEnvSource(settings_cls),
+            dotenv_settings,
+            file_secret_settings,
+        )
+
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        try:
+            super().__init__(**kwargs)
+        except _CORSFormatError as e:
+            raise ValueError(str(e)) from None
 
         # Production-only security validation (skipped in development and testing)
         _is_production = not is_testing() and self.ENVIRONMENT == "production"

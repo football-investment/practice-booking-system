@@ -3,10 +3,18 @@ Team Models
 
 Models for team-based tournaments.
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+import enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
+
+
+class TeamInviteStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
 
 
 class Team(Base):
@@ -20,12 +28,17 @@ class Team(Base):
     specialization_type = Column(String(50))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
+    # Club association (optional — backward compat: nullable)
+    club_id = Column(Integer, ForeignKey("clubs.id"), nullable=True, index=True)
+    age_group_label = Column(String(20), nullable=True)  # U12, U15, Adult, etc.
 
     # Relationships
     captain = relationship("User", foreign_keys=[captain_user_id])
     members = relationship("TeamMember", back_populates="team", cascade="all, delete-orphan")
     tournament_enrollments = relationship("TournamentTeamEnrollment", back_populates="team", cascade="all, delete-orphan")
     rankings = relationship("TournamentRanking", back_populates="team", cascade="all, delete-orphan")
+    invites = relationship("TeamInvite", back_populates="team", cascade="all, delete-orphan")
+    club = relationship("Club", back_populates="teams", foreign_keys=[club_id])
 
 
 class TeamMember(Base):
@@ -57,7 +70,11 @@ class TournamentTeamEnrollment(Base):
     team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
     enrollment_date = Column(DateTime(timezone=True), server_default=func.now())
     payment_verified = Column(Boolean, default=False)
+    payment_verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    payment_verified_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
+    checked_in_at = Column(DateTime(timezone=True), nullable=True)
+    checked_in_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
     semester = relationship("Semester")
@@ -65,4 +82,43 @@ class TournamentTeamEnrollment(Base):
 
     __table_args__ = (
         {'extend_existing': True}
+    )
+
+
+class TeamInvite(Base):
+    """Pending/accepted/rejected invite for a player to join a team"""
+    __tablename__ = "team_invites"
+
+    id = Column(Integer, primary_key=True)
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
+    invited_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    invited_by_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), nullable=False, default=TeamInviteStatus.PENDING.value)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    team = relationship("Team", back_populates="invites")
+    invited_user = relationship("User", foreign_keys=[invited_user_id])
+    invited_by = relationship("User", foreign_keys=[invited_by_id])
+
+
+class TournamentPlayerCheckin(Base):
+    """Pre-tournament player check-in record (separate from per-session Attendance)."""
+    __tablename__ = "tournament_player_checkins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tournament_id = Column(Integer, ForeignKey("semesters.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    checked_in_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    checked_in_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    team = relationship("Team", foreign_keys=[team_id])
+    checked_in_by = relationship("User", foreign_keys=[checked_in_by_id])
+
+    __table_args__ = (
+        UniqueConstraint("tournament_id", "user_id", name="uq_player_checkin"),
     )

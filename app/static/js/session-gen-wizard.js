@@ -31,7 +31,7 @@ const SessionGenWizard = (() => {
   let _pollCount = 0;     // number of polls fired
   const MAX_POLLS = 80;   // 80 × 1.5s = 120s timeout
 
-  const STEPS = ['init', 'schedule', 'confirm', 'progress', 'result'];
+  const STEPS = ['init', 'confirm', 'progress', 'result'];
 
   // ── Open / Close ────────────────────────────────────────────────────────────
   function open(ctx) {
@@ -72,10 +72,9 @@ const SessionGenWizard = (() => {
   function _stepTitle(step) {
     return {
       init:     '⚡ Generate Sessions — Step 1: Eligibility Check',
-      schedule: '⚡ Generate Sessions — Step 2: Schedule Parameters',
-      confirm:  '⚡ Generate Sessions — Step 3: Confirm',
-      progress: '⚡ Generate Sessions — Step 4: Generating…',
-      result:   '⚡ Generate Sessions — Step 5: Complete',
+      confirm:  '⚡ Generate Sessions — Step 2: Confirm',
+      progress: '⚡ Generate Sessions — Step 3: Generating…',
+      result:   '⚡ Generate Sessions — Step 4: Complete',
     }[step];
   }
 
@@ -102,14 +101,17 @@ const SessionGenWizard = (() => {
   }
 
   function _bodyInit() {
-    const enrolled   = _ctx.enrolledCount;
-    const minPlayers = _ctx.presetMinPlayers;
-    const blocked    = minPlayers && enrolled < minPlayers;
-    const multiCampus = enrolled >= 128;
+    const enrolled      = _ctx.enrolledCount;
+    const isTeam        = (_ctx.participantType || '').toUpperCase() === 'TEAM';
+    const unitLabel     = isTeam ? 'teams' : 'players';
+    const enrolledLabel = isTeam ? 'Enrolled teams' : 'Enrolled players';
+    const minPlayers    = _ctx.presetMinPlayers;
+    const blocked       = minPlayers && enrolled < minPlayers;
+    const multiCampus   = enrolled >= 128;
 
     let html = `<div class="sgw-info-grid">
       <div class="sgw-info-item"><span class="sgw-info-label">Tournament</span><strong>${_esc(_ctx.tournName)}</strong></div>
-      <div class="sgw-info-item"><span class="sgw-info-label">Enrolled players</span><strong>${enrolled}</strong></div>
+      <div class="sgw-info-item"><span class="sgw-info-label">${enrolledLabel}</span><strong>${enrolled}</strong></div>
       <div class="sgw-info-item"><span class="sgw-info-label">Format</span><strong>${_esc(_ctx.format || '—')}</strong></div>`;
     if (minPlayers) {
       html += `<div class="sgw-info-item"><span class="sgw-info-label">Preset minimum</span><strong>${minPlayers}</strong></div>`;
@@ -118,19 +120,19 @@ const SessionGenWizard = (() => {
 
     if (blocked) {
       html += `<div class="sgw-warn">
-        ⚠️ <strong>Not enough players.</strong>
-        Preset requires <strong>${minPlayers}</strong> players,
+        ⚠️ <strong>Not enough ${unitLabel}.</strong>
+        Preset requires <strong>${minPlayers}</strong> ${unitLabel},
         only <strong>${enrolled}</strong> enrolled.<br>
-        Enroll more players before generating sessions.
+        Enroll more ${unitLabel} before generating sessions.
       </div>`;
     } else {
-      html += `<div class="sgw-ok">✅ Player count check passed (${enrolled} enrolled).</div>`;
+      html += `<div class="sgw-ok">✅ ${isTeam ? 'Team' : 'Player'} count check passed (${enrolled} ${unitLabel} enrolled).</div>`;
     }
 
     if (multiCampus && !blocked) {
       html += `<div class="sgw-info-banner">
         ℹ️ <strong>Multi-campus mode available.</strong>
-        ${enrolled} players triggers background generation.
+        ${enrolled} ${unitLabel} triggers background generation.
         A task ID will be returned and progress will be polled automatically.
       </div>`;
     }
@@ -198,40 +200,48 @@ const SessionGenWizard = (() => {
   }
 
   function _bodyConfirm() {
-    const matchVal    = _readRadio('sgw-match') || 90;
-    const breakVal    = _readRadio('sgw-break') ?? 15;
-    const parallelVal = parseInt(document.getElementById('sgw-parallel')?.value || '1');
-    const roundsEl    = document.getElementById('sgw-rounds');
-    const roundsVal   = roundsEl ? parseInt(roundsEl.value) : 1;
+    const s = _ctx.schedule || {};
+    const matchVal      = s.match_duration_minutes || 90;
+    const breakVal      = s.break_duration_minutes ?? 15;
+    const parallelVal   = s.parallel_fields || 1;
+    const roundsVal     = s.number_of_rounds || 1;
+    const legsVal       = s.number_of_legs || 1;
+    const homeAwayVal   = !!s.track_home_away;
+    const isH2H         = (_ctx.format || '').toUpperCase() === 'HEAD_TO_HEAD';
 
-    // Store for actual submit
+    // Store for actual submit (read from already-saved Schedule Config)
     _params.session_duration_minutes = matchVal;
     _params.break_minutes            = breakVal;
     _params.parallel_fields          = parallelVal;
     _params.number_of_rounds         = roundsVal;
+    _params.number_of_legs           = legsVal;
+    _params.track_home_away          = homeAwayVal;
 
     const multiCampus = _ctx.enrolledCount >= 128;
+    const isTeam2     = (_ctx.participantType || '').toUpperCase() === 'TEAM';
+    const unitLabel2  = isTeam2 ? 'Teams' : 'Players';
 
     let html = `
     <table class="sgw-summary-table">
       <tr><td>Tournament</td><td><strong>${_esc(_ctx.tournName)}</strong></td></tr>
-      <tr><td>Players</td><td><strong>${_ctx.enrolledCount}</strong></td></tr>
+      <tr><td>${unitLabel2}</td><td><strong>${_ctx.enrolledCount}</strong></td></tr>
       <tr><td>Match Duration</td><td><strong>${matchVal} min</strong></td></tr>
       <tr><td>Break Between</td><td><strong>${breakVal === 0 ? 'No break' : breakVal + ' min'}</strong></td></tr>
       <tr><td>Parallel Fields</td><td><strong>${parallelVal}</strong></td></tr>
       <tr><td>Rounds</td><td><strong>${roundsVal}</strong></td></tr>
+      ${isH2H ? `<tr><td>Legs</td><td><strong>${legsVal}${homeAwayVal && legsVal > 1 ? ' (Home/Away tracking)' : ''}</strong></td></tr>` : ''}
       <tr><td>Generation mode</td><td><strong>${multiCampus ? '⏳ Async (background)' : '⚡ Synchronous'}</strong></td></tr>
     </table>`;
 
     if (multiCampus) {
       html += `
     <div class="sgw-warn" style="margin-top:1rem;">
-      ⚠️ <strong>Large tournament (${_ctx.enrolledCount} players)</strong> — generation runs in background.
+      ⚠️ <strong>Large tournament (${_ctx.enrolledCount} ${unitLabel2.toLowerCase()})</strong> — generation runs in background.
       You must confirm to proceed.
     </div>
     <label style="display:flex;align-items:center;gap:0.6rem;margin-top:0.75rem;cursor:pointer;">
       <input type="checkbox" id="sgw-confirmed" style="width:1.1rem;height:1.1rem;">
-      <span>I confirm this will generate sessions for ${_ctx.enrolledCount} players</span>
+      <span>I confirm this will generate sessions for ${_ctx.enrolledCount} ${unitLabel2.toLowerCase()}</span>
     </label>`;
       _params._requireConfirm = true;
     } else {
@@ -291,14 +301,9 @@ const SessionGenWizard = (() => {
             Next →
           </button>`;
 
-      case 'schedule':
-        return `
-          <button class="btn btn-secondary" onclick="SessionGenWizard._goto('init')">← Back</button>
-          <button class="btn btn-primary" onclick="SessionGenWizard._goto('confirm')">Next →</button>`;
-
       case 'confirm':
         return `
-          <button class="btn btn-secondary" onclick="SessionGenWizard._goto('schedule')">← Back</button>
+          <button class="btn btn-secondary" onclick="SessionGenWizard._goto('init')">← Back</button>
           <button class="btn btn-primary" id="sgw-btn-generate" onclick="SessionGenWizard._generate()">
             ⚡ Generate Sessions
           </button>`;
@@ -310,7 +315,7 @@ const SessionGenWizard = (() => {
         const r = _params._result || {};
         if (r.error) {
           return `
-            <button class="btn btn-secondary" onclick="SessionGenWizard._goto('schedule')">← Try Again</button>
+            <button class="btn btn-secondary" onclick="SessionGenWizard._goto('init')">← Try Again</button>
             <button class="btn btn-secondary" onclick="SessionGenWizard.close()">Close</button>`;
         }
         return `<button class="btn btn-primary" onclick="SessionGenWizard.close();location.reload()">✅ Done — Reload</button>`;
@@ -321,7 +326,7 @@ const SessionGenWizard = (() => {
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   function _nextFromInit() {
-    _goto('schedule');
+    _goto('confirm');
   }
 
   async function _generate() {
@@ -339,6 +344,8 @@ const SessionGenWizard = (() => {
       session_duration_minutes: _params.session_duration_minutes,
       break_minutes:            _params.break_minutes,
       number_of_rounds:         _params.number_of_rounds,
+      number_of_legs:           _params.number_of_legs || 1,
+      track_home_away:          !!_params.track_home_away,
     };
 
     // Show progress step immediately

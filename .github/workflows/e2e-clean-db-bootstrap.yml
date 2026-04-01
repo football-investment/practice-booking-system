@@ -1,0 +1,118 @@
+name: Clean-DB Bootstrap + E2E Matrix
+
+# Proves the full system works from a completely empty database.
+# Flow: empty PostgreSQL → bootstrap_clean.py → validate_seed_state.py → e2e_matrix_test.py
+# No pre-seeded data, no state carried over — clean slate every run.
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'scripts/bootstrap_clean.py'
+      - 'scripts/validate_seed_state.py'
+      - 'scripts/e2e_matrix_test.py'
+      - 'scripts/e2e_promo_flow_test.py'
+      - 'app/api/web_routes/admin.py'
+      - 'alembic/versions/**'
+      - '.github/workflows/e2e-clean-db-bootstrap.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-clean-db-bootstrap-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-clean-db-bootstrap-secret-not-for-production
+
+jobs:
+  clean-db-bootstrap-matrix:
+    name: "Empty DB → bootstrap → 5-scenario E2E matrix"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-clean-db-bootstrap-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Assert DB is empty (no tables)
+        run: |
+          TABLE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres lfa_intern_system \
+            -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" \
+            | tr -d '[:space:]')
+          echo "Tables in public schema: $TABLE_COUNT"
+          if [ "$TABLE_COUNT" -ne "0" ]; then
+            echo "❌ DB is not empty — $TABLE_COUNT tables found before bootstrap"
+            exit 1
+          fi
+          echo "✅ DB is empty — ready for bootstrap"
+
+      - name: Run bootstrap_clean.py (empty DB → fully seeded)
+        run: PYTHONPATH=. python scripts/bootstrap_clean.py
+
+      - name: Run validate_seed_state.py (verify all 6 seed checks)
+        run: PYTHONPATH=. python scripts/validate_seed_state.py
+
+      - name: Run e2e_matrix_test.py (5-scenario full lifecycle)
+        run: PYTHONPATH=. python scripts/e2e_matrix_test.py
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Clean-DB Bootstrap + E2E Matrix" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Flow" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Action | Guard |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 | GitHub Actions postgres service starts — **zero tables** | \`Assert DB is empty\` step fails if tables exist |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | \`bootstrap_clean.py\` — runs alembic + seeds 4 TournamentTypes + 3 GamePresets + Campus + 2 users + 16 teams + 80 players | Idempotent — safe to re-run |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3 | \`validate_seed_state.py\` — 6 checks, exits 1 on any failure | CI fails if any seed check fails |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4 | \`e2e_matrix_test.py\` — 5 full lifecycle scenarios via FastAPI TestClient | Exits 1 if any scenario fails |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### E2E Scenarios" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| ID | Participant | Tournament Type | Teams/Players | Expected Sessions |" >> $GITHUB_STEP_SUMMARY
+          echo "|----|-------------|-----------------|---------------|-------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| S1 | TEAM | League | 2 teams (U12) | 1 |" >> $GITHUB_STEP_SUMMARY
+          echo "| S2 | TEAM | Knockout | 4 teams (U15) | 4 |" >> $GITHUB_STEP_SUMMARY
+          echo "| S3 | TEAM | Group+Knockout | 8 teams (U18) | ≥9 |" >> $GITHUB_STEP_SUMMARY
+          echo "| S4 | TEAM | League 2-leg | 2 teams (ADULT) | 2 |" >> $GITHUB_STEP_SUMMARY
+          echo "| S5 | INDIVIDUAL | League | 10 players (U12) | ≥1 |" >> $GITHUB_STEP_SUMMARY

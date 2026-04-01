@@ -20,16 +20,17 @@ Admin routes:
 """
 from datetime import datetime, date
 from pathlib import Path
+from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import and_, or_, update as sql_update
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...dependencies import get_current_user_web
+from ...dependencies import get_current_user_web, get_current_admin_user_hybrid, get_current_admin_or_instructor_user_hybrid
 from ...models.booking import Booking, BookingStatus
 from ...models.campus import Campus
 from ...models.credit_transaction import CreditTransaction
@@ -40,7 +41,8 @@ from ...models.semester import Semester, SemesterStatus, SemesterCategory
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel, EventCategory
 from ...models.tournament_ranking import TournamentRanking
-from ...models.team import Team, TeamMember, TournamentTeamEnrollment
+from ...models.team import Team, TeamMember, TournamentTeamEnrollment, TournamentPlayerCheckin
+from ...models.club import Club
 from ...models.instructor_assignment import (
     InstructorAssignment,
     InstructorAssignmentRequest,
@@ -51,7 +53,12 @@ from ...models.instructor_assignment import (
 )
 from ...models.tournament_type import TournamentType
 from ...models.tournament_configuration import TournamentConfiguration
+from ...models.tournament_instructor_slot import TournamentInstructorSlot, SlotRole, SlotStatus
 from ...models.user import User, UserRole
+from ...services.tournament import team_service as _team_service
+import app.services.tournament.instructor_planning_service as _ip_service
+import app.services.tournament.attendance_service as _att_service
+import app.services.tournament.enrollment_service as _enroll_service
 from ...services.age_category_service import (
     calculate_age_at_season_start,
     get_automatic_age_category,
@@ -418,6 +425,117 @@ def _admin_only(user: User):
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
+@router.get("/admin/promotion-events", response_class=HTMLResponse)
+async def admin_promotion_events_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: list all promotion tournaments (TEAM and INDIVIDUAL)."""
+    _admin_only(user)
+
+    # All TOURNAMENT-category semesters — both TEAM and INDIVIDUAL participant types.
+    promotions = (
+        db.query(Semester)
+        .join(TournamentConfiguration,
+              TournamentConfiguration.semester_id == Semester.id)
+        .filter(
+            Semester.semester_category == SemesterCategory.TOURNAMENT,
+            TournamentConfiguration.participant_type.in_(["TEAM", "INDIVIDUAL"]),
+        )
+        .order_by(Semester.start_date.desc(), Semester.name.asc(), Semester.id.asc())
+        .all()
+    )
+
+    promo_info = []
+    for t in promotions:
+        cfg = t.tournament_config_obj
+        participant_type = cfg.participant_type if cfg else "TEAM"
+
+        if participant_type == "INDIVIDUAL":
+            # Individual: count approved enrolled players
+            team_count = 0
+            player_count = (
+                db.query(SemesterEnrollment)
+                .filter(
+                    SemesterEnrollment.semester_id == t.id,
+                    SemesterEnrollment.is_active == True,
+                    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+                )
+                .count()
+            )
+            source_club = None
+        else:
+            # Team: count active team enrollments; resolve source club from first team
+            team_count = (
+                db.query(TournamentTeamEnrollment)
+                .filter(
+                    TournamentTeamEnrollment.semester_id == t.id,
+                    TournamentTeamEnrollment.is_active == True,
+                )
+                .count()
+            )
+            player_count = 0
+            first_enrollment = (
+                db.query(TournamentTeamEnrollment)
+                .filter(TournamentTeamEnrollment.semester_id == t.id)
+                .first()
+            )
+            source_club = None
+            if first_enrollment:
+                team = db.query(Team).filter(Team.id == first_enrollment.team_id).first()
+                if team and team.club_id:
+                    source_club = db.query(Club).filter(Club.id == team.club_id).first()
+
+        session_count = (
+            db.query(SessionModel)
+            .filter(SessionModel.semester_id == t.id)
+            .count()
+        )
+        campus = db.query(Campus).filter(Campus.id == t.campus_id).first() if t.campus_id else None
+
+        # Instructor planning status
+        slots = (
+            db.query(TournamentInstructorSlot)
+            .filter(TournamentInstructorSlot.semester_id == t.id)
+            .all()
+        )
+        tt = cfg.tournament_type if cfg else None
+        promo_info.append({
+            "tournament":       t,
+            "participant_type": participant_type,
+            "team_count":       team_count,
+            "player_count":     player_count,
+            "session_count":    session_count,
+            "campus":           campus,
+            "source_club":      source_club,
+            "slot_total":       len(slots),
+            "slot_planned":     sum(1 for s in slots if s.status == SlotStatus.PLANNED.value),
+            "slot_checked":     sum(1 for s in slots if s.status == SlotStatus.CHECKED_IN.value),
+            "slot_absent":      sum(1 for s in slots if s.status == SlotStatus.ABSENT.value),
+            "has_absent_field": any(
+                s.status == SlotStatus.ABSENT.value and s.role == SlotRole.FIELD.value
+                for s in slots
+            ),
+            "fmt":              t.format,
+            "type_code":        tt.code if tt else None,
+            "max_players":      cfg.max_players if cfg else None,
+            "scoring_type":     cfg.scoring_type if cfg else None,
+            "ranking_direction": cfg.ranking_direction if cfg else None,
+            "measurement_unit": cfg.measurement_unit if cfg else None,
+        })
+
+    return templates.TemplateResponse(
+        "admin/promotion_events.html",
+        {
+            "request": request,
+            "user": user,
+            "promo_info": promo_info,
+            "flash": request.query_params.get("flash"),
+        },
+    )
+
+
 @router.get("/admin/tournaments", response_class=HTMLResponse)
 async def admin_tournaments_list(
     request: Request,
@@ -429,6 +547,8 @@ async def admin_tournaments_list(
 
     # Include both code-pattern records (legacy, semester_category=NULL)
     # and records explicitly categorised as TOURNAMENT (new creates).
+    # TEAM participant_type rows are shown separately at /admin/promotion-events.
+    from sqlalchemy import exists as _sq_exists
     tournaments = (
         db.query(Semester)
         .filter(
@@ -436,7 +556,11 @@ async def admin_tournaments_list(
                 Semester.code.like("TOURN-%"),
                 Semester.code.like("OPS-%"),
                 Semester.semester_category == SemesterCategory.TOURNAMENT,
-            )
+            ),
+            ~_sq_exists().where(
+                (TournamentConfiguration.semester_id == Semester.id)
+                & (TournamentConfiguration.participant_type == "TEAM")
+            ),
         )
         .order_by(Semester.start_date.desc())
         .all()
@@ -512,7 +636,7 @@ async def admin_create_tournament(
     _admin_only(user)
 
     from datetime import datetime as _dt
-    code = f"TOURN-{date.fromisoformat(start_date).strftime('%Y%m%d')}-{_dt.now().strftime('%H%M%S')}"
+    code = f"TOURN-{date.fromisoformat(start_date).strftime('%Y%m%d')}-{_dt.now().strftime('%H%M%S%f')[:9]}"
 
     if db.query(Semester).filter(Semester.code == code).first():
         return RedirectResponse(
@@ -727,10 +851,14 @@ async def admin_tournament_edit_page(
 
     # Schedule config (from tournament_config_obj)
     cfg = t.tournament_config_obj
+    _checkin_iso = t.checkin_opens_at.isoformat() if getattr(t, 'checkin_opens_at', None) else None
     schedule = {
         "match_duration_minutes": cfg.match_duration_minutes if cfg else None,
         "break_duration_minutes": cfg.break_duration_minutes if cfg else None,
         "parallel_fields": cfg.parallel_fields if cfg else 1,
+        "checkin_opens_at": _checkin_iso,
+        "number_of_legs": cfg.number_of_legs if cfg else 1,
+        "track_home_away": cfg.track_home_away if cfg else False,
     }
 
     # Reward config summary
@@ -759,23 +887,23 @@ async def admin_tournament_edit_page(
         .order_by(SessionModel.date_start)
         .all()
     )
-    sessions_result_status = [
-        {
-            "id": s.id,
-            "title": s.title or f"Session #{s.id}",
-            "date_start": s.date_start.strftime("%Y-%m-%d %H:%M") if s.date_start else "",
-            "match_format": s.match_format or "INDIVIDUAL_RANKING",
-            "has_results": bool(
-                (s.rounds_data and s.rounds_data.get("round_results"))
-                or s.game_results
-            ),
-            "participant_user_ids": s.participant_user_ids or [],
-            "participant_team_ids": s.participant_team_ids or [],
-        }
-        for s in all_match_sessions
-    ]
 
-    # Team name map for TEAM tournaments (team_id → name)
+    def _matchup_label(s, teams_dict: dict, users_dict: dict):
+        """Return 'Team A vs Team B' / 'Player X vs Player Y' / 'N participants' / None."""
+        if s.participant_team_ids:
+            names = [teams_dict.get(tid, f"Team #{tid}") for tid in s.participant_team_ids[:2]]
+            return " vs ".join(names) if len(names) >= 2 else names[0]
+        if s.participant_user_ids:
+            if s.match_format == "HEAD_TO_HEAD" and len(s.participant_user_ids) >= 2:
+                u1 = users_dict.get(s.participant_user_ids[0])
+                u2 = users_dict.get(s.participant_user_ids[1])
+                n1 = u1.name if u1 else f"Player #{s.participant_user_ids[0]}"
+                n2 = u2.name if u2 else f"Player #{s.participant_user_ids[1]}"
+                return f"{n1} vs {n2}"
+            return f"{len(s.participant_user_ids)} participants"
+        return None
+
+    # Team name map for TEAM tournaments (team_id → name) — built first for matchup_label
     enrolled_teams: dict = {}
     team_enrollments = (
         db.query(TournamentTeamEnrollment)
@@ -790,6 +918,26 @@ async def admin_tournament_edit_page(
         teams = db.query(Team).filter(Team.id.in_(team_ids)).all()
         enrolled_teams = {t.id: t.name for t in teams}
 
+    sessions_result_status = [
+        {
+            "id": s.id,
+            "title": s.title or f"Session #{s.id}",
+            "date_start": s.date_start.strftime("%Y-%m-%d %H:%M") if s.date_start else "",
+            "match_format": s.match_format or "INDIVIDUAL_RANKING",
+            "has_results": bool(
+                (s.rounds_data and s.rounds_data.get("round_results"))
+                or s.game_results
+            ),
+            "participant_user_ids": s.participant_user_ids or [],
+            "participant_team_ids": s.participant_team_ids or [],
+            "tournament_round": s.tournament_round,
+            "group_identifier": s.group_identifier,
+            "matchup_label": _matchup_label(s, enrolled_teams, enrolled_users),
+            "postponed_reason": s.postponed_reason,
+        }
+        for s in all_match_sessions
+    ]
+
     # Existing rankings (for Section 8 — rankings panel)
     existing_rankings = (
         db.query(TournamentRanking)
@@ -797,7 +945,64 @@ async def admin_tournament_edit_page(
         .order_by(TournamentRanking.rank)
         .all()
     )
-    ranking_users = {r.user_id: enrolled_users.get(r.user_id) for r in existing_rankings}
+    ranking_users = {r.user_id: enrolled_users.get(r.user_id) for r in existing_rankings if r.user_id is not None}
+
+    # Group standings: sessions with group_identifier → per-group TournamentRanking rows
+    from collections import defaultdict as _defaultdict
+    _group_participants: dict = _defaultdict(set)
+    for s in all_match_sessions:
+        if not s.group_identifier:
+            continue
+        for tid in (s.participant_team_ids or []):
+            _group_participants[s.group_identifier].add(("team", tid))
+        for uid in (s.participant_user_ids or []):
+            _group_participants[s.group_identifier].add(("user", uid))
+
+    group_standings: dict = {}
+    for grp in sorted(_group_participants.keys()):
+        parts = _group_participants[grp]
+        grp_rows = [
+            r for r in existing_rankings
+            if ("team", r.team_id) in parts or ("user", r.user_id) in parts
+        ]
+        grp_rows.sort(key=lambda r: r.rank or 999)
+        if grp_rows:
+            group_standings[grp] = grp_rows
+
+    # ranking_teams: team_id → Team object (parallel to ranking_users)
+    _team_ids_in_rankings = {r.team_id for r in existing_rankings if r.team_id}
+    ranking_teams = (
+        {t.id: t for t in db.query(Team).filter(Team.id.in_(_team_ids_in_rankings)).all()}
+        if _team_ids_in_rankings else {}
+    )
+
+    # Instructor roster (Section 4.5)
+    from app.models.pitch import Pitch as PitchModel
+    instructor_roster = _ip_service.get_roster(db, tournament_id)
+    eligible_instructors = (
+        db.query(User)
+        .filter(User.role == UserRole.INSTRUCTOR, User.is_active == True)
+        .order_by(User.name)
+        .all()
+    )
+    pitches_for_roster = (
+        db.query(PitchModel)
+        .filter(PitchModel.is_active == True)
+        .order_by(PitchModel.name)
+        .all()
+    )
+    has_absent_field = any(
+        s["role"] == "FIELD" and s["status"] == "ABSENT"
+        for s in instructor_roster
+    )
+
+    # Wizard context: enrolled_count + completed_session_count
+    _participant_type = cfg.participant_type if cfg else "INDIVIDUAL"
+    enrolled_count = len(team_enrollments) if _participant_type == "TEAM" else len(enrollments)
+    completed_session_count = sum(
+        1 for s in all_match_sessions
+        if s.game_results or (s.rounds_data and s.rounds_data.get("round_results"))
+    )
 
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
@@ -814,16 +1019,24 @@ async def admin_tournament_edit_page(
             "enrollments": enrollments,
             "enrolled_users": enrolled_users,
             "checked_in_count": checked_in_count,
+            "enrolled_count": enrolled_count,
+            "completed_session_count": completed_session_count,
             "sessions": sessions,
             "session_count": session_count,
             "sessions_result_status": sessions_result_status,
             "enrolled_teams": enrolled_teams,
             "existing_rankings": existing_rankings,
             "ranking_users": ranking_users,
+            "group_standings": group_standings,
+            "ranking_teams": ranking_teams,
             "game_presets": game_presets,
             "tournament_types": tournament_types,
             "campuses": campuses,
             "locations": locations,
+            "instructor_roster": instructor_roster,
+            "eligible_instructors": eligible_instructors,
+            "pitches_for_roster": pitches_for_roster,
+            "has_absent_field": has_absent_field,
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },
@@ -1032,6 +1245,11 @@ async def admin_tournament_teams_page(
             url=f"/admin/tournaments/{tournament_id}/edit?error=This+tournament+is+not+TEAM+mode",
             status_code=303,
         )
+    if t.tournament_status == "DRAFT":
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/edit?error=Complete+Step+1+first:+open+enrollment+before+managing+teams",
+            status_code=303,
+        )
 
     # Current team enrollments
     enrollments = (
@@ -1053,11 +1271,28 @@ async def admin_tournament_teams_page(
                 TeamMember.team_id == team.id,
                 TeamMember.is_active == True,
             ).count()
-            enrolled_teams.append({"enrollment": e, "team": team, "member_count": member_count})
+            verifier = None
+            if e.payment_verified_by:
+                verifier = db.query(User).filter(User.id == e.payment_verified_by).first()
+            enrolled_teams.append({
+                "enrollment": e,
+                "team": team,
+                "member_count": member_count,
+                "verifier": verifier,
+            })
 
-    # All available teams (not yet enrolled)
-    all_teams = db.query(Team).filter(Team.is_active == True).all()
-    available_teams = [t2 for t2 in all_teams if t2.id not in enrolled_team_ids]
+    # Available teams grouped by club (excluding already-enrolled)
+    available_clubs = []
+    for club in db.query(Club).filter(Club.is_active == True).order_by(Club.name).all():
+        teams = db.query(Team).filter(Team.club_id == club.id, Team.is_active == True).order_by(Team.name).all()
+        unenrolled = [t2 for t2 in teams if t2.id not in enrolled_team_ids]
+        if not unenrolled:
+            continue
+        teams_data = []
+        for tm in unenrolled:
+            mc = db.query(TeamMember).filter(TeamMember.team_id == tm.id, TeamMember.is_active == True).count()
+            teams_data.append({"id": tm.id, "name": tm.name, "code": tm.code or "", "member_count": mc})
+        available_clubs.append({"club": club, "teams": teams_data})
 
     return templates.TemplateResponse(
         request,
@@ -1065,10 +1300,199 @@ async def admin_tournament_teams_page(
         {
             "tournament": t,
             "enrolled_teams": enrolled_teams,
-            "available_teams": available_teams,
+            "available_clubs": available_clubs,
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },
+    )
+
+
+@router.get("/admin/tournaments/{tournament_id}/players", response_class=HTMLResponse)
+async def admin_tournament_players_page(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: manage individual player enrollments for an INDIVIDUAL tournament."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+
+    cfg = t.tournament_config_obj
+    if cfg is None:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/edit?error=Tournament+has+no+configuration",
+            status_code=303,
+        )
+    if cfg.participant_type == "TEAM":
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams",
+            status_code=303,
+        )
+    if t.tournament_status == "DRAFT":
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/edit?error=Complete+Step+1+first:+open+enrollment+before+managing+players",
+            status_code=303,
+        )
+
+    active_enrollments = (
+        db.query(SemesterEnrollment)
+        .filter(
+            SemesterEnrollment.semester_id == tournament_id,
+            SemesterEnrollment.is_active == True,
+        )
+        .order_by(SemesterEnrollment.enrolled_at.asc())
+        .all()
+    )
+
+    # Group enrolled players by team (via TeamMember → Team → Club)
+    enrolled_groups_map: dict = {}  # team_id → group dict
+    unaffiliated_players: list = []
+    for enr in active_enrollments:
+        u = enr.user
+        tm = (
+            db.query(TeamMember)
+            .filter(TeamMember.user_id == enr.user_id, TeamMember.is_active == True)
+            .order_by(TeamMember.joined_at.desc())
+            .first()
+        )
+        if tm:
+            team = tm.team
+            club = team.club
+            key = team.id
+            if key not in enrolled_groups_map:
+                enrolled_groups_map[key] = {
+                    "club_id":   club.id if club else None,
+                    "club_name": club.name if club else "—",
+                    "team_id":   team.id,
+                    "team_name": team.name,
+                    "age_group": team.age_group_label or "",
+                    "players":   [],
+                }
+            enrolled_groups_map[key]["players"].append(
+                {"enrollment": enr, "user": u, "role": tm.role}
+            )
+        else:
+            unaffiliated_players.append({"enrollment": enr, "user": u, "role": None})
+
+    enrolled_groups = sorted(
+        enrolled_groups_map.values(),
+        key=lambda g: (g["club_name"], g["team_name"]),
+    )
+
+    return templates.TemplateResponse(
+        request,
+        "admin/tournament_players.html",
+        {
+            "tournament": t,
+            "cfg": cfg,
+            "enrolled_groups": enrolled_groups,
+            "unaffiliated_players": unaffiliated_players,
+            "total_enrolled": len(active_enrollments),
+            "flash": request.query_params.get("flash"),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/players/enroll", response_class=RedirectResponse)
+async def admin_tournament_players_enroll(
+    tournament_id: int,
+    user_id: int = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Enroll a single player into an INDIVIDUAL tournament (admin bypass)."""
+    _admin_only(user)
+    try:
+        _enroll_service.enroll_player_admin(db, tournament_id, user_id, user.id)
+        db.commit()
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/players?flash=Player+enrolled+successfully",
+            status_code=303,
+        )
+    except HTTPException as exc:
+        import urllib.parse
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/players?error={urllib.parse.quote(exc.detail)}",
+            status_code=303,
+        )
+
+
+@router.post("/admin/tournaments/{tournament_id}/players/{player_user_id}/remove", response_class=RedirectResponse)
+async def admin_tournament_players_remove(
+    tournament_id: int,
+    player_user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Remove a player's active enrollment from an INDIVIDUAL tournament."""
+    _admin_only(user)
+    try:
+        _enroll_service.unenroll_player_admin(db, tournament_id, player_user_id)
+        db.commit()
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/players?flash=Player+removed",
+            status_code=303,
+        )
+    except HTTPException as exc:
+        import urllib.parse
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/players?error={urllib.parse.quote(exc.detail)}",
+            status_code=303,
+        )
+
+
+@router.post("/admin/tournaments/{tournament_id}/players/enroll-from-team", response_class=RedirectResponse)
+async def admin_tournament_players_enroll_from_team(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Bulk-enroll active members of one or more selected teams as individual players."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+    if t.tournament_status != "ENROLLMENT_OPEN":
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/players?error=Enrollment+is+not+open",
+            status_code=303,
+        )
+
+    form_data = await request.form()
+    team_ids = [int(v) for v in form_data.getlist("team_ids")]
+    if not team_ids:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/players?error=No+teams+selected",
+            status_code=303,
+        )
+    enrolled_count = 0
+    skipped_count = 0
+    for team_id in team_ids:
+        members = (
+            db.query(TeamMember)
+            .filter(TeamMember.team_id == team_id, TeamMember.is_active == True)
+            .all()
+        )
+        for m in members:
+            try:
+                _enroll_service.enroll_player_admin(db, tournament_id, m.user_id, user.id)
+                enrolled_count += 1
+            except HTTPException:
+                skipped_count += 1
+    db.commit()
+    msg = f"{enrolled_count}+players+enrolled"
+    if skipped_count:
+        msg += f"+({skipped_count}+skipped)"
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/players?flash={msg}",
+        status_code=303,
     )
 
 
@@ -1086,6 +1510,11 @@ async def admin_tournament_teams_enroll(
     t = db.query(Semester).filter(Semester.id == tournament_id).first()
     if not t:
         return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+    if t.tournament_status != "ENROLLMENT_OPEN":
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error=Enrollment+is+not+open",
+            status_code=303,
+        )
 
     existing = db.query(TournamentTeamEnrollment).filter(
         TournamentTeamEnrollment.semester_id == tournament_id,
@@ -1098,11 +1527,63 @@ async def admin_tournament_teams_enroll(
             semester_id=tournament_id,
             team_id=team_id,
             is_active=True,
-            payment_verified=False,
+            payment_verified=True,  # admin bypass — no payment required
         ))
     db.commit()
     return RedirectResponse(
         url=f"/admin/tournaments/{tournament_id}/teams?flash=Team+enrolled",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/enroll-bulk", response_class=RedirectResponse)
+async def admin_tournament_teams_enroll_bulk(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Bulk-enroll multiple teams into a TEAM tournament from club-grouped checkboxes."""
+    _admin_only(user)
+
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
+    if t.tournament_status != "ENROLLMENT_OPEN":
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error=Enrollment+is+not+open",
+            status_code=303,
+        )
+
+    form_data = await request.form()
+    team_ids = [int(v) for v in form_data.getlist("team_ids")]
+    if not team_ids:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error=No+teams+selected",
+            status_code=303,
+        )
+
+    enrolled_count = 0
+    for team_id in team_ids:
+        existing = db.query(TournamentTeamEnrollment).filter(
+            TournamentTeamEnrollment.semester_id == tournament_id,
+            TournamentTeamEnrollment.team_id == team_id,
+        ).first()
+        if existing:
+            existing.is_active = True
+        else:
+            db.add(TournamentTeamEnrollment(
+                semester_id=tournament_id,
+                team_id=team_id,
+                is_active=True,
+                payment_verified=True,
+            ))
+        enrolled_count += 1
+    db.commit()
+
+    msg = f"{enrolled_count}+team{'s' if enrolled_count != 1 else ''}+enrolled"
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash={msg}",
         status_code=303,
     )
 
@@ -1130,3 +1611,546 @@ async def admin_tournament_teams_remove(
         url=f"/admin/tournaments/{tournament_id}/teams?flash=Team+removed",
         status_code=303,
     )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/verify", response_class=RedirectResponse)
+async def admin_tournament_team_verify(
+    tournament_id: int,
+    team_id: int,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Mark a team's enrollment payment as verified (admin only)."""
+    _admin_only(user)
+
+    enrollment = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.team_id == team_id,
+        TournamentTeamEnrollment.is_active == True,
+    ).first()
+    if not enrollment:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error=Enrollment+not+found",
+            status_code=303,
+        )
+    from datetime import datetime, timezone
+    enrollment.payment_verified = True
+    enrollment.payment_verified_by = user.id
+    enrollment.payment_verified_at = datetime.now(timezone.utc)
+    db.commit()
+    import logging
+    logging.getLogger(__name__).info(
+        "Payment verified: tournament=%d team=%d by=%d", tournament_id, team_id, user.id
+    )
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Payment+verified",
+        status_code=303,
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/unverify", response_class=RedirectResponse)
+async def admin_tournament_team_unverify(
+    tournament_id: int,
+    team_id: int,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Revoke payment verification for a team enrollment (admin only)."""
+    _admin_only(user)
+
+    enrollment = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.team_id == team_id,
+        TournamentTeamEnrollment.is_active == True,
+    ).first()
+    if not enrollment:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error=Enrollment+not+found",
+            status_code=303,
+        )
+    enrollment.payment_verified = False
+    enrollment.payment_verified_by = None
+    enrollment.payment_verified_at = None
+    db.commit()
+    import logging
+    logging.getLogger(__name__).info(
+        "Payment unverified: tournament=%d team=%d by=%d", tournament_id, team_id, user.id
+    )
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Payment+verification+revoked",
+        status_code=303,
+    )
+
+
+@router.post(
+    "/admin/tournaments/{tournament_id}/teams/{team_id}/members",
+    response_class=RedirectResponse,
+)
+async def admin_add_team_member_direct(
+    tournament_id: int,
+    team_id: int,
+    user_id: int = Form(...),
+    request: Request = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_web),
+):
+    """Admin directly adds a user to a team, bypassing the invite flow."""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        _team_service.add_team_member(db, team_id=team_id, user_id=user_id)
+    except HTTPException as exc:
+        return RedirectResponse(
+            url=f"/admin/tournaments/{tournament_id}/teams?error={exc.detail}",
+            status_code=303,
+        )
+
+    return RedirectResponse(
+        url=f"/admin/tournaments/{tournament_id}/teams?flash=Member+added",
+        status_code=303,
+    )
+
+
+# ── Instructor Planning (IP-*) ────────────────────────────────────────────────
+
+from fastapi.responses import JSONResponse
+
+
+@router.get("/admin/tournaments/{tournament_id}/instructor-slots")
+async def admin_get_instructor_slots(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Return the instructor roster for a tournament (JSON)."""
+    _admin_only(user)
+    roster = _ip_service.get_roster(db, tournament_id)
+    return JSONResponse({"slots": roster})
+
+
+@router.post("/admin/tournaments/{tournament_id}/instructor-slots")
+async def admin_add_instructor_slot(
+    tournament_id: int,
+    instructor_id: int = Form(...),
+    role: str = Form(...),
+    pitch_id: Optional[int] = Form(None),
+    notes: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Add an instructor slot to the tournament roster."""
+    _admin_only(user)
+    slot = _ip_service.add_slot(
+        db=db,
+        semester_id=tournament_id,
+        instructor_id=instructor_id,
+        role=role,
+        pitch_id=pitch_id,
+        assigned_by_id=user.id,
+        notes=notes,
+    )
+    db.commit()
+    return JSONResponse({"slot_id": slot.id, "status": slot.status}, status_code=201)
+
+
+@router.delete("/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}")
+async def admin_remove_instructor_slot(
+    tournament_id: int,
+    slot_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Remove an instructor slot."""
+    _admin_only(user)
+    _ip_service.remove_slot(db, slot_id=slot_id, by_user=user)
+    db.commit()
+    return JSONResponse({"deleted": slot_id})
+
+
+@router.post("/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/checkin")
+async def admin_checkin_instructor_slot(
+    tournament_id: int,
+    slot_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Mark an instructor slot as CHECKED_IN."""
+    _admin_only(user)
+    slot = _ip_service.mark_checkin(db, slot_id=slot_id, requester=user)
+    db.commit()
+    _publish_instructor_change(tournament_id, slot, db)
+    return JSONResponse({"slot_id": slot.id, "status": slot.status})
+
+
+@router.post("/admin/tournaments/{tournament_id}/instructor-slots/{slot_id}/absent")
+async def admin_absent_instructor_slot(
+    tournament_id: int,
+    slot_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Mark an instructor slot as ABSENT."""
+    _admin_only(user)
+    slot = _ip_service.mark_absent(db, slot_id=slot_id, requester=user)
+    db.commit()
+    _publish_instructor_change(tournament_id, slot, db)
+    return JSONResponse({"slot_id": slot.id, "status": slot.status})
+
+
+@router.get("/admin/tournaments/{tournament_id}/fallback-plan")
+async def admin_get_fallback_plan(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Get the semi-automatic fallback plan for absent field instructors (JSON)."""
+    _admin_only(user)
+    plan = _ip_service.get_fallback_plan(db, semester_id=tournament_id)
+    return JSONResponse(plan)
+
+
+@router.post("/admin/tournaments/{tournament_id}/apply-fallback")
+async def admin_apply_fallback(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Apply the fallback plan — reassign sessions + update parallel_fields."""
+    _admin_only(user)
+    body = await request.json()
+    updated = _ip_service.apply_fallback(
+        db=db,
+        semester_id=tournament_id,
+        admin_user=user,
+        plan=body,
+    )
+    db.commit()
+    return JSONResponse({"updated_sessions": updated})
+
+
+# ── Attendance page + check-in endpoints ──────────────────────────────────────
+
+
+@router.get("/admin/tournaments/{tournament_id}/attendance", response_class=HTMLResponse)
+async def admin_tournament_attendance(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Attendance management page: instructor status + team/player check-in."""
+    _admin_only(user)
+    t = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    summary_data = _att_service.get_attendance_summary(db, tournament_id)
+    return templates.TemplateResponse(
+        "admin/tournament_attendance.html",
+        {
+            "request": request,
+            "user": user,
+            "t": t,
+            "participant_type": summary_data["participant_type"],
+            "instructors": summary_data["instructors"],
+            "teams": summary_data["teams"],
+            "individual_players": summary_data["individual_players"],
+            "summary": summary_data["summary"],
+        },
+    )
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/checkin")
+async def admin_team_checkin(
+    tournament_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Mark a team as checked-in for the tournament."""
+    enrollment = _att_service.checkin_team(db, tournament_id, team_id, by_user_id=user.id)
+    db.commit()
+    return JSONResponse({
+        "ok": True,
+        "checked_in_at": enrollment.checked_in_at.isoformat() if enrollment.checked_in_at else None,
+    })
+
+
+@router.post("/admin/tournaments/{tournament_id}/teams/{team_id}/uncheckin")
+async def admin_team_uncheckin(
+    tournament_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Remove check-in for a team."""
+    _att_service.uncheckin_team(db, tournament_id, team_id, by_user_id=user.id)
+    db.commit()
+    return JSONResponse({"ok": True, "checked_in_at": None})
+
+
+@router.post("/admin/tournaments/{tournament_id}/players/{player_user_id}/checkin")
+async def admin_player_checkin(
+    tournament_id: int,
+    player_user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Check in an individual player for the tournament."""
+    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    team_id = body.get("team_id") if body else None
+    checkin = _att_service.checkin_player(db, tournament_id, player_user_id, team_id, by_user_id=user.id)
+    db.commit()
+    return JSONResponse({
+        "ok": True,
+        "checked_in_at": checkin.checked_in_at.isoformat() if checkin.checked_in_at else None,
+    })
+
+
+@router.post("/admin/tournaments/{tournament_id}/players/{player_user_id}/uncheckin")
+async def admin_player_uncheckin(
+    tournament_id: int,
+    player_user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Remove pre-tournament check-in for a player."""
+    _att_service.uncheckin_player(db, tournament_id, player_user_id)
+    db.commit()
+    return JSONResponse({"ok": True, "checked_in_at": None})
+
+
+@router.patch("/admin/sessions/{session_id}/postpone")
+async def admin_session_postpone(
+    session_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_user_hybrid),
+):
+    """Set or clear a postponement reason for a session/match."""
+    body = await request.json()
+    reason = body.get("reason", "")
+    session = _att_service.postpone_session(db, session_id, reason)
+    db.commit()
+    return JSONResponse({"ok": True, "postponed_reason": session.postponed_reason})
+
+
+# ── Helper: publish WS instructor change event ─────────────────────────────
+
+def _publish_instructor_change(
+    tournament_id: int,
+    slot: TournamentInstructorSlot,
+    db: Session,
+) -> None:
+    """Best-effort WS broadcast of instructor status change."""
+    try:
+        from app.core.redis_pubsub import publish_tournament_update
+        instructor_name = slot.instructor.name if slot.instructor else f"User #{slot.instructor_id}"
+        absent_field_slots = db.query(TournamentInstructorSlot).filter(
+            TournamentInstructorSlot.semester_id == slot.semester_id,
+            TournamentInstructorSlot.role == SlotRole.FIELD.value,
+            TournamentInstructorSlot.status == SlotStatus.ABSENT.value,
+        ).count()
+        publish_tournament_update(tournament_id, {
+            "type":               "instructor_status_change",
+            "slot_id":            slot.id,
+            "instructor_name":    instructor_name,
+            "role":               slot.role,
+            "pitch_id":           slot.pitch_id,
+            "new_status":         slot.status,
+            "fallback_available": absent_field_slots > 0,
+        })
+    except Exception:
+        pass  # Redis down — silent fail
+
+
+# ── Admin INDIVIDUAL enrollment ───────────────────────────────────────────────
+
+@router.get("/admin/tournaments/{tournament_id}/enrollment-clubs")
+async def admin_enrollment_clubs(
+    tournament_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_or_instructor_user_hybrid),
+):
+    """Return clubs (and their teams) that are eligible for player enrollment.
+
+    If the tournament has a campus_id, returns clubs linked to that campus's
+    location. Otherwise returns all clubs (for non-campus tournaments).
+    """
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    # Determine location filter
+    clubs = db.query(Club).filter(Club.is_active == True).order_by(Club.name).all()
+
+    result = []
+    for club in clubs:
+        teams = db.query(Team).filter(Team.club_id == club.id, Team.is_active == True).order_by(Team.name).all()
+        member_counts = {
+            t.id: db.query(TeamMember).filter(
+                TeamMember.team_id == t.id, TeamMember.is_active == True
+            ).count()
+            for t in teams
+        }
+        result.append({
+            "club_id": club.id,
+            "club_name": club.name,
+            "teams": [
+                {
+                    "team_id": t.id,
+                    "team_name": t.name,
+                    "member_count": member_counts[t.id],
+                }
+                for t in teams
+            ],
+        })
+    return JSONResponse(result)
+
+
+@router.get("/admin/tournaments/{tournament_id}/available-players")
+async def admin_available_players(
+    tournament_id: int,
+    q: Optional[str] = None,
+    club_id: Optional[int] = None,
+    team_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_or_instructor_user_hybrid),
+):
+    """Return LFA-licensed players not yet enrolled in this tournament.
+
+    Filters: ?q=name/email search, ?club_id=, ?team_id=
+    Limit: 100
+    """
+    from ...models.license import UserLicense
+    from ...models.semester_enrollment import SemesterEnrollment
+
+    # Already-enrolled user IDs
+    enrolled_ids = {
+        row.user_id
+        for row in db.query(SemesterEnrollment.user_id).filter(
+            SemesterEnrollment.semester_id == tournament_id,
+            SemesterEnrollment.is_active == True,
+        ).all()
+    }
+
+    # Base: active LFA_FOOTBALL_PLAYER licensees
+    query = (
+        db.query(User, UserLicense)
+        .join(UserLicense, and_(
+            UserLicense.user_id == User.id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            UserLicense.is_active == True,
+        ))
+        .filter(User.is_active == True)
+    )
+
+    # Team / club filter
+    if team_id:
+        member_ids = {
+            row.user_id
+            for row in db.query(TeamMember.user_id).filter(
+                TeamMember.team_id == team_id, TeamMember.is_active == True
+            ).all()
+        }
+        query = query.filter(User.id.in_(member_ids))
+    elif club_id:
+        team_ids = [
+            t.id for t in db.query(Team.id).filter(
+                Team.club_id == club_id, Team.is_active == True
+            ).all()
+        ]
+        member_ids = {
+            row.user_id
+            for row in db.query(TeamMember.user_id).filter(
+                TeamMember.team_id.in_(team_ids), TeamMember.is_active == True
+            ).all()
+        } if team_ids else set()
+        query = query.filter(User.id.in_(member_ids))
+
+    # Name / email search
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(User.name.ilike(like), User.email.ilike(like)))
+
+    rows = query.limit(100).all()
+
+    # Enrich with club/team info
+    def _club_team(user_id: int):
+        member = (
+            db.query(TeamMember)
+            .join(Team, Team.id == TeamMember.team_id)
+            .filter(TeamMember.user_id == user_id, TeamMember.is_active == True)
+            .first()
+        )
+        if not member:
+            return None, None, None, None
+        team = member.team
+        club = db.query(Club).filter(Club.id == team.club_id).first() if team.club_id else None
+        return team.id, team.name, club.id if club else None, club.name if club else None
+
+    result = []
+    for u, _lic in rows:
+        if u.id in enrolled_ids:
+            continue
+        tid, tname, cid, cname = _club_team(u.id)
+        result.append({
+            "user_id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "club_id": cid,
+            "club_name": cname,
+            "team_id": tid,
+            "team_name": tname,
+        })
+
+    return JSONResponse(result)
+
+
+@router.post("/admin/tournaments/{tournament_id}/enroll-player")
+async def admin_enroll_player(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_or_instructor_user_hybrid),
+):
+    """Bulk-enroll one or more players (admin bypass — no credit deduction)."""
+    body = await request.json()
+    user_ids = body.get("user_ids", [])
+
+    enrolled = []
+    skipped = []
+    for uid in user_ids:
+        try:
+            enrollment = _enroll_service.enroll_player_admin(db, tournament_id, uid, user.id)
+            target = db.query(User).filter(User.id == uid).first()
+            enrolled.append({"user_id": uid, "name": target.name if target else str(uid)})
+        except HTTPException as exc:
+            skipped.append({"user_id": uid, "reason": exc.detail})
+
+    if enrolled:
+        db.commit()
+    return JSONResponse({"enrolled": enrolled, "skipped": skipped})
+
+
+@router.post("/admin/tournaments/{tournament_id}/unenroll-player")
+async def admin_unenroll_player(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_admin_or_instructor_user_hybrid),
+):
+    """Remove a player's active enrollment (admin action)."""
+    body = await request.json()
+    uid = body.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=422, detail="user_id required")
+
+    _enroll_service.unenroll_player_admin(db, tournament_id, uid)
+    db.commit()
+    return JSONResponse({"success": True, "user_id": uid})

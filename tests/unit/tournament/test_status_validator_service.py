@@ -153,19 +153,19 @@ class TestEnrollmentClosedWithTournamentType:
 
 
 class TestInProgressWithTournamentType:
-    """Lines 132-140: ENROLLMENT_CLOSED→IN_PROGRESS when type_id is set."""
+    """CHECK_IN_OPEN→IN_PROGRESS when type_id is set (formerly ENROLLMENT_CLOSED→IN_PROGRESS)."""
 
     def test_loads_type_min_players_enough(self):
         """Type min_players=3; 4 enrolled → valid."""
         db = _type_db(min_players=3)
         enrollments = [_active_enrollment() for _ in range(4)]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=10, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=10, enrollments=enrollments
         )
         t.__dict__["_sa_instance_state"] = _sa_state(db)
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is True
@@ -175,12 +175,12 @@ class TestInProgressWithTournamentType:
         db = _type_db(min_players=5)
         enrollments = [_active_enrollment(), _active_enrollment()]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=10, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=10, enrollments=enrollments
         )
         t.__dict__["_sa_instance_state"] = _sa_state(db)
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is False
@@ -191,12 +191,12 @@ class TestInProgressWithTournamentType:
         db = _type_db(min_players=2, found=False)
         enrollments = [_active_enrollment(), _active_enrollment()]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=5, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=5, enrollments=enrollments
         )
         t.__dict__["_sa_instance_state"] = _sa_state(db)
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is True
@@ -205,14 +205,14 @@ class TestInProgressWithTournamentType:
         """session=None in _sa_instance_state → fallback min=2."""
         enrollments = [_active_enrollment(), _active_enrollment()]
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=5, enrollments=enrollments
+            status="CHECK_IN_OPEN", type_id=5, enrollments=enrollments
         )
         state = MagicMock()
         state.session = None
         t.__dict__["_sa_instance_state"] = state
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is True
@@ -220,12 +220,174 @@ class TestInProgressWithTournamentType:
     def test_no_instructor_blocks_in_progress(self):
         """No master_instructor_id → fails before type lookup."""
         t = _tournament(
-            status="ENROLLMENT_CLOSED", type_id=10, master_id=None, enrollments=[]
+            status="CHECK_IN_OPEN", type_id=10, master_id=None, enrollments=[]
         )
 
         is_valid, err = validate_status_transition(
-            "ENROLLMENT_CLOSED", "IN_PROGRESS", t
+            "CHECK_IN_OPEN", "IN_PROGRESS", t
         )
 
         assert is_valid is False
         assert "instructor" in err.lower()
+
+
+# ──────────────────── TournamentInstructorSlot fallback ──────────────────────
+
+
+class TestMasterSlotFallback:
+    """IN_PROGRESS guard: TournamentInstructorSlot fallback when master_instructor_id is None."""
+
+    def _slot_db(self, has_slot=True):
+        """DB mock that returns/doesn't return a TournamentInstructorSlot for MASTER query."""
+        db = MagicMock()
+        slot_mock = MagicMock() if has_slot else None
+        q = MagicMock()
+        q.filter.return_value = q
+        q.first.return_value = slot_mock
+        db.query.return_value = q
+        return db
+
+    def test_master_slot_satisfies_in_progress_guard(self):
+        """ISF-01: no master_instructor_id but MASTER slot (non-ABSENT) → allowed."""
+        db = self._slot_db(has_slot=True)
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(
+            status="CHECK_IN_OPEN", master_id=None, type_id=None, enrollments=enrollments
+        )
+        t.__dict__["_sa_instance_state"] = _sa_state(db)
+
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+
+        assert is_valid is True
+        assert err is None
+
+    def test_absent_master_slot_blocks_in_progress(self):
+        """ISF-02: no master_instructor_id, no slot found (ABSENT filtered out) → blocked."""
+        db = self._slot_db(has_slot=False)
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(
+            status="CHECK_IN_OPEN", master_id=None, type_id=None, enrollments=enrollments
+        )
+        t.__dict__["_sa_instance_state"] = _sa_state(db)
+
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+
+        assert is_valid is False
+        assert "instructor" in err.lower()
+
+    def test_legacy_master_instructor_id_still_works(self):
+        """ISF-03: master_instructor_id set → no slot query needed, passes."""
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(
+            status="CHECK_IN_OPEN", master_id=99, type_id=None, enrollments=enrollments
+        )
+
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+
+        assert is_valid is True
+        assert err is None
+
+
+# ──────────────────── DRAFT → ENROLLMENT_OPEN new guards ────────────────────
+
+
+class TestDraftToEnrollmentOpenValidation:
+    """New validation guards for DRAFT → ENROLLMENT_OPEN (name, dates, H2H type)."""
+
+    def _valid_draft(self, *, campus_id=1, name="Spring Cup", type_id=1, fmt="HEAD_TO_HEAD",
+                     start_offset=7, end_offset=14):
+        """Build a mock DRAFT tournament satisfying all ENROLLMENT_OPEN guards."""
+        from datetime import date, timedelta
+        t = _tournament(
+            status="DRAFT",
+            campus_id=campus_id,
+            name=name,
+            start_date=date.today() + timedelta(days=start_offset),
+            end_date=date.today() + timedelta(days=end_offset),
+            type_id=type_id,
+        )
+        t.format = fmt
+        return t
+
+    # ── name ─────────────────────────────────────────────────────────────────
+
+    def test_blank_name_rejected(self):
+        """DOE-01: Whitespace-only name → blocked."""
+        t = self._valid_draft(name="   ")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is False
+        assert "name" in err.lower()
+
+    def test_empty_name_rejected(self):
+        """DOE-02: Empty string name → blocked."""
+        t = self._valid_draft(name="")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is False
+        assert "name" in err.lower()
+
+    def test_valid_name_passes(self):
+        """DOE-03: Non-empty name → name check clears."""
+        t = self._valid_draft(name="Spring Cup 2026")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is True
+        assert err is None
+
+    # ── start_date ───────────────────────────────────────────────────────────
+
+    def test_past_start_date_rejected(self):
+        """DOE-04: start_date yesterday → blocked."""
+        t = self._valid_draft(start_offset=-1, end_offset=14)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is False
+        assert "start" in err.lower() or "past" in err.lower() or "date" in err.lower()
+
+    def test_future_start_date_passes(self):
+        """DOE-05: start_date tomorrow → passes."""
+        t = self._valid_draft(start_offset=1, end_offset=14)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is True
+
+    # ── end_date ─────────────────────────────────────────────────────────────
+
+    def test_end_before_start_rejected(self):
+        """DOE-06: end_date < start_date → blocked."""
+        t = self._valid_draft(start_offset=14, end_offset=7)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is False
+        assert "end" in err.lower() or "date" in err.lower()
+
+    def test_same_day_start_end_passes(self):
+        """DOE-07: end_date == start_date (single-day event) → passes."""
+        t = self._valid_draft(start_offset=7, end_offset=7)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is True
+
+    # ── H2H tournament_type_id ───────────────────────────────────────────────
+
+    def test_h2h_without_type_id_rejected(self):
+        """DOE-08: HEAD_TO_HEAD with tournament_type_id=None → blocked."""
+        t = self._valid_draft(type_id=None, fmt="HEAD_TO_HEAD")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is False
+        assert "type" in err.lower()
+
+    def test_h2h_with_type_id_passes(self):
+        """DOE-09: HEAD_TO_HEAD with tournament_type_id set → passes."""
+        t = self._valid_draft(type_id=1, fmt="HEAD_TO_HEAD")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is True
+
+    def test_individual_ranking_no_type_id_passes(self):
+        """DOE-10: INDIVIDUAL_RANKING without type_id → allowed."""
+        t = self._valid_draft(type_id=None, fmt="INDIVIDUAL_RANKING")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is True
+
+    # ── original campus guard preserved ─────────────────────────────────────
+
+    def test_campus_guard_still_blocks(self):
+        """DOE-11: campus_id=None still rejected (original guard preserved)."""
+        t = self._valid_draft(campus_id=None)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is False
+        assert "campus" in err.lower()

@@ -1,0 +1,254 @@
+name: E2E Promotion Flow (Club / CSV Import / Tournaments)
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/**'
+      - 'tests/e2e/admin_ui/test_promotion_flow_e2e.py'
+      - 'tests/e2e/admin_ui/conftest.py'
+      - 'tests/integration/web_flows/test_club_csv_import.py'
+      - 'alembic/versions/2026_03_24_1000_club_and_csv_import.py'
+      - '.github/workflows/e2e-promotion-flow.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-promo-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-promo-e2e-secret-key-not-for-production
+  API_URL: http://localhost:8000
+  PYTEST_HEADLESS: "true"
+  ADMIN_EMAIL: admin@lfa.com
+  ADMIN_PASSWORD: admin123
+
+jobs:
+  # ── CLUB-01..08 Integration tests ─────────────────────────────────────────
+  club-integration:
+    name: "CLUB-01..08 Integration (club CRUD + CSV import + promotion)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-promo-e2e-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Migrate DB
+        run: alembic upgrade head
+
+      - name: Run CLUB integration tests
+        run: |
+          mkdir -p results
+          PYTHONPATH=. pytest tests/integration/web_flows/test_club_csv_import.py \
+            -v --tb=short \
+            --junitxml=results/club-integration.xml
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-club-integration
+          path: results/club-integration.xml
+
+  # ── PROMO-00..05 E2E Playwright tests ─────────────────────────────────────
+  promo-e2e:
+    name: "PROMO-00..05 E2E (zero-state golden path + club → CSV → promotion wizard)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-promo-e2e-secret-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Install Playwright browsers
+        run: python -m playwright install chromium
+
+      - name: Migrate DB + seed
+        run: |
+          alembic upgrade head
+          python scripts/seed_e2e_users.py
+          python scripts/seed_tournament_types.py
+
+      - name: Start backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 60 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done'
+
+      - name: "PROMO-00 Golden path (zero state: nav → create → CSV → promotion → tournament)"
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/promo
+          PYTEST_SLOW_MO: "150"
+        run: |
+          mkdir -p results test-results/videos/promo
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_promotion_flow_e2e.py \
+            -k "test_PROMO_00" \
+            --junitxml=results/promo00.xml \
+            -v --tb=short -s
+
+      - name: PROMO-01 Create club via UI
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/promo
+        run: |
+          mkdir -p results test-results/videos/promo
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_promotion_flow_e2e.py \
+            -k "test_PROMO_01" \
+            --junitxml=results/promo01.xml \
+            -v --tb=short -s
+
+      - name: PROMO-02 CSV upload result panel
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/promo
+        run: |
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_promotion_flow_e2e.py \
+            -k "test_PROMO_02" \
+            --junitxml=results/promo02.xml \
+            -v --tb=short -s
+
+      - name: PROMO-03 CSV with invalid row
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/promo
+        run: |
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_promotion_flow_e2e.py \
+            -k "test_PROMO_03" \
+            --junitxml=results/promo03.xml \
+            -v --tb=short -s
+
+      - name: "PROMO-04+05 Promotion wizard (tournaments + enrollments)"
+        env:
+          PLAYWRIGHT_VIDEO_DIR: test-results/videos/promo
+          PYTEST_SLOW_MO: "200"
+        run: |
+          PYTHONPATH=. pytest tests/e2e/admin_ui/test_promotion_flow_e2e.py \
+            -k "test_PROMO_04_and_05" \
+            --junitxml=results/promo0405.xml \
+            -v --tb=short -s
+
+      - name: Upload screenshots + videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promo-e2e-artifacts-${{ github.run_id }}
+          path: |
+            tests/e2e/admin_ui/screenshots/
+            test-results/videos/promo/
+          retention-days: 14
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-promo-e2e
+          path: results/promo*.xml
+
+  # ── Summary gate ──────────────────────────────────────────────────────────
+  promo-gate:
+    name: "Promotion Flow Gate"
+    runs-on: ubuntu-latest
+    needs: [club-integration, promo-e2e]
+    if: always()
+
+    steps:
+      - name: Gate check
+        run: |
+          echo "## Promotion Flow E2E Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| CLUB-01..08 Integration | Club CRUD, CSV import, idempotency, promotion wizard | ${{ needs.club-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PROMO-00 Golden Path** | Zero-state: nav→create→CSV→Teams→Promotion→Tournament (video) | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PROMO-01 Create Club UI | Admin creates club via modal → detail page | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PROMO-02 CSV Upload | Valid CSV → import log rows_created=2 | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PROMO-03 CSV Error | Bad row → rows_failed=1, valid rows processed | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PROMO-04+05 Promotion | 2 age groups → 2 tournaments, teams enrolled | ${{ needs.promo-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          INT="${{ needs.club-integration.result }}"
+          E2E="${{ needs.promo-e2e.result }}"
+
+          if [ "$INT" = "success" ] && [ "$E2E" = "success" ]; then
+            echo "### ✅ All promotion flow tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Validated flows:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🎬 PROMO-00: full zero-state flow (video artifact in promo-e2e-artifacts)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏟️ Club entity: create via nav, code auto-gen, toggle active" >> $GITHUB_STEP_SUMMARY
+            echo "- 📄 CSV import: bulk user creation, upsert, credits, idempotency" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚀 Promotion wizard: per-age-group tournaments + team enrollment" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Promotion flow gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            [ "$INT" != "success" ] && echo "- Integration tests: $INT" >> $GITHUB_STEP_SUMMARY
+            [ "$E2E" != "success" ] && echo "- E2E Playwright tests: $E2E" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

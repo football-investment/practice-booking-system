@@ -1,0 +1,140 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}{{ tournament.name }} — Teams{% endblock %}
+{% block page_heading %}🏆 {{ tournament.name }}{% endblock %}
+{% block page_subtitle %}Team enrollment management{% endblock %}
+
+{% block extra_styles %}
+<style>
+.sd-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.sd-card h2 { font-size: 1.1rem; margin: 0 0 1.25rem; color: #2d3748; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: .65rem .9rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+th { font-size: .8rem; text-transform: uppercase; color: #718096; background: #f7fafc; }
+tr:hover td { background: #f7fafc; }
+.badge { padding: .2rem .6rem; border-radius: 10px; font-size: .78rem; font-weight: 600; }
+.badge-open  { background: #c6f6d5; color: #276749; }
+.badge-closed{ background: #fed7d7; color: #c53030; }
+.btn { padding: .4rem .9rem; border: none; border-radius: 7px; cursor: pointer;
+       font-size: .85rem; font-weight: 600; text-decoration: none; display: inline-block; }
+.btn-primary { background: #667eea; color: white; }
+.btn-primary:hover { background: #5a67d8; }
+.btn-danger { background: #e53e3e; color: white; }
+.btn-danger:hover { background: #c53030; }
+.btn-secondary { background: #e2e8f0; color: #4a5568; }
+.btn-secondary:hover { background: #cbd5e0; }
+.alert-success { background: #f0fff4; border-left: 4px solid #48bb78; padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1rem; color: #276749; }
+.alert-danger  { background: #fff5f5; border-left: 4px solid #fc8181; padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1rem; color: #c53030; }
+.empty-state { padding: 1.5rem; text-align: center; color: #a0aec0; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<div style="margin-bottom:1rem;">
+    <a href="/sport-director/tournaments" class="btn btn-secondary">← Back to Tournaments</a>
+</div>
+
+{% if msg %}
+<div class="alert-success">{{ msg }}</div>
+{% endif %}
+{% if error %}
+<div class="alert-danger">{{ error }}</div>
+{% endif %}
+
+<!-- Status badge -->
+<p style="margin-bottom:1.5rem;color:#718096;">
+    Status:
+    {% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}
+    <span class="badge badge-open">Enrollment Open</span>
+    {% elif tournament.tournament_status == 'ENROLLMENT_CLOSED' %}
+    <span class="badge badge-closed">Enrollment Closed</span>
+    {% else %}
+    <span class="badge" style="background:#e2e8f0;color:#4a5568;">{{ tournament.tournament_status }}</span>
+    {% endif %}
+    &nbsp;|&nbsp; Start: {{ tournament.start_date.strftime('%Y-%m-%d') if tournament.start_date else '—' }}
+</p>
+
+<!-- Section 1: Enrolled teams -->
+<div class="sd-card">
+    <h2>Enrolled Teams ({{ enrolled_rows | length }})</h2>
+    {% if enrolled_rows %}
+    <table>
+        <thead>
+            <tr>
+                <th>Team</th>
+                <th>Members</th>
+                <th>Payment</th>
+                {% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}<th>Action</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for enrollment, team in enrolled_rows %}
+        <tr>
+            <td><strong>{{ team.name }}</strong> <small style="color:#718096;">{{ team.code }}</small></td>
+            <td>{{ team.members | selectattr('is_active') | list | length if team.members else '—' }}</td>
+            <td>
+                {% if enrollment.payment_verified %}
+                <span class="badge badge-open">Verified</span>
+                {% else %}
+                <span class="badge badge-closed">Pending</span>
+                {% endif %}
+            </td>
+            {% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}
+            <td>
+                <form method="POST"
+                      action="/sport-director/tournaments/{{ tournament.id }}/teams/{{ team.id }}/remove"
+                      onsubmit="return confirm('Remove {{ team.name }} from this tournament?')">
+                    <button type="submit" class="btn btn-danger">Remove</button>
+                </form>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No teams enrolled yet.</div>
+    {% endif %}
+</div>
+
+<!-- Section 2: Eligible teams to enroll -->
+{% if tournament.tournament_status == 'ENROLLMENT_OPEN' %}
+<div class="sd-card">
+    <h2>Available Teams</h2>
+    <p style="color:#718096;font-size:.9rem;margin-bottom:1rem;">
+        Teams not yet enrolled in this tournament.
+    </p>
+    {% if eligible_teams %}
+    <table>
+        <thead>
+            <tr><th>Team</th><th>Captain</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+        {% for team in eligible_teams %}
+        <tr>
+            <td><strong>{{ team.name }}</strong> <small style="color:#718096;">{{ team.code }}</small></td>
+            <td>{{ team.captain.name if team.captain else '—' }}</td>
+            <td>
+                <form method="POST"
+                      action="/sport-director/tournaments/{{ tournament.id }}/teams/{{ team.id }}/enroll">
+                    <button type="submit" class="btn btn-primary">Enroll</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">All available teams are already enrolled.</div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock admin_content %}

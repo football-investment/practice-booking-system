@@ -63,6 +63,13 @@ class Semester(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
+    # ⏰ CHECK-IN SCHEDULING
+    checkin_opens_at = Column(
+        DateTime(timezone=True), nullable=True,
+        comment="UTC datetime when check-in auto-opens (NULL = manual only). "
+                "APScheduler transitions ENROLLMENT_CLOSED → CHECK_IN_OPEN when this <= NOW()."
+    )
+
     # 📦 CATEGORY & HIERARCHY (M-01 / M-02 — 2026-03-15)
     semester_category = Column(
         Enum(SemesterCategory, name='semester_category_type'),

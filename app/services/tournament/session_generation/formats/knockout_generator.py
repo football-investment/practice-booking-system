@@ -12,7 +12,7 @@ from app.models.tournament_type import TournamentType
 from app.models.tournament_enums import TournamentPhase
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from .base_format_generator import BaseFormatGenerator
-from ..utils import get_tournament_venue, pick_campus
+from ..utils import get_tournament_venue, pick_campus, pick_pitch
 
 
 class KnockoutGenerator(BaseFormatGenerator):
@@ -41,17 +41,21 @@ class KnockoutGenerator(BaseFormatGenerator):
         """
         sessions = []
         campus_ids = kwargs.get('campus_ids')
+        team_ids = kwargs.get('team_ids')
+        team_mode = kwargs.get('team_mode', False)
         total_rounds = math.ceil(math.log2(player_count))
         round_names = tournament_type.config.get('round_names', {})
 
-        # ✅ Get enrolled players for initial seeding (Round 1 only)
-        enrolled_players = self.db.query(SemesterEnrollment).filter(
-            SemesterEnrollment.semester_id == tournament.id,
-            SemesterEnrollment.is_active == True,
-            SemesterEnrollment.request_status == EnrollmentStatus.APPROVED
-        ).order_by(SemesterEnrollment.created_at).all()
-
-        player_ids = [enrollment.user_id for enrollment in enrolled_players]
+        # Resolve seeding pool: teams for TEAM tournaments, players otherwise
+        if team_mode and team_ids:
+            player_ids = team_ids
+        else:
+            enrolled_players = self.db.query(SemesterEnrollment).filter(
+                SemesterEnrollment.semester_id == tournament.id,
+                SemesterEnrollment.is_active == True,
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+            ).order_by(SemesterEnrollment.created_at).all()
+            player_ids = [e.user_id for e in enrolled_players]
 
         current_time = tournament.start_date
 
@@ -80,12 +84,11 @@ class KnockoutGenerator(BaseFormatGenerator):
                     player1_id = player_ids[seed1_index] if seed1_index < len(player_ids) else None
                     player2_id = player_ids[seed2_index] if seed2_index < len(player_ids) else None
 
-                    participant_ids = [player1_id, player2_id] if player1_id and player2_id else None
+                    r1_ids = [player1_id, player2_id] if player1_id and player2_id else None
                 else:
-                    # ✅ Later rounds: participants determined by previous match results
-                    participant_ids = None
+                    r1_ids = None
 
-                sessions.append({
+                session_data = {
                     'title': f'{tournament.name} - {round_name} - Match {match_in_round}',
                     'description': f'Head-to-head knockout match - {round_name}',
                     'date_start': session_start,
@@ -96,26 +99,28 @@ class KnockoutGenerator(BaseFormatGenerator):
                     'tournament_match_number': match_in_round,
                     'location': get_tournament_venue(tournament),
                     'session_type': 'on_site',
-                    # ✅ HEAD_TO_HEAD: 1v1 match metadata
                     'ranking_mode': 'HEAD_TO_HEAD',
                     'round_number': round_num,
-                    'expected_participants': 2,  # ✅ FIX: Always 2 players per match
+                    'expected_participants': 2,
                     'participant_filter': None,
                     'group_identifier': None,
-                    # ✅ MATCH STRUCTURE: Format and scoring metadata
                     'match_format': tournament.format,
                     'scoring_type': tournament.scoring_type,
                     'structure_config': {
                         'round_name': round_name,
                         'round_number': round_num,
                         'match_number': match_in_round,
-                        'total_matches_in_round': matches_in_round
+                        'total_matches_in_round': matches_in_round,
                     },
-                    # ✅ CRITICAL: Explicit participants (None for rounds 2+)
-                    'participant_user_ids': participant_ids,
-                    # ✅ Multi-campus: round-robin campus assignment
                     'campus_id': pick_campus(len(sessions), campus_ids),
-                })
+                    'pitch_id': pick_pitch(len(sessions), pick_campus(len(sessions), campus_ids), parallel_fields, self.db),
+                }
+                if team_mode:
+                    session_data['participant_team_ids'] = r1_ids
+                    session_data['participant_user_ids'] = None
+                else:
+                    session_data['participant_user_ids'] = r1_ids
+                sessions.append(session_data)
 
                 # Schedule parallel fields
                 if match_in_round % parallel_fields != 0:

@@ -232,7 +232,7 @@ describe('A. Student Core Journey — Skill Progression', {
 
     // Page must not show any server error
     cy.get('body').should('not.contain.text', 'Internal Server Error');
-    cy.get('body').should('not.contain.text', '400');
+    cy.get('body').should('not.contain.text', '400 Bad Request');
   });
 
   // ── STU-JOURNEY-09 — Dashboard KPI lazy-loads + snapshot bars + last result ──

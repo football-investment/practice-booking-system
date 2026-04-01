@@ -9,9 +9,10 @@ from .specialization import SpecializationType
 
 
 class UserRole(enum.Enum):
-    ADMIN = "admin"
-    INSTRUCTOR = "instructor"
-    STUDENT = "student"
+    ADMIN          = "admin"
+    SPORT_DIRECTOR = "sport_director"  # Location-level: manages all campuses at a location
+    INSTRUCTOR     = "instructor"
+    STUDENT        = "student"
 
 
 class User(Base):

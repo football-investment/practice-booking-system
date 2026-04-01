@@ -1,0 +1,298 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Sport Directors{% endblock %}
+{% block page_heading %}Sport Directors{% endblock %}
+{% block page_subtitle %}Location-level management role assignments{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .module-strip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0;
+        flex-wrap: wrap;
+    }
+    .module-link {
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: #718096;
+        transition: background 0.15s;
+    }
+    .module-link:hover { background: #f0f4ff; color: #5a4a9a; }
+    .module-link.active { background: #ece8ff; color: #5a4a9a; }
+    .module-link.btn-primary {
+        margin-left: auto;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+    .module-link.btn-primary:hover { opacity: 0.9; }
+
+    .alert-bar { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.9rem; }
+    .alert-bar.success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+    .alert-bar.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+
+    .filter-bar {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+        align-items: flex-end;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .filter-group label { font-size: 0.75rem; font-weight: 600; color: #718096; }
+    .filter-group select {
+        padding: 0.45rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: white;
+    }
+    .filter-btn {
+        padding: 0.45rem 1rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        background: #667eea;
+        color: white;
+        align-self: flex-end;
+    }
+
+    .content-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 1.5rem;
+    }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+        background: #f7fafc;
+        padding: 0.65rem 1rem;
+        text-align: left;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .data-table td {
+        padding: 0.7rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid #f0f4f8;
+        vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.2rem 0.55rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-active   { background: #c6f6d5; color: #276749; }
+    .badge-inactive { background: #e2e8f0; color: #718096; }
+
+    .role-badge {
+        display: inline-block;
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: #e9d8fd;
+        color: #553c9a;
+    }
+
+    .action-btn {
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        cursor: pointer;
+        text-decoration: none;
+        background: white;
+        color: #4a5568;
+        transition: background 0.15s;
+    }
+    .action-btn:hover { background: #f7fafc; }
+    .btn-deactivate { background: #fc8181; color: white; border-color: #fc8181; }
+    .btn-deactivate:hover { background: #f56565; }
+
+    .assign-card {
+        background: #f7fafc;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        border: 1px solid #e2e8f0;
+    }
+    .assign-card h3 { font-size: 1rem; font-weight: 700; color: #2d3748; margin: 0 0 1rem; }
+    .assign-form { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+    .assign-field { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 180px; }
+    .assign-field label { font-size: 0.78rem; font-weight: 600; color: #718096; }
+    .assign-field select {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        background: white;
+    }
+    .btn-assign {
+        padding: 0.5rem 1.25rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        align-self: flex-end;
+    }
+    .btn-assign:hover { opacity: 0.9; }
+
+    .info-box {
+        background: #ebf8ff;
+        border: 1px solid #90cdf4;
+        border-radius: 8px;
+        padding: 0.85rem 1.1rem;
+        font-size: 0.875rem;
+        color: #2b6cb0;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="module-strip">
+    <a href="/admin/users"           class="module-link">👥 Users</a>
+    <a href="/admin/instructors"     class="module-link">👨‍🏫 Instructors</a>
+    <a href="/admin/sport-directors" class="module-link active">🏅 Sport Directors</a>
+</div>
+
+{% set msg   = request.query_params.get('msg') %}
+{% set error = request.query_params.get('error') %}
+{% if msg %}<div class="alert-bar success">✅ {{ msg }}</div>{% endif %}
+{% if error %}<div class="alert-bar error">❌ {{ error }}</div>{% endif %}
+
+<div class="info-box">
+    ℹ️ A <strong>Sport Director</strong> oversees all campuses within a location. They can manage tournaments,
+    assign campus master instructors, and perform proxy enrollment on behalf of users.
+    Only <strong>1 active Sport Director per location</strong> is allowed.
+</div>
+
+<!-- Assign form -->
+<div class="assign-card" style="margin-bottom:1.5rem;">
+    <h3>➕ Assign Sport Director</h3>
+    <form method="POST" action="/admin/sport-directors/assign">
+        <div class="assign-form">
+            <div class="assign-field">
+                <label>User (SPORT_DIRECTOR or ADMIN role) *</label>
+                <select name="user_id" required>
+                    <option value="">Select user…</option>
+                    {% for c in candidates %}
+                    <option value="{{ c.id }}">{{ c.name }} — {{ c.role.value }} ({{ c.email }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="assign-field">
+                <label>Location *</label>
+                <select name="location_id" required>
+                    <option value="">Select location…</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}">{{ loc.name }}, {{ loc.city }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-assign">Assign</button>
+        </div>
+    </form>
+</div>
+
+<!-- Filter -->
+<form method="GET" action="/admin/sport-directors">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>Location</label>
+            <select name="location_filter" onchange="this.form.submit()">
+                <option value="0">All Locations</option>
+                {% for loc in locations %}
+                <option value="{{ loc.id }}"{% if location_filter == loc.id %} selected{% endif %}>
+                    {{ loc.name }} ({{ loc.city }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <a href="/admin/sport-directors" style="align-self:flex-end; padding:0.45rem 0.75rem; font-size:0.875rem; color:#718096; text-decoration:none;">✕ Clear</a>
+    </div>
+</form>
+
+<!-- Assignments table -->
+<div class="content-card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Assigned</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for a in assignments %}
+        <tr>
+            <td>{{ a.id }}</td>
+            <td>
+                <strong>{{ a.user.name if a.user else '?' }}</strong><br>
+                <small style="color:#718096;">{{ a.user.email if a.user else '' }}</small>
+            </td>
+            <td>
+                {% if a.user %}
+                <span class="role-badge">{{ a.user.role.value }}</span>
+                {% endif %}
+            </td>
+            <td>
+                {% set loc = location_map.get(a.location_id) %}
+                {{ loc.name if loc else '?' }}, {{ loc.city if loc else '' }}
+            </td>
+            <td>
+                <span class="status-badge {% if a.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                    {{ 'Active' if a.is_active else 'Inactive' }}
+                </span>
+            </td>
+            <td>
+                <small>{{ a.created_at.strftime('%Y-%m-%d') if a.created_at else '—' }}</small>
+            </td>
+            <td>
+                {% if a.is_active %}
+                <form method="POST" action="/admin/sport-directors/{{ a.id }}/deactivate" style="display:inline;">
+                    <button class="action-btn btn-deactivate"
+                            onclick="return confirm('Deactivate sport director for this location?')">
+                        Deactivate
+                    </button>
+                </form>
+                {% else %}
+                <span style="color:#a0aec0; font-size:0.82rem;">—</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" style="text-align:center; color:#a0aec0; padding:1.5rem;">
+                No sport director assignments yet. Use the form above to assign one.
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

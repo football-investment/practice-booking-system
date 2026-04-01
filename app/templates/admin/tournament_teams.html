@@ -6,7 +6,21 @@
 <div class="page-header">
     <div>
         <h1>👥 Team Management</h1>
-        <p class="subtitle">{{ tournament.name }}</p>
+        <p class="subtitle">
+            {{ tournament.name }}
+            {% set ts = tournament.tournament_status %}
+            {% if ts == 'ENROLLMENT_OPEN' %}
+            <span class="badge" style="background:#c6f6d5;color:#276749;margin-left:.5rem;">Enrollment Open</span>
+            {% elif ts == 'ENROLLMENT_CLOSED' %}
+            <span class="badge" style="background:#fed7d7;color:#c53030;margin-left:.5rem;">Enrollment Closed</span>
+            {% elif ts == 'IN_PROGRESS' %}
+            <span class="badge" style="background:#bee3f8;color:#2b6cb0;margin-left:.5rem;">In Progress</span>
+            {% elif ts == 'COMPLETED' %}
+            <span class="badge" style="background:#e9d8fd;color:#553c9a;margin-left:.5rem;">Completed</span>
+            {% elif ts %}
+            <span class="badge" style="background:#e2e8f0;color:#4a5568;margin-left:.5rem;">{{ ts }}</span>
+            {% endif %}
+        </p>
     </div>
     <a href="/admin/tournaments/{{ tournament.id }}/edit" class="btn btn-secondary">← Back to Tournament</a>
 </div>
@@ -38,11 +52,33 @@
             <tbody>
             {% for item in enrolled_teams %}
                 <tr>
-                    <td><strong>{{ item.team.name }}</strong> <code>{{ item.team.code }}</code></td>
+                    <td><strong>{{ item.team.name }}</strong>{% if item.team.code %} <code>{{ item.team.code }}</code>{% endif %}</td>
                     <td>{{ item.member_count }} players</td>
-                    <td>{% if item.enrollment.payment_verified %}✅ Verified{% else %}⏳ Pending{% endif %}</td>
-                    <td>{{ item.enrollment.enrollment_date.strftime('%Y-%m-%d') if item.enrollment.enrollment_date else '—' }}</td>
                     <td>
+                        {% if item.enrollment.payment_verified %}
+                            <span style="color:#276749; font-weight:600;">✅ Verified</span>
+                            {% if item.verifier and item.enrollment.payment_verified_at %}
+                            <br><small style="color:#718096;">
+                                by {{ item.verifier.name or item.verifier.email }}<br>
+                                {{ item.enrollment.payment_verified_at.strftime('%Y-%m-%d %H:%M') }}
+                            </small>
+                            {% endif %}
+                        {% else %}
+                            <span style="color:#c05621; font-weight:600;">⏳ Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.enrollment.enrollment_date.strftime('%Y-%m-%d') if item.enrollment.enrollment_date else '—' }}</td>
+                    <td style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                        {% if not item.enrollment.payment_verified %}
+                        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/{{ item.team.id }}/verify">
+                            <button type="submit" class="btn btn-sm btn-success">✅ Verify</button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/{{ item.team.id }}/unverify"
+                              onsubmit="return confirm('Revoke payment verification for {{ item.team.name }}?')">
+                            <button type="submit" class="btn btn-sm btn-secondary">↩ Unverify</button>
+                        </form>
+                        {% endif %}
                         <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/{{ item.team.id }}/remove"
                               onsubmit="return confirm('Remove team {{ item.team.name }} from this tournament?')">
                             <button type="submit" class="btn btn-sm btn-danger">❌ Remove</button>
@@ -58,32 +94,49 @@
     </div>
 </section>
 
-<!-- Add Team -->
+<!-- Add Teams (club-grouped checkboxes) -->
 <section class="card mt-4">
     <div class="card-header">
-        <h2>➕ Enroll a Team</h2>
+        <h2>➕ Enroll Teams from Clubs</h2>
     </div>
     <div class="card-body">
-        {% if available_teams %}
-        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/enroll">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="team_id">Select Team</label>
-                    <select name="team_id" id="team_id" required>
-                        <option value="">— choose a team —</option>
-                        {% for team in available_teams %}
-                        <option value="{{ team.id }}">{{ team.name }} ({{ team.code }})</option>
-                        {% endfor %}
-                    </select>
+        {% if available_clubs %}
+        <form method="POST" action="/admin/tournaments/{{ tournament.id }}/teams/enroll-bulk">
+            {% for entry in available_clubs %}
+            <div style="margin-bottom:1.25rem;">
+                <div style="font-weight:700;color:#4a5568;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">
+                    {{ entry.club.name }}
                 </div>
-                <div class="form-group" style="align-self: flex-end;">
-                    <button type="submit" class="btn btn-primary">Enroll Team</button>
+                <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+                    {% for t in entry.teams %}
+                    <label style="display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem;border-radius:.375rem;border:1px solid #e2e8f0;background:#f7fafc;cursor:pointer;font-size:.875rem;"
+                           onmouseover="if(!this.querySelector('input').checked){this.style.borderColor='#a0aec0';this.style.background='#edf2f7';}"
+                           onmouseout="if(!this.querySelector('input').checked){this.style.borderColor='#e2e8f0';this.style.background='#f7fafc';}">
+                        <input type="checkbox" name="team_ids" value="{{ t.id }}" onchange="syncTeamLabel(this)">
+                        <span>{{ t.name }}</span>
+                        {% if t.code %}<code style="font-size:.8em;color:#718096;">{{ t.code }}</code>{% endif %}
+                        <span style="color:#718096;">({{ t.member_count }})</span>
+                    </label>
+                    {% endfor %}
                 </div>
             </div>
+            {% endfor %}
+            <div style="margin-top:.75rem;display:flex;align-items:center;gap:1rem;">
+                <button type="submit" class="btn btn-primary">➕ Enroll Selected Teams</button>
+                <span id="team-sel-count" style="color:#718096;font-size:.875rem;">0 teams selected</span>
+            </div>
         </form>
+        <script>
+        function syncTeamLabel(cb) {
+            var lbl = cb.closest('label');
+            lbl.style.borderColor = cb.checked ? '#667eea' : '#e2e8f0';
+            lbl.style.background = cb.checked ? '#ebf4ff' : '#f7fafc';
+            var n = document.querySelectorAll('input[name="team_ids"]:checked').length;
+            document.getElementById('team-sel-count').textContent = n + ' team' + (n !== 1 ? 's' : '') + ' selected';
+        }
+        </script>
         {% else %}
-        <p class="text-muted">All available teams are already enrolled, or no teams exist.</p>
-        <a href="/admin/teams/new" class="btn btn-outline">Create New Team</a>
+        <p class="text-muted">All available teams are already enrolled, or no clubs with unenrolled teams exist.</p>
         {% endif %}
     </div>
 </section>

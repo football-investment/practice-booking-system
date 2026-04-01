@@ -22,3 +22,5 @@ celery[redis]==5.3.6
 redis==5.0.1
 # Background task scheduler
 apscheduler==3.10.4
+# Image processing (LFA player card photo upload)
+Pillow>=10.0.0

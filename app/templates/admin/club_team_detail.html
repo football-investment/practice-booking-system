@@ -1,0 +1,179 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}{{ team.name }} — {{ club.name }}{% endblock %}
+{% block page_heading %}👕 {{ team.name }}{% endblock %}
+{% block page_subtitle %}{{ club.name }}{% if team.age_group_label %} · {{ team.age_group_label }}{% if canonical_age %} ({{ canonical_age }}){% endif %}{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .module-strip {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.75rem 0; margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e2e8f0; flex-wrap: wrap;
+    }
+    .module-strip-label { font-size: 0.75rem; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.08em; padding-right: 0.5rem; border-right: 1px solid #e2e8f0; }
+    .module-link { padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; color: #718096; transition: background 0.15s; }
+    .module-link:hover { background: #f0f4ff; color: #5a4a9a; }
+    .module-link.active { background: #ece8ff; color: #5a4a9a; }
+
+    .breadcrumb {
+        font-size: 0.85rem; color: #718096; margin-bottom: 1.25rem;
+        display: flex; align-items: center; gap: 0.4rem;
+    }
+    .breadcrumb a { color: #667eea; text-decoration: none; font-weight: 600; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .breadcrumb-sep { color: #cbd5e0; }
+
+    .team-header-card {
+        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+        padding: 1.5rem 2rem; margin-bottom: 1.5rem;
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .team-meta { display: flex; flex-direction: column; gap: 0.4rem; }
+    .team-meta .team-title { font-size: 1.3rem; font-weight: 800; color: #2d3748; }
+    .team-meta .team-detail { font-size: 0.875rem; color: #718096; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .detail-chip {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px;
+        padding: 2px 10px; font-size: 0.8rem; font-weight: 600; color: #4a5568;
+    }
+    .age-chip { background: #ebf4ff; border-color: #bee3f8; color: #2b6cb0; }
+    .canonical-chip { background: #fefcbf; border-color: #faf089; color: #744210; font-size: 0.72rem; }
+
+    .section-card {
+        background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+        overflow: hidden; margin-bottom: 1.5rem;
+    }
+    .section-header {
+        padding: 1rem 1.5rem; background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0; display: flex; align-items: center;
+        justify-content: space-between;
+    }
+    .section-header h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #2d3748; }
+
+    .members-table { width: 100%; border-collapse: collapse; }
+    .members-table th {
+        padding: 0.6rem 1.25rem; text-align: left;
+        font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.06em; color: #a0aec0;
+        border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+    }
+    .members-table td { padding: 0.85rem 1.25rem; border-bottom: 1px solid #f0f0f0; font-size: 0.875rem; vertical-align: middle; }
+    .members-table tr:last-child td { border-bottom: none; }
+    .members-table tr:hover td { background: #f8fafc; }
+
+    .role-badge {
+        display: inline-block; padding: 2px 10px; border-radius: 99px;
+        font-size: 0.72rem; font-weight: 700;
+    }
+    .role-captain { background: #fefcbf; color: #744210; }
+    .role-player  { background: #e9d8fd; color: #553c9a; }
+
+    .email-cell { font-family: monospace; font-size: 0.82rem; color: #4a5568; }
+    .pos-cell   { font-family: monospace; font-size: 0.82rem; color: #718096; }
+    .date-cell  { font-size: 0.8rem; color: #a0aec0; }
+    .no-members { padding: 2.5rem; text-align: center; color: #a0aec0; font-size: 0.9rem; }
+
+    .member-link {
+        color: #667eea; font-weight: 700; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 0.25rem;
+    }
+    .member-link:hover { text-decoration: underline; color: #5a4a9a; }
+    .member-link::after { content: " ↗"; font-size: 0.7rem; opacity: 0.6; }
+
+    .back-link {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 6px 14px; border-radius: 7px;
+        background: #f0f4ff; color: #5a4a9a;
+        font-size: 0.82rem; font-weight: 600; text-decoration: none;
+    }
+    .back-link:hover { background: #ece8ff; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+
+<!-- Module strip -->
+<div class="module-strip">
+    <span class="module-strip-label">People</span>
+    <a href="/admin/users" class="module-link">👥 Users</a>
+    <a href="/admin/instructors" class="module-link">👨‍🏫 Instructors</a>
+    <a href="/admin/sport-directors" class="module-link">🎯 Sport Directors</a>
+    <a href="/admin/clubs" class="module-link active">🏟️ Clubs</a>
+</div>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <a href="/admin/clubs">Clubs</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="/admin/clubs/{{ club.id }}">{{ club.name }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ team.name }}</span>
+</div>
+
+<!-- Team header -->
+<div class="team-header-card">
+    <div class="team-meta">
+        <div class="team-title">👕 {{ team.name }}</div>
+        <div class="team-detail">
+            <span class="detail-chip">🔑 {{ team.code or '—' }}</span>
+            {% if team.age_group_label %}
+            <span class="detail-chip age-chip">{{ team.age_group_label }}</span>
+            {% if canonical_age %}
+            <span class="detail-chip canonical-chip">{{ canonical_age }}</span>
+            {% endif %}
+            {% endif %}
+            <span class="detail-chip">{{ members|length }} member{{ 's' if members|length != 1 }}</span>
+        </div>
+    </div>
+    <a href="/admin/clubs/{{ club.id }}" class="back-link">← Back to {{ club.name }}</a>
+</div>
+
+<!-- Members table -->
+<div class="section-card">
+    <div class="section-header">
+        <h3>👤 Members ({{ members|length }})</h3>
+    </div>
+    {% if members %}
+    <table class="members-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Position</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for m in members %}
+        <tr>
+            <td style="color:#a0aec0;font-size:0.8rem;">{{ loop.index }}</td>
+            <td>
+                <a href="/admin/users/{{ m.user.id }}/profile?from_club={{ club.id }}&from_team={{ team.id }}"
+                   class="member-link">
+                    {{ m.user.name or (m.user.first_name ~ ' ' ~ m.user.last_name) }}
+                </a>
+            </td>
+            <td class="email-cell">{{ m.user.email }}</td>
+            <td>
+                {% if m.role and m.role.upper() == 'CAPTAIN' %}
+                <span class="role-badge role-captain">👑 CAPTAIN</span>
+                {% else %}
+                <span class="role-badge role-player">PLAYER</span>
+                {% endif %}
+            </td>
+            <td class="pos-cell">{{ m.user.position or '—' }}</td>
+            <td class="date-cell">{{ m.joined_at.strftime('%Y-%m-%d') if m.joined_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-members">No members yet. Import players via CSV to add them to this team.</div>
+    {% endif %}
+</div>
+
+{% endblock %}

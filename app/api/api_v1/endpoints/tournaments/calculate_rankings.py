@@ -17,7 +17,7 @@ from sqlalchemy import and_
 import json
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_current_admin_or_instructor_user_hybrid
 from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel, EventCategory
@@ -34,7 +34,7 @@ router = APIRouter()
 def calculate_tournament_rankings(
     tournament_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_admin_or_instructor_user_hybrid)
 ):
     """
     Calculate and store tournament rankings
@@ -128,6 +128,16 @@ def calculate_tournament_rankings(
                 detail=f"{missing_count} session(s) do not have results submitted yet. Submit all results first."
             )
 
+    # Swiss format guard: no automatic ranking strategy available
+    if tournament_type_code == "swiss":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Swiss format does not support automatic ranking calculation. "
+                "Rankings must be entered manually."
+            ),
+        )
+
     # Calculate rankings based on tournament format
     try:
         if tournament_format == "HEAD_TO_HEAD":
@@ -142,14 +152,75 @@ def calculate_tournament_rankings(
                     detail="HEAD_TO_HEAD tournament missing tournament_type"
                 )
 
-            # Create ranking strategy
-            strategy = RankingStrategyFactory.create(
-                tournament_format="HEAD_TO_HEAD",
-                tournament_type_code=tournament_type_code
-            )
+            _cfg = tournament.tournament_config_obj
+            _is_team = _cfg and _cfg.participant_type == "TEAM"
 
-            # Calculate rankings
-            rankings = strategy.calculate_rankings(sessions, db)
+            if _is_team:
+                # TEAM HEAD_TO_HEAD: results stored in rounds_data (game_results is NULL).
+                # Standard strategies read only game_results — handle TEAM inline.
+                from collections import defaultdict as _dd
+                team_stats = _dd(lambda: {
+                    "points": 0, "wins": 0, "ties": 0, "losses": 0,
+                    "goals_scored": 0.0, "goals_conceded": 0.0,
+                })
+                for _s in sessions:
+                    for _rd in (_s.rounds_data or {}).get("round_results", {}).values():
+                        _tscores: dict = {}
+                        for _key, _val in (_rd or {}).items():
+                            if _key.startswith("team_"):
+                                try:
+                                    _tid = int(_key.split("_", 1)[1])
+                                    _tscores[_tid] = float(_val)
+                                except (ValueError, IndexError):
+                                    pass
+                        if len(_tscores) != 2:
+                            continue
+                        (_t1, _s1), (_t2, _s2) = list(_tscores.items())
+                        team_stats[_t1]["goals_scored"] += _s1
+                        team_stats[_t1]["goals_conceded"] += _s2
+                        team_stats[_t2]["goals_scored"] += _s2
+                        team_stats[_t2]["goals_conceded"] += _s1
+                        if _s1 > _s2:
+                            team_stats[_t1]["points"] += 3
+                            team_stats[_t1]["wins"] += 1
+                            team_stats[_t2]["losses"] += 1
+                        elif _s2 > _s1:
+                            team_stats[_t2]["points"] += 3
+                            team_stats[_t2]["wins"] += 1
+                            team_stats[_t1]["losses"] += 1
+                        else:
+                            team_stats[_t1]["points"] += 1
+                            team_stats[_t1]["ties"] += 1
+                            team_stats[_t2]["points"] += 1
+                            team_stats[_t2]["ties"] += 1
+                if not team_stats:
+                    raise ValueError("No round results found in TEAM HEAD_TO_HEAD sessions.")
+                _ranked = sorted(
+                    team_stats.items(),
+                    key=lambda x: (
+                        -x[1]["points"],
+                        -(x[1]["goals_scored"] - x[1]["goals_conceded"]),
+                        -x[1]["goals_scored"],
+                    ),
+                )
+                rankings = [
+                    {
+                        "team_id": _tid, "user_id": None, "rank": i + 1,
+                        "points": _st["points"], "wins": _st["wins"],
+                        "ties": _st["ties"], "losses": _st["losses"],
+                        "goals_for": _st["goals_scored"], "goals_against": _st["goals_conceded"],
+                    }
+                    for i, (_tid, _st) in enumerate(_ranked)
+                ]
+            else:
+                # Create ranking strategy
+                strategy = RankingStrategyFactory.create(
+                    tournament_format="HEAD_TO_HEAD",
+                    tournament_type_code=tournament_type_code
+                )
+
+                # Calculate rankings
+                rankings = strategy.calculate_rankings(sessions, db)
 
         else:
             # INDIVIDUAL_RANKING format — check whether TEAM or INDIVIDUAL participant_type
@@ -321,7 +392,8 @@ def get_tournament_rankings(
                     user_group_map[uid] = gid
 
     # Load reward data if tournament is REWARDS_DISTRIBUTED
-    reward_map: dict = {}  # user_id -> {"xp_earned": int, "credits_earned": int}
+    reward_map: dict = {}       # user_id  → per-user reward summary
+    team_reward_map: dict = {}  # team_id  → aggregated reward summary across members
     if tournament.tournament_status == "REWARDS_DISTRIBUTED":
         participation_rows = db.query(TournamentParticipation).filter(
             TournamentParticipation.semester_id == tournament_id
@@ -337,6 +409,14 @@ def get_tournament_rankings(
                     "skills_awarded": p.skill_points_awarded or {},
                     "skill_rating_delta": p.skill_rating_delta or {},
                 }
+                # Aggregate into team bucket when the participation is team-linked
+                if p.team_id:
+                    bucket = team_reward_map.setdefault(p.team_id, {
+                        "xp_earned": 0, "credits_earned": 0,
+                        "skills_awarded": {}, "skill_rating_delta": {},
+                    })
+                    bucket["xp_earned"] += p.xp_awarded or 0
+                    bucket["credits_earned"] += p.credits_awarded or 0
 
     # For INDIVIDUAL_RANKING tournaments, points = measured_value (set by ResultProcessor)
     is_ir_tournament = tournament.format == "INDIVIDUAL_RANKING"
@@ -396,16 +476,19 @@ def get_tournament_rankings(
             # Attach per-round breakdown if available (ROUNDS_BASED sessions)
             if r.user_id in user_round_results:
                 entry["round_results"] = user_round_results[r.user_id]
-        if reward_map:
-            # Always include reward fields when tournament is REWARDS_DISTRIBUTED,
-            # defaulting to empty/zero for users without a participation record
+        if reward_map or team_reward_map:
+            # Always include reward fields when tournament is REWARDS_DISTRIBUTED.
+            # TEAM rows aggregate across all active team members; INDIVIDUAL rows use per-user data.
             defaults = {
                 "xp_earned": 0,
                 "credits_earned": 0,
                 "skills_awarded": {},
                 "skill_rating_delta": {},
             }
-            defaults.update(reward_map.get(r.user_id, {}))
+            if r.team_id is not None:
+                defaults.update(team_reward_map.get(r.team_id, {}))
+            else:
+                defaults.update(reward_map.get(r.user_id, {}))
             entry.update(defaults)
         rankings_data.append(entry)
 
