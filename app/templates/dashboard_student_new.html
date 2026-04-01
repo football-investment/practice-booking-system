@@ -90,12 +90,16 @@
     .section-link { color: #667eea; font-size: 0.88rem; text-decoration: none; font-weight: 600; white-space: nowrap; }
     .section-link:hover { text-decoration: underline; }
 
-    /* ── Skill Snapshot ──────────────────────────────────────────────────────── */
+    /* ── Skill Snapshot (fallback, no LFA license) ───────────────────────────── */
     .s-snapshot-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.65rem; }
     .s-snap-label   { width: 130px; font-size: 0.85rem; color: #4a5568; text-transform: capitalize; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .s-snap-bar-wrap { flex: 1; height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
     .s-snap-bar     { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
     .s-snap-val     { width: 38px; text-align: right; font-size: 0.82rem; font-weight: 600; color: #2d3748; flex-shrink: 0; }
+
+    /* ── Player Card embed ────────────────────────────────────────────────────── */
+    .player-card-embed-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
+    .player-card-embed-wrap iframe { display: block; width: 100%; border: none; }
 
     /* ── Last Result ─────────────────────────────────────────────────────────── */
     .s-last-result-card { background: #f8faff; border-left: 4px solid #667eea; border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
@@ -252,7 +256,19 @@
         </div>
     </div>
 
-    {# ── Skill Snapshot ───────────────────────────────────────────────────────── #}
+    {# ── Player Card (LFA license) / Skill Snapshot fallback ─────────────────── #}
+    {% if user_license %}
+    <section class="section-block" style="padding: 1.25rem;">
+        <div class="section-header" style="margin-bottom: 0.75rem;">
+            <h2 class="page-title">🪪 My Player Card</h2>
+            <a href="/players/{{ user.id }}/card" target="_blank" class="section-link">🌐 Open full screen →</a>
+        </div>
+        <div class="player-card-embed-wrap">
+            <iframe src="/players/{{ user.id }}/card" height="920" scrolling="no"
+                    title="My Player Card"></iframe>
+        </div>
+    </section>
+    {% else %}
     <section class="section-block">
         <div class="section-header">
             <h2 class="page-title">📊 Skill Snapshot</h2>
@@ -262,6 +278,7 @@
             <div class="s-loading"><span class="s-spinner"></span> Loading…</div>
         </div>
     </section>
+    {% endif %}
 
     {# ── Last Skill Event ─────────────────────────────────────────────────────── #}
     <section class="section-block">
@@ -387,17 +404,20 @@
             document.getElementById('kpi-tournaments').textContent =
                 data.total_tournaments !== undefined ? data.total_tournaments : '—';
 
+            // Fallback snapshot (only rendered when no LFA license)
+            const snapEl = document.getElementById('s-snapshot');
+            if (!snapEl) return;
+
             const sorted = Object.entries(data.skills || {})
                 .sort((a, b) => b[1].current_level - a[1].current_level)
                 .slice(0, 5);
 
             if (sorted.length === 0) {
-                document.getElementById('s-snapshot').innerHTML =
-                    '<p style="color:#a0aec0;font-size:0.9rem;">No skill data available yet.</p>';
+                snapEl.innerHTML = '<p style="color:#a0aec0;font-size:0.9rem;">No skill data available yet.</p>';
                 return;
             }
 
-            const rows = sorted.map(([key, s]) => {
+            snapEl.innerHTML = sorted.map(([key, s]) => {
                 const color = TIER_COLORS[s.tier] || '#667eea';
                 const width = barWidth(s.current_level);
                 return `<div class="s-snapshot-row">
@@ -409,13 +429,11 @@
                 </div>`;
             }).join('');
 
-            document.getElementById('s-snapshot').innerHTML = rows;
-
         } catch (err) {
             document.getElementById('kpi-avg').textContent = '—';
             document.getElementById('kpi-tournaments').textContent = '—';
-            document.getElementById('s-snapshot').innerHTML =
-                '<p style="color:#e74c3c;font-size:0.85rem;">Could not load skill data.</p>';
+            const snapEl = document.getElementById('s-snapshot');
+            if (snapEl) snapEl.innerHTML = '<p style="color:#e74c3c;font-size:0.85rem;">Could not load skill data.</p>';
         }
     }
 
