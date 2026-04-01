@@ -1,0 +1,134 @@
+name: Player Card — Public Route & Theme Tests (PC-01..04)
+
+on:
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/api/web_routes/public_player.py'
+      - 'app/api/web_routes/dashboard.py'
+      - 'app/services/card_theme_service.py'
+      - 'app/models/license.py'
+      - 'app/templates/public/player_card.html'
+      - 'app/templates/dashboard_student_new.html'
+      - 'alembic/versions/2026_04_01_card_theme.py'
+      - 'tests/integration/web_flows/test_player_card_themes.py'
+      - '.github/workflows/player-card-public.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: player-card-themes-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-player-card-secret-not-for-production
+
+jobs:
+  player-card-integration:
+    name: "PC-01..04 — Public card route + theme apply/lock/arctic"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-player-card-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Migrate DB
+        run: alembic upgrade head
+
+      - name: Verify card_theme migration schema
+        run: |
+          python - <<'PYEOF'
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ["DATABASE_URL"])
+          cur = conn.cursor()
+          cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name='user_licenses'
+            AND column_name IN ('card_theme', 'unlocked_card_themes')
+          """)
+          cols = [r[0] for r in cur.fetchall()]
+          assert 'card_theme' in cols, "card_theme column missing from user_licenses"
+          assert 'unlocked_card_themes' in cols, "unlocked_card_themes column missing from user_licenses"
+          conn.close()
+          print("✅ Schema verified: card_theme + unlocked_card_themes present in user_licenses")
+          PYEOF
+
+      - name: Run PC-01..04 integration tests
+        run: |
+          mkdir -p results
+          PYTHONPATH=. pytest tests/integration/web_flows/test_player_card_themes.py \
+            -v --tb=short \
+            --junitxml=results/player-card-themes.xml
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-player-card-${{ github.run_id }}
+          path: results/*.xml
+          retention-days: 14
+
+  player-card-gate:
+    name: "Player Card Feature Gate"
+    runs-on: ubuntu-latest
+    needs: [player-card-integration]
+    if: always()
+
+    steps:
+      - name: Gate check
+        run: |
+          echo "## Player Card Theme Integration Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Covers | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| PC-01 | GET /players/{uid}/card → 200 + fifa-left HTML | ${{ needs.player-card-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PC-02 | POST /dashboard/card-theme free theme → ok:true | ${{ needs.player-card-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PC-03 | POST /dashboard/card-theme locked premium → 400 | ${{ needs.player-card-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PC-04 | GET /players/{uid}/card arctic → body class=theme-arctic | ${{ needs.player-card-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          RESULT="${{ needs.player-card-integration.result }}"
+          if [ "$RESULT" = "success" ]; then
+            echo "### ✅ Player Card tests PASSED — safe to merge" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Player Card gate FAILED — do not merge" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

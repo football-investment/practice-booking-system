@@ -3,10 +3,8 @@ Player Card Theme Service
 =========================
 Manages colour themes for the public LFA Football Player card.
 
-Free themes (default, midnight) are always available.
-Premium themes (gold, emerald, crimson) require credit purchase in the future
-— the scaffold (THEME_CREDIT_COST, unlocked_card_themes, unlock_theme) is
-already in place; the actual credit deduction is a TODO.
+Free themes (default, midnight, arctic) are always available.
+Premium themes (gold, emerald, crimson) require credit purchase.
 
 Adding a new theme requires only:
   1. A new entry in THEMES below
@@ -14,7 +12,7 @@ Adding a new theme requires only:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 
@@ -47,6 +45,12 @@ THEMES: dict[str, ThemeDefinition] = {
         body_bg="#0f0f0f", tab_bg="#1a1a1a", accent="#00d4ff",
         dot_color="#00d4ff",
     ),
+    "arctic": ThemeDefinition(
+        id="arctic", label="Arctic", is_premium=False, credit_cost=0,
+        panel_bg="linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%)",
+        body_bg="#f7fafc", tab_bg="#edf2f7", accent="#4299e1",
+        dot_color="#4299e1",
+    ),
     "gold": ThemeDefinition(
         id="gold", label="Gold", is_premium=True, credit_cost=500,
         panel_bg="linear-gradient(155deg, #1a1000 0%, #2d2000 60%, #1a1500 100%)",
@@ -68,7 +72,7 @@ THEMES: dict[str, ThemeDefinition] = {
 }
 
 # Ordered list for the picker UI (free first, then premium)
-THEME_ORDER = ["default", "midnight", "gold", "emerald", "crimson"]
+THEME_ORDER = ["default", "midnight", "arctic", "gold", "emerald", "crimson"]
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -116,8 +120,9 @@ def apply_theme(db, user_license, theme_id: str) -> None:
 
 def unlock_theme(db, user_license, theme_id: str) -> None:
     """
-    Unlock a premium theme for the user.
-    TODO: deduct credit_cost from user_license.credit_balance when billing is ready.
+    Unlock a premium theme for the user, deducting the credit cost.
+    Raises ValueError if theme unknown, already unlocked (idempotent skip),
+    or insufficient credit balance.
     """
     if theme_id not in THEMES:
         raise ValueError(f"Unknown theme: {theme_id!r}")
@@ -125,7 +130,13 @@ def unlock_theme(db, user_license, theme_id: str) -> None:
     if not theme.is_premium:
         return  # free themes don't need unlocking
     unlocked: list = list(user_license.unlocked_card_themes or [])
-    if theme_id not in unlocked:
-        unlocked.append(theme_id)
-        user_license.unlocked_card_themes = unlocked
-        db.commit()
+    if theme_id in unlocked:
+        return  # already unlocked — idempotent
+    if user_license.credit_balance < theme.credit_cost:
+        raise ValueError(
+            f"Insufficient credits. Need {theme.credit_cost}, have {user_license.credit_balance}"
+        )
+    user_license.credit_balance -= theme.credit_cost
+    unlocked.append(theme_id)
+    user_license.unlocked_card_themes = unlocked
+    db.commit()

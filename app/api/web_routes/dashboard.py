@@ -594,12 +594,21 @@ async def student_delete_player_photo(
 # PLAYER CARD THEME  (student self-service)
 # ══════════════════════════════════════════════════════════════════════════════
 
-from ...services.card_theme_service import apply_theme as _apply_theme  # noqa: E402
+from ...services.card_theme_service import apply_theme as _apply_theme, unlock_theme as _unlock_theme  # noqa: E402
 from pydantic import BaseModel as _BaseModel  # noqa: E402
 
 
 class _CardThemeRequest(_BaseModel):
     theme: str
+
+
+def _get_lfa_license(db, user_id: int):
+    """Return the active LFA Football Player license, or None."""
+    return db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
 
 
 @router.post("/dashboard/card-theme")
@@ -609,15 +618,29 @@ async def student_set_card_theme(
     user: User = Depends(get_current_user_web),
 ):
     """Update the active colour theme for the authenticated student's player card."""
-    lfa_license = db.query(UserLicense).filter(
-        UserLicense.user_id == user.id,
-        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
-        UserLicense.is_active == True,
-    ).first()
+    lfa_license = _get_lfa_license(db, user.id)
     if not lfa_license:
         return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
     try:
         _apply_theme(db, lfa_license, payload.theme)
         return JSONResponse({"ok": True, "theme": payload.theme})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/dashboard/unlock-theme")
+async def student_unlock_theme(
+    payload: _CardThemeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Unlock a premium card theme by spending credits."""
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+    try:
+        _unlock_theme(db, lfa_license, payload.theme)
+        return JSONResponse({"ok": True, "theme": payload.theme,
+                             "new_balance": lfa_license.credit_balance})
     except ValueError as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)

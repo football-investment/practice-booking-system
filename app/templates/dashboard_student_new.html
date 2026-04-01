@@ -102,7 +102,8 @@
     .player-card-embed-wrap iframe { display: block; width: 100%; border: none; }
 
     /* ── Theme picker ─────────────────────────────────────────────────────────── */
-    .theme-picker { display: flex; align-items: center; gap: 0.45rem; }
+    .theme-picker { display: flex; align-items: flex-end; gap: 0.45rem; flex-wrap: wrap; }
+    .theme-dot-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
     .theme-dot {
         width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
         border: 2px solid transparent; transition: border-color .15s, transform .15s;
@@ -116,6 +117,12 @@
         position: absolute; top: -5px; right: -5px;
         font-size: 0.5rem; line-height: 1; pointer-events: none;
     }
+    .theme-unlock-btn {
+        font-size: 0.45rem; padding: 1px 4px; border-radius: 99px;
+        background: rgba(255,255,255,0.12); border: none; color: rgba(255,255,255,0.65);
+        cursor: pointer; white-space: nowrap; line-height: 1.5;
+    }
+    .theme-unlock-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
 
     /* ── 2-column main layout ─────────────────────────────────────────────────── */
     .dash-main-grid {
@@ -258,12 +265,21 @@
                     {# ── Theme picker ── #}
                     <div class="theme-picker" id="theme-picker">
                         {% for t in card_themes %}
-                        <button class="theme-dot {% if t.id == active_card_theme %}active{% endif %} {% if not t.unlocked %}locked{% endif %}"
-                                style="background: {{ t.dot_color }};"
-                                title="{{ t.label }}{% if t.is_premium and not t.unlocked %} (🔒 {{ t.credit_cost }} CR){% endif %}"
-                                onclick="setCardTheme('{{ t.id }}', {{ 'true' if t.unlocked else 'false' }})">
-                            {% if t.is_premium and not t.unlocked %}<span class="lock-icon">🔒</span>{% endif %}
-                        </button>
+                        <div class="theme-dot-wrap">
+                            <button class="theme-dot {% if t.id == active_card_theme %}active{% endif %} {% if not t.unlocked %}locked{% endif %}"
+                                    style="background: {{ t.dot_color }};"
+                                    title="{{ t.label }}{% if t.is_premium and not t.unlocked %} (🔒 {{ t.credit_cost }} CR){% endif %}"
+                                    onclick="setCardTheme('{{ t.id }}', {{ 'true' if t.unlocked else 'false' }})">
+                                {% if t.is_premium and not t.unlocked %}<span class="lock-icon">🔒</span>{% endif %}
+                            </button>
+                            {% if t.is_premium and not t.unlocked %}
+                            <button class="theme-unlock-btn"
+                                    onclick="unlockTheme('{{ t.id }}', '{{ t.label }}', {{ t.credit_cost }})"
+                                    title="Unlock {{ t.label }} for {{ t.credit_cost }} CR">
+                                🔓 {{ t.credit_cost }}
+                            </button>
+                            {% endif %}
+                        </div>
                         {% endfor %}
                     </div>
                     <a href="/players/{{ user.id }}/card" target="_blank" class="section-link">🌐 Open full screen →</a>
@@ -551,11 +567,25 @@
 </script>
 
 <script>
+async function unlockTheme(themeId, label, cost) {
+    if (!confirm(`Unlock "${label}" for ${cost} CR from your credit balance?`)) return;
+    const csrf = (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];
+    const r = await fetch('/dashboard/unlock-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({ theme: themeId }),
+    });
+    const data = await r.json();
+    if (data.ok) {
+        location.reload();
+    } else {
+        alert('❌ ' + (data.error || 'Could not unlock theme.'));
+    }
+}
+
 async function setCardTheme(themeId, unlocked) {
     if (!unlocked) {
-        const btn = document.querySelector(`.theme-dot[onclick*="'${themeId}'"]`);
-        const title = btn ? btn.title : '';
-        alert('🔒 ' + (title || 'This theme requires credits to unlock.'));
+        alert('🔒 This theme is locked. Use the 🔓 unlock button below the dot to purchase it.');
         return;
     }
     const csrf = (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];

@@ -21,6 +21,12 @@
     --card-cat-bg:    rgba(255,255,255,0.04);
     --card-tab-border: rgba(255,255,255,0.08);
     --card-ev-border: rgba(255,255,255,0.05);
+    /* Text colour tokens — override in light themes */
+    --card-text-primary:   rgba(255,255,255,0.88);
+    --card-text-secondary: rgba(255,255,255,0.60);
+    --card-text-muted:     rgba(255,255,255,0.40);
+    --card-text-faint:     rgba(255,255,255,0.35);
+    --card-text-tab:       rgba(255,255,255,0.50);
 }
 
 /* ── Theme overrides ─────────────────────────────────────────────────────── */
@@ -52,6 +58,23 @@
     --card-accent:    #fc8181;
     --card-page-bg:   #0f0505;
 }
+.theme-arctic {
+    --card-body-bg:        #f7fafc;
+    --card-tab-bg:         #edf2f7;
+    --card-accent:         #4299e1;
+    --card-page-bg:        #e2e8f0;
+    --card-border:         rgba(0,0,0,0.08);
+    --card-bar-bg:         rgba(0,0,0,0.06);
+    --card-bar-neutral:    rgba(0,0,0,0.10);
+    --card-cat-bg:         rgba(0,0,0,0.03);
+    --card-tab-border:     rgba(0,0,0,0.08);
+    --card-ev-border:      rgba(0,0,0,0.06);
+    --card-text-primary:   rgba(0,0,0,0.85);
+    --card-text-secondary: rgba(0,0,0,0.55);
+    --card-text-muted:     rgba(0,0,0,0.40);
+    --card-text-faint:     rgba(0,0,0,0.30);
+    --card-text-tab:       rgba(0,0,0,0.45);
+}
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { overflow-x: hidden; }
@@ -69,7 +92,7 @@ body {
 }
 .page-brand {
     font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
-    text-transform: uppercase; color: rgba(255,255,255,0.35);
+    text-transform: uppercase; color: var(--card-text-faint);
     margin-bottom: 1.25rem; text-align: center;
 }
 .card-wrap {
@@ -140,7 +163,7 @@ body {
 }
 .skills-title {
     font-size: 0.63rem; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.13em; color: rgba(255,255,255,0.35);
+    letter-spacing: 0.13em; color: var(--card-text-faint);
     margin-bottom: 0.85rem;
 }
 .skill-cats {
@@ -150,12 +173,12 @@ body {
 .skill-cat { background: var(--card-cat-bg); border-radius: 9px; padding: 0.65rem; min-width: 0; }
 .skill-cat-name {
     font-size: 0.58rem; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.09em; color: rgba(255,255,255,0.4); margin-bottom: 0.45rem;
+    letter-spacing: 0.09em; color: var(--card-text-muted); margin-bottom: 0.45rem;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .skill-row { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.3rem; }
 .skill-row:last-child { margin-bottom: 0; }
-.skill-name { font-size: 0.62rem; color: rgba(255,255,255,0.6); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skill-name { font-size: 0.62rem; color: var(--card-text-secondary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .skill-val { font-size: 0.67rem; font-weight: 700; width: 28px; text-align: right; flex-shrink: 0; }
 .skill-up { font-size: 0.6rem; color: #48bb78; font-weight: 900; flex-shrink: 0; line-height: 1; }
 .skill-bar-bg { flex: 0 1 36px; height: 4px; background: var(--card-bar-bg); border-radius: 2px; }
@@ -172,7 +195,7 @@ body {
     padding: 0.55rem 1rem;
     background: none;
     border: none;
-    color: rgba(255,255,255,0.5);
+    color: var(--card-text-tab);
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
@@ -194,7 +217,7 @@ body {
 .ev-rank { min-width: 2rem; font-size: 1.1rem; text-align: center; padding-top: 0.05rem; }
 .ev-body { flex: 1; min-width: 0; }
 .ev-name { margin-bottom: 0.2rem; }
-.ev-link { color: rgba(255,255,255,0.88); font-size: 0.82rem; font-weight: 600; text-decoration: none; }
+.ev-link { color: var(--card-text-primary); font-size: 0.82rem; font-weight: 600; text-decoration: none; }
 .ev-link:hover { text-decoration: underline; }
 .ev-rewards { display: flex; gap: 0.3rem; margin-bottom: 0.25rem; flex-wrap: wrap; }
 .ev-badge { font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 99px; }
@@ -204,7 +227,7 @@ body {
 .ev-skill-pill { font-size: 0.65rem; padding: 1px 6px; border-radius: 99px; }
 .ev-skill-pill.up { background: rgba(72,187,120,0.15); color: #9ae6b4; }
 .ev-skill-pill.dn { background: rgba(252,129,129,0.15); color: #feb2b2; }
-.ev-empty { text-align: center; color: rgba(255,255,255,0.3); font-size: 0.8rem; padding: 2rem 0; }
+.ev-empty { text-align: center; color: var(--card-text-faint); font-size: 0.8rem; padding: 2rem 0; }
 
 /* ── Responsive ─────────────────────────────────────────────
    Breakpoints:
