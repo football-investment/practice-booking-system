@@ -1,6 +1,16 @@
 name: Dark Mode CSS Validation (DM-STATIC-01..06 + DM-01..06)
 
 on:
+  push:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/static/css/**'
+      - 'app/templates/base.html'
+      - 'app/templates/admin/admin_base.html'
+      - 'app/templates/dashboard_student_new.html'
+      - 'scripts/validate_dark_mode_css.py'
+      - 'tests/integration/web_flows/test_dark_mode_coverage.py'
+      - '.github/workflows/dark-mode-validation.yml'
   pull_request:
     branches: [main, develop, "feature/*", "fix/*"]
     paths:
