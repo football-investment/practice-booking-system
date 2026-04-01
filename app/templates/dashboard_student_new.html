@@ -102,8 +102,7 @@
     .player-card-embed-wrap iframe { display: block; width: 100%; border: none; }
 
     /* ── Theme picker ─────────────────────────────────────────────────────────── */
-    .theme-picker { display: flex; align-items: flex-end; gap: 0.45rem; flex-wrap: wrap; }
-    .theme-dot-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+    .theme-picker { display: flex; align-items: center; gap: 0.45rem; flex-wrap: nowrap; }
     .theme-dot {
         width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
         border: 2px solid transparent; transition: border-color .15s, transform .15s;
@@ -111,18 +110,12 @@
     }
     .theme-dot:hover { transform: scale(1.2); }
     .theme-dot.active { border-color: white; box-shadow: 0 0 0 2px rgba(255,255,255,0.35); }
-    .theme-dot.locked { opacity: 0.45; cursor: not-allowed; }
-    .theme-dot.locked:hover { transform: none; }
+    .theme-dot.locked { opacity: 0.55; cursor: pointer; }
+    .theme-dot.locked:hover { transform: scale(1.15); opacity: 0.8; }
     .theme-dot .lock-icon {
         position: absolute; top: -5px; right: -5px;
         font-size: 0.5rem; line-height: 1; pointer-events: none;
     }
-    .theme-unlock-btn {
-        font-size: 0.45rem; padding: 1px 4px; border-radius: 99px;
-        background: rgba(255,255,255,0.12); border: none; color: rgba(255,255,255,0.65);
-        cursor: pointer; white-space: nowrap; line-height: 1.5;
-    }
-    .theme-unlock-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
 
     /* ── 2-column main layout ─────────────────────────────────────────────────── */
     .dash-main-grid {
@@ -265,21 +258,12 @@
                     {# ── Theme picker ── #}
                     <div class="theme-picker" id="theme-picker">
                         {% for t in card_themes %}
-                        <div class="theme-dot-wrap">
-                            <button class="theme-dot {% if t.id == active_card_theme %}active{% endif %} {% if not t.unlocked %}locked{% endif %}"
-                                    style="background: {{ t.dot_color }};"
-                                    title="{{ t.label }}{% if t.is_premium and not t.unlocked %} (🔒 {{ t.credit_cost }} CR){% endif %}"
-                                    onclick="setCardTheme('{{ t.id }}', {{ 'true' if t.unlocked else 'false' }})">
-                                {% if t.is_premium and not t.unlocked %}<span class="lock-icon">🔒</span>{% endif %}
-                            </button>
-                            {% if t.is_premium and not t.unlocked %}
-                            <button class="theme-unlock-btn"
-                                    onclick="unlockTheme('{{ t.id }}', '{{ t.label }}', {{ t.credit_cost }})"
-                                    title="Unlock {{ t.label }} for {{ t.credit_cost }} CR">
-                                🔓 {{ t.credit_cost }}
-                            </button>
-                            {% endif %}
-                        </div>
+                        <button class="theme-dot {% if t.id == active_card_theme %}active{% endif %} {% if not t.unlocked %}locked{% endif %}"
+                                style="background: {{ t.dot_color }};"
+                                title="{{ t.label }}{% if t.is_premium and not t.unlocked %} · 🔓 Unlock for {{ t.credit_cost }} CR{% endif %}"
+                                onclick="setCardTheme('{{ t.id }}', {{ 'true' if t.unlocked else 'false' }}, '{{ t.label }}', {{ t.credit_cost }})">
+                            {% if t.is_premium and not t.unlocked %}<span class="lock-icon">🔒</span>{% endif %}
+                        </button>
                         {% endfor %}
                     </div>
                     <a href="/players/{{ user.id }}/card" target="_blank" class="section-link">🌐 Open full screen →</a>
@@ -583,9 +567,9 @@ async function unlockTheme(themeId, label, cost) {
     }
 }
 
-async function setCardTheme(themeId, unlocked) {
+async function setCardTheme(themeId, unlocked, label, cost) {
     if (!unlocked) {
-        alert('🔒 This theme is locked. Use the 🔓 unlock button below the dot to purchase it.');
+        await unlockTheme(themeId, label, cost);
         return;
     }
     const csrf = (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];

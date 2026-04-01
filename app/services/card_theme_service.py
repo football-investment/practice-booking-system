@@ -118,11 +118,11 @@ def apply_theme(db, user_license, theme_id: str) -> None:
     db.commit()
 
 
-def unlock_theme(db, user_license, theme_id: str) -> None:
+def unlock_theme(db, user, user_license, theme_id: str) -> None:
     """
-    Unlock a premium theme for the user, deducting the credit cost.
-    Raises ValueError if theme unknown, already unlocked (idempotent skip),
-    or insufficient credit balance.
+    Unlock a premium theme for the user, deducting the credit cost from
+    user.credit_balance (the canonical balance shown in the dashboard KPI).
+    Raises ValueError if theme unknown, already unlocked, or insufficient balance.
     """
     if theme_id not in THEMES:
         raise ValueError(f"Unknown theme: {theme_id!r}")
@@ -132,11 +132,11 @@ def unlock_theme(db, user_license, theme_id: str) -> None:
     unlocked: list = list(user_license.unlocked_card_themes or [])
     if theme_id in unlocked:
         return  # already unlocked — idempotent
-    if user_license.credit_balance < theme.credit_cost:
+    if user.credit_balance < theme.credit_cost:
         raise ValueError(
-            f"Insufficient credits. Need {theme.credit_cost}, have {user_license.credit_balance}"
+            f"Insufficient credits. Need {theme.credit_cost}, have {user.credit_balance}"
         )
-    user_license.credit_balance -= theme.credit_cost
+    user.credit_balance -= theme.credit_cost
     unlocked.append(theme_id)
     user_license.unlocked_card_themes = unlocked
     db.commit()

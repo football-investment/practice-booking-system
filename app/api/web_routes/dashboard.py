@@ -639,8 +639,8 @@ async def student_unlock_theme(
     if not lfa_license:
         return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
     try:
-        _unlock_theme(db, lfa_license, payload.theme)
+        _unlock_theme(db, user, lfa_license, payload.theme)
         return JSONResponse({"ok": True, "theme": payload.theme,
-                             "new_balance": lfa_license.credit_balance})
+                             "new_balance": user.credit_balance})
     except ValueError as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
