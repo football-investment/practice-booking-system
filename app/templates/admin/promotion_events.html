@@ -133,8 +133,10 @@
     white-space: nowrap;
     flex-shrink: 0;
 }
-.fmt-chip  { background: #e9d8fd; color: #553c9a; }
-.type-chip { background: #e6fffa; color: #234e52; }
+.fmt-chip      { background: #e9d8fd; color: #553c9a; }
+.type-chip     { background: #e6fffa; color: #234e52; }
+.scoring-chip  { background: #fef3c7; color: #92400e; }
+.direction-chip{ background: #dbeafe; color: #1e40af; }
 
 /* ── Warning flag ─────────────────────────────────────────────── */
 .warn-flag {
@@ -293,8 +295,12 @@
                 <span class="meta-sep">·</span>
                 {% endif %}
                 {% if t.age_group %}<span class="ag-chip">{{ t.age_group }}</span><span class="meta-sep">·</span>{% endif %}
-                {% if info.fmt %}<span class="ag-chip fmt-chip">{% if info.fmt == 'HEAD_TO_HEAD' %}H2H{% else %}Indiv.{% endif %}</span><span class="meta-sep">·</span>{% endif %}
-                {% if info.type_code %}<span class="ag-chip type-chip">{% if info.type_code == 'league' %}League{% elif info.type_code == 'knockout' %}Knockout{% elif info.type_code == 'group_knockout' %}Group+KO{% elif info.type_code == 'swiss' %}Swiss{% else %}{{ info.type_code }}{% endif %}</span><span class="meta-sep">·</span>{% endif %}
+                <span class="ag-chip type-chip">{% if info.type_code == 'league' %}League{% elif info.type_code == 'knockout' %}Knockout{% elif info.type_code == 'group_knockout' %}Group+KO{% elif info.type_code == 'swiss' %}Swiss{% elif info.type_code %}{{ info.type_code }}{% else %}IR{% endif %}</span><span class="meta-sep">·</span>
+                <span class="ag-chip fmt-chip">{% if info.participant_type == 'TEAM' %}Teams{% else %}Indiv.{% endif %}</span><span class="meta-sep">·</span>
+                {% if info.fmt == 'INDIVIDUAL_RANKING' %}
+                {% if info.scoring_type %}<span class="ag-chip scoring-chip">{%- if info.scoring_type == 'SCORE_BASED' -%}Score{%- elif info.scoring_type == 'TIME_BASED' -%}Time{%- elif info.scoring_type == 'DISTANCE_BASED' -%}Distance{%- else -%}Ranking{%- endif -%}{%- if info.measurement_unit %} ({{ info.measurement_unit }}){%- endif -%}</span><span class="meta-sep">·</span>{% endif %}
+                {% if info.ranking_direction %}<span class="ag-chip direction-chip">{%- if info.ranking_direction == 'DESC' -%}↑ High wins{%- else -%}↓ Low wins{%- endif -%}</span><span class="meta-sep">·</span>{% endif %}
+                {% endif %}
                 {% if t.start_date %}
                 {{ t.start_date.strftime('%Y. %m. %d.') }}{% if t.end_date %} – {{ t.end_date.strftime('%m. %d.') }}{% endif %}
                 <span class="meta-sep">·</span>

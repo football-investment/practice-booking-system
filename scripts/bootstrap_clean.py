@@ -22,7 +22,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import date, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -130,6 +130,62 @@ _PRESETS = [
             "simulation_config": {},
         },
     },
+    {
+        "code": "sprint_relay",
+        "name": "Sprint & Relay Race",
+        "description": (
+            "For relay race, 100m sprint, and cross-country team events. "
+            "Focuses on speed, endurance, and explosive physical output."
+        ),
+        "is_recommended": False,
+        "is_locked": False,
+        "game_config": {
+            "version": "1.0",
+            "metadata": {
+                "game_category": "ATHLETICS",
+                "difficulty_level": "intermediate",
+                "min_players": 3,
+                "recommended_player_count": {"min": 10, "max": 40},
+            },
+            "skill_config": {
+                "skills_tested": ["sprint_speed", "stamina", "agility", "strength", "reactions", "acceleration"],
+                "skill_weights": {
+                    "sprint_speed": 2.0, "stamina": 1.5, "agility": 1.2,
+                    "acceleration": 1.3, "strength": 1.0, "reactions": 1.0,
+                },
+            },
+            "format_config": {},
+            "simulation_config": {},
+        },
+    },
+    {
+        "code": "strength_challenge",
+        "name": "Strength & Endurance Challenge",
+        "description": (
+            "For push-up, pull-up, and bodyweight endurance challenges. "
+            "Focuses on upper body strength, stamina, and mental composure."
+        ),
+        "is_recommended": False,
+        "is_locked": False,
+        "game_config": {
+            "version": "1.0",
+            "metadata": {
+                "game_category": "ATHLETICS",
+                "difficulty_level": "intermediate",
+                "min_players": 3,
+                "recommended_player_count": {"min": 10, "max": 40},
+            },
+            "skill_config": {
+                "skills_tested": ["strength", "stamina", "composure", "reactions", "balance"],
+                "skill_weights": {
+                    "strength": 2.0, "stamina": 1.5, "composure": 1.0,
+                    "reactions": 0.8, "balance": 0.7,
+                },
+            },
+            "format_config": {},
+            "simulation_config": {},
+        },
+    },
 ]
 
 # ── Bootstrap Club definition ─────────────────────────────────────────────────
@@ -138,9 +194,9 @@ _CLUB_NAME = "LFA_BOOTSTRAP_CLUB"
 
 # 3 age-group teams × 12 players each = 36 total
 _TEAMS = [
-    {"name": "LFA U15",   "age_group_label": "U15",   "skill_base": 63.0},
-    {"name": "LFA U18",   "age_group_label": "U18",   "skill_base": 68.0},
-    {"name": "LFA Adult", "age_group_label": "ADULT", "skill_base": 72.0},
+    {"name": "LFA U15",   "age_group_label": "U15",   "skill_base": 63.0, "dob": date(2010, 6, 1)},
+    {"name": "LFA U18",   "age_group_label": "U18",   "skill_base": 68.0, "dob": date(2007, 6, 1)},
+    {"name": "LFA Adult", "age_group_label": "ADULT", "skill_base": 72.0, "dob": date(1995, 6, 1)},
 ]
 
 # 12 unique UK English names per age group (36 total, no cross-group overlap)
@@ -379,12 +435,23 @@ def _seed_bootstrap_club(db) -> Club:
                 goals = _GOALS[idx % len(_GOALS)]
                 user = User(
                     name=f"{first} {last}",
+                    first_name=first,
+                    last_name=last,
+                    nickname=first,
                     email=email,
                     password_hash=get_password_hash("Bootstrap#123"),
                     role=UserRole.STUDENT,
                     is_active=True,
                     onboarding_completed=True,
                     credit_balance=1000,
+                    date_of_birth=tdef["dob"],
+                    nationality="British",
+                    gender="Male",
+                    phone=f"+44 7700 9{idx:05d}",
+                    street_address="1 Academy Way",
+                    city="London",
+                    postal_code="EC1A 1BB",
+                    country="United Kingdom",
                 )
                 db.add(user)
                 db.flush()

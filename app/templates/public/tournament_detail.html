@@ -357,6 +357,48 @@ body {
 }
 .match-done .match-vs { color: #68d391; background: rgba(72,187,120,0.13); }
 .match-date { font-size: 0.68rem; color: rgba(255,255,255,0.3); white-space: nowrap; flex-shrink: 0; }
+
+/* ── IR scoring logic banner ──────────────────────────────── */
+.ir-logic-banner {
+    font-size: 0.72rem; font-weight: 700;
+    color: rgba(255,255,255,0.4);
+    padding: 0.35rem 0 0.55rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    margin-bottom: 0.5rem;
+}
+
+/* ── IR results grid (flat, no vs) ───────────────────────── */
+.ir-results-grid { display: flex; flex-direction: column; gap: 0.25rem; }
+.ir-result-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.35rem 0.6rem;
+    background: rgba(255,255,255,0.03); border-radius: 6px;
+}
+.ir-label { font-size: 0.82rem; font-weight: 600; color: #e2e8f0; }
+.ir-score {
+    font-size: 0.82rem; font-weight: 800; color: #a3b3f7;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Team member pills (IR+TEAM) ──────────────────────────── */
+.member-list {
+    display: flex; flex-wrap: wrap; gap: 0.25rem 0.4rem;
+    padding: 0.3rem 0 0.1rem 1.4rem;
+}
+.member-pill {
+    font-size: 0.67rem; color: rgba(255,255,255,0.42);
+    background: rgba(255,255,255,0.04);
+    border-radius: 99px; padding: 2px 8px;
+}
+.member-pill.captain { color: #ecc94b; }
+
+/* ── IR individual player table ──────────────────────────── */
+.ir-team-col { width: 28%; }
+.ir-team-tag {
+    font-size: 0.7rem; color: rgba(255,255,255,0.45);
+    background: rgba(255,255,255,0.05); border-radius: 4px;
+    padding: 2px 7px; white-space: nowrap;
+}
 </style>
 </head>
 <body>
@@ -409,6 +451,19 @@ body {
                 <span class="info-label">Participants</span>
                 <span class="info-value">👥 {{ enrolled_count }}{% if max_players %} / {{ max_players }}{% endif %}</span>
             </div>
+            {% if tournament_format == 'INDIVIDUAL_RANKING' and scoring_type %}
+            <div class="info-cell">
+                <span class="info-label">Scoring</span>
+                <span class="info-value">
+                    {%- if scoring_type == 'TIME_BASED' %}⏱ Time
+                    {%- elif scoring_type == 'SCORE_BASED' %}🔢 Score
+                    {%- elif scoring_type == 'DISTANCE_BASED' %}📏 Distance
+                    {%- else %}📊 Ranking{% endif -%}
+                    {%- if measurement_unit %} ({{ measurement_unit }}){%- endif %}
+                    · {% if ranking_direction == 'ASC' %}↓ low wins{% else %}↑ high wins{% endif %}
+                </span>
+            </div>
+            {% endif %}
             {% if match_duration %}
             <div class="info-cell">
                 <span class="info-label">Match Time</span>
@@ -567,7 +622,13 @@ body {
                 </span>
                 <span class="podium-name">{{ row.name }}</span>
                 {% if row.club_name %}<span class="podium-sub">{{ row.club_name }}</span>{% endif %}
-                <span class="podium-sub">{{ row.points | int }} pts</span>
+                <span class="podium-sub">
+                    {%- if tournament_format == 'INDIVIDUAL_RANKING' -%}
+                        {{ row.points }}{% if measurement_unit %} {{ measurement_unit }}{% endif %}
+                    {%- else -%}
+                        {{ row.points | int }} pts
+                    {%- endif -%}
+                </span>
             </div>
             {% endfor %}
         </div>
@@ -616,8 +677,60 @@ body {
     </div>
     {% endif %}
 
-    {# ── Match schedule / draw (shown when sessions exist) ── #}
-    {% if schedule %}
+    {# ── IR event results (shown for INDIVIDUAL_RANKING sessions) ── #}
+    {% if tournament_format == 'INDIVIDUAL_RANKING' and ir_results %}
+    <div class="section">
+        <div class="section-title">📊 Event Results</div>
+        {% for res in ir_results %}
+        {% if res.done %}
+            {% if res.player_entries %}
+            {# Per-player individual table — cross-country / positional model #}
+            <table class="rankings-table" style="margin-bottom: 0.5rem;">
+                <thead>
+                    <tr>
+                        <th class="rank-col">#</th>
+                        <th>Player</th>
+                        <th class="ir-team-col">Team</th>
+                        <th class="num">{{ measurement_unit or 'Score' }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pe in res.player_entries %}
+                    <tr>
+                        <td class="rank-col">
+                            {% if pe.position == 1 %}🥇
+                            {% elif pe.position == 2 %}🥈
+                            {% elif pe.position == 3 %}🥉
+                            {% elif pe.position %}{{ pe.position }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td><div class="participant-name"><a href="/players/{{ pe.user_id }}/card" style="color:inherit;font-weight:600;text-decoration:underline;text-decoration-color:rgba(255,255,255,.25);">{{ pe.name }}</a></div></td>
+                        <td><span class="ir-team-tag">{{ pe.team_name }}</span></td>
+                        <td class="num">
+                            <span class="pts-badge">{% if pe.score is not none %}{{ pe.score }}{% else %}—{% endif %}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            {# Fallback: flat team-level grid #}
+            <div class="ir-results-grid" style="margin-bottom: 0.5rem;">
+                {% for e in res.entries %}
+                <div class="ir-result-row">
+                    <span class="ir-label">{{ e.label }}</span>
+                    <span class="ir-score">
+                        {%- if e.score is not none -%}{{ e.score }}{% if measurement_unit %} {{ measurement_unit }}{% endif %}{%- else -%}—{%- endif -%}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endif %}
+        {% endfor %}
+    </div>
+    {# ── H2H match schedule / draw ── #}
+    {% elif schedule %}
     <div class="section">
         <div class="section-title">🎲 Match Schedule</div>
         <div class="schedule-list">
@@ -646,6 +759,58 @@ body {
         <div class="section-title">
             {% if status in ('COMPLETED', 'REWARDS_DISTRIBUTED') %}📋 Full Results{% else %}📊 Current Standings{% endif %}
         </div>
+        {% if tournament_format == 'INDIVIDUAL_RANKING' %}
+        {# IR: simplified table — no W/D/L/GF/GA #}
+        {% if ranking_direction %}
+        <div class="ir-logic-banner">
+            {% if ranking_direction == 'ASC' %}↓ Lower {{ measurement_unit or 'score' }} = better rank
+            {% else %}↑ Higher {{ measurement_unit or 'score' }} = better rank
+            {% endif %}
+            {%- if scoring_type == 'TIME_BASED' %} · Time-based{%- elif scoring_type == 'SCORE_BASED' %} · Score-based{%- elif scoring_type == 'DISTANCE_BASED' %} · Distance-based{%- endif %}
+        </div>
+        {% endif %}
+        <table class="rankings-table">
+            <thead>
+                <tr>
+                    <th class="rank-col">#</th>
+                    <th>{{ 'Team' if participant_type == 'TEAM' else 'Player' }}</th>
+                    <th class="num">{{ measurement_unit or 'Score' }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rankings %}
+                <tr>
+                    <td class="rank-col" style="vertical-align: top; padding-top: 0.6rem;">
+                        {% if row.rank == 1 %}<span class="rank-medal">🥇</span>
+                        {% elif row.rank == 2 %}<span class="rank-medal">🥈</span>
+                        {% elif row.rank == 3 %}<span class="rank-medal">🥉</span>
+                        {% elif row.rank %}{{ row.rank }}
+                        {% else %}<span style="color:rgba(255,255,255,0.3)">—</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="participant-name">{{ row.name }}</div>
+                        {% if row.club_name %}<div class="club-sub">{{ row.club_name }}</div>{% endif %}
+                        {% if row.members %}
+                        <div class="member-list">
+                            {% for m in row.members %}
+                            <span class="member-pill{% if m.role == 'CAPTAIN' %} captain{% endif %}">
+                                {%- if m.position %}#{{ m.position }} {% endif -%}
+                                {{ m.name }}
+                                {%- if m.score is not none %} · {{ m.score }}{% if measurement_unit %} {{ measurement_unit }}{% endif %}{% endif -%}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="num" style="vertical-align: top; padding-top: 0.6rem;">
+                        <span class="pts-badge">{{ row.points }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        {# H2H: full table with W/D/L/GF/GA #}
         <table class="rankings-table">
             <thead>
                 <tr>
@@ -683,6 +848,7 @@ body {
                 {% endfor %}
             </tbody>
         </table>
+        {% endif %}
     </div>
     {% endif %}
 

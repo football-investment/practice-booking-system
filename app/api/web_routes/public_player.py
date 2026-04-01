@@ -52,17 +52,36 @@ def public_player_card(
     skill_profile = get_skill_profile(db, user_id) if lfa_license.onboarding_completed else None
 
     # Last-tournament per-skill delta (for trend arrows on public card)
-    _last_part = (
-        db.query(TournamentParticipation)
+    from app.models.semester import Semester
+
+    _all_parts = (
+        db.query(TournamentParticipation, Semester)
+        .join(Semester, Semester.id == TournamentParticipation.semester_id)
         .filter(TournamentParticipation.user_id == user_id)
         .order_by(TournamentParticipation.achieved_at.desc(), TournamentParticipation.id.desc())
-        .first()
+        .all()
     )
+    _last_part = _all_parts[0][0] if _all_parts else None
     last_skill_delta = (
         _last_part.skill_rating_delta
         if _last_part and isinstance(_last_part.skill_rating_delta, dict)
         else {}
     )
+
+    participations_history = []
+    for p, s in _all_parts:
+        delta = p.skill_rating_delta or {}
+        top_skills = sorted(delta.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
+        participations_history.append({
+            "event_id":        s.id,
+            "event_name":      s.name,
+            "placement":       p.placement,
+            "xp_awarded":      p.xp_awarded,
+            "credits_awarded": p.credits_awarded,
+            "top_skills":      top_skills,
+            "achieved_at":     p.achieved_at,
+            "status":          s.tournament_status,
+        })
 
     overall = round(skill_profile["average_level"], 1) if skill_profile else 50.0
     total_tournaments = skill_profile["total_tournaments"] if skill_profile else 0
@@ -135,4 +154,5 @@ def public_player_card(
         "teams_info": teams_info,
         "photo_url": lfa_license.player_card_photo_url,
         "last_skill_delta": last_skill_delta,
+        "participations_history": participations_history,
     })

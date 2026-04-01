@@ -11,7 +11,7 @@ from app.dependencies import get_db
 from app.models.semester import Semester
 from app.models.tournament_ranking import TournamentRanking
 from app.models.user import User
-from app.models.team import Team, TournamentTeamEnrollment
+from app.models.team import Team, TournamentTeamEnrollment, TeamMember
 from app.models.club import Club
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.session import Session as SessionModel
@@ -61,7 +61,10 @@ def public_event_detail(
     tournament_format = tournament.format  # HEAD_TO_HEAD / INDIVIDUAL_RANKING
     max_players = cfg.max_players if cfg else None
     match_duration = cfg.match_duration_minutes if cfg else None
-    number_of_legs = cfg.number_of_legs if cfg and hasattr(cfg, "number_of_legs") else 1
+    number_of_legs    = cfg.number_of_legs if cfg and hasattr(cfg, "number_of_legs") else 1
+    scoring_type      = cfg.scoring_type if cfg else None
+    ranking_direction = cfg.ranking_direction if cfg else None
+    measurement_unit  = cfg.measurement_unit if cfg else None
 
     # Location / Campus (multi-campus aware)
     location_name = None
@@ -120,6 +123,20 @@ def public_event_detail(
         for row in ranking_rows:
             team = db.query(Team).filter(Team.id == row.team_id).first() if row.team_id else None
             club = db.query(Club).filter(Club.id == team.club_id).first() if team and team.club_id else None
+            # IR+TEAM: load team members so the public page can show who competed
+            members_list: list[dict] = []
+            if tournament_format == "INDIVIDUAL_RANKING" and row.team_id:
+                mem_rows = (
+                    db.query(User, TeamMember)
+                    .join(TeamMember, TeamMember.user_id == User.id)
+                    .filter(TeamMember.team_id == row.team_id, TeamMember.is_active == True)
+                    .order_by(TeamMember.role.desc(), User.name)
+                    .all()
+                )
+                members_list = [
+                    {"name": u.name or u.email, "user_id": u.id, "role": tm.role}
+                    for u, tm in mem_rows
+                ]
             rankings.append({
                 "rank": row.rank,
                 "name": team.name if team else f"Team #{row.team_id}",
@@ -132,6 +149,7 @@ def public_event_detail(
                 "goals_against": row.goals_against,
                 "team_id": row.team_id,
                 "user_id": None,
+                "members": members_list,
             })
     else:
         for row in ranking_rows:
@@ -148,6 +166,7 @@ def public_event_detail(
                 "goals_against": row.goals_against,
                 "team_id": None,
                 "user_id": row.user_id,
+                "members": [],
             })
 
     has_rankings = len(rankings) > 0
@@ -208,6 +227,38 @@ def public_event_detail(
     for team in db.query(Team).filter(Team.id.in_(all_team_ids)).all():
         team_cache[team.id] = team.name
 
+    # Build player_data caches for IR per-player display
+    player_score_map: dict[int, dict] = {}  # {user_id: {score, position}}
+    user_cache: dict[int, "User"] = {}       # {user_id: User}
+    if tournament_format == "INDIVIDUAL_RANKING":
+        all_player_uids: set[int] = set()
+        for sess in raw_sessions:
+            pd = (sess.rounds_data or {}).get("round_results", {}).get("1", {}).get("player_data", {})
+            for k, v in pd.items():
+                if k.startswith("user_"):
+                    try:
+                        uid = int(k.split("_", 1)[1])
+                        all_player_uids.add(uid)
+                        player_score_map[uid] = {
+                            "score": float(v["score"]) if "score" in v else None,
+                            "position": v.get("position"),
+                        }
+                    except (ValueError, KeyError):
+                        pass
+        if all_player_uids:
+            for u in db.query(User).filter(User.id.in_(all_player_uids)).all():
+                user_cache[u.id] = u
+
+    # Enrich TEAM+IR ranking members with individual score/position
+    if tournament_format == "INDIVIDUAL_RANKING" and player_score_map:
+        for rank_row in rankings:
+            for m in rank_row.get("members", []):
+                uid = m.get("user_id")
+                if uid and uid in player_score_map:
+                    m["score"] = player_score_map[uid]["score"]
+                    m["position"] = player_score_map[uid]["position"]
+            rank_row["members"].sort(key=lambda m: m.get("position") or 999)
+
     schedule: list[dict] = []
     for sess in raw_sessions:
         tids = sess.participant_team_ids or []
@@ -232,6 +283,58 @@ def public_event_detail(
             "score_b": score_b,
             "done":    sess.session_status == "completed",
         })
+
+    # ── IR results (INDIVIDUAL_RANKING sessions, shown instead of H2H schedule) ─
+    ir_results: list[dict] = []
+    if tournament_format == "INDIVIDUAL_RANKING":
+        for sess in raw_sessions:
+            tids = list(sess.participant_team_ids or [])
+            uids = list(getattr(sess, "participant_user_ids", None) or [])
+            rr = (sess.rounds_data or {}).get("round_results", {}).get("1", {})
+            entries: list[dict] = []
+            for team_id in tids:
+                raw = rr.get(f"team_{team_id}")
+                entries.append({
+                    "label": team_cache.get(team_id, f"Team #{team_id}"),
+                    "score": float(raw) if raw is not None else None,
+                    "is_team": True,
+                })
+            for uid in uids:
+                raw = rr.get(str(uid))
+                u = db.query(User).filter(User.id == uid).first()
+                entries.append({
+                    "label": (u.name or u.email) if u else f"#{uid}",
+                    "score": float(raw) if raw is not None else None,
+                    "is_team": False,
+                })
+            # Per-player individual entries from player_data
+            player_entries: list[dict] = []
+            pd = rr.get("player_data", {})
+            for key, val in pd.items():
+                if not key.startswith("user_"):
+                    continue
+                try:
+                    uid = int(key.split("_", 1)[1])
+                except ValueError:
+                    continue
+                u = user_cache.get(uid)
+                tid = val.get("team_id")
+                player_entries.append({
+                    "user_id":   uid,
+                    "name":      (u.name or u.email) if u else f"#{uid}",
+                    "team_id":   tid,
+                    "team_name": team_cache.get(tid, "") if tid else "",
+                    "score":     float(val["score"]) if "score" in val else None,
+                    "position":  val.get("position"),
+                })
+            player_entries.sort(key=lambda x: x["position"] or 999)
+            if entries or player_entries:
+                ir_results.append({
+                    "round": sess.round_number or 1,
+                    "entries": entries,
+                    "player_entries": player_entries,
+                    "done": sess.session_status == "completed",
+                })
 
     # ── Prize pool (all states — motivational) ────────────────────────────────
     from app.services.tournament.tournament_reward_orchestrator import load_reward_policy_from_config
@@ -311,6 +414,10 @@ def public_event_detail(
         "participants": participants,
         "sessions_total": sessions_total,
         "schedule": schedule,
+        "ir_results": ir_results,
+        "scoring_type": scoring_type,
+        "ranking_direction": ranking_direction,
+        "measurement_unit": measurement_unit,
         "prize_pool": prize_pool,
         "has_prize_pool": has_prize_pool,
         "awards": awards,

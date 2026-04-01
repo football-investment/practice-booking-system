@@ -115,6 +115,51 @@ body {
 .skill-bar-bg { flex: 0 1 36px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; }
 .skill-bar-fill { height: 100%; border-radius: 2px; }
 
+/* ── Tab bar ─────────────────────────────────────────────── */
+.tab-bar {
+    display: flex;
+    background: #2d3748;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.tab-btn {
+    flex: 1;
+    padding: 0.55rem 1rem;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+}
+.tab-btn.active { color: #fff; border-bottom-color: #667eea; }
+
+/* ── Events section ──────────────────────────────────────── */
+.events-section { background: #1a202c; padding: 0.75rem 1rem; }
+.ev-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.ev-row:last-child { border-bottom: none; }
+.ev-rank { min-width: 2rem; font-size: 1.1rem; text-align: center; padding-top: 0.05rem; }
+.ev-body { flex: 1; min-width: 0; }
+.ev-name { margin-bottom: 0.2rem; }
+.ev-link { color: rgba(255,255,255,0.88); font-size: 0.82rem; font-weight: 600; text-decoration: none; }
+.ev-link:hover { text-decoration: underline; }
+.ev-rewards { display: flex; gap: 0.3rem; margin-bottom: 0.25rem; flex-wrap: wrap; }
+.ev-badge { font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 99px; }
+.ev-badge.xp { background: rgba(102,126,234,0.2); color: #a3bffa; }
+.ev-badge.cr { background: rgba(72,187,120,0.15); color: #9ae6b4; }
+.ev-skills { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.ev-skill-pill { font-size: 0.65rem; padding: 1px 6px; border-radius: 99px; }
+.ev-skill-pill.up { background: rgba(72,187,120,0.15); color: #9ae6b4; }
+.ev-skill-pill.dn { background: rgba(252,129,129,0.15); color: #feb2b2; }
+.ev-empty { text-align: center; color: rgba(255,255,255,0.3); font-size: 0.8rem; padding: 2rem 0; }
+
 /* ── Responsive ─────────────────────────────────────────────
    Breakpoints:
    < 560px : tablet/large phone — 2-col skills, 2-col identity, smaller left
@@ -203,9 +248,15 @@ body {
         </div>
     </div>
 
-    <!-- Skills -->
+    <!-- Tab bar -->
+    <div class="tab-bar">
+        <button class="tab-btn active" id="btn-skills" onclick="switchTab('skills')">⚽ Skills</button>
+        <button class="tab-btn"        id="btn-events" onclick="switchTab('events')">🏆 Events</button>
+    </div>
+
+    <!-- Skills tab -->
     {% if skill_categories %}
-    <div class="skills-section">
+    <div class="skills-section" id="tab-skills">
         <div class="skills-title">Football Skills — {{ overall }} OVR</div>
         <div class="skill-cats">
             {% for cat in skill_categories %}
@@ -215,16 +266,23 @@ body {
                 {% set sdata = player.skills.get(skill.key, {}) %}
                 {% set sval = sdata.get('current_level', 50) | round(1) %}
                 {% set fill_pct = [sval, 100] | min %}
-                {% if sval >= 90 %}{% set bar_color = '#d69e2e' %}
-                {% elif sval >= 75 %}{% set bar_color = '#48bb78' %}
-                {% elif sval >= 60 %}{% set bar_color = '#667eea' %}
-                {% elif sval >= 50 %}{% set bar_color = '#ed8936' %}
-                {% else %}{% set bar_color = '#fc8181' %}{% endif %}
                 {% set sdelta = last_skill_delta.get(skill.key, 0) %}
+                {# Color driven solely by last-tournament delta, not by level tier.
+                   Neutral = not affected by the most recent tournament. #}
+                {% if sdelta > 0 %}
+                    {% set bar_color = '#48bb78' %}
+                    {% set val_color = '#48bb78' %}
+                {% elif sdelta < 0 %}
+                    {% set bar_color = '#fc8181' %}
+                    {% set val_color = '#fc8181' %}
+                {% else %}
+                    {% set bar_color = 'rgba(255,255,255,0.12)' %}
+                    {% set val_color = 'rgba(255,255,255,0.85)' %}
+                {% endif %}
                 <div class="skill-row">
                     <span class="skill-name">{{ skill.name_en }}</span>
                     <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{{ fill_pct }}%; background:{{ bar_color }};"></div></div>
-                    <span class="skill-val" style="color:{{ bar_color }};">{{ sval }}</span>
+                    <span class="skill-val" style="color:{{ val_color }};">{{ sval }}</span>
                     {% if sdelta > 0 %}<span class="skill-up">↑</span>
                     {% elif sdelta < 0 %}<span class="skill-up" style="color:#fc8181;">↓</span>
                     {% else %}<span class="skill-up" style="visibility:hidden">↑</span>{% endif %}
@@ -236,7 +294,53 @@ body {
     </div>
     {% endif %}
 
+    <!-- Events tab -->
+    <div class="events-section" id="tab-events" style="display:none;">
+        {% if participations_history %}
+            {% for ev in participations_history %}
+            <div class="ev-row">
+                <div class="ev-rank">
+                    {% if ev.placement == 1 %}🥇
+                    {% elif ev.placement == 2 %}🥈
+                    {% elif ev.placement == 3 %}🥉
+                    {% elif ev.placement %}#{{ ev.placement }}
+                    {% else %}—{% endif %}
+                </div>
+                <div class="ev-body">
+                    <div class="ev-name">
+                        <a href="/events/{{ ev.event_id }}" class="ev-link">{{ ev.event_name }}</a>
+                    </div>
+                    <div class="ev-rewards">
+                        {% if ev.xp_awarded %}<span class="ev-badge xp">+{{ ev.xp_awarded }} XP</span>{% endif %}
+                        {% if ev.credits_awarded %}<span class="ev-badge cr">+{{ ev.credits_awarded }} CR</span>{% endif %}
+                    </div>
+                    {% if ev.top_skills %}
+                    <div class="ev-skills">
+                        {% for sk, delta in ev.top_skills %}
+                        <span class="ev-skill-pill {% if delta > 0 %}up{% else %}dn{% endif %}">
+                            {{ sk.replace('_',' ') }} {{ '+' if delta > 0 else '' }}{{ delta | round(1) }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="ev-empty">Még nincs tornaadat.</div>
+        {% endif %}
+    </div>
+
 </div>
+
+<script>
+function switchTab(name) {
+    document.getElementById('tab-skills').style.display = (name === 'skills') ? '' : 'none';
+    document.getElementById('tab-events').style.display = (name === 'events')  ? '' : 'none';
+    document.getElementById('btn-skills').classList.toggle('active', name === 'skills');
+    document.getElementById('btn-events').classList.toggle('active', name === 'events');
+}
+</script>
 
 </body>
 </html>

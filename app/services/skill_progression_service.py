@@ -478,12 +478,22 @@ def calculate_tournament_skill_contribution(
         if not placement:
             continue
 
-        # Get total players in tournament
-        total_players = (
-            db.query(TournamentParticipation)
-            .filter(TournamentParticipation.semester_id == tournament.id)
-            .count()
-        )
+        # Get total players in tournament.
+        # For TEAM tournaments: count distinct placements (= number of teams),
+        # not total individual rows — prevents last-place teams getting 5th-percentile scores.
+        if getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
+            total_players = (
+                db.query(TournamentParticipation.placement)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .distinct()
+                .count()
+            )
+        else:
+            total_players = (
+                db.query(TournamentParticipation)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .count()
+            )
 
         if total_players == 0:
             continue
@@ -588,11 +598,23 @@ def compute_single_tournament_skill_delta(
         if not tournament_skills_with_weights:
             continue
 
-        total_players = (
-            db.query(TournamentParticipation)
-            .filter(TournamentParticipation.semester_id == tournament.id)
-            .count()
-        )
+        # For TEAM tournaments: total competitive units = number of distinct team placements
+        # (e.g. 3-team tournament → total=3, not 36 individual rows).
+        # Using raw row count inflates total_players and collapses the percentile toward 0%,
+        # causing even the last-placed team's players to receive large positive deltas.
+        if getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
+            total_players = (
+                db.query(TournamentParticipation.placement)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .distinct()
+                .count()
+            )
+        else:
+            total_players = (
+                db.query(TournamentParticipation)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .count()
+            )
         if total_players == 0:
             continue
 
@@ -831,12 +853,22 @@ def get_skill_timeline(
 
         skill_weight = tournament_skills_with_weights[skill_key]
 
-        # Total players in this tournament
-        total_players = (
-            db.query(TournamentParticipation)
-            .filter(TournamentParticipation.semester_id == tournament.id)
-            .count()
-        )
+        # Total players in this tournament.
+        # For TEAM tournaments: count distinct placements (= number of teams),
+        # not total individual rows — prevents last-place teams getting 5th-percentile scores.
+        if getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
+            total_players = (
+                db.query(TournamentParticipation.placement)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .distinct()
+                .count()
+            )
+        else:
+            total_players = (
+                db.query(TournamentParticipation)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .count()
+            )
         if total_players == 0:
             continue
 
@@ -963,12 +995,22 @@ def get_skill_audit(db: Session, user_id: int) -> List[Dict]:
         if not tournament_skills_with_weights:
             continue
 
-        # Stats for this tournament
-        total_players = (
-            db.query(TournamentParticipation)
-            .filter(TournamentParticipation.semester_id == tournament.id)
-            .count()
-        )
+        # Stats for this tournament.
+        # For TEAM tournaments: count distinct placements (= number of teams),
+        # not total individual rows — prevents last-place teams getting 5th-percentile scores.
+        if getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
+            total_players = (
+                db.query(TournamentParticipation.placement)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .distinct()
+                .count()
+            )
+        else:
+            total_players = (
+                db.query(TournamentParticipation)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .count()
+            )
         if total_players == 0:
             continue
 
@@ -1161,11 +1203,21 @@ def get_avg_skill_level_checkpoints(
         skills_w = _extract_tournament_skills(db, tournament, all_skill_keys)
         if not skills_w:
             continue
-        total_players = (
-            db.query(TournamentParticipation)
-            .filter(TournamentParticipation.semester_id == tournament.id)
-            .count()
-        )
+        # For TEAM tournaments: count distinct placements (= number of teams),
+        # not total individual rows — prevents last-place teams getting 5th-percentile scores.
+        if getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
+            total_players = (
+                db.query(TournamentParticipation.placement)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .distinct()
+                .count()
+            )
+        else:
+            total_players = (
+                db.query(TournamentParticipation)
+                .filter(TournamentParticipation.semester_id == tournament.id)
+                .count()
+            )
         if not total_players:
             continue
         opp = _compute_opponent_factor(db, tournament.id, user_id, player_baseline_avg)

@@ -520,6 +520,9 @@ async def admin_promotion_events_list(
             "fmt":              t.format,
             "type_code":        tt.code if tt else None,
             "max_players":      cfg.max_players if cfg else None,
+            "scoring_type":     cfg.scoring_type if cfg else None,
+            "ranking_direction": cfg.ranking_direction if cfg else None,
+            "measurement_unit": cfg.measurement_unit if cfg else None,
         })
 
     return templates.TemplateResponse(
