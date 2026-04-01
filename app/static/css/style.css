@@ -7,10 +7,23 @@
     --success-color: #27ae60;
     --warning-color: #f39c12;
     --text-color: #2c3e50;
-    --bg-color: #ecf0f1;
+    --bg-color: #f5f7fa;
     --card-bg: #ffffff;
     --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     --border-radius: 8px;
+
+    /* ── Semantic dark-mode-capable tokens ─────────────────────────────── */
+    --app-bg:         #f5f7fa;
+    --app-card:       #ffffff;
+    --app-card-alt:   #f8f9fa;
+    --app-input-bg:   #ffffff;
+    --app-text:       #2c3e50;
+    --app-text-muted: #718096;
+    --app-border:     #e2e8f0;
+    --app-shadow:     rgba(0,0,0,0.10);
+    --app-success:    #27ae60;
+    --app-warning:    #f39c12;
+    --app-error:      #e74c3c;
 }
 
 * {
@@ -133,7 +146,7 @@ body {
 }
 
 .card p {
-    color: #7f8c8d;
+    color: var(--app-text-muted);
     margin-bottom: 0.5rem;
 }
 
@@ -153,7 +166,7 @@ body {
 .progress-bar {
     width: 100%;
     height: 10px;
-    background-color: #ecf0f1;
+    background-color: var(--app-card-alt);
     border-radius: 5px;
     overflow: hidden;
 }
@@ -310,7 +323,7 @@ body {
 
 /* Locked/Inactive specialization card (grayed out like locked achievements) */
 .specialization-card-locked {
-    background-color: #ecf0f1;
+    background-color: var(--app-card-alt);
     color: #95a5a6;
     cursor: not-allowed;
     opacity: 0.5;

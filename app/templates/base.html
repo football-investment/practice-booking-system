@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/components.css">
     {% block extra_head %}{% endblock %}
+    <!-- dark-mode.css loads LAST — after all template <style> blocks —
+         so @media (prefers-color-scheme: dark) overrides win the cascade -->
+    <link rel="stylesheet" href="/static/css/dark-mode.css">
 </head>
 <body>
         <main class="main-content">

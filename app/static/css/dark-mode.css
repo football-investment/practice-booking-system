@@ -1,0 +1,228 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   dark-mode.css  —  Global OS dark mode override
+   Loaded LAST in base.html (after all other stylesheets and template <style>
+   blocks) so it wins the CSS cascade at equal specificity.
+
+   Strategy:
+     Part A — Override :root CSS custom properties (covers all var()-based rules)
+     Part B — !important selector overrides (covers hardcoded colors in template
+              <style> blocks that haven't been converted to vars yet)
+
+   NOTE: app/templates/public/player_card.html uses its own --card-* token
+   system and is intentionally NOT affected by this file.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Part A: CSS Custom Property Overrides ──────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Semantic app tokens (dark values) */
+        --app-bg:         #0f1923;
+        --app-card:       #1a202c;
+        --app-card-alt:   #2d3748;
+        --app-input-bg:   #2d3748;
+        --app-text:       rgba(255,255,255,0.87);
+        --app-text-muted: rgba(255,255,255,0.55);
+        --app-border:     rgba(255,255,255,0.08);
+        --app-shadow:     rgba(0,0,0,0.50);
+        --app-success:    #48bb78;
+        --app-warning:    #f6ad3c;
+        --app-error:      #fc8181;
+
+        /* Legacy style.css tokens — keep in sync so var(--card-bg) etc. work */
+        --bg-color:   #0f1923;
+        --card-bg:    #1a202c;
+        --text-color: rgba(255,255,255,0.87);
+    }
+}
+
+/* ── Part B: Selector Overrides (!important) ────────────────────────────────── */
+/* These cover template <style> blocks and inline styles whose class selectors
+   haven't been converted to CSS variables yet.                                  */
+@media (prefers-color-scheme: dark) {
+
+    /* ── Body ── */
+    body {
+        background: var(--app-bg) !important;
+        color: var(--app-text) !important;
+    }
+
+    /* ── Generic white/light card containers ── */
+    .section-block,
+    .kpi-card,
+    .mod-nav-section,
+    .last-result-card,
+    .wiz-step,
+    .info-box,
+    .modern-card,
+    .quiz-container,
+    .quiz-card,
+    .result-card,
+    .dash-section,
+    .panel,
+    .score-panel,
+    .ranking-card,
+    .event-card,
+    .session-card {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+    }
+
+    /* ── Text overrides ── */
+    .page-title,
+    .kpi-label,
+    .kpi-value,
+    .mod-label,
+    .section-title,
+    .card-title,
+    .result-title {
+        color: var(--app-text) !important;
+    }
+
+    .page-subtitle,
+    .meta-text,
+    .helper-text {
+        color: var(--app-text-muted) !important;
+    }
+
+    /* ── Info / alert banners → translucent overlays ── */
+    .info-banner {
+        background: rgba(102,126,234,0.12) !important;
+        border-left-color: #667eea !important;
+        color: var(--app-text) !important;
+    }
+    .state-banner {
+        color: var(--app-text) !important;
+    }
+    .alert,
+    .alert-info    { background: rgba(52,152,219,0.12) !important; color: #90cdf4 !important; }
+    .alert-warning { background: rgba(246,173,60,0.12) !important; color: #f6ad3c !important; border-color: rgba(246,173,60,0.3) !important; }
+    .alert-success { background: rgba(72,187,120,0.12) !important; color: #9ae6b4 !important; border-color: rgba(72,187,120,0.3) !important; }
+    .alert-danger  { background: rgba(252,129,129,0.12) !important; color: #feb2b2 !important; border-color: rgba(252,129,129,0.3) !important; }
+
+    /* ── Admin nav dropdown (already uses var but !important ensures edge cases) ── */
+    .nav-dropdown {
+        background: var(--app-card) !important;
+        border: 1px solid var(--app-border) !important;
+    }
+    .nav-dropdown-item { color: var(--app-text) !important; }
+    .nav-dropdown-item:hover { background: rgba(255,255,255,0.08) !important; color: var(--app-text) !important; }
+
+    /* ── Tables ── */
+    table       { background: var(--app-card) !important; }
+    thead tr    { background: var(--app-card-alt) !important; border-bottom-color: var(--app-border) !important; }
+    th          { color: var(--app-text) !important; }
+    tbody tr    { border-bottom-color: var(--app-border) !important; color: var(--app-text); }
+    tbody tr:hover { background: var(--app-card-alt) !important; }
+    td          { color: var(--app-text-muted) !important; }
+
+    /* ── Form inputs ── */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+        background: var(--app-input-bg) !important;
+        color: var(--app-text) !important;
+        border-color: var(--app-border) !important;
+    }
+    input::placeholder,
+    textarea::placeholder { color: var(--app-text-muted) !important; }
+
+    /* ── Modals / dialogs ── */
+    .modal-content,
+    .modal-body,
+    .modal-header,
+    .modal-footer {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+        border-color: var(--app-border) !important;
+    }
+
+    /* ── Admin header gradient → slightly darker purple ── */
+    .admin-header {
+        background: linear-gradient(135deg, #3d2d7a 0%, #4a3590 100%) !important;
+    }
+
+    /* ── Admin footer ── */
+    .admin-footer { background: #0d1117 !important; }
+
+    /* ── Pagination ── */
+    .pagination a     { background: rgba(66,153,225,0.15) !important; color: #90cdf4 !important; }
+    .pagination a:hover { background: rgba(66,153,225,0.25) !important; }
+    .pagination .current { background: #4299e1 !important; color: white !important; }
+    .pagination .disabled { background: rgba(255,255,255,0.06) !important; color: var(--app-text-muted) !important; }
+
+    /* ── Module strip ── */
+    .module-strip { background: var(--app-bg) !important; border-color: var(--app-border) !important; }
+    .module-strip-item { color: var(--app-text-muted) !important; }
+    .module-strip-item:hover { background: rgba(255,255,255,0.06) !important; color: var(--app-text) !important; }
+
+    /* ── Btn secondary (light button on white bg) ── */
+    .btn-secondary { background: rgba(255,255,255,0.10) !important; color: var(--app-text) !important; border-color: var(--app-border) !important; }
+    .btn-filter-white { background: rgba(255,255,255,0.10) !important; color: var(--app-text) !important; }
+
+    /* ── Dashboard KPI value colors (too dark on white → accessible on dark) ── */
+    .s-kpi-row .s-kpi-card:nth-child(1) .s-kpi-val { color: #48bb78 !important; } /* dark-green → light-green */
+    .s-kpi-row .s-kpi-card:nth-child(2) .s-kpi-val { color: #b794f4 !important; } /* dark-purple → light-purple */
+    .s-kpi-row .s-kpi-card:nth-child(3) .s-kpi-val { color: #f6ad3c !important; } /* dark-amber → light-amber */
+    .s-kpi-row .s-kpi-card:nth-child(4) .s-kpi-val { color: #90cdf4 !important; } /* dark-blue → light-blue */
+
+    /* ── Place badges (high-contrast pastels → dark overlays) ── */
+    .s-place-1 { background: rgba(246,173,60,0.18) !important; color: #f6ad3c !important; }
+    .s-place-2 { background: rgba(160,174,192,0.18) !important; color: #a0aec0 !important; }
+    .s-place-3 { background: rgba(246,133,27,0.18) !important; color: #ed8936 !important; }
+
+    /* ── Progress bar track ── */
+    .progress-bar { background-color: var(--app-card-alt) !important; }
+
+    /* ── Footer (style.css generic footer) ── */
+    .footer { background-color: #0d1117 !important; }
+
+    /* ── Tournament edit wizard ── */
+    .sgw-modal { background: var(--app-card) !important; color: var(--app-text) !important; }
+    .sgw-info-item { background: var(--app-card-alt) !important; }
+    .sgw-info-label { color: var(--app-text-muted) !important; }
+    .sgw-form-label { color: var(--app-text-muted) !important; }
+    .sgw-radio-label { background: var(--app-card-alt) !important; border-color: var(--app-border) !important; color: var(--app-text) !important; }
+    .sgw-summary-table td:first-child { color: var(--app-text-muted) !important; }
+    .sgw-progress-bar { background: var(--app-card-alt) !important; }
+    .sgw-step-dot { background: var(--app-card-alt) !important; }
+    .rankings-table th { background: var(--app-card-alt) !important; color: var(--app-text-muted) !important; }
+    .rankings-table td { border-bottom-color: var(--app-border) !important; color: var(--app-text) !important; }
+    .rankings-table tbody tr:hover { background: var(--app-card-alt) !important; }
+    .reward-tier { background: var(--app-card-alt) !important; }
+    .reward-tier .tier-label { color: var(--app-text-muted) !important; }
+    .reward-tier .tier-credits { color: var(--app-text) !important; }
+    .checkin-row { border-bottom-color: var(--app-border) !important; }
+    .checkin-name { color: var(--app-text) !important; }
+    .checkin-email { color: var(--app-text-muted) !important; }
+    .session-list-row { border-bottom-color: var(--app-border) !important; }
+    .session-list-row .sess-time { color: var(--app-text-muted) !important; }
+    .wiz-step.done   { background: rgba(72,187,120,0.10) !important; }
+    .wiz-step.locked { background: var(--app-bg) !important; }
+    .wiz-step.locked .wiz-num { background: var(--app-card-alt) !important; color: var(--app-text-muted) !important; }
+    .wiz-step-subtitle { color: var(--app-text-muted) !important; }
+    .wiz-action-row  { border-top-color: var(--app-border) !important; }
+    .wiz-progress-step { border-bottom-color: var(--app-border) !important; color: var(--app-text-muted) !important; }
+    .section-header h2 { color: var(--app-text) !important; }
+    .form-group label { color: var(--app-text-muted) !important; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea { background: var(--app-input-bg) !important; color: var(--app-text) !important; border-color: var(--app-border) !important; }
+
+    /* ── Instructor slot status badges (dark) ── */
+    .slot-planned   { background: var(--app-card-alt) !important; color: var(--app-text-muted) !important; }
+
+    /* ── Quiz page ── */
+    .quiz-container { background: var(--app-card) !important; }
+    .quiz-header h1 { color: var(--app-text) !important; }
+    .quiz-meta { color: var(--app-text-muted) !important; }
+    .question { background: var(--app-card-alt) !important; border-color: var(--app-border) !important; color: var(--app-text) !important; }
+    .question-text { color: var(--app-text) !important; }
+    .option { background: var(--app-bg) !important; border-color: var(--app-border) !important; }
+    .option:hover { background: rgba(102,126,234,0.12) !important; }
+    .option label { color: var(--app-text) !important; }
+    .option:has(input:checked) { background: rgba(66,153,225,0.18) !important; }
+    .timer { background: rgba(72,187,120,0.12) !important; }
+    .timer.warning { background: rgba(246,173,60,0.12) !important; }
+    .timer.danger  { background: rgba(252,129,129,0.12) !important; }
+}
+

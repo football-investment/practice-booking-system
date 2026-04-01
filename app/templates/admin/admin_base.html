@@ -6,6 +6,8 @@
     <title>{% block title %}Admin Panel{% endblock %} — LFA Admin</title>
     <link rel="stylesheet" href="/static/css/admin.css">
     {% block extra_styles %}{% endblock %}
+    <!-- dark-mode.css loads LAST — after all template <style> blocks -->
+    <link rel="stylesheet" href="/static/css/dark-mode.css">
 </head>
 <body>
 
