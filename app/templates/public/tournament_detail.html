@@ -753,14 +753,19 @@ body {
     </div>
     {% endif %}
 
-    {# ── Standings / Rankings ── #}
-    {% if has_rankings %}
+    {# ── Standings / Rankings ──────────────────────────────────────────────── #}
+    {# standings_state drives ALL rendering in this block — never ad-hoc infer  #}
+    {# FINAL   → "📋 Full Results"        (COMPLETED / REWARDS_DISTRIBUTED)     #}
+    {# LIVE    → "📊 Current Standings"   (IN_PROGRESS / CHECK_IN_OPEN)         #}
+    {# PENDING → placeholder banner       (sessions exist, no rankings yet)      #}
+    {# NONE    → section hidden entirely                                          #}
+    {% if standings_state in ('FINAL', 'LIVE') %}
     <div class="section">
         <div class="section-title">
-            {% if status in ('COMPLETED', 'REWARDS_DISTRIBUTED') %}📋 Full Results{% else %}📊 Current Standings{% endif %}
+            {% if standings_state == 'FINAL' %}📋 Full Results{% else %}📊 Current Standings{% endif %}
         </div>
-        {% if tournament_format == 'INDIVIDUAL_RANKING' %}
-        {# IR: simplified table — no W/D/L/GF/GA #}
+        {% if ranking_type == 'SCORING_ONLY' %}
+        {# SCORING_ONLY (Swiss, IR): single score/pts column — no W/D/L/GF/GA #}
         {% if ranking_direction %}
         <div class="ir-logic-banner">
             {% if ranking_direction == 'ASC' %}↓ Lower {{ measurement_unit or 'score' }} = better rank
@@ -810,21 +815,18 @@ body {
             </tbody>
         </table>
         {% else %}
-        {# H2H: W/D/L/GF/GA shown only when at least one row has non-zero values #}
-        {# (Swiss / score-only formats store points but no W/D/L — those columns are hidden) #}
+        {# WDL_BASED (League, Group Knockout): W/D/L/GF/GA always rendered #}
         <table class="rankings-table">
             <thead>
                 <tr>
                     <th class="rank-col">#</th>
                     <th>{{ 'Team' if participant_type == 'TEAM' else 'Player' }}</th>
                     <th class="num">Pts</th>
-                    {% if show_wdl %}
                     <th class="num hide-sm">W</th>
                     <th class="num hide-sm">D</th>
                     <th class="num hide-sm">L</th>
                     <th class="num hide-sm">GF</th>
                     <th class="num hide-sm">GA</th>
-                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -842,24 +844,19 @@ body {
                         {% if row.club_name %}<div class="club-sub">{{ row.club_name }}</div>{% endif %}
                     </td>
                     <td class="num"><span class="pts-badge">{{ row.points | int }}</span></td>
-                    {% if show_wdl %}
                     <td class="num hide-sm">{{ row.wins or 0 }}</td>
                     <td class="num hide-sm">{{ row.draws or 0 }}</td>
                     <td class="num hide-sm">{{ row.losses or 0 }}</td>
                     <td class="num hide-sm goals">{{ row.goals_for or 0 }}</td>
                     <td class="num hide-sm goals">{{ row.goals_against or 0 }}</td>
-                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% endif %}
     </div>
-    {% endif %}
-
-    {# ── Standings-pending: sessions exist but no TournamentRanking rows yet ── #}
-    {# Shown for IN_PROGRESS / COMPLETED events where calculate-rankings hasn't run #}
-    {% if not has_rankings and schedule and status in ('IN_PROGRESS', 'COMPLETED', 'REWARDS_DISTRIBUTED') %}
+    {% elif standings_state == 'PENDING' %}
+    {# PENDING: sessions exist but rankings not calculated yet #}
     <div class="section">
         <div class="section-title">📊 Current Standings</div>
         <div class="empty-note" style="text-align:center;padding:1.25rem 0;color:rgba(255,255,255,.4);font-size:0.85rem;">
@@ -868,8 +865,8 @@ body {
     </div>
     {% endif %}
 
-    {# ── Empty fallback ── #}
-    {% if not has_rankings and not schedule and not participants %}
+    {# ── Empty fallback (standings_state == 'NONE' and no other content) ── #}
+    {% if standings_state == 'NONE' and not participants %}
     <div class="section">
         <div class="empty-note">
             {% if is_cancelled %}No participants to display.

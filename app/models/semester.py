@@ -226,6 +226,36 @@ class Semester(Base):
         # Priority 3: Default
         return "INDIVIDUAL_RANKING"
 
+    @property
+    def ranking_type(self) -> str:
+        """
+        Return the explicit ranking type for this tournament.
+
+        Priority:
+        1. TournamentType.ranking_type if set (e.g. 'SCORING_ONLY' for Swiss,
+           'WDL_BASED' for League / Group Knockout).
+        2. scoring_type-based derivation: any non-HEAD_TO_HEAD scoring type
+           (TIME_BASED, SCORE_BASED, DISTANCE_BASED) → SCORING_ONLY.
+        3. format-based fallback: INDIVIDUAL_RANKING → SCORING_ONLY;
+           HEAD_TO_HEAD → WDL_BASED.
+
+        Returns:
+            "SCORING_ONLY" or "WDL_BASED"  (mirrors RankingType enum values)
+        """
+        from app.models.ranking_type import RankingType
+        cfg = self.tournament_config_obj
+        if cfg:
+            # Priority 1: explicit value stored on TournamentType
+            if cfg.tournament_type and cfg.tournament_type.ranking_type:
+                return cfg.tournament_type.ranking_type
+            # Priority 2: scoring_type signals IR-style competition
+            if cfg.scoring_type and cfg.scoring_type != "HEAD_TO_HEAD":
+                return RankingType.SCORING_ONLY
+        # Priority 3: derive from format
+        if self.format == "INDIVIDUAL_RANKING":
+            return RankingType.SCORING_ONLY
+        return RankingType.WDL_BASED
+
     def validate_tournament_format_logic(self):
         """
         Validate tournament format and type consistency:

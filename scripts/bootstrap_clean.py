@@ -258,10 +258,32 @@ def _seed_tournament_types(db) -> int:
             continue
 
         code = cfg["code"]
-        if db.query(TournamentType).filter(TournamentType.code == code).first():
-            _skip(f"TournamentType '{code}' already exists")
+        existing = db.query(TournamentType).filter(TournamentType.code == code).first()
+        if existing:
+            # Backfill ranking_type for rows created before the migration
+            _RANKING_TYPE_BACKFILL = {
+                "swiss": "SCORING_ONLY",
+                "league": "WDL_BASED",
+                "knockout": "WDL_BASED",
+                "group_knockout": "WDL_BASED",
+            }
+            rt = _RANKING_TYPE_BACKFILL.get(code)
+            if rt and existing.ranking_type != rt:
+                existing.ranking_type = rt
+                db.flush()
+                _ok(f"TournamentType '{code}' ranking_type backfilled → {rt}")
+            else:
+                _skip(f"TournamentType '{code}' already exists")
             continue
 
+        # Explicit ranking_type: Swiss ranks by cumulative score only;
+        # League / Knockout / Group Knockout rank by W/D/L record.
+        _RANKING_TYPE_MAP = {
+            "swiss": "SCORING_ONLY",
+            "league": "WDL_BASED",
+            "knockout": "WDL_BASED",
+            "group_knockout": "WDL_BASED",
+        }
         tt = TournamentType(
             code=code,
             display_name=cfg["display_name"],
@@ -273,6 +295,7 @@ def _seed_tournament_types(db) -> int:
             session_duration_minutes=cfg["session_duration_minutes"],
             break_between_sessions_minutes=cfg["break_between_sessions_minutes"],
             config=cfg,
+            ranking_type=_RANKING_TYPE_MAP.get(code),
         )
         db.add(tt)
         db.flush()

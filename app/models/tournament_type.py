@@ -41,6 +41,16 @@ class TournamentType(Base):
         comment='Match format: INDIVIDUAL_RANKING (multi-player ranking) or HEAD_TO_HEAD (1v1 or team vs team score-based)'
     )
 
+    # How this tournament type ranks participants (see RankingType enum)
+    # SCORING_ONLY: Swiss, IR — rank by cumulative score; no W/D/L columns
+    # WDL_BASED:    League, Group Knockout — rank by W/D/L record
+    # NULL: falls back to Semester.ranking_type derived logic
+    ranking_type = Column(
+        String(20),
+        nullable=True,
+        comment='SCORING_ONLY or WDL_BASED — drives public standings table format'
+    )
+
     # Full configuration (JSON from config files)
     config = Column(JSON, nullable=False)
 

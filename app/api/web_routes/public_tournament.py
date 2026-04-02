@@ -171,12 +171,11 @@ def public_event_detail(
 
     has_rankings = len(rankings) > 0
 
-    # True only when at least one row has real W/D/L data (e.g. Group Knockout,
-    # H2H League).  Swiss / IR-style tournaments store points only → all zeros.
-    show_wdl = has_rankings and any(
-        ((r.get("wins") or 0) + (r.get("draws") or 0) + (r.get("losses") or 0)) > 0
-        for r in rankings
-    )
+    # Explicit domain flag from TournamentType — never derived from raw field values
+    from app.models.ranking_type import RankingType, StandingsState
+    ranking_type: str = tournament.ranking_type   # "SCORING_ONLY" | "WDL_BASED"
+    show_wdl: bool = (ranking_type == RankingType.WDL_BASED)
+    # standings_state is computed below after sessions_total is known
 
     # ── Enrolled participants (shown when no final rankings yet) ──────────────
     enrolled_count = 0
@@ -224,6 +223,17 @@ def public_event_detail(
         .all()
     )
     sessions_total = len(raw_sessions)
+
+    # standings_state: explicit UI state — never guessed from ad-hoc conditions
+    _FINAL_STATUSES = ("COMPLETED", "REWARDS_DISTRIBUTED")
+    if has_rankings:
+        standings_state: str = (
+            StandingsState.FINAL if status in _FINAL_STATUSES else StandingsState.LIVE
+        )
+    elif sessions_total > 0:
+        standings_state = StandingsState.PENDING
+    else:
+        standings_state = StandingsState.NONE
 
     # Build a team-name cache to avoid N+1 queries
     all_team_ids: set[int] = set()
@@ -443,7 +453,9 @@ def public_event_detail(
         "extra_campuses": extra_campuses,
         "rankings": rankings,
         "has_rankings": has_rankings,
-        "show_wdl": show_wdl,
+        "ranking_type": ranking_type,       # "SCORING_ONLY" | "WDL_BASED"
+        "show_wdl": show_wdl,               # True iff ranking_type == WDL_BASED
+        "standings_state": standings_state, # "FINAL" | "LIVE" | "PENDING" | "NONE"
         "enrolled_count": enrolled_count,
         "participants": participants,
         "sessions_total": sessions_total,

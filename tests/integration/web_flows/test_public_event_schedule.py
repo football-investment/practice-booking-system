@@ -86,7 +86,12 @@ def _player(db: Session, name: str | None = None) -> User:
     return u
 
 
-def _tt(db: Session, fmt: str = "HEAD_TO_HEAD") -> TournamentType:
+def _tt(
+    db: Session,
+    fmt: str = "HEAD_TO_HEAD",
+    ranking_type: str | None = None,
+) -> TournamentType:
+    """Create a TournamentType.  ranking_type explicitly sets SCORING_ONLY / WDL_BASED."""
     code = f"{_PFX}-{fmt.lower()[:3]}-{_uid()}"
     tt = TournamentType(
         code=code,
@@ -99,6 +104,7 @@ def _tt(db: Session, fmt: str = "HEAD_TO_HEAD") -> TournamentType:
         session_duration_minutes=60,
         break_between_sessions_minutes=10,
         config={"code": code},
+        ranking_type=ranking_type,  # None → falls back to Semester.ranking_type derivation
     )
     db.add(tt)
     db.flush()
@@ -486,15 +492,20 @@ def _ranking(
 
 
 class TestFullResultsPresentation:
+    """
+    FR tests use EXPLICIT ranking_type on TournamentType, not ad-hoc value inspection.
+    The UI should read domain state, never infer it from raw W/D/L field values.
+    """
 
-    # ── FR-01: Swiss INDIVIDUAL — W/D/L=0 → columns hidden ───────────────────
-    def test_FR_01_swiss_individual_no_wdl_columns(self, test_db: Session):
+    # ── FR-01: SCORING_ONLY → W/D/L columns absent ───────────────────────────
+    def test_FR_01_scoring_only_no_wdl_columns(self, test_db: Session):
         """
-        Swiss INDIVIDUAL rankings have points but W/D/L all zero.
-        The H2H table must NOT render W/D/L/GF/GA columns for such rankings.
-        Regression: before fix, confusing all-zero W/D/L columns were shown.
+        TournamentType with ranking_type=SCORING_ONLY (Swiss, IR).
+        The Full Results table must NOT render W/D/L/GF/GA columns.
+        Regression: ad-hoc check on zero W/D/L values was fragile; now the
+        domain flag drives the decision unconditionally.
         """
-        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD", ranking_type="SCORING_ONLY")
         t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
                         tournament_status="REWARDS_DISTRIBUTED")
         p1 = _player(test_db, name="Swiss Winner")
@@ -507,24 +518,25 @@ class TestFullResultsPresentation:
 
         assert resp.status_code == 200, resp.text
         html = resp.text
+        # standings_state=FINAL → "Full Results" title
         assert "Full Results" in html, "Full Results title missing"
         assert "Swiss Winner" in html, "Rank-1 player name missing"
         assert "Swiss Runner" in html, "Rank-2 player name missing"
-        # pts-badge with correct values
         assert "100" in html
         assert "98" in html
-        # W/D/L column headers must NOT appear (all zeros → hidden)
-        assert "<th" not in html.split("Full Results")[1].split("</table>")[0] or \
-            ">W<" not in html and ">D<" not in html and ">L<" not in html, \
-            "W/D/L column headers should be hidden when all rankings have W=D=L=0"
+        # W/D/L column headers must NOT appear — driven by ranking_type, not data
+        assert ">W<" not in html, "W column must be absent for SCORING_ONLY"
+        assert ">D<" not in html, "D column must be absent for SCORING_ONLY"
+        assert ">L<" not in html, "L column must be absent for SCORING_ONLY"
 
-    # ── FR-02: Group Knockout — W/D/L present → columns shown ────────────────
-    def test_FR_02_group_knockout_wdl_columns_shown(self, test_db: Session):
+    # ── FR-02: WDL_BASED → W/D/L columns present ─────────────────────────────
+    def test_FR_02_wdl_based_columns_shown(self, test_db: Session):
         """
-        Group Knockout rankings have real W/D/L data.
-        The H2H table MUST render W/D/L/GF/GA columns.
+        TournamentType with ranking_type=WDL_BASED (League, Group Knockout).
+        The Full Results table MUST render W/D/L/GF/GA columns.
+        The decision is driven by the domain flag, not by inspecting row values.
         """
-        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD", ranking_type="WDL_BASED")
         t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
                         tournament_status="COMPLETED")
         p1 = _player(test_db, name="GK Alpha")
@@ -541,20 +553,20 @@ class TestFullResultsPresentation:
         html = resp.text
         assert "Full Results" in html
         assert "GK Alpha" in html
-        # W/D/L column headers must appear
-        assert ">W<" in html, "W column header missing for Group Knockout"
-        assert ">D<" in html, "D column header missing"
-        assert ">L<" in html, "L column header missing"
+        # W/D/L column headers must appear — driven by ranking_type=WDL_BASED
+        assert ">W<" in html, "W column header missing for WDL_BASED"
+        assert ">D<" in html, "D column header missing for WDL_BASED"
+        assert ">L<" in html, "L column header missing for WDL_BASED"
 
-    # ── FR-03: COMPLETED + sessions but NO rankings → standings-pending ───────
-    def test_FR_03_no_rankings_shows_standings_pending(self, test_db: Session):
+    # ── FR-03: standings_state=PENDING → placeholder visible ─────────────────
+    def test_FR_03_standings_state_pending_shows_placeholder(self, test_db: Session):
         """
-        When a COMPLETED tournament has sessions (with scores in schedule) but
-        no TournamentRanking rows, the page must show a 'Current Standings'
-        placeholder instead of silently hiding the section.
-        Regression: user saw schedule with scores but no standings table at all.
+        standings_state=PENDING: sessions exist but no TournamentRanking rows.
+        The UI must render a 'Current Standings' placeholder — not silently hide
+        the section. Before the fix, users saw match scores in the schedule but
+        no standings section at all.
         """
-        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD", ranking_type="SCORING_ONLY")
         t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
                         tournament_status="IN_PROGRESS")
         p1 = _player(test_db, name="Pending Player A")
@@ -562,34 +574,34 @@ class TestFullResultsPresentation:
         _session(test_db, t,
                  participant_user_ids=[p1.id, p2.id],
                  rounds_data={"round_results": {"1": {str(p1.id): 5, str(p2.id): 3}}})
-        # No TournamentRanking rows — rankings not yet calculated
+        # No TournamentRanking rows → standings_state = PENDING
 
         with _public_client(test_db) as client:
             resp = client.get(f"/events/{t.id}")
 
         assert resp.status_code == 200, resp.text
         html = resp.text
-        # Schedule with scores must show
         assert "Match Schedule" in html
         assert "Pending Player A" in html
-        # Standings placeholder must appear
+        # standings_state=PENDING placeholder
         assert "Current Standings" in html, \
-            "Standings placeholder missing for IN_PROGRESS event with sessions but no rankings"
+            "Standings placeholder missing for standings_state=PENDING"
         assert "Rankings will be published" in html, \
-            "Standings-pending message missing"
+            "Pending message missing"
 
-    # ── FR-04: Full Results title only on COMPLETED/REWARDS_DISTRIBUTED ───────
-    def test_FR_04_title_based_on_status(self, test_db: Session):
+    # ── FR-04: standings_state drives section title ───────────────────────────
+    def test_FR_04_standings_state_drives_title(self, test_db: Session):
         """
-        '📋 Full Results' title only on COMPLETED/REWARDS_DISTRIBUTED.
-        '📊 Current Standings' on all other statuses (when rankings exist).
+        standings_state=FINAL  → '📋 Full Results'   (COMPLETED / REWARDS_DISTRIBUTED)
+        standings_state=LIVE   → '📊 Current Standings' (IN_PROGRESS)
+        Title is driven by standings_state, not raw status string comparison.
         """
-        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD", ranking_type="SCORING_ONLY")
 
         for status, expected_title in [
-            ("COMPLETED", "Full Results"),
+            ("COMPLETED",           "Full Results"),
             ("REWARDS_DISTRIBUTED", "Full Results"),
-            ("IN_PROGRESS", "Current Standings"),
+            ("IN_PROGRESS",         "Current Standings"),
         ]:
             t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
                             tournament_status=status)
@@ -601,7 +613,7 @@ class TestFullResultsPresentation:
 
             assert resp.status_code == 200
             assert expected_title in resp.text, \
-                f"Expected '{expected_title}' for status={status}"
+                f"Expected '{expected_title}' for status={status} (standings_state mapping)"
 
     # ── FR-05: Every ranking row renders rank, name, pts-badge ────────────────
     def test_FR_05_ranking_rows_render_correctly(self, test_db: Session):
@@ -611,7 +623,7 @@ class TestFullResultsPresentation:
         - player name
         - pts-badge with correct integer value
         """
-        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD", ranking_type="SCORING_ONLY")
         t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
                         tournament_status="REWARDS_DISTRIBUTED")
         players = [_player(test_db, name=f"FR Player {i}") for i in range(1, 4)]
