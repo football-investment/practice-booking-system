@@ -6,6 +6,15 @@ PES-02  TEAM HEAD_TO_HEAD (participant_team_ids) → team names in schedule, no 
 PES-03  Missing participant data fallback → 200, schedule shows "TBD", no crash
 PES-04  INDIVIDUAL with scores in rounds_data → scores rendered in schedule
 PES-05  TEAM with scores in rounds_data → scores rendered in schedule
+PES-06  Multi-round INDIVIDUAL → round headers present
+PES-07  Swiss INDIVIDUAL 36 players seed-replay — all names visible, no TBD
+PES-08  Legacy TEAM session (participant_team_ids=None) → team names from rounds_data
+PES-09  Mixed sessions: legacy (no participant_team_ids) + new (with it) → both resolve
+PES-10  3-team round-robin all-legacy — exact reproduction of dev-DB regression case
+
+PES-08/09/10 exercise the backward-compatibility fix in public_tournament.py:
+old sessions had participant_team_ids=None; results were stored only as
+'team_{id}' keys in rounds_data.  Before the fix all rounds showed 'TBD vs TBD'.
 
 All tests hit GET /events/{id} (no auth required — public route) and assert
 on the returned HTML.  A SAVEPOINT-isolated DB is shared between the test and
@@ -427,6 +436,193 @@ class TestPublicEventSchedule:
         # All 6 round headers must be present
         for r in range(1, n_rounds + 1):
             assert f"Round {r}" in resp.text, f"Round {r} header missing"
+
+    # ── PES-08: Legacy session (participant_team_ids=None) — names from rounds_data
+    def test_PES_08_legacy_team_session_name_from_rounds_data(self, test_db: Session):
+        """
+        REGRESSION guard for the 'TBD vs TBD' bug.
+
+        Old TEAM sessions (created before participant_team_ids was actively set
+        by the session generator) have participant_team_ids=None.  Team identity
+        is preserved only as 'team_{id}' keys in rounds_data.
+
+        Before fix: route checked participant_team_ids only → empty → 'TBD vs TBD'
+        After fix:  route falls back to rounds_data keys → resolves real team names.
+
+        This test would fail on the un-patched route (returns 'TBD' instead of names).
+        """
+        team_a = _team(test_db, name="Legacy Alpha")
+        team_b = _team(test_db, name="Legacy Beta")
+        t = _tournament(test_db, participant_type="TEAM",
+                        tournament_status="REWARDS_DISTRIBUTED")
+        _session(
+            test_db, t,
+            # participant_team_ids intentionally absent — simulates legacy row
+            participant_team_ids=None,
+            rounds_data={
+                "total_rounds": 1,
+                "round_results": {
+                    "1": {
+                        f"team_{team_a.id}": "3",
+                        f"team_{team_b.id}": "1",
+                    }
+                },
+            },
+        )
+
+        with _public_client(test_db) as client:
+            resp = client.get(f"/events/{t.id}")
+
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+        assert "Match Schedule" in html
+        assert "Legacy Alpha" in html, \
+            "Team A name must be resolved from rounds_data keys — not 'TBD'"
+        assert "Legacy Beta" in html, \
+            "Team B name must be resolved from rounds_data keys — not 'TBD'"
+        # Scores must also be present (3–1)
+        assert "3" in html, "Score for team_a missing"
+        assert "1" in html, "Score for team_b missing"
+        # The regression check: TBD must NOT appear for matched rounds_data entries
+        tbd_count = html.count(">TBD<")
+        assert tbd_count == 0, \
+            f"TBD appeared {tbd_count} time(s) — legacy team IDs were not resolved"
+
+    # ── PES-09: Mixed legacy + new sessions in same tournament ────────────────
+    def test_PES_09_mixed_legacy_and_new_sessions(self, test_db: Session):
+        """
+        A tournament may contain a mix:
+          - Sessions with participant_team_ids populated (new generator)
+          - Sessions with participant_team_ids=None (legacy / backfilled)
+
+        Both must render correctly in the same schedule — no TBD for either.
+        """
+        team_a = _team(test_db, name="Mix Team A")
+        team_b = _team(test_db, name="Mix Team B")
+        team_c = _team(test_db, name="Mix Team C")
+        t = _tournament(test_db, participant_type="TEAM",
+                        tournament_status="COMPLETED")
+
+        # Session 1: new-style — participant_team_ids populated
+        _session(
+            test_db, t,
+            round_number=1,
+            participant_team_ids=[team_a.id, team_b.id],
+            rounds_data={"total_rounds": 1, "round_results": {"1": {
+                f"team_{team_a.id}": "2",
+                f"team_{team_b.id}": "0",
+            }}},
+        )
+        # Session 2: legacy-style — participant_team_ids=None
+        _session(
+            test_db, t,
+            round_number=2,
+            participant_team_ids=None,
+            rounds_data={"total_rounds": 1, "round_results": {"1": {
+                f"team_{team_a.id}": "1",
+                f"team_{team_c.id}": "1",
+            }}},
+        )
+
+        with _public_client(test_db) as client:
+            resp = client.get(f"/events/{t.id}")
+
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+        assert "Match Schedule" in html
+        # All three teams must resolve from their respective sources
+        assert "Mix Team A" in html, "Team A missing (should appear in both sessions)"
+        assert "Mix Team B" in html, "Team B missing (new-style session)"
+        assert "Mix Team C" in html, "Team C missing (legacy session)"
+        # No TBD for either session
+        assert html.count(">TBD<") == 0, \
+            "TBD appeared — one of the sessions failed to resolve team names"
+
+    # ── PES-10: 3-team round-robin all legacy — exact dev-DB regression scenario
+    def test_PES_10_three_team_league_all_legacy(self, test_db: Session):
+        """
+        Exact reproduction of the failing scenario from the live dev database:
+
+            Tournament: 'H2H League — Rewards Distributed 2026'  (id=1850)
+            Sessions 5271/5272/5273: participant_team_ids=None for ALL sessions.
+            Results stored as rounds_data['round_results']['1']['team_550'] etc.
+            User reported: schedule showed 'TBD vs TBD' for every round.
+
+        This test creates an identical data shape and verifies:
+          - All 3 rounds display real team names and scores
+          - No TBD appears in the schedule
+          - The Full Results table (WDL_BASED) shows correct W/D/L columns
+        """
+        team_u15   = _team(test_db, name="LFA U15 (legacy)")
+        team_u18   = _team(test_db, name="LFA U18 (legacy)")
+        team_adult = _team(test_db, name="LFA Adult (legacy)")
+
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD", ranking_type="WDL_BASED")
+        t = _tournament(test_db, participant_type="TEAM",
+                        tt=tt, tournament_status="REWARDS_DISTRIBUTED")
+
+        # 3-team round-robin: C(3,2)=3 matches, all with participant_team_ids=None
+        matches = [
+            (team_u15, team_u18,   "3", "2"),   # Round 1
+            (team_u15, team_adult, "2", "3"),   # Round 2
+            (team_u18, team_adult, "2", "3"),   # Round 3
+        ]
+        for rnd, (ta, tb, sa, sb) in enumerate(matches, 1):
+            _session(
+                test_db, t,
+                round_number=rnd,
+                participant_team_ids=None,   # ← legacy: no participant_team_ids
+                rounds_data={"total_rounds": 1, "round_results": {"1": {
+                    f"team_{ta.id}": sa,
+                    f"team_{tb.id}": sb,
+                }}},
+            )
+
+        # Add WDL_BASED rankings to trigger 'Full Results' display
+        from app.models.tournament_ranking import TournamentRanking as TR
+        for rank, (team, pts, w, d, l, gf, ga) in enumerate([
+            (team_adult, 6, 2, 0, 0, 6, 4),
+            (team_u15,   3, 1, 0, 1, 5, 5),
+            (team_u18,   0, 0, 0, 2, 4, 6),
+        ], 1):
+            test_db.add(TR(
+                tournament_id=t.id, team_id=team.id,
+                participant_type="TEAM",
+                rank=rank, points=float(pts),
+                wins=w, draws=d, losses=l,
+                goals_for=gf, goals_against=ga,
+            ))
+        test_db.flush()
+
+        with _public_client(test_db) as client:
+            resp = client.get(f"/events/{t.id}")
+
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+
+        # ── Schedule section ──────────────────────────────────────────────────
+        assert "Match Schedule" in html
+        # All 3 rounds must show real team names, not TBD
+        assert "LFA U15 (legacy)"   in html, "U15 name missing from schedule"
+        assert "LFA U18 (legacy)"   in html, "U18 name missing from schedule"
+        assert "LFA Adult (legacy)" in html, "Adult name missing from schedule"
+        assert html.count(">TBD<") == 0, \
+            "TBD appeared — legacy team IDs not resolved from rounds_data"
+
+        # Score spot-checks: Round 1 = 3–2, Round 3 = 2–3
+        assert "3" in html, "Score '3' missing from schedule"
+        assert "2" in html, "Score '2' missing from schedule"
+
+        # Round headers: 3 rounds
+        for r in range(1, 4):
+            assert f"Round {r}" in html, f"Round {r} header missing"
+
+        # ── Full Results table (WDL_BASED) ────────────────────────────────────
+        assert "Full Results" in html, "Full Results section missing"
+        assert ">W<" in html, "W column missing (WDL_BASED)"
+        assert ">D<" in html, "D column missing (WDL_BASED)"
+        assert ">L<" in html, "L column missing (WDL_BASED)"
+        assert "LFA Adult (legacy)" in html, "Leader team missing from Full Results"
 
     # ── PES-06: Multi-round INDIVIDUAL — round headers present ────────────────
     def test_PES_06_multi_round_individual_round_headers(self, test_db: Session):

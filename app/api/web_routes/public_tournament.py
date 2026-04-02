@@ -235,11 +235,20 @@ def public_event_detail(
     else:
         standings_state = StandingsState.NONE
 
-    # Build a team-name cache to avoid N+1 queries
+    # Build a team-name cache to avoid N+1 queries.
+    # Also scan rounds_data result keys (team_XXX) to cover old sessions where
+    # participant_team_ids was not yet populated by the generator.
     all_team_ids: set[int] = set()
     for sess in raw_sessions:
         for tid in (sess.participant_team_ids or []):
             all_team_ids.add(tid)
+        _r1 = (sess.rounds_data or {}).get("round_results", {}).get("1", {})
+        for _k in _r1:
+            if _k.startswith("team_"):
+                try:
+                    all_team_ids.add(int(_k.split("_", 1)[1]))
+                except ValueError:
+                    pass
     team_cache: dict[int, str] = {}
     for team in db.query(Team).filter(Team.id.in_(all_team_ids)).all():
         team_cache[team.id] = team.name
@@ -288,11 +297,22 @@ def public_event_detail(
 
     schedule: list[dict] = []
     for sess in raw_sessions:
-        tids = sess.participant_team_ids or []
+        tids = list(sess.participant_team_ids or [])
         uids = sess.participant_user_ids or []
         score_a = score_b = None
         rr = (sess.rounds_data or {}).get("round_results", {})
         r1 = rr.get("1", {}) if rr else {}
+
+        # Fallback: derive team IDs from rounds_data result keys when participant_team_ids
+        # was not populated (old sessions created before the column was actively set).
+        if not tids and r1:
+            derived = sorted(
+                int(k.split("_", 1)[1])
+                for k in r1
+                if k.startswith("team_") and k.split("_", 1)[1].isdigit()
+            )
+            if len(derived) >= 2:
+                tids = derived
 
         if len(tids) >= 2:
             # TEAM HEAD_TO_HEAD: participant_team_ids carries the pairing
