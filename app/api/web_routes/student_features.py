@@ -147,8 +147,21 @@ async def credits_page(
                 'payment_reference': license.payment_reference_code  # Show old license-specific payment code
             })
 
-    # Add semester enrollments (credit spending)
+    # Add semester enrollments (credit spending) — only when no CT record exists
+    # for that enrollment. After backfill_enrollment_transactions.py runs, every SE
+    # has a paired TOURNAMENT_ENROLLMENT CT (enrollment_id set), so this block
+    # produces zero rows and causes no duplication.
+    ct_covered_enrollment_ids = {
+        ct.enrollment_id
+        for ct in db.query(CreditTxModel.enrollment_id).filter(
+            CreditTxModel.transaction_type == "TOURNAMENT_ENROLLMENT",
+            CreditTxModel.enrollment_id.isnot(None),
+        ).all()
+        if ct.enrollment_id is not None
+    }
     for enrollment in enrollments:
+        if enrollment.id in ct_covered_enrollment_ids:
+            continue  # CT already covers this enrollment — skip synthetic entry
         semester = db.query(Semester).filter(Semester.id == enrollment.semester_id).first()
         if semester:
             transactions.append({
@@ -205,10 +218,9 @@ async def credits_page(
             'source':        'ct',
         })
 
-    # Manual list already contains invoice purchases + old license purchases + enrollments.
-    # CT rows cover TOURNAMENT_REWARD, ADMIN_ADJUSTMENT, REFUND, THEME_UNLOCK, etc.
-    # Enrollment overlap: SemesterEnrollment rows (manual) vs CT ENROLLMENT rows — keep both
-    # since they come from different subsystems; dedup by type is too lossy.
+    # Manual list: invoice purchases + old license purchases + SE enrollments without CT.
+    # CT rows: TOURNAMENT_REWARD, ADMIN_ADJUSTMENT, REFUND, THEME_UNLOCK, TOURNAMENT_ENROLLMENT.
+    # Enrollment overlap resolved above: SE entries suppressed when paired CT exists.
     all_transactions = transactions_from_ct + transactions
     all_transactions.sort(key=safe_date_key, reverse=True)
 
