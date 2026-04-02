@@ -22,6 +22,7 @@ from ...models.tournament_achievement import TournamentParticipation
 from ...models.achievement import Achievement
 from ...models.gamification import UserAchievement
 from ...models.invoice_request import InvoiceRequest
+from ...models.credit_transaction import CreditTransaction as CreditTxModel
 from ...models.quiz import AdaptiveLearningSession
 from ...models.session import Session as SessionModel
 from ...services.gamification import GamificationService
@@ -161,15 +162,55 @@ async def credits_page(
 
     # Sort by date descending (handle None and timezone issues)
     def safe_date_key(transaction):
-        date = transaction['date']
-        if date is None:
-            return datetime.min.replace(tzinfo=tz.utc)
-        # Ensure timezone aware
-        if date.tzinfo is None:
-            return date.replace(tzinfo=tz.utc)
-        return date
+        d = transaction['date']
+        if d is None:
+            return datetime.min.replace(tzinfo=timezone.utc)
+        if d.tzinfo is None:
+            return d.replace(tzinfo=timezone.utc)
+        return d
 
-    transactions.sort(key=safe_date_key, reverse=True)
+    # ── Add CreditTransaction records (non-PURCHASE to avoid duplicating invoice entries) ──
+    _TYPE_LABELS = {
+        "PURCHASE":              ("💳", "Credit Purchase"),
+        "ENROLLMENT":            ("📅", "Tournament Enrollment"),
+        "TOURNAMENT_ENROLLMENT": ("📅", "Tournament Enrollment"),
+        "REFUND":                ("🔄", "Refund"),
+        "ADMIN_ADJUSTMENT":      ("⚙️", "Admin Adjustment"),
+        "MANUAL_ADJUSTMENT":     ("⚙️", "Manual Adjustment"),
+        "TOURNAMENT_REWARD":     ("🏆", "Tournament Reward"),
+        "EXPIRATION":            ("⏳", "Credit Expiry"),
+        "THEME_UNLOCK":          ("🎨", "Theme Unlock"),
+    }
+    license_ids = [lic.id for lic in user_licenses]
+    _exclude_types = ["PURCHASE"]
+    ct_rows = db.query(CreditTxModel).filter(
+        (CreditTxModel.user_license_id.in_(license_ids)) |
+        ((CreditTxModel.user_id == current_user.id) & (CreditTxModel.user_license_id == None))  # noqa: E711
+    ).filter(
+        ~CreditTxModel.transaction_type.in_(_exclude_types)
+    ).order_by(CreditTxModel.created_at.desc()).limit(200).all()
+
+    transactions_from_ct = []
+    for row in ct_rows:
+        tt = row.transaction_type if isinstance(row.transaction_type, str) else row.transaction_type.value
+        icon, label = _TYPE_LABELS.get(tt, ("💰", tt.replace("_", " ").title()))
+        transactions_from_ct.append({
+            'date':          row.created_at,
+            'type':          tt.lower(),
+            'icon':          icon,
+            'label':         label,
+            'amount':        row.amount,
+            'balance_after': row.balance_after,
+            'description':   row.description or label,
+            'source':        'ct',
+        })
+
+    # Manual list already contains invoice purchases + old license purchases + enrollments.
+    # CT rows cover TOURNAMENT_REWARD, ADMIN_ADJUSTMENT, REFUND, THEME_UNLOCK, etc.
+    # Enrollment overlap: SemesterEnrollment rows (manual) vs CT ENROLLMENT rows — keep both
+    # since they come from different subsystems; dedup by type is too lossy.
+    all_transactions = transactions_from_ct + transactions
+    all_transactions.sort(key=safe_date_key, reverse=True)
 
     # Get specialization color
     specialization_color = None
@@ -204,6 +245,7 @@ async def credits_page(
             "total_credit_used": total_credit_used,
             "user_licenses": user_licenses,
             "transactions": transactions,
+            "all_transactions": all_transactions,
             "invoice_requests": invoice_requests,
             "specialization_color": specialization_color or '#667eea',
             "today": datetime.now(timezone.utc).date(),

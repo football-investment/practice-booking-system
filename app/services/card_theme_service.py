@@ -15,6 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from .credit_service import CreditService, InsufficientCreditsError
+
 
 @dataclass(frozen=True)
 class ThemeDefinition:
@@ -120,9 +122,13 @@ def apply_theme(db, user_license, theme_id: str) -> None:
 
 def unlock_theme(db, user, user_license, theme_id: str) -> None:
     """
-    Unlock a premium theme for the user, deducting the credit cost from
-    user.credit_balance (the canonical balance shown in the dashboard KPI).
-    Raises ValueError if theme unknown, already unlocked, or insufficient balance.
+    Unlock a premium theme for the user.
+
+    Uses CreditService.deduct() which wraps the balance UPDATE and the CT INSERT
+    inside a single SAVEPOINT — both succeed or both roll back together.
+
+    Raises ValueError (InsufficientCreditsError) if theme unknown, already
+    unlocked, or insufficient balance.
     """
     if theme_id not in THEMES:
         raise ValueError(f"Unknown theme: {theme_id!r}")
@@ -132,11 +138,19 @@ def unlock_theme(db, user, user_license, theme_id: str) -> None:
     unlocked: list = list(user_license.unlocked_card_themes or [])
     if theme_id in unlocked:
         return  # already unlocked — idempotent
-    if user.credit_balance < theme.credit_cost:
-        raise ValueError(
-            f"Insufficient credits. Need {theme.credit_cost}, have {user.credit_balance}"
-        )
-    user.credit_balance -= theme.credit_cost
+
+    # Atomic deduction + CT insert (SAVEPOINT guarantees coupling).
+    # InsufficientCreditsError propagates to the caller unchanged.
+    CreditService(db).deduct(
+        user=user,
+        amount=theme.credit_cost,
+        transaction_type="THEME_UNLOCK",
+        description=f"Card theme unlock: {theme.label}",
+        idempotency_key=f"theme_unlock_{user.id}_{theme_id}",
+    )
+
+    # Update unlocked themes list (same outer transaction)
     unlocked.append(theme_id)
     user_license.unlocked_card_themes = unlocked
+
     db.commit()

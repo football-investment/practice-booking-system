@@ -20579,6 +20579,19 @@
         "title": "XPResponse",
         "type": "object"
       },
+      "_CardThemeRequest": {
+        "properties": {
+          "theme": {
+            "title": "Theme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "title": "_CardThemeRequest",
+        "type": "object"
+      },
       "app__api__api_v1__endpoints__coach__licenses__LicenseCreate": {
         "description": "Request body for creating a new Coach license",
         "example": {
@@ -54597,6 +54610,46 @@
         ]
       }
     },
+    "/dashboard/card-theme": {
+      "post": {
+        "description": "Update the active colour theme for the authenticated student's player card.",
+        "operationId": "student_set_card_theme_dashboard_card_theme_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_CardThemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Student Set Card Theme",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/dashboard/lfa-player-photo": {
       "post": {
         "operationId": "student_upload_player_photo_dashboard_lfa_player_photo_post",
@@ -54650,6 +54703,46 @@
           }
         },
         "summary": "Student Delete Player Photo",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/unlock-theme": {
+      "post": {
+        "description": "Unlock a premium card theme by spending credits.",
+        "operationId": "student_unlock_theme_dashboard_unlock_theme_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_CardThemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Student Unlock Theme",
         "tags": [
           "web"
         ]

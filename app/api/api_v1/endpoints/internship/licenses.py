@@ -11,6 +11,7 @@ from .....database import get_db
 from .....dependencies import get_current_user
 from .....models.user import User, UserRole
 from .....services.specs.semester_based.lfa_internship_service import LFAInternshipService
+from .....services.credit_service import CreditService, InsufficientCreditsError
 
 logger = logging.getLogger(__name__)
 
@@ -328,14 +329,14 @@ def create_license(
         db.refresh(current_user)
 
         REQUIRED_CREDITS = 100
+
+        # Pre-flight: fail fast before any license side effects (race condition is
+        # caught by the WHERE guard inside CreditService.deduct below)
         if current_user.credit_balance < REQUIRED_CREDITS:
             raise HTTPException(
                 status_code=402,
                 detail=f"Insufficient credits. You have {current_user.credit_balance} credits, but need {REQUIRED_CREDITS} credits to unlock this specialization."
             )
-
-        # 🔒 ATOMIC TRANSACTION: Create license AND deduct credits in ONE transaction
-        # If ANY step fails, BOTH operations roll back automatically
 
         # Step 1: Create internship_licenses record (no commit inside service method)
         license_data = service.create_license(
@@ -359,14 +360,19 @@ def create_license(
             {"user_id": current_user.id, "spec_type": "INTERNSHIP"}
         )
 
-        # Step 3: Deduct 100 credits from user's balance
-        db.execute(
-            text("UPDATE users SET credit_balance = credit_balance - :amount WHERE id = :user_id"),
-            {"amount": REQUIRED_CREDITS, "user_id": current_user.id}
-        )
+        # Step 3: Atomic balance deduction + CT insert (SAVEPOINT — both or neither)
+        try:
+            CreditService(db).deduct(
+                user=current_user,
+                amount=REQUIRED_CREDITS,
+                transaction_type="ENROLLMENT",
+                description="Internship license creation",
+                idempotency_key=f"internship-license-{current_user.id}",
+            )
+        except InsufficientCreditsError as exc:
+            raise HTTPException(status_code=402, detail=str(exc))
 
-        # Step 4: COMMIT EVERYTHING at the end (one atomic transaction)
-        # If we reach here, all steps succeeded - commit the entire transaction
+        # Step 4: COMMIT EVERYTHING — license + user_license + balance + CT
         db.commit()
 
         return LicenseResponse(

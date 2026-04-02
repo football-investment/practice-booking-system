@@ -266,7 +266,7 @@ async def tournament_enroll(
         description=f"Tournament enrollment: {tournament.name} ({tournament.code})",
         semester_id=tournament_id,
         enrollment_id=enrollment.id,
-        idempotency_key=str(uuid.uuid4()),
+        idempotency_key=f"web_enroll_{tournament_id}_{user.id}_{enrollment.id}",
     ))
 
     # 11. Auto-book existing tournament sessions
@@ -334,7 +334,7 @@ async def tournament_unenroll(
         description=f"Tournament unenrollment refund (50%): {tournament.name if tournament else tournament_id}",
         semester_id=tournament_id,
         enrollment_id=enrollment.id,
-        idempotency_key=str(uuid.uuid4()),
+        idempotency_key=f"web_unenroll_{tournament_id}_{user.id}_{enrollment.id}",
     ))
 
     # Remove linked bookings

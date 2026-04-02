@@ -9,13 +9,28 @@ Business Invariant: One credit transaction per idempotency_key
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
 from typing import Optional, Literal
 from datetime import datetime
 import logging
 
 from ..models.credit_transaction import CreditTransaction
+from ..models.user import User
 
 logger = logging.getLogger(__name__)
+
+
+class InsufficientCreditsError(ValueError):
+    """Raised when a user does not have enough credits for a deduction.
+
+    Typed explicitly so route handlers can catch it without matching
+    generic ValueError strings.
+    """
+
+    def __init__(self, required: int, available: int):
+        super().__init__(f"Need {required} CR, have {available} CR")
+        self.required = required
+        self.available = available
 
 
 class CreditService:
@@ -132,6 +147,155 @@ class CreditService:
                 # Other integrity error - re-raise
                 logger.error(f"❌ IntegrityError creating credit transaction: {e}")
                 raise
+
+    # ── High-level atomic helpers ─────────────────────────────────────────────
+
+    def deduct(
+        self,
+        user: User,
+        amount: int,
+        transaction_type: str,
+        description: str,
+        idempotency_key: str,
+        *,
+        user_license_id: Optional[int] = None,
+        semester_id: Optional[int] = None,
+        enrollment_id: Optional[int] = None,
+    ) -> tuple[CreditTransaction, bool]:
+        """Atomic: deduct `amount` from user.credit_balance + insert CreditTransaction.
+
+        Both the SQL UPDATE and the CT INSERT run inside a single SAVEPOINT so they
+        are always committed or rolled back together, regardless of outer session state.
+
+        Transaction contract:
+        - Does NOT call db.commit() — the caller owns the outer transaction.
+        - On InsufficientCreditsError: SAVEPOINT rolled back, no balance change.
+        - On CT IntegrityError (duplicate idempotency_key): SAVEPOINT rolled back,
+          balance UPDATE reversed, existing CT returned (idempotent re-entry).
+
+        Raises:
+            InsufficientCreditsError: balance < amount (no DB change made).
+        """
+        try:
+            with self.db.begin_nested():
+                # 1. Atomic balance deduction with DB-level guard
+                result = self.db.execute(
+                    text(
+                        "UPDATE users SET credit_balance = credit_balance - :amount "
+                        "WHERE id = :uid AND credit_balance >= :amount "
+                        "RETURNING credit_balance"
+                    ),
+                    {"amount": amount, "uid": user.id},
+                )
+                row = result.fetchone()
+                if row is None:
+                    raise InsufficientCreditsError(amount, user.credit_balance)
+                user.credit_balance = row[0]  # sync ORM cache without extra query
+
+                # 2. CT insert — same SAVEPOINT as the UPDATE above
+                ct = CreditTransaction(
+                    user_id=user.id if user_license_id is None else None,
+                    user_license_id=user_license_id,
+                    transaction_type=transaction_type,
+                    amount=-amount,
+                    balance_after=row[0],
+                    description=description,
+                    idempotency_key=idempotency_key,
+                    semester_id=semester_id,
+                    enrollment_id=enrollment_id,
+                    created_at=datetime.utcnow(),
+                )
+                self.db.add(ct)
+                self.db.flush()
+
+            logger.info(
+                "✅ Credit deducted: user_id=%s amount=-%s balance_after=%s key=%s",
+                user.id, amount, row[0], idempotency_key,
+            )
+            return ct, True
+
+        except InsufficientCreditsError:
+            raise  # SAVEPOINT already rolled back by context manager
+
+        except IntegrityError as exc:
+            if "uq_credit_transactions_idempotency_key" in str(exc):
+                # SAVEPOINT rolled back → balance UPDATE also reversed.
+                # Idempotent return: the deduction already happened in a prior call.
+                existing = self.db.query(CreditTransaction).filter(
+                    CreditTransaction.idempotency_key == idempotency_key
+                ).first()
+                logger.warning(
+                    "🔒 IDEMPOTENT DEDUCT: key=%s existing_id=%s",
+                    idempotency_key, existing.id if existing else None,
+                )
+                return existing, False
+            raise
+
+    def award(
+        self,
+        user: User,
+        amount: int,
+        transaction_type: str,
+        description: str,
+        idempotency_key: str,
+        *,
+        user_license_id: Optional[int] = None,
+        semester_id: Optional[int] = None,
+        enrollment_id: Optional[int] = None,
+    ) -> tuple[CreditTransaction, bool]:
+        """Atomic: add `amount` to user.credit_balance + insert CreditTransaction.
+
+        Symmetric counterpart to deduct().  No insufficient-balance check needed.
+        Does NOT call db.commit() — caller owns the outer transaction.
+        """
+        try:
+            with self.db.begin_nested():
+                self.db.execute(
+                    text(
+                        "UPDATE users SET credit_balance = credit_balance + :amount "
+                        "WHERE id = :uid RETURNING credit_balance"
+                    ),
+                    {"amount": amount, "uid": user.id},
+                )
+                # Re-read the new balance (RETURNING is the cleanest source)
+                row = self.db.execute(
+                    text("SELECT credit_balance FROM users WHERE id = :uid"),
+                    {"uid": user.id},
+                ).fetchone()
+                user.credit_balance = row[0]
+
+                ct = CreditTransaction(
+                    user_id=user.id if user_license_id is None else None,
+                    user_license_id=user_license_id,
+                    transaction_type=transaction_type,
+                    amount=amount,
+                    balance_after=row[0],
+                    description=description,
+                    idempotency_key=idempotency_key,
+                    semester_id=semester_id,
+                    enrollment_id=enrollment_id,
+                    created_at=datetime.utcnow(),
+                )
+                self.db.add(ct)
+                self.db.flush()
+
+            logger.info(
+                "✅ Credit awarded: user_id=%s amount=+%s balance_after=%s key=%s",
+                user.id, amount, row[0], idempotency_key,
+            )
+            return ct, True
+
+        except IntegrityError as exc:
+            if "uq_credit_transactions_idempotency_key" in str(exc):
+                existing = self.db.query(CreditTransaction).filter(
+                    CreditTransaction.idempotency_key == idempotency_key
+                ).first()
+                logger.warning(
+                    "🔒 IDEMPOTENT AWARD: key=%s existing_id=%s",
+                    idempotency_key, existing.id if existing else None,
+                )
+                return existing, False
+            raise
 
     @staticmethod
     def generate_idempotency_key(
