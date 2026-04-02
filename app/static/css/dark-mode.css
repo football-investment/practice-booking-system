@@ -226,3 +226,224 @@
     .timer.danger  { background: rgba(252,129,129,0.12) !important; }
 }
 
+/* ── Part B Extension: All-template coverage (system-wide audit 2026-04-02) ── */
+@media (prefers-color-scheme: dark) {
+
+    /* ── III.A — Generic .card (overrides any template <style> .card { bg: white }) ── */
+    .card,
+    .edit-card,
+    .msg-card,
+    .notif-card,
+    .credits-card,
+    .compose-form,
+    .profile-section,
+    .payment-info-card,
+    .filter-panel,
+    .search-results-container {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+    }
+    .msg-card.unread,
+    .notif-card.unread { background: rgba(102,126,234,0.08) !important; }
+
+    /* ── III.B — Error pages ── */
+    .err-card { background: var(--app-card) !important; color: var(--app-text) !important; }
+    .err-title { color: var(--app-text) !important; }
+    .err-msg   { color: var(--app-text-muted) !important; }
+    .err-btn-ghost { background: var(--app-card-alt) !important; color: var(--app-text) !important; }
+
+    /* ── III.C — Auth pages (login, register) ── */
+    .login-card, .register-card {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+    }
+    .login-title, .login-subtitle,
+    .register-title, .section-divider { color: var(--app-text) !important; }
+
+    /* ── III.D — Student-facing tournament/sessions pages ── */
+    .tournament-card, .tournament-panel {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+    }
+    .tournament-title { color: var(--app-text) !important; }
+    .meta-item        { background: var(--app-card-alt) !important; }
+    .enrolled-badge   { background: rgba(66,153,225,0.18) !important; color: #90cdf4 !important; }
+
+    /* ── III.E — Skill history page ── */
+    .sh-stat-card, .sh-chart-card, .sh-table-card {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+    }
+    .sh-table th    { background: var(--app-card-alt) !important; color: var(--app-text-muted) !important; }
+    .sh-event-badge { background: rgba(3,105,161,0.18) !important; color: #7dd3fc !important; }
+    .sh-p1          { background: rgba(246,173,60,0.18) !important; color: #f6ad3c !important; }
+    .sh-p3          { background: rgba(249,115,22,0.18) !important; color: #fb923c !important; }
+    .sh-delta-pos   { color: #9ae6b4 !important; }
+    .sh-delta-neg   { color: #fc8181 !important; }
+
+    /* ── III.F — Admin dashboard (dashboard_admin.html) ── */
+    .queue-card, .feed-card, .stats-panel {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+    }
+    .queue-val.red    { color: var(--app-error) !important; }
+    .queue-val.yellow { color: var(--app-warning) !important; }
+    .queue-val.green  { color: var(--app-success) !important; }
+    .alert-banner {
+        background: rgba(252,129,129,0.08) !important;
+        border-color: rgba(252,129,129,0.25) !important;
+        color: var(--app-text) !important;
+    }
+
+    /* ── III.G — Progress / Skills / Calendar template <style> block overrides ── */
+    .stat-card, .skill-card, .semester-card, .spec-card,
+    .history-card, .no-specializations, .calendar-container, .result-container {
+        background: var(--app-card) !important;
+        color: var(--app-text) !important;
+    }
+    .stat-card h3, .history-card h2, .semester-card h2 { color: var(--app-text) !important; }
+    .stat-label  { color: var(--app-text-muted) !important; }
+    .skill-name  { color: var(--app-text) !important; }
+    .skill-level { color: var(--app-text) !important; }
+    .skill-meta  { color: var(--app-text-muted) !important; }
+    .history-table th   { background: var(--app-card-alt) !important; color: var(--app-text-muted) !important; }
+    .filter-checkbox    { background: var(--app-card-alt) !important; color: var(--app-text) !important; }
+    .filter-checkbox:hover { background: rgba(255,255,255,0.08) !important; }
+    .filter-checkbox label { color: var(--app-text) !important; }
+    .modal-info strong  { color: var(--app-text) !important; }
+    .calendar-header h2 { color: var(--app-text) !important; }
+    .modal-header h3    { color: var(--app-text) !important; }
+    .milestone          { background: var(--app-card-alt) !important; }
+    .milestone.achieved      { background: rgba(72,187,120,0.18) !important; border-left-color: rgba(72,187,120,0.6) !important; }
+    .milestone.not-achieved  { background: rgba(252,129,129,0.12) !important; border-left-color: rgba(252,129,129,0.4) !important; }
+    .level-step     { background: var(--app-card-alt) !important; border-color: var(--app-border) !important; color: var(--app-text) !important; }
+    .spec-progress-bar, .progress-bar-container { background: var(--app-card-alt) !important; }
+    .spec-dates     { color: var(--app-text-muted) !important; }
+    .no-specializations h2 { color: var(--app-text-muted) !important; }
+    /* FullCalendar dark overrides */
+    .fc-theme-standard td, .fc-theme-standard th { border-color: var(--app-border) !important; }
+    .fc-daygrid-day-number, .fc-col-header-cell-cushion { color: var(--app-text) !important; }
+    .fc-toolbar-title { color: var(--app-text) !important; }
+    .fc-button { background: var(--app-card-alt) !important; border-color: var(--app-border) !important; color: var(--app-text) !important; }
+    .fc-button:hover { background: rgba(255,255,255,0.1) !important; }
+    .fc-day-today .fc-daygrid-day-frame { background: rgba(102,126,234,0.12) !important; }
+
+    /* ── III.H — student.css structural token overrides ── */
+    .text-muted          { color: var(--app-text-muted) !important; }
+    .section-card-title  { color: var(--app-text) !important; }
+    .stat-card-value     { color: var(--app-text) !important; }
+    .section-card-header { border-bottom-color: var(--app-border) !important; }
+    .achievement-card    { background: var(--app-card-alt) !important; border-color: var(--app-border) !important; }
+    .achievement-card.unlocked { background: var(--app-card) !important; border-color: rgba(72,187,120,0.4) !important; }
+    .achievement-card h3,
+    .achievement-name    { color: var(--app-text) !important; }
+    .achievement-desc    { color: var(--app-text-muted) !important; }
+    .skill-bar-name,
+    .skill-bar-level     { color: var(--app-text) !important; }
+    .skill-bar-change    { color: var(--app-text-muted) !important; }
+    .skill-bar-track     { background: var(--app-card-alt) !important; }
+    .empty-state         { color: var(--app-text-muted) !important; }
+    .hub-intro h2        { color: var(--app-text) !important; }
+    .hub-intro p         { color: var(--app-text-muted) !important; }
+    .spec-age, .spec-description { color: var(--app-text-muted) !important; }
+    .spec-identity-title { color: var(--app-text) !important; }
+    .spec-identity-meta  { color: var(--app-text-muted) !important; }
+    .event-card-info h4  { color: var(--app-text) !important; }
+    .event-card-info p   { color: var(--app-text-muted) !important; }
+    .event-card          { border-color: var(--app-border) !important; }
+    .tab-btn             { color: var(--app-text-muted) !important; }
+    .tab-btn.active      { color: var(--app-text) !important; }
+    .last-result-label   { color: var(--app-text-muted) !important; }
+    .last-result-tournament,
+    .last-result-skill-name { color: var(--app-text) !important; }
+    .last-result-card    { background: var(--app-card-alt) !important; border-color: var(--app-border) !important; }
+    .last-result-positive { background: rgba(72,187,120,0.1) !important; border-color: rgba(72,187,120,0.3) !important; }
+    .th-table th         { color: var(--app-text-muted) !important; border-bottom-color: var(--app-border) !important; }
+    .th-table td         { border-bottom-color: var(--app-border) !important; color: var(--app-text) !important; }
+    .th-table tr:hover td { background: var(--app-card-alt) !important; }
+    .th-empty            { color: var(--app-text-muted) !important; }
+    .s-breadcrumb-item   { color: var(--app-text-muted) !important; }
+    .s-breadcrumb-item.active { color: var(--app-text) !important; }
+    .s-breadcrumb-sep    { color: var(--app-border) !important; }
+    .delta-pill-pos { background: rgba(72,187,120,0.18) !important; color: #9ae6b4 !important; }
+    .delta-pill-neg { background: rgba(252,129,129,0.18) !important; color: #fc8181 !important; }
+    .enrollment-banner { background: rgba(64,145,108,0.12) !important; border-color: rgba(64,145,108,0.3) !important; }
+
+    /* ── III.I — Hub / about / specialization pages ── */
+    .spec-detail-card { background: var(--app-card) !important; color: var(--app-text) !important; }
+    .detail-item      { background: var(--app-card-alt) !important; color: var(--app-text) !important; }
+    .spec-card-cost   { background: rgba(246,173,60,0.18) !important; color: #f6ad3c !important; }
+    .spec-accordion, .spec-content { background: var(--app-card) !important; color: var(--app-text) !important; }
+
+    /* ── III.J — Instructor-specific pages ── */
+    .tournament-panel-header { color: white !important; }
+    .participants-table th   { background: var(--app-card-alt) !important; color: var(--app-text-muted) !important; }
+    .skill-item   { background: var(--app-card-alt) !important; }
+    .belt-name    { color: var(--app-text) !important; }
+    .belt-display { background: var(--app-card-alt) !important; }
+    .next-belt-preview  { background: rgba(246,173,60,0.12) !important; border-left-color: rgba(246,173,60,0.5) !important; }
+    .promotion-form     { background: var(--app-card-alt) !important; }
+    .timeline-belt.completed { background: rgba(72,187,120,0.18) !important; color: #9ae6b4 !important; }
+
+    /* ── III.K — Student team pages ── */
+    #search-results { background: var(--app-card) !important; border-color: var(--app-border) !important; }
+    .badge-captain  { background: rgba(246,173,60,0.18) !important; color: #f6ad3c !important; }
+    .badge-player   { background: rgba(66,153,225,0.18) !important; color: #90cdf4 !important; }
+    .badge-open     { background: rgba(72,187,120,0.18) !important; color: #9ae6b4 !important; }
+    .badge-closed   { background: rgba(252,129,129,0.18) !important; color: #fc8181 !important; }
+    .badge-progress { background: rgba(66,153,225,0.18) !important; color: #90cdf4 !important; }
+    .btn-outline    { background: var(--app-card-alt) !important; border-color: var(--app-border) !important; color: var(--app-text) !important; }
+
+    /* ── III.L — Standalone flow pages (age_verification, lfa_player_onboarding) ── */
+    .container { background: var(--app-card) !important; color: var(--app-text) !important; }
+
+    /* ── III.M — Status badge translucent variants ── */
+    .status-enrollment-open { background: rgba(72,187,120,0.18) !important; color: #9ae6b4 !important; }
+    .status-in-progress     { background: rgba(246,173,60,0.18) !important; color: #f6ad3c !important; }
+    .status-draft           { background: rgba(66,153,225,0.18) !important; color: #90cdf4 !important; }
+    .status-completed, .status-rewards-distributed {
+        background: rgba(144,205,244,0.18) !important; color: #90cdf4 !important;
+    }
+    .status-closed, .status-cancelled {
+        background: rgba(160,174,192,0.18) !important; color: var(--app-text-muted) !important;
+    }
+
+    /* ── III.N — Priority badges (messages) ── */
+    .priority-LOW    { background: rgba(66,153,225,0.18) !important; color: #90cdf4 !important; }
+    .priority-NORMAL { background: rgba(72,187,120,0.18) !important; color: #9ae6b4 !important; }
+    .priority-HIGH   { background: rgba(246,173,60,0.18) !important; color: #f6ad3c !important; }
+    .priority-URGENT { background: rgba(252,129,129,0.18) !important; color: #fc8181 !important; }
+
+    /* ── III.O — Skills.html placement badges ── */
+    .place-1     { background: rgba(246,173,60,0.18) !important; color: #f6ad3c !important; }
+    .place-2     { background: rgba(160,174,192,0.18) !important; color: #a0aec0 !important; }
+    .place-3     { background: rgba(246,133,27,0.18) !important; color: #ed8936 !important; }
+    .place-other { background: var(--app-card-alt) !important; color: var(--app-text-muted) !important; }
+
+    /* ── III.P — Credits page ── */
+    .coupon-section { background: rgba(72,187,120,0.08) !important; border-color: rgba(72,187,120,0.3) !important; }
+
+    /* ── III.Q — Inline attribute selectors: fallback for remaining hardcoded inline colors ── */
+    [style*="color: #2d3748"],
+    [style*="color: #2c3e50"],
+    [style*="color: #333;"],
+    [style*="color: #333 "],
+    [style*="color: #495057"] { color: var(--app-text) !important; }
+
+    [style*="color: #666"],
+    [style*="color: #555"],
+    [style*="color: #6c757d"] { color: var(--app-text-muted) !important; }
+
+    [style*="background: #e8f4f8"],
+    [style*="background: #e6f7ff"],
+    [style*="background: #f7fafc"],
+    [style*="background: #f8f9fa"],
+    [style*="background-color: #f8f9fa"],
+    [style*="background-color: #f0fdf4"],
+    [style*="background-color: #f0f8ff"] { background: var(--app-card-alt) !important; }
+
+    [style*="background: white"],
+    [style*="background:white"],
+    [style*="background-color: white"] { background: var(--app-card) !important; }
+}
+

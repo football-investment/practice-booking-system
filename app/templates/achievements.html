@@ -29,7 +29,7 @@
 
 .achievement-card.locked {
     opacity: 0.6;
-    border: 2px solid #95a5a6;
+    border: 2px solid var(--app-border, #95a5a6);
 }
 
 .achievement-card.locked .achievement-icon {
@@ -44,7 +44,13 @@
 .achievement-card h3 {
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
-    color: var(--primary-color);
+    color: var(--app-text);
+}
+
+.badge-locked {
+    background-color: var(--app-card-alt, #95a5a6);
+    color: var(--app-text-muted, white);
+    border: 1px solid var(--app-border, transparent);
 }
 
 @media (max-width: 640px) {
@@ -56,51 +62,33 @@
 {% endblock %}
 
 {% block student_content %}
-<section class="mod-nav-section">
-    <div class="mod-nav-grid">
-        <a href="/sessions" class="mod-nav-card">
-            <span class="mod-nav-icon">📅</span>
-            <span class="mod-nav-title">Sessions</span>
-        </a>
-        <a href="/progress" class="mod-nav-card">
-            <span class="mod-nav-icon">📊</span>
-            <span class="mod-nav-title">Progress</span>
-        </a>
-        <a href="/skills" class="mod-nav-card">
-            <span class="mod-nav-icon">⚡</span>
-            <span class="mod-nav-title">Skills</span>
-        </a>
-        <a href="/calendar" class="mod-nav-card">
-            <span class="mod-nav-icon">📆</span>
-            <span class="mod-nav-title">Calendar</span>
-        </a>
-    </div>
-</section>
+{% set active_mod = 'achievements' %}
+{% include "includes/mod_nav.html" %}
 
 <!-- Stats Overview -->
 <div class="cards-grid" style="grid-template-columns: repeat(4, 1fr);">
     <div class="card text-center">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏆</div>
         <h3>{{ unlocked_count }}</h3>
-        <p style="color: #7f8c8d;">Unlocked</p>
+        <p class="text-muted">Unlocked</p>
     </div>
 
     <div class="card text-center">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
         <h3>{{ total_xp }}</h3>
-        <p style="color: #7f8c8d;">Total XP</p>
+        <p class="text-muted">Total XP</p>
     </div>
 
     <div class="card text-center">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
         <h3>{{ total_achievements }}</h3>
-        <p style="color: #7f8c8d;">Total Available</p>
+        <p class="text-muted">Total Available</p>
     </div>
 
     <div class="card text-center">
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎯</div>
         <h3>{{ completion_rate }}%</h3>
-        <p style="color: #7f8c8d;">Completion</p>
+        <p class="text-muted">Completion</p>
     </div>
 </div>
 
@@ -113,12 +101,12 @@
         <div class="card achievement-card unlocked">
             <div class="achievement-icon">{{ achievement.icon or '🏆' }}</div>
             <h3>{{ achievement.name }}</h3>
-            <p style="color: #7f8c8d;">{{ achievement.description }}</p>
+            <p class="text-muted">{{ achievement.description }}</p>
             <div style="margin-top: 1rem;">
                 <span class="badge badge-success">✓ Unlocked</span>
                 <span class="badge badge-warning">{{ achievement.xp_reward }} XP</span>
             </div>
-            <p style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.5rem;">
+            <p class="text-sm text-muted mt-1">
                 {{ achievement.earned_at.strftime('%b %d, %Y') if achievement.earned_at else '' }}
             </p>
         </div>
@@ -135,7 +123,7 @@
     <div class="card text-center" style="padding: 3rem;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">🏆</div>
         <h3>No Achievements Yet</h3>
-        <p style="color: #7f8c8d;">Complete activities to unlock achievements and earn XP</p>
+        <p class="text-muted">Complete activities to unlock achievements and earn XP</p>
     </div>
     {% else %}
     <div class="achievement-grid mt-2">
@@ -143,10 +131,10 @@
         <div class="card achievement-card {{ 'unlocked' if achievement.unlocked else 'locked' }}">
             <div class="achievement-icon">{{ achievement.icon or '🏆' }}</div>
             <h3>{{ achievement.name }}</h3>
-            <p style="color: #7f8c8d;">{{ achievement.description or 'No description' }}</p>
+            <p class="text-muted">{{ achievement.description or 'No description' }}</p>
 
             {% if achievement.category %}
-            <p style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.5rem;">
+            <p class="text-sm text-muted mt-1">
                 Category: {{ achievement.category.title() }}
             </p>
             {% endif %}
@@ -156,13 +144,13 @@
                     <span class="badge badge-success">✓ Unlocked</span>
                     <span class="badge badge-warning">{{ achievement.xp_reward or 0 }} XP</span>
                 {% else %}
-                    <span class="badge" style="background-color: #95a5a6; color: white;">🔒 Locked</span>
+                    <span class="badge badge-locked">🔒 Locked</span>
                     <span class="badge badge-warning">{{ achievement.xp_reward or 0 }} XP</span>
                 {% endif %}
             </div>
 
             {% if achievement.unlocked and achievement.earned_at %}
-            <p style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.5rem;">
+            <p class="text-sm text-muted mt-1">
                 Earned: {{ achievement.earned_at.strftime('%b %d, %Y') }}
             </p>
             {% endif %}

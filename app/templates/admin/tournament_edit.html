@@ -13,18 +13,19 @@
     padding-bottom: 0.75rem;
     border-bottom: 3px solid #667eea;
 }
-.section-header h2 { font-size: 1.2rem; color: #2d3748; margin: 0; border: none; padding: 0; }
+.section-header h2 { font-size: 1.2rem; color: var(--app-text, #2d3748); margin: 0; border: none; padding: 0; }
 .section-icon { font-size: 1.3rem; }
 .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
 .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
-.form-group label { font-size: 0.75rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+.form-group label { font-size: 0.75rem; font-weight: 700; color: var(--app-text-muted, #718096); text-transform: uppercase; letter-spacing: 0.05em; }
 .form-group input, .form-group select, .form-group textarea {
     padding: 0.5rem 0.85rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--app-border, #e2e8f0);
     border-radius: 8px;
     font-size: 0.9rem;
     font-family: inherit;
-    background: white;
+    background: var(--app-input-bg, white);
+    color: var(--app-text, inherit);
 }
 .form-group input:focus, .form-group select:focus { outline: 2px solid #667eea; border-color: transparent; }
 .form-group .field-hint { font-size: 0.75rem; color: #a0aec0; margin-top: 0.15rem; }
@@ -79,7 +80,8 @@
     padding: 1rem;
 }
 .sgw-modal {
-    background: white;
+    background: var(--app-card, white);
+    color: var(--app-text, inherit);
     border-radius: 14px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     width: 100%;

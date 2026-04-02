@@ -45,6 +45,8 @@
         <div class="student-brand">{{ _page_icon | default('') }} {{ _page_name | default('') }}</div>
         <div class="student-header-actions">
             <span class="credit-pill">💰 {{ user.credit_balance if user else 0 }}</span>
+            <a href="/messages"      class="s-hdr-btn spec-hdr-btn" title="Messages">✉️<span id="hdr-msg-badge"   class="hdr-badge" style="display:none">0</span></a>
+            <a href="/notifications" class="s-hdr-btn spec-hdr-btn" title="Notifications">🔔<span id="hdr-notif-badge" class="hdr-badge" style="display:none">0</span></a>
             <a href="/credits" class="s-hdr-btn" title="Credits">💳</a>
             <a href="/profile" class="s-hdr-btn" title="Profile">👤</a>
             <a href="/logout"  class="s-hdr-btn" title="Logout">🚪</a>

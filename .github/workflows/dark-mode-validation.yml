@@ -1,4 +1,4 @@
-name: Dark Mode CSS Validation (DM-STATIC-01..06 + DM-01..06)
+name: Dark Mode CSS Validation (DM-STATIC-01..11 + DM-01..17)
 
 on:
   push:
@@ -7,6 +7,15 @@ on:
       - 'app/static/css/**'
       - 'app/templates/base.html'
       - 'app/templates/admin/admin_base.html'
+      - 'app/templates/student_base.html'
+      - 'app/templates/achievements.html'
+      - 'app/templates/progress.html'
+      - 'app/templates/skills.html'
+      - 'app/templates/calendar.html'
+      - 'app/templates/sessions.html'
+      - 'app/templates/admin/tournament_edit.html'
+      - 'app/templates/admin/tournament_attendance.html'
+      - 'app/templates/login.html'
       - 'app/templates/dashboard_student_new.html'
       - 'scripts/validate_dark_mode_css.py'
       - 'tests/integration/web_flows/test_dark_mode_coverage.py'
@@ -17,6 +26,15 @@ on:
       - 'app/static/css/**'
       - 'app/templates/base.html'
       - 'app/templates/admin/admin_base.html'
+      - 'app/templates/student_base.html'
+      - 'app/templates/achievements.html'
+      - 'app/templates/progress.html'
+      - 'app/templates/skills.html'
+      - 'app/templates/calendar.html'
+      - 'app/templates/sessions.html'
+      - 'app/templates/admin/tournament_edit.html'
+      - 'app/templates/admin/tournament_attendance.html'
+      - 'app/templates/login.html'
       - 'app/templates/dashboard_student_new.html'
       - 'scripts/validate_dark_mode_css.py'
       - 'tests/integration/web_flows/test_dark_mode_coverage.py'
@@ -34,7 +52,7 @@ env:
 # ── Job 1: Static filesystem audit — no DB needed (~30s) ─────────────────────
 jobs:
   css-static-audit:
-    name: "DM-STATIC-01..06 — CSS + HTML static checks"
+    name: "DM-STATIC-01..11 — CSS + HTML static checks"
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -50,7 +68,7 @@ jobs:
 
 # ── Job 2: HTTP response audit — real DB + pytest ────────────────────────────
   http-response-audit:
-    name: "DM-01..06 — HTTP response dark mode coverage"
+    name: "DM-01..17 — HTTP response dark mode coverage"
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -127,8 +145,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Checks | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| css-static-audit | DM-STATIC-01..06 (dark-mode.css exists, tokens, load order) | ${{ needs.css-static-audit.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| http-response-audit | DM-01..06 (pages serve dark-mode.css, correct order, no inline white) | ${{ needs.http-response-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| css-static-audit | DM-STATIC-01..11 (dark-mode.css exists, tokens, load order, no inline colors, no bg:white) | ${{ needs.css-static-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| http-response-audit | DM-01..17 (pages serve dark-mode.css, correct order, no inline white/grey) | ${{ needs.http-response-audit.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           CSS_RESULT="${{ needs.css-static-audit.result }}"

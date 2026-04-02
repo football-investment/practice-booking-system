@@ -26,7 +26,7 @@
     }
 
     .stat-card {
-        background: white;
+        background: var(--app-card, white);
         border-radius: 12px;
         padding: 22px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -34,20 +34,20 @@
         text-align: center;
     }
 
-    .stat-card h3 { margin: 0 0 10px; color: #555; font-size: 0.95rem; }
+    .stat-card h3 { margin: 0 0 10px; color: var(--app-text-muted, #555); font-size: 0.95rem; }
     .stat-value   { font-size: 2.2rem; font-weight: bold; color: #667eea; }
-    .stat-label   { color: #888; font-size: 0.85rem; margin-top: 4px; }
+    .stat-label   { color: var(--app-text-muted, #888); font-size: 0.85rem; margin-top: 4px; }
 
     /* Preset banner */
     .preset-banner {
-        background: #fff8e6;
-        border: 1px solid #f0c060;
+        background: var(--app-card-alt, #fff8e6);
+        border: 1px solid var(--app-border, #f0c060);
         border-radius: 12px;
         padding: 18px 22px;
         margin-bottom: 28px;
     }
 
-    .preset-banner h3 { margin: 0 0 12px; color: #7a5c00; font-size: 1rem; }
+    .preset-banner h3 { margin: 0 0 12px; color: var(--app-text, #7a5c00); font-size: 1rem; }
 
     .preset-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -70,7 +70,7 @@
     }
 
     .skill-card {
-        background: white;
+        background: var(--app-card, white);
         border-radius: 12px;
         padding: 18px 20px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.07);
@@ -90,7 +90,7 @@
 
     .skill-name-row { display: flex; align-items: center; gap: 8px; }
     .skill-emoji    { font-size: 1.3rem; }
-    .skill-name     { font-weight: 700; font-size: 1rem; color: #2c3e50;
+    .skill-name     { font-weight: 700; font-size: 1rem; color: var(--app-text, #2c3e50);
                       text-transform: capitalize; }
 
     .preset-badge {
@@ -110,15 +110,15 @@
         margin-bottom: 10px;
     }
 
-    .skill-level { font-size: 1.8rem; font-weight: bold; color: #2c3e50; }
+    .skill-level { font-size: 1.8rem; font-weight: bold; color: var(--app-text, #2c3e50); }
 
     .skill-delta-pos { font-size: 0.9rem; color: #27ae60; font-weight: 600; }
     .skill-delta-neg { font-size: 0.9rem; color: #e74c3c; font-weight: 600; }
-    .skill-delta-zero{ font-size: 0.9rem; color: #95a5a6; }
+    .skill-delta-zero{ font-size: 0.9rem; color: var(--app-text-muted, #95a5a6); }
 
     /* Progress bar */
     .skill-bar-wrap {
-        background: #ecf0f1;
+        background: var(--app-card-alt, #ecf0f1);
         border-radius: 8px;
         height: 10px;
         overflow: hidden;
@@ -133,14 +133,14 @@
 
     .skill-meta {
         font-size: 0.8rem;
-        color: #95a5a6;
+        color: var(--app-text-muted, #95a5a6);
         display: flex;
         gap: 12px;
     }
 
     /* Tournament history */
     .history-card {
-        background: white;
+        background: var(--app-card, white);
         border-radius: 15px;
         padding: 28px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -149,7 +149,7 @@
 
     .history-card h2 {
         margin: 0 0 20px;
-        color: #333;
+        color: var(--app-text, #333);
         border-bottom: 3px solid #667eea;
         padding-bottom: 10px;
     }
@@ -157,12 +157,12 @@
     .history-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
     .history-table th {
         text-align: left; padding: 10px 14px;
-        background: #f8f9fa; color: #555;
+        background: var(--app-card-alt, #f8f9fa); color: var(--app-text-muted, #555);
         font-size: 0.82rem; text-transform: uppercase;
         letter-spacing: 0.03em;
     }
 
-    .history-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+    .history-table td { padding: 10px 14px; border-bottom: 1px solid var(--app-border, #f0f0f0); }
     .history-table tr:last-child td { border-bottom: none; }
 
     .placement-badge {
@@ -181,7 +181,7 @@
     .empty-state {
         text-align: center;
         padding: 40px 20px;
-        color: #95a5a6;
+        color: var(--app-text-muted, #95a5a6);
     }
 
     .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
@@ -197,26 +197,8 @@
 {% endblock %}
 
 {% block student_content %}
-<section class="mod-nav-section">
-    <div class="mod-nav-grid">
-        <a href="/sessions" class="mod-nav-card">
-            <span class="mod-nav-icon">📅</span>
-            <span class="mod-nav-title">Sessions</span>
-        </a>
-        <a href="/progress" class="mod-nav-card">
-            <span class="mod-nav-icon">📊</span>
-            <span class="mod-nav-title">Progress</span>
-        </a>
-        <a href="/achievements" class="mod-nav-card">
-            <span class="mod-nav-icon">🏆</span>
-            <span class="mod-nav-title">Achievements</span>
-        </a>
-        <a href="/calendar" class="mod-nav-card">
-            <span class="mod-nav-icon">📆</span>
-            <span class="mod-nav-title">Calendar</span>
-        </a>
-    </div>
-</section>
+{% set active_mod = 'skills' %}
+{% include "includes/mod_nav.html" %}
 <div class="skills-container">
 
     <!-- Summary Stats (lazy-loaded) -->

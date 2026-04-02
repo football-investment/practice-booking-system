@@ -90,6 +90,20 @@
     {% block student_content %}{% endblock %}
 </main>
 
+{# ── Footer quick-links — default shown on all student pages ──────────────── #}
+{% block footer %}
+<div class="footer-links">
+    <a href="/dashboard">🏠 Hub</a>
+    <a href="/skills">⚡ Skills</a>
+    <a href="/sessions">📅 Sessions</a>
+    <a href="/progress">📊 Progress</a>
+    <a href="/achievements">🏆 Achievements</a>
+    <a href="/calendar">📆 Calendar</a>
+    <a href="/credits">💳 Credits</a>
+    <a href="/profile">👤 Profile</a>
+</div>
+{% endblock %}
+
 {# ── Unread-count badge polling (same as unified_header.html) ─────────────── #}
 <script>
 function updateUnreadBadges() {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-validate_dark_mode_css.py — DM-STATIC-01..06 CSS Audit
+validate_dark_mode_css.py — DM-STATIC-01..11 CSS Audit
 =======================================================
 Static filesystem checks for the global dark mode CSS system.
 No database or running server required.
@@ -17,6 +17,11 @@ Tests:
                 the 4 main CSS files (case-insensitive)
   DM-STATIC-06  base.html AND admin/admin_base.html both link dark-mode.css
                 AND the link appears AFTER the block tag (correct load order)
+  DM-STATIC-07  achievements.html — no inline style="color: #7f8c8d/95a5a6" attrs
+  DM-STATIC-08  sessions.html — no inline style="color: #..." on block elements
+  DM-STATIC-09  student.css — no embedded @media (prefers-color-scheme: dark) block
+  DM-STATIC-10  admin/tournament_attendance.html — no 'background: white' in <style>
+  DM-STATIC-11  admin/tournament_edit.html — .sgw-modal no 'background: white' in <style>
 """
 
 import re
@@ -27,10 +32,15 @@ from pathlib import Path
 # Config
 # ---------------------------------------------------------------------------
 
-DARK_CSS        = Path("app/static/css/dark-mode.css")
-STYLE_CSS       = Path("app/static/css/style.css")
-BASE_HTML       = Path("app/templates/base.html")
-ADMIN_BASE_HTML = Path("app/templates/admin/admin_base.html")
+DARK_CSS            = Path("app/static/css/dark-mode.css")
+STYLE_CSS           = Path("app/static/css/style.css")
+STUDENT_CSS         = Path("app/static/css/student.css")
+BASE_HTML           = Path("app/templates/base.html")
+ADMIN_BASE_HTML     = Path("app/templates/admin/admin_base.html")
+ACHIEVEMENTS_HTML   = Path("app/templates/achievements.html")
+SESSIONS_HTML       = Path("app/templates/sessions.html")
+ATT_HTML            = Path("app/templates/admin/tournament_attendance.html")
+EDIT_HTML           = Path("app/templates/admin/tournament_edit.html")
 
 CSS_FILES_AUDIT = [
     Path("app/static/css/style.css"),
@@ -210,6 +220,123 @@ def run_dm_static_06() -> None:
     )
 
 
+def _style_block_white_bgs(content: str) -> list[str]:
+    """Return 'background: white' hits found inside <style>...</style> blocks."""
+    style_blocks = re.findall(r'<style[^>]*>([\s\S]*?)</style>', content, re.IGNORECASE)
+    hits = []
+    for block in style_blocks:
+        hits.extend(re.findall(r'background(?:-color)?\s*:\s*white\b', block, re.IGNORECASE))
+    return hits
+
+
+def run_dm_static_07() -> None:
+    """achievements.html — no inline style="color: #7f8c8d" or "#95a5a6"."""
+    if not ACHIEVEMENTS_HTML.exists():
+        check("DM-STATIC-07", False, f"{ACHIEVEMENTS_HTML} not found")
+        return
+    content = ACHIEVEMENTS_HTML.read_text()
+    bad_colors = ["#7f8c8d", "#95a5a6"]
+    found = []
+    for color in bad_colors:
+        pattern = re.compile(
+            rf'style=["\'][^"\']*color\s*:\s*{re.escape(color)}[^"\']*["\']',
+            re.IGNORECASE,
+        )
+        matches = pattern.findall(content)
+        if matches:
+            found.extend(matches)
+    check(
+        "DM-STATIC-07",
+        not found,
+        (
+            f"{ACHIEVEMENTS_HTML}: no hardcoded grey inline color attrs ✓"
+            if not found
+            else f"{ACHIEVEMENTS_HTML}: {len(found)} hardcoded inline color(s) found: {found[:3]}"
+        ),
+    )
+
+
+def run_dm_static_08() -> None:
+    """sessions.html — no inline style="color: #..." hardcoded grey attrs."""
+    if not SESSIONS_HTML.exists():
+        check("DM-STATIC-08", False, f"{SESSIONS_HTML} not found")
+        return
+    content = SESSIONS_HTML.read_text()
+    bad_colors = ["#7f8c8d", "#2d3748", "#95a5a6", "#555"]
+    found = []
+    for color in bad_colors:
+        pattern = re.compile(
+            rf'style=["\'][^"\']*color\s*:\s*{re.escape(color)}[^"\']*["\']',
+            re.IGNORECASE,
+        )
+        matches = pattern.findall(content)
+        if matches:
+            found.extend(matches)
+    check(
+        "DM-STATIC-08",
+        not found,
+        (
+            f"{SESSIONS_HTML}: no hardcoded inline color attrs ✓"
+            if not found
+            else f"{SESSIONS_HTML}: {len(found)} hardcoded inline color(s) found: {found[:3]}"
+        ),
+    )
+
+
+def run_dm_static_09() -> None:
+    """student.css — no embedded @media (prefers-color-scheme: dark) block."""
+    if not STUDENT_CSS.exists():
+        check("DM-STATIC-09", False, f"{STUDENT_CSS} not found")
+        return
+    content = STUDENT_CSS.read_text()
+    has_dark = DARK_MEDIA_QUERY in content
+    check(
+        "DM-STATIC-09",
+        not has_dark,
+        (
+            f"{STUDENT_CSS}: no redundant embedded dark block ✓"
+            if not has_dark
+            else f"{STUDENT_CSS}: still contains '@media (prefers-color-scheme: dark)' — must be removed"
+        ),
+    )
+
+
+def run_dm_static_10() -> None:
+    """admin/tournament_attendance.html — no 'background: white' in <style> blocks."""
+    if not ATT_HTML.exists():
+        check("DM-STATIC-10", False, f"{ATT_HTML} not found")
+        return
+    content = ATT_HTML.read_text()
+    hits = _style_block_white_bgs(content)
+    check(
+        "DM-STATIC-10",
+        not hits,
+        (
+            f"{ATT_HTML}: no 'background: white' in <style> blocks ✓"
+            if not hits
+            else f"{ATT_HTML}: {len(hits)} 'background: white' found in <style> blocks"
+        ),
+    )
+
+
+def run_dm_static_11() -> None:
+    """admin/tournament_edit.html — .sgw-modal no 'background: white' in <style>."""
+    if not EDIT_HTML.exists():
+        check("DM-STATIC-11", False, f"{EDIT_HTML} not found")
+        return
+    content = EDIT_HTML.read_text()
+    hits = _style_block_white_bgs(content)
+    check(
+        "DM-STATIC-11",
+        not hits,
+        (
+            f"{EDIT_HTML}: no 'background: white' in <style> blocks ✓"
+            if not hits
+            else f"{EDIT_HTML}: {len(hits)} 'background: white' found in <style> blocks"
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -217,7 +344,7 @@ def run_dm_static_06() -> None:
 def main() -> None:
     print()
     print("━" * 60)
-    print("  Dark Mode CSS Static Audit (DM-STATIC-01..06)")
+    print("  Dark Mode CSS Static Audit (DM-STATIC-01..11)")
     print("━" * 60)
 
     run_dm_static_01()
@@ -226,13 +353,18 @@ def main() -> None:
     run_dm_static_04()
     run_dm_static_05()
     run_dm_static_06()
+    run_dm_static_07()
+    run_dm_static_08()
+    run_dm_static_09()
+    run_dm_static_10()
+    run_dm_static_11()
 
     print("━" * 60)
     if failures:
         print(f"\n  \033[91m❌ {len(failures)} check(s) FAILED: {failures}\033[0m\n")
         sys.exit(1)
     else:
-        print(f"\n  \033[92m✅ All 6 static checks PASSED\033[0m\n")
+        print(f"\n  \033[92m✅ All 11 static checks PASSED\033[0m\n")
         sys.exit(0)
 
 

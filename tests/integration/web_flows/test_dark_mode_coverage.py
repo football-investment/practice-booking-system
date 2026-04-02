@@ -1,5 +1,5 @@
 """
-Dark Mode HTTP Response Coverage Tests — DM-01 through DM-06
+Dark Mode HTTP Response Coverage Tests — DM-01 through DM-17
 =============================================================
 
 DM-01  GET /dashboard/lfa-football-player → <head> links dark-mode.css
@@ -8,6 +8,17 @@ DM-03  GET /players/{uid}/card            → dark-mode.css NOT present (isolate
 DM-04  GET /dashboard/lfa-football-player → no inline 'style="background: white"' in HTML
 DM-05  GET /dashboard/lfa-football-player → dark-mode.css <link> appears AFTER all other CSS <link>s
 DM-06  GET /quiz/{id}/take                → <head> links dark-mode.css
+DM-07  GET /achievements                 → dark-mode.css present; no style="color: #95a5a6" inline attrs
+DM-08  GET /progress                     → dark-mode.css present; no background:white in <style> blocks
+DM-09  GET /skills                       → dark-mode.css present; no background:white in <style> blocks
+DM-10  GET /sessions                     → dark-mode.css present; no style="color: #7f8c8d" inline attrs
+DM-11  GET /calendar                     → dark-mode.css present
+DM-12  GET /credits                      → dark-mode.css present
+DM-13  GET /admin/tournaments/{id}/edit  → dark-mode.css present; .sgw-modal no background:white
+DM-14  GET /admin/tournaments/{id}/attendance → dark-mode.css present
+DM-15  GET /events/{id}                  → dark-mode.css NOT present (isolated design, regression guard)
+DM-16  GET /login                        → dark-mode.css present (extends base.html)
+DM-17  GET /profile                      → dark-mode.css present
 
 All tests run against real DB in SAVEPOINT-isolated transaction (auto-rollback).
 CSRF is bypassed via Authorization: Bearer header (middleware skips validation for Bearer auth).
@@ -16,7 +27,7 @@ CSRF is bypassed via Authorization: Bearer header (middleware skips validation f
 import re
 import uuid
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
@@ -32,6 +43,7 @@ from app.dependencies import (
 from app.models.user import User, UserRole
 from app.models.license import UserLicense
 from app.models.specialization import SpecializationType
+from app.models.semester import Semester
 from app.core.security import get_password_hash
 
 
@@ -140,6 +152,40 @@ def _head_css_links(html: str) -> list[str]:
         return []
     head = head_match.group(0)
     return re.findall(r'<link[^>]+href=["\']([^"\']*\.css[^"\']*)["\']', head, re.IGNORECASE)
+
+
+def _style_block_white_bgs(html: str) -> list[str]:
+    """Return all 'background: white' occurrences found inside <style>...</style> blocks."""
+    style_blocks = re.findall(r'<style[^>]*>([\s\S]*?)</style>', html, re.IGNORECASE)
+    matches = []
+    for block in style_blocks:
+        m = re.findall(r'background(?:-color)?\s*:\s*white\b', block, re.IGNORECASE)
+        matches.extend(m)
+    return matches
+
+
+def _inline_color_attrs(html: str, color_value: str) -> list[str]:
+    """Return inline style attributes containing the given color value (e.g. '#7f8c8d')."""
+    pattern = re.compile(
+        rf'style=["\'][^"\']*color\s*:\s*{re.escape(color_value)}[^"\']*["\']',
+        re.IGNORECASE,
+    )
+    return pattern.findall(html)
+
+
+def _tournament(db: Session, admin: User) -> Semester:
+    """Create a minimal DRAFT tournament for page-rendering tests."""
+    t = Semester(
+        code=f"DM-TEST-{uuid.uuid4().hex[:8]}",
+        name=f"DM Test Tournament {uuid.uuid4().hex[:6]}",
+        start_date=date(2026, 6, 1),
+        end_date=date(2026, 6, 30),
+        master_instructor_id=admin.id,
+        tournament_status="DRAFT",
+    )
+    db.add(t)
+    db.flush()
+    return t
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -271,5 +317,213 @@ def test_DM_06_admin_dashboard_page_has_dark_mode_css(test_db: Session):
     assert any("dark-mode.css" in href for href in css_links), (
         f"dark-mode.css not found in <head> CSS links: {css_links}"
     )
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-07: Achievements page — dark-mode.css present + no hardcoded grey inline colors
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_07_achievements_no_inline_grey_colors(test_db: Session):
+    """GET /achievements — dark-mode.css present; no style="color: #95a5a6" inline attrs."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/achievements")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on achievements page"
+
+    for bad_color in ("#95a5a6", "#7f8c8d"):
+        hits = _inline_color_attrs(resp.text, bad_color)
+        assert not hits, (
+            f"Found {len(hits)} inline style with hardcoded color {bad_color} on achievements page"
+        )
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-08: Progress page — dark-mode.css present + no background:white in style blocks
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_08_progress_no_white_bg_in_style_blocks(test_db: Session):
+    """GET /progress — dark-mode.css present; no 'background: white' in <style> blocks."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/progress")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on progress page"
+
+    whites = _style_block_white_bgs(resp.text)
+    assert not whites, (
+        f"Found {len(whites)} 'background: white' in <style> blocks on progress page"
+    )
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-09: Skills page — dark-mode.css present + no background:white in style blocks
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_09_skills_no_white_bg_in_style_blocks(test_db: Session):
+    """GET /skills — dark-mode.css present; no 'background: white' in <style> blocks."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/skills")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on skills page"
+
+    whites = _style_block_white_bgs(resp.text)
+    assert not whites, (
+        f"Found {len(whites)} 'background: white' in <style> blocks on skills page"
+    )
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-10: Sessions page — dark-mode.css present + no hardcoded grey inline colors
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_10_sessions_no_inline_grey_colors(test_db: Session):
+    """GET /sessions — dark-mode.css present; no style="color: #7f8c8d" inline attrs."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/sessions")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on sessions page"
+
+    for bad_color in ("#7f8c8d", "#2d3748"):
+        hits = _inline_color_attrs(resp.text, bad_color)
+        assert not hits, (
+            f"Found {len(hits)} inline style with hardcoded color {bad_color} on sessions page"
+        )
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-11: Calendar page — dark-mode.css present
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_11_calendar_has_dark_mode_css(test_db: Session):
+    """GET /calendar — dark-mode.css must be present."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/calendar")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on calendar page"
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-12: Credits page — dark-mode.css present
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_12_credits_has_dark_mode_css(test_db: Session):
+    """GET /credits — dark-mode.css must be present."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/credits")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on credits page"
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-13: Tournament edit page — dark-mode.css present + .sgw-modal no background:white
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_13_tournament_edit_has_dark_mode_css_no_white_modal(test_db: Session):
+    """GET /admin/tournaments/{id}/edit — dark-mode.css present; no background:white in style blocks."""
+    admin = _admin_user(test_db)
+    t = _tournament(test_db, admin)
+    client = _admin_client(test_db, admin)
+
+    resp = client.get(f"/admin/tournaments/{t.id}/edit")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on tournament edit page"
+
+    whites = _style_block_white_bgs(resp.text)
+    assert not whites, (
+        f"Found {len(whites)} 'background: white' in <style> blocks on tournament edit page"
+    )
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-14: Tournament attendance page — dark-mode.css present
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_14_tournament_attendance_has_dark_mode_css(test_db: Session):
+    """GET /admin/tournaments/{id}/attendance — dark-mode.css must be present."""
+    admin = _admin_user(test_db)
+    t = _tournament(test_db, admin)
+    client = _admin_client(test_db, admin)
+
+    resp = client.get(f"/admin/tournaments/{t.id}/attendance")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on tournament attendance page"
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-15: Public event page — dark-mode.css NOT present (isolated design, regression guard)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_15_public_event_page_does_not_have_dark_mode_css(test_db: Session):
+    """GET /events/{id} — dark-mode.css must NOT be present (tournament_detail.html is isolated)."""
+    admin = _admin_user(test_db)
+    t = _tournament(test_db, admin)
+    client = _public_client(test_db)
+
+    resp = client.get(f"/events/{t.id}")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" not in resp.text, (
+        "dark-mode.css unexpectedly found on public event page — "
+        "tournament_detail.html must remain isolated (uses its own dark-first design)"
+    )
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-16: Login page — dark-mode.css present (extends base.html)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_16_login_page_has_dark_mode_css(test_db: Session):
+    """GET /login — dark-mode.css must be present (base.html chain)."""
+    client = _public_client(test_db)
+
+    resp = client.get("/login")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on login page"
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-17: Profile page — dark-mode.css present
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_17_profile_page_has_dark_mode_css(test_db: Session):
+    """GET /profile — dark-mode.css must be present."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/profile")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on profile page"
 
     app.dependency_overrides.clear()

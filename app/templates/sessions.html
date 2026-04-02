@@ -33,6 +33,51 @@
 .session-card.hidden { display: none; }
 .student-session-card.hidden { display: none; }
 
+/* Filter panel container — uses var so dark-mode.css can override */
+.filter-panel {
+    background: var(--app-card);
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--app-shadow, rgba(0,0,0,0.1));
+}
+
+/* Session type badge variants */
+.badge-on-site  { background-color: #27ae60; color: white; }
+.badge-hybrid   { background-color: #3498db; color: white; }
+.badge-virtual  { background-color: #9b59b6; color: white; }
+.badge-in-progress { background-color: #f39c12; color: white; animation: pulse 2s infinite; }
+.badge-done     { background-color: #27ae60; color: white; }
+.badge-completed-past { background-color: #95a5a6; color: white; }
+.badge-cancel   { background-color: #e74c3c; border-color: #c0392b; }
+
+/* Info/feedback boxes */
+.info-box-virtual {
+    background-color: var(--app-card-alt, #f8f9fa);
+    border-radius: 4px;
+    border-left: 3px solid #3498db;
+    padding: 0.75rem;
+    margin-top: 1rem;
+}
+.info-box-feedback {
+    background-color: var(--app-card-alt, #f0fdf4);
+    border-left: 4px solid #22c55e;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+.feedback-score { font-size: 1rem; color: #16a34a; font-weight: bold; }
+.feedback-title { color: #16a34a; }
+.info-box-eval {
+    background-color: var(--app-card-alt, #f0f8ff);
+    border-left: 4px solid #3498db;
+    border-radius: 4px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+.eval-title { color: #2980b9; }
+.eval-score  { font-size: 0.9rem; }
+.eval-details { font-size: 0.85rem; line-height: 1.4; }
+
 /* Pulse animation for IN PROGRESS badge */
 @keyframes pulse {
     0%, 100% { opacity: 1; }
@@ -42,27 +87,9 @@
 {% endblock %}
 
 {% block student_content %}
-<h1 style="margin: 0 0 1.5rem 0; font-size: 1.75rem; color: #2d3748;">Training Sessions</h1>
-<section class="mod-nav-section">
-    <div class="mod-nav-grid">
-        <a href="/progress" class="mod-nav-card">
-            <span class="mod-nav-icon">📊</span>
-            <span class="mod-nav-title">Progress</span>
-        </a>
-        <a href="/skills" class="mod-nav-card">
-            <span class="mod-nav-icon">⚡</span>
-            <span class="mod-nav-title">Skills</span>
-        </a>
-        <a href="/achievements" class="mod-nav-card">
-            <span class="mod-nav-icon">🏆</span>
-            <span class="mod-nav-title">Achievements</span>
-        </a>
-        <a href="/calendar" class="mod-nav-card">
-            <span class="mod-nav-icon">📆</span>
-            <span class="mod-nav-title">Calendar</span>
-        </a>
-    </div>
-</section>
+<h1 style="margin: 0 0 1.5rem 0; font-size: 1.75rem;">Training Sessions</h1>
+{% set active_mod = 'sessions' %}
+{% include "includes/mod_nav.html" %}
 
 <!-- Success/Error Messages (flash banner) -->
 <div id="flash-banner" style="display:none; padding:0.85rem 1.2rem; border-radius:8px; margin-bottom:1rem; font-weight:500;"></div>
@@ -97,7 +124,7 @@
     <!-- ========================================== -->
 
     <!-- Filters -->
-    <div class="mt-3" style="background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div class="mt-3 filter-panel">
         <h3 style="margin-top: 0; margin-bottom: 0.75rem;">📋 Filter Sessions</h3>
 
         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
@@ -144,12 +171,11 @@
                     <h3 style="margin: 0;">{{ session.title }}</h3>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <!-- Session Type Badge -->
-                        <span class="badge" style="
-                            {% if session.session_type.value == 'on_site' %}background-color: #27ae60;
-                            {% elif session.session_type.value == 'hybrid' %}background-color: #3498db;
-                            {% elif session.session_type.value == 'virtual' %}background-color: #9b59b6;
-                            {% endif %}
-                            color: white;">
+                        <span class="badge
+                            {% if session.session_type.value == 'on_site' %}badge-on-site
+                            {% elif session.session_type.value == 'hybrid' %}badge-hybrid
+                            {% elif session.session_type.value == 'virtual' %}badge-virtual
+                            {% endif %}">
                             {% if session.session_type.value == 'on_site' %}🏢 On-Site
                             {% elif session.session_type.value == 'hybrid' %}🔀 Hybrid
                             {% elif session.session_type.value == 'virtual' %}💻 Virtual
@@ -172,12 +198,12 @@
                 {% endif %}
 
                 {% if session.description %}
-                <p style="color: #7f8c8d; margin-bottom: 1rem;">{{ session.description[:100] }}{% if session.description|length > 100 %}...{% endif %}</p>
+                <p class="text-muted" style="margin-bottom: 1rem;">{{ session.description[:100] }}{% if session.description|length > 100 %}...{% endif %}</p>
                 {% endif %}
 
                 {% if session.session_type.value == 'virtual' %}
                     {# VIRTUAL: Show full date range (can span multiple days) #}
-                    <div style="margin-top: 1rem; padding: 0.75rem; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;">
+                    <div class="info-box-virtual">
                         <div style="margin-bottom: 0.5rem;">
                             <strong>📅 Available From:</strong>
                             <p style="margin: 0; font-size: 0.95rem;">{{ session.date_start.strftime('%b %d, %Y at %H:%M') }}</p>
@@ -186,7 +212,7 @@
                             <strong>⏰ Until:</strong>
                             <p style="margin: 0; font-size: 0.95rem;">{{ session.date_end.strftime('%b %d, %Y at %H:%M') }}</p>
                         </div>
-                        <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #7f8c8d; font-style: italic;">
+                        <p class="text-sm text-muted" style="margin: 0.5rem 0 0 0; font-style: italic;">
                             Multiple attempts available during this period
                         </p>
                     </div>
@@ -227,10 +253,10 @@
 
                 <!-- Student Reviews (if any) -->
                 {% if session.student_reviews %}
-                <div style="margin-top: 1rem; padding: 1rem; background-color: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">
+                <div class="info-box-feedback">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <strong style="color: #16a34a;">💬 Student Feedback</strong>
-                        <span style="font-size: 0.9rem; color: #7f8c8d;">
+                        <strong class="feedback-title">💬 Student Feedback</strong>
+                        <span class="text-sm text-muted">
                             {{ session.student_reviews|length }} review{{ 's' if session.student_reviews|length > 1 else '' }}
                         </span>
                     </div>
@@ -240,7 +266,7 @@
                         {% set total_rating.sum = total_rating.sum + avg %}
                         {% set total_rating.count = total_rating.count + 1 %}
                     {% endfor %}
-                    <div style="font-size: 1rem; color: #16a34a; font-weight: bold;">
+                    <div class="feedback-score">
                         ⭐ {{ "%.1f"|format(total_rating.sum / total_rating.count if total_rating.count > 0 else 0) }}/5.0 Average
                     </div>
                 </div>
@@ -256,7 +282,7 @@
         <div class="card text-center" style="padding: 3rem;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
             <h3>No Teaching Sessions</h3>
-            <p style="color: #7f8c8d;">Create your first session to start teaching</p>
+            <p class="text-muted">Create your first session to start teaching</p>
             <a href="/sessions/create" class="btn btn-primary mt-2">Create Session</a>
         </div>
         {% endif %}
@@ -268,7 +294,7 @@
     <!-- ========================================== -->
 
     <!-- Filters for Students -->
-    <div class="mt-3" style="background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div class="mt-3 filter-panel">
         <h3 style="margin-top: 0; margin-bottom: 0.75rem;">📋 Filter Sessions</h3>
 
         <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
@@ -309,12 +335,11 @@
                 <h3 style="margin: 0;">{{ session.title }}</h3>
                 <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                     <!-- Session Type Badge -->
-                    <span class="badge" style="
-                        {% if session.session_type.value == 'on_site' %}background-color: #27ae60;
-                        {% elif session.session_type.value == 'hybrid' %}background-color: #3498db;
-                        {% elif session.session_type.value == 'virtual' %}background-color: #9b59b6;
-                        {% endif %}
-                        color: white;">
+                    <span class="badge
+                        {% if session.session_type.value == 'on_site' %}badge-on-site
+                        {% elif session.session_type.value == 'hybrid' %}badge-hybrid
+                        {% elif session.session_type.value == 'virtual' %}badge-virtual
+                        {% endif %}">
                         {% if session.session_type.value == 'on_site' %}🏢 On-Site
                         {% elif session.session_type.value == 'hybrid' %}🔀 Hybrid
                         {% elif session.session_type.value == 'virtual' %}💻 Virtual
@@ -327,33 +352,27 @@
                     {% if session.session_type.value in ['on_site', 'hybrid'] %}
                         {% if session.actual_start_time and not session.actual_end_time %}
                             <!-- Session in progress -->
-                            <span class="badge" style="background-color: #f39c12; color: white; animation: pulse 2s infinite;">
-                                ⏳ IN PROGRESS
-                            </span>
+                            <span class="badge badge-in-progress">⏳ IN PROGRESS</span>
                         {% elif session.actual_end_time %}
                             <!-- Session completed - only show if student attended (not absent) -->
                             {% if session.my_attendance and session.my_attendance.status.value != 'absent' %}
-                                <span class="badge" style="background-color: #27ae60; color: white;">
-                                    ✅ COMPLETED
-                                </span>
+                                <span class="badge badge-done">✅ COMPLETED</span>
                             {% endif %}
                         {% elif session.session_type.value == 'virtual' and session.quiz_completed %}
                             <!-- VIRTUAL session completed (quiz passed) -->
-                            <span class="badge" style="background-color: #27ae60; color: white;">
-                                ✅ COMPLETED
-                            </span>
+                            <span class="badge badge-done">✅ COMPLETED</span>
                         {% endif %}
                     {% endif %}
                 </div>
             </div>
 
             {% if session.description %}
-            <p style="color: #7f8c8d; margin-bottom: 1rem;">{{ session.description[:100] }}{% if session.description|length > 100 %}...{% endif %}</p>
+            <p class="text-muted" style="margin-bottom: 1rem;">{{ session.description[:100] }}{% if session.description|length > 100 %}...{% endif %}</p>
             {% endif %}
 
             {% if session.session_type.value == 'virtual' %}
                 {# VIRTUAL: Show full date range (can span multiple days) #}
-                <div style="margin-top: 1rem; padding: 0.75rem; background-color: #f8f9fa; border-radius: 4px; border-left: 3px solid #3498db;">
+                <div class="info-box-virtual">
                     <div style="margin-bottom: 0.5rem;">
                         <strong>📅 Available From:</strong>
                         <p style="margin: 0; font-size: 0.95rem;">{{ session.date_start.strftime('%b %d, %Y at %H:%M') }}</p>
@@ -362,7 +381,7 @@
                         <strong>⏰ Until:</strong>
                         <p style="margin: 0; font-size: 0.95rem;">{{ session.date_end.strftime('%b %d, %Y at %H:%M') }}</p>
                     </div>
-                    <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #7f8c8d; font-style: italic;">
+                    <p class="text-sm text-muted" style="margin: 0.5rem 0 0 0; font-style: italic;">
                         Multiple attempts available during this period
                     </p>
                 </div>
@@ -410,14 +429,14 @@
 
             <!-- Instructor Performance Review (if exists) -->
             {% if session.performance_review %}
-            <div style="margin-top: 1rem; padding: 1rem; background-color: #f0f8ff; border-left: 4px solid #3498db; border-radius: 4px;">
+            <div class="info-box-eval">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <strong style="color: #2980b9;">📊 Instructor Evaluation</strong>
-                    <span style="font-size: 0.9rem; color: #7f8c8d;">
+                    <strong class="eval-title">📊 Instructor Evaluation</strong>
+                    <span class="eval-score text-muted">
                         ⭐ {{ "%.1f"|format((session.performance_review.punctuality + session.performance_review.engagement + session.performance_review.focus + session.performance_review.collaboration + session.performance_review.attitude) / 5.0) }}/5.0
                     </span>
                 </div>
-                <div style="font-size: 0.85rem; color: #555; line-height: 1.4;">
+                <div class="eval-details text-muted">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem;">
                         <span>⏰ Punctuality: {{ session.performance_review.punctuality }}/5</span>
                         <span>🎯 Engagement: {{ session.performance_review.engagement }}/5</span>
@@ -436,7 +455,7 @@
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-success" style="flex: 1;" disabled>✓ Booked</button>
                             <form method="POST" action="/sessions/cancel/{{ session.id }}" style="margin: 0; flex: 1;">
-                                <button type="submit" class="btn btn-secondary" style="width: 100%; background-color: #e74c3c; border-color: #c0392b;"
+                                <button type="submit" class="btn btn-secondary badge-cancel" style="width: 100%;"
                                         onclick="return confirm('Are you sure you want to cancel this booking?')">Cancel</button>
                             </form>
                         </div>
@@ -460,7 +479,7 @@
     <div class="card text-center" style="padding: 3rem;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
         <h3>No Upcoming Sessions</h3>
-        <p style="color: #7f8c8d;">Check back later for new training sessions</p>
+        <p class="text-muted">Check back later for new training sessions</p>
     </div>
     {% endif %}
 </div>
@@ -500,8 +519,8 @@
     </div>
     {% else %}
     <div class="card text-center" style="padding: 2rem;">
-        <p style="color: #7f8c8d;">You haven't enrolled in any sessions yet</p>
-        <p style="color: #7f8c8d; font-size: 0.9rem;">Browse upcoming sessions above to get started!</p>
+        <p class="text-muted">You haven't enrolled in any sessions yet</p>
+        <p class="text-muted text-sm">Browse upcoming sessions above to get started!</p>
     </div>
     {% endif %}
 </div>
@@ -514,8 +533,8 @@
         {% for session in past_sessions %}
         <div class="card" style="opacity: 0.8;">
             <h3>{{ session.title }}</h3>
-            <p style="color: #7f8c8d;">{{ session.date_start.strftime('%b %d, %Y at %H:%M') }}</p>
-            <span class="badge" style="background-color: #95a5a6; color: white;">Completed</span>
+            <p class="text-muted">{{ session.date_start.strftime('%b %d, %Y at %H:%M') }}</p>
+            <span class="badge badge-completed-past">Completed</span>
         </div>
         {% endfor %}
     </div>

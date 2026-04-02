@@ -199,7 +199,7 @@ body {
 }
 .section-card-header {
     padding: 1rem 1.25rem 0.75rem;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--app-border, #f0f0f0);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -208,7 +208,7 @@ body {
 .section-card-title {
     font-size: 1rem;
     font-weight: 700;
-    color: #1b4332;
+    color: var(--app-text, #1b4332);
 }
 .section-card-body {
     padding: 1.25rem;
@@ -232,12 +232,12 @@ body {
 .stat-card-value {
     font-size: 1.6rem;
     font-weight: 800;
-    color: #1b4332;
+    color: var(--app-text, #1b4332);
     line-height: 1.1;
 }
 .stat-card-label {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--app-text-muted, #6b7280);
     margin-top: 0.25rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -253,14 +253,14 @@ body {
     font-size: 0.88rem;
 }
 .skill-bar-name {
-    color: #374151;
+    color: var(--app-text, #374151);
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .skill-bar-track {
-    background: #e5e7eb;
+    background: var(--app-card-alt, #e5e7eb);
     border-radius: 4px;
     height: 8px;
     overflow: hidden;
@@ -273,13 +273,13 @@ body {
 .skill-bar-level {
     text-align: right;
     font-weight: 700;
-    color: #111827;
+    color: var(--app-text, #111827);
     font-size: 0.85rem;
 }
 .skill-bar-change {
     font-size: 0.75rem;
     text-align: right;
-    color: #6b7280;
+    color: var(--app-text-muted, #6b7280);
 }
 .skill-bar-change.pos { color: #16a34a; }
 .skill-bar-change.neg { color: #dc2626; }
@@ -319,8 +319,8 @@ body {
     gap: 0.75rem;
 }
 .achievement-card {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    background: var(--app-card-alt, #f9fafb);
+    border: 1px solid var(--app-border, #e5e7eb);
     border-radius: 8px;
     padding: 0.85rem;
     display: flex;
@@ -333,8 +333,8 @@ body {
     box-shadow: 0 1px 4px rgba(64,145,108,0.1);
 }
 .achievement-icon { font-size: 1.5rem; flex-shrink: 0; }
-.achievement-name { font-size: 0.88rem; font-weight: 600; color: #111827; }
-.achievement-desc { font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; }
+.achievement-name { font-size: 0.88rem; font-weight: 600; color: var(--app-text, #111827); }
+.achievement-desc { font-size: 0.78rem; color: var(--app-text-muted, #6b7280); margin-top: 0.15rem; }
 
 /* ── Flash / Alert Banners ────────────────────────────────────────────────── */
 .flash-banner {
@@ -396,7 +396,7 @@ body {
 .btn-link:hover { text-decoration: underline; }
 
 /* ── Utility ──────────────────────────────────────────────────────────────── */
-.text-muted   { color: #6b7280; }
+.text-muted   { color: var(--app-text-muted, #6b7280); }
 .text-sm      { font-size: 0.85rem; }
 .text-xs      { font-size: 0.78rem; }
 .fw-bold      { font-weight: 700; }
@@ -406,7 +406,7 @@ body {
 .mb-2         { margin-bottom: 1rem; }
 .gap-sm       { gap: 0.5rem; }
 .flex-center  { display: flex; align-items: center; }
-.empty-state  { text-align: center; color: #9ca3af; padding: 2rem 1rem; font-size: 0.9rem; }
+.empty-state  { text-align: center; color: var(--app-text-muted, #9ca3af); padding: 2rem 1rem; font-size: 0.9rem; }
 
 /* ── Mobile Breakpoints ───────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
@@ -450,10 +450,10 @@ body {
 .hub-intro h2 {
     font-size: 1.35rem;
     font-weight: 700;
-    color: #1b4332;
+    color: var(--app-text, #1b4332);
     margin-bottom: 0.25rem;
 }
-.hub-intro p { font-size: 0.92rem; color: #6b7280; }
+.hub-intro p { font-size: 0.92rem; color: var(--app-text-muted, #6b7280); }
 
 .spec-cards-grid {
     display: grid;
@@ -492,19 +492,19 @@ body {
 .spec-title {
     font-size: 1.15rem;
     font-weight: 700;
-    color: #1b4332;
+    color: var(--app-text, #1b4332);
     text-align: center;
     margin-bottom: 0.25rem;
 }
 .spec-age {
     font-size: 0.82rem;
-    color: #9ca3af;
+    color: var(--app-text-muted, #9ca3af);
     text-align: center;
     margin-bottom: 0.65rem;
 }
 .spec-description {
     font-size: 0.87rem;
-    color: #4b5563;
+    color: var(--app-text-muted, #4b5563);
     text-align: center;
     line-height: 1.5;
     margin-bottom: 1rem;
@@ -576,7 +576,7 @@ body {
 .hub-footer {
     text-align: center;
     padding-top: 1.25rem;
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--app-border, #f0f0f0);
     display: flex;
     gap: 1.5rem;
     justify-content: center;
@@ -605,8 +605,8 @@ body {
     margin-bottom: 1rem;
 }
 .spec-identity-icon { font-size: 2rem; }
-.spec-identity-title { font-size: 1.2rem; font-weight: 700; color: #1b4332; }
-.spec-identity-meta  { font-size: 0.85rem; color: #6b7280; }
+.spec-identity-title { font-size: 1.2rem; font-weight: 700; color: var(--app-text, #1b4332); }
+.spec-identity-meta  { font-size: 0.85rem; color: var(--app-text-muted, #6b7280); }
 
 .spec-identity-stats {
     display: grid;
@@ -631,7 +631,7 @@ body {
 .event-tabs {
     display: flex;
     gap: 0.5rem;
-    border-bottom: 2px solid #f0f0f0;
+    border-bottom: 2px solid var(--app-border, #f0f0f0);
     margin-bottom: 1rem;
 }
 .tab-btn {
@@ -640,19 +640,19 @@ body {
     background: none;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--app-text-muted, #6b7280);
     cursor: pointer;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     transition: color 0.15s;
 }
-.tab-btn.active { color: #1b4332; border-bottom-color: #40916c; }
+.tab-btn.active { color: var(--app-text, #1b4332); border-bottom-color: #40916c; }
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
 .event-card {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--app-border, #e5e7eb);
     border-radius: 10px;
     padding: 1rem 1.25rem;
     margin-bottom: 0.75rem;
@@ -663,26 +663,26 @@ body {
 }
 .event-card:hover { border-color: #40916c; }
 .event-card-info { flex: 1; min-width: 0; }
-.event-card-info h4 { font-size: 0.95rem; font-weight: 600; color: #1b4332; margin-bottom: 0.2rem; }
-.event-card-info p  { font-size: 0.82rem; color: #6b7280; }
+.event-card-info h4 { font-size: 0.95rem; font-weight: 600; color: var(--app-text, #1b4332); margin-bottom: 0.2rem; }
+.event-card-info p  { font-size: 0.82rem; color: var(--app-text-muted, #6b7280); }
 .event-card-actions { flex-shrink: 0; }
 
 /* Last Result Highlight Card */
 .last-result-card {
     display: flex; align-items: center; gap: 1rem;
     padding: 1rem 1.2rem; border-radius: 10px; margin-bottom: 1.2rem;
-    border: 1.5px solid #e5e7eb; background: #f9fafb;
+    border: 1.5px solid var(--app-border, #e5e7eb); background: var(--app-card-alt, #f9fafb);
 }
 .last-result-positive { border-color: #86efac; background: #f0fdf4; }
-.last-result-neutral  { border-color: #e5e7eb; background: #f9fafb; }
+.last-result-neutral  { border-color: var(--app-border, #e5e7eb); background: var(--app-card-alt, #f9fafb); }
 .last-result-left  { flex: 1; min-width: 0; }
 .last-result-center { flex-shrink: 0; text-align: center; }
 .last-result-right { flex-shrink: 0; text-align: right; min-width: 130px; }
-.last-result-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: #9ca3af; margin-bottom: 0.15rem; }
-.last-result-tournament { font-size: 0.92rem; font-weight: 700; color: #1b4332; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.last-result-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--app-text-muted, #9ca3af); margin-bottom: 0.15rem; }
+.last-result-tournament { font-size: 0.92rem; font-weight: 700; color: var(--app-text, #1b4332); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .last-result-date { margin-top: 0.15rem; }
 .last-result-improvement { display: flex; align-items: center; gap: 0.4rem; justify-content: flex-end; margin-bottom: 0.2rem; }
-.last-result-skill-name { font-size: 0.88rem; font-weight: 600; color: #374151; }
+.last-result-skill-name { font-size: 0.88rem; font-weight: 600; color: var(--app-text, #374151); }
 .last-result-skill-delta { font-size: 1.1rem; font-weight: 700; }
 .last-result-skill-delta.delta-pos { color: #16a34a; }
 .last-result-summary { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.15rem; }
@@ -701,19 +701,19 @@ body {
 /* Tournament history table */
 .th-table { width: 100%; border-collapse: collapse; }
 .th-table th {
-    font-size: 0.78rem; color: #9ca3af; text-transform: uppercase;
+    font-size: 0.78rem; color: var(--app-text-muted, #9ca3af); text-transform: uppercase;
     letter-spacing: 0.04em; padding: 0 0.75rem 0.6rem; text-align: left;
-    border-bottom: 2px solid #f0f0f0;
+    border-bottom: 2px solid var(--app-border, #f0f0f0);
 }
 .th-table td {
-    padding: 0.75rem; border-bottom: 1px solid #f5f5f5;
-    font-size: 0.9rem; color: #374151;
+    padding: 0.75rem; border-bottom: 1px solid var(--app-border, #f5f5f5);
+    font-size: 0.9rem; color: var(--app-text, #374151);
 }
 .th-table tr:last-child td { border-bottom: none; }
-.th-table tr:hover td { background: #fafafa; }
+.th-table tr:hover td { background: var(--app-card-alt, #fafafa); }
 .pts-xp    { font-weight: 600; color: #9333ea; }
 .pts-cr    { font-weight: 600; color: #f59e0b; }
-.th-empty  { text-align: center; color: #9ca3af; padding: 2rem 0; font-size: 0.9rem; }
+.th-empty  { text-align: center; color: var(--app-text-muted, #9ca3af); padding: 2rem 0; font-size: 0.9rem; }
 
 /* ── Loading Spinner ──────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -736,20 +736,20 @@ body {
     align-items: center;
     gap: 0.35rem;
     font-size: 0.82rem;
-    color: #6b7280;
+    color: var(--app-text-muted, #6b7280);
     margin-bottom: 1rem;
     flex-wrap: wrap;
 }
 .s-breadcrumb-item {
-    color: #6b7280;
+    color: var(--app-text-muted, #6b7280);
     text-decoration: none;
     font-weight: 500;
     transition: color 0.15s;
 }
 .s-breadcrumb-item:hover { color: #40916c; text-decoration: underline; }
-.s-breadcrumb-item.active { color: #1b4332; font-weight: 600; cursor: default; }
+.s-breadcrumb-item.active { color: var(--app-text, #1b4332); font-weight: 600; cursor: default; }
 .s-breadcrumb-item.active:hover { text-decoration: none; }
-.s-breadcrumb-sep { color: #d1d5db; font-size: 0.9rem; }
+.s-breadcrumb-sep { color: var(--app-border, #d1d5db); font-size: 0.9rem; }
 
 /* ── Mobile overrides for hub + spec ─────────────────────────────────────── */
 @media (max-width: 640px) {
@@ -763,34 +763,6 @@ body {
     .last-result-card { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
     .last-result-right { text-align: left; min-width: unset; }
     .last-result-improvement { justify-content: flex-start; }
-}
-
-/* ── Dark Mode ────────────────────────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-    body { background: #1a202c; color: #e2e8f0; }
-
-    /* Cards & containers */
-    .section-block,
-    .s-kpi-card,
-    .spec-card,
-    .event-card { background: #2d3748; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
-
-    /* Typography */
-    .page-title  { color: #f7fafc; }
-    .s-kpi-lbl   { color: #a0aec0; }
-    .s-kpi-val   { color: #e2e8f0; }
-    .s-snap-label { color: #a0aec0; }
-    .section-link { color: var(--spec-hdr-accent, #90cdf4); }
-    .page-subtitle { color: #a0aec0; }
-
-    /* Snapshot bar track */
-    .s-snap-bar-wrap { background: #4a5568; }
-
-    /* Info banners */
-    .info-banner { background: #2d3748; border-color: #4a5568; }
-    .info-banner p { color: #e2e8f0; }
-
-    /* Header stays dark (already dark gradient — no change needed) */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -820,7 +792,7 @@ body {
 }
 .mod-nav-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);  /* sub-pages: 4 cards */
+    grid-template-columns: repeat(5, 1fr);
     gap: 0.75rem;
 }
 .mod-nav-card {
@@ -843,15 +815,69 @@ body {
     text-decoration: none;
 }
 .mod-nav-icon  { font-size: 1.75rem; line-height: 1; }
-.mod-nav-title { font-size: 0.82rem; font-weight: 600; color: #4a5568; white-space: nowrap; }
+.mod-nav-title { font-size: 0.82rem; font-weight: 600; color: var(--app-text-muted); white-space: nowrap; }
+.mod-nav-card.active {
+    background: var(--primary-color, #667eea) !important;
+    color: #fff;
+    border-color: transparent;
+    transform: none;
+    box-shadow: 0 3px 12px rgba(102,126,234,0.35);
+}
+.mod-nav-card.active .mod-nav-title { color: #fff; }
+.mod-nav-card.active .mod-nav-icon  { filter: brightness(1.5); }
 
 @media (max-width: 768px) {
-    .mod-nav-grid    { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .mod-nav-grid    { grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
     .mod-nav-section { padding: 1rem 1rem 0.25rem; }
 }
 @media (max-width: 480px) {
-    .mod-nav-grid  { gap: 0.5rem; }
+    .mod-nav-grid  { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
     .mod-nav-card  { padding: 0.85rem 0.5rem; }
     .mod-nav-icon  { font-size: 1.4rem; }
     .mod-nav-title { font-size: 0.76rem; }
+}
+
+/* ── Spec subpage header badges (messages/notifications) ─────────────────── */
+.spec-hdr-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.6rem;
+    text-decoration: none;
+}
+.hdr-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 0.62rem;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+    pointer-events: none;
+}
+
+/* ── Footer quick-links (shared across all student pages) ────────────────── */
+.footer-links {
+    text-align: center;
+    margin-top: 2rem;
+    padding: 1.5rem 1rem 2rem;
+    border-top: 1px solid var(--app-border);
+}
+.footer-links a {
+    color: #667eea;
+    text-decoration: none;
+    margin: 0 0.75rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+}
+.footer-links a:hover { text-decoration: underline; }
+@media (max-width: 480px) {
+    .footer-links a { margin: 0 0.4rem; font-size: 0.8rem; }
 }
