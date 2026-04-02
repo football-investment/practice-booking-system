@@ -1,0 +1,33 @@
+{# ─────────────────────────────────────────────────────────────────────────────
+   includes/mod_nav.html  —  Shared module navigation (5 cards, active state)
+
+   Usage — before including, set the current page key:
+       {% set active_mod = 'skills' %}
+       {% include "includes/mod_nav.html" %}
+
+   active_mod values: sessions | progress | skills | achievements | calendar
+   ───────────────────────────────────────────────────────────────────────────── #}
+<section class="mod-nav-section">
+    <div class="mod-nav-grid">
+        <a href="/sessions"     class="mod-nav-card{% if active_mod == 'sessions' %}     active{% endif %}">
+            <span class="mod-nav-icon">📅</span>
+            <span class="mod-nav-title">Sessions</span>
+        </a>
+        <a href="/progress"     class="mod-nav-card{% if active_mod == 'progress' %}     active{% endif %}">
+            <span class="mod-nav-icon">📊</span>
+            <span class="mod-nav-title">Progress</span>
+        </a>
+        <a href="/skills"       class="mod-nav-card{% if active_mod == 'skills' %}       active{% endif %}">
+            <span class="mod-nav-icon">⚡</span>
+            <span class="mod-nav-title">Skills</span>
+        </a>
+        <a href="/achievements" class="mod-nav-card{% if active_mod == 'achievements' %} active{% endif %}">
+            <span class="mod-nav-icon">🏆</span>
+            <span class="mod-nav-title">Achievements</span>
+        </a>
+        <a href="/calendar"     class="mod-nav-card{% if active_mod == 'calendar' %}     active{% endif %}">
+            <span class="mod-nav-icon">📆</span>
+            <span class="mod-nav-title">Calendar</span>
+        </a>
+    </div>
+</section>
