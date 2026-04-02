@@ -540,9 +540,9 @@ class TestSecurityHeadersMiddleware:
         assert response.headers["X-Content-Type-Options"] == "nosniff"
 
     def test_x_frame_options_deny(self):
-        """X-Frame-Options: DENY added."""
+        """X-Frame-Options: SAMEORIGIN added (allows dashboard iframe embedding)."""
         response = self._dispatch()
-        assert response.headers["X-Frame-Options"] == "DENY"
+        assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
 
     def test_x_xss_protection(self):
         """X-XSS-Protection header added."""
