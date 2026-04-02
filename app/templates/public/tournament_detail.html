@@ -810,18 +810,21 @@ body {
             </tbody>
         </table>
         {% else %}
-        {# H2H: full table with W/D/L/GF/GA #}
+        {# H2H: W/D/L/GF/GA shown only when at least one row has non-zero values #}
+        {# (Swiss / score-only formats store points but no W/D/L — those columns are hidden) #}
         <table class="rankings-table">
             <thead>
                 <tr>
                     <th class="rank-col">#</th>
                     <th>{{ 'Team' if participant_type == 'TEAM' else 'Player' }}</th>
                     <th class="num">Pts</th>
+                    {% if show_wdl %}
                     <th class="num hide-sm">W</th>
                     <th class="num hide-sm">D</th>
                     <th class="num hide-sm">L</th>
                     <th class="num hide-sm">GF</th>
                     <th class="num hide-sm">GA</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -839,16 +842,29 @@ body {
                         {% if row.club_name %}<div class="club-sub">{{ row.club_name }}</div>{% endif %}
                     </td>
                     <td class="num"><span class="pts-badge">{{ row.points | int }}</span></td>
+                    {% if show_wdl %}
                     <td class="num hide-sm">{{ row.wins or 0 }}</td>
                     <td class="num hide-sm">{{ row.draws or 0 }}</td>
                     <td class="num hide-sm">{{ row.losses or 0 }}</td>
                     <td class="num hide-sm goals">{{ row.goals_for or 0 }}</td>
                     <td class="num hide-sm goals">{{ row.goals_against or 0 }}</td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Standings-pending: sessions exist but no TournamentRanking rows yet ── #}
+    {# Shown for IN_PROGRESS / COMPLETED events where calculate-rankings hasn't run #}
+    {% if not has_rankings and schedule and status in ('IN_PROGRESS', 'COMPLETED', 'REWARDS_DISTRIBUTED') %}
+    <div class="section">
+        <div class="section-title">📊 Current Standings</div>
+        <div class="empty-note" style="text-align:center;padding:1.25rem 0;color:rgba(255,255,255,.4);font-size:0.85rem;">
+            Rankings will be published once results are finalized.
+        </div>
     </div>
     {% endif %}
 

@@ -171,6 +171,13 @@ def public_event_detail(
 
     has_rankings = len(rankings) > 0
 
+    # True only when at least one row has real W/D/L data (e.g. Group Knockout,
+    # H2H League).  Swiss / IR-style tournaments store points only → all zeros.
+    show_wdl = has_rankings and any(
+        ((r.get("wins") or 0) + (r.get("draws") or 0) + (r.get("losses") or 0)) > 0
+        for r in rankings
+    )
+
     # ── Enrolled participants (shown when no final rankings yet) ──────────────
     enrolled_count = 0
     participants = []  # [{name, club_name}] for pre-result display
@@ -436,6 +443,7 @@ def public_event_detail(
         "extra_campuses": extra_campuses,
         "rankings": rankings,
         "has_rankings": has_rankings,
+        "show_wdl": show_wdl,
         "enrolled_count": enrolled_count,
         "participants": participants,
         "sessions_total": sessions_total,

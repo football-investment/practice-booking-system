@@ -32,6 +32,7 @@ from app.models.session import Session as SessionModel, EventCategory
 from app.models.team import Team, TeamMember
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
+from app.models.tournament_ranking import TournamentRanking
 from app.core.security import get_password_hash
 
 
@@ -443,3 +444,193 @@ class TestPublicEventSchedule:
         assert "Round 2" in resp.text
         assert "Eve Eden" in resp.text
         assert "Grace Green" in resp.text
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Full Results / Rankings presentation layer tests
+#
+# FR-01  Swiss INDIVIDUAL: rankings exist, W/D/L all zero → W/D/L cols hidden
+# FR-02  Group Knockout INDIVIDUAL: rankings have W/D/L → W/D/L cols shown
+# FR-03  COMPLETED event with sessions but no rankings → standings-pending placeholder
+# FR-04  Full Results title only on COMPLETED/REWARDS_DISTRIBUTED
+# FR-05  INDIVIDUAL H2H: rank, name, pts-badge all present for each row
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ranking(
+    db: Session,
+    tournament_id: int,
+    user_id: int,
+    rank: int,
+    points: float,
+    wins: int = 0,
+    draws: int = 0,
+    losses: int = 0,
+    goals_for: int = 0,
+    goals_against: int = 0,
+) -> TournamentRanking:
+    row = TournamentRanking(
+        tournament_id=tournament_id,
+        user_id=user_id,
+        participant_type="INDIVIDUAL",
+        rank=rank,
+        points=points,
+        wins=wins,
+        draws=draws,
+        losses=losses,
+        goals_for=goals_for,
+        goals_against=goals_against,
+    )
+    db.add(row)
+    db.flush()
+    return row
+
+
+class TestFullResultsPresentation:
+
+    # ── FR-01: Swiss INDIVIDUAL — W/D/L=0 → columns hidden ───────────────────
+    def test_FR_01_swiss_individual_no_wdl_columns(self, test_db: Session):
+        """
+        Swiss INDIVIDUAL rankings have points but W/D/L all zero.
+        The H2H table must NOT render W/D/L/GF/GA columns for such rankings.
+        Regression: before fix, confusing all-zero W/D/L columns were shown.
+        """
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
+                        tournament_status="REWARDS_DISTRIBUTED")
+        p1 = _player(test_db, name="Swiss Winner")
+        p2 = _player(test_db, name="Swiss Runner")
+        _ranking(test_db, t.id, p1.id, rank=1, points=100.0)
+        _ranking(test_db, t.id, p2.id, rank=2, points=98.0)
+
+        with _public_client(test_db) as client:
+            resp = client.get(f"/events/{t.id}")
+
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+        assert "Full Results" in html, "Full Results title missing"
+        assert "Swiss Winner" in html, "Rank-1 player name missing"
+        assert "Swiss Runner" in html, "Rank-2 player name missing"
+        # pts-badge with correct values
+        assert "100" in html
+        assert "98" in html
+        # W/D/L column headers must NOT appear (all zeros → hidden)
+        assert "<th" not in html.split("Full Results")[1].split("</table>")[0] or \
+            ">W<" not in html and ">D<" not in html and ">L<" not in html, \
+            "W/D/L column headers should be hidden when all rankings have W=D=L=0"
+
+    # ── FR-02: Group Knockout — W/D/L present → columns shown ────────────────
+    def test_FR_02_group_knockout_wdl_columns_shown(self, test_db: Session):
+        """
+        Group Knockout rankings have real W/D/L data.
+        The H2H table MUST render W/D/L/GF/GA columns.
+        """
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
+                        tournament_status="COMPLETED")
+        p1 = _player(test_db, name="GK Alpha")
+        p2 = _player(test_db, name="GK Beta")
+        _ranking(test_db, t.id, p1.id, rank=1, points=9.0,
+                 wins=3, draws=0, losses=0, goals_for=9, goals_against=2)
+        _ranking(test_db, t.id, p2.id, rank=2, points=6.0,
+                 wins=2, draws=0, losses=1, goals_for=6, goals_against=4)
+
+        with _public_client(test_db) as client:
+            resp = client.get(f"/events/{t.id}")
+
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+        assert "Full Results" in html
+        assert "GK Alpha" in html
+        # W/D/L column headers must appear
+        assert ">W<" in html, "W column header missing for Group Knockout"
+        assert ">D<" in html, "D column header missing"
+        assert ">L<" in html, "L column header missing"
+
+    # ── FR-03: COMPLETED + sessions but NO rankings → standings-pending ───────
+    def test_FR_03_no_rankings_shows_standings_pending(self, test_db: Session):
+        """
+        When a COMPLETED tournament has sessions (with scores in schedule) but
+        no TournamentRanking rows, the page must show a 'Current Standings'
+        placeholder instead of silently hiding the section.
+        Regression: user saw schedule with scores but no standings table at all.
+        """
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
+                        tournament_status="IN_PROGRESS")
+        p1 = _player(test_db, name="Pending Player A")
+        p2 = _player(test_db, name="Pending Player B")
+        _session(test_db, t,
+                 participant_user_ids=[p1.id, p2.id],
+                 rounds_data={"round_results": {"1": {str(p1.id): 5, str(p2.id): 3}}})
+        # No TournamentRanking rows — rankings not yet calculated
+
+        with _public_client(test_db) as client:
+            resp = client.get(f"/events/{t.id}")
+
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+        # Schedule with scores must show
+        assert "Match Schedule" in html
+        assert "Pending Player A" in html
+        # Standings placeholder must appear
+        assert "Current Standings" in html, \
+            "Standings placeholder missing for IN_PROGRESS event with sessions but no rankings"
+        assert "Rankings will be published" in html, \
+            "Standings-pending message missing"
+
+    # ── FR-04: Full Results title only on COMPLETED/REWARDS_DISTRIBUTED ───────
+    def test_FR_04_title_based_on_status(self, test_db: Session):
+        """
+        '📋 Full Results' title only on COMPLETED/REWARDS_DISTRIBUTED.
+        '📊 Current Standings' on all other statuses (when rankings exist).
+        """
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+
+        for status, expected_title in [
+            ("COMPLETED", "Full Results"),
+            ("REWARDS_DISTRIBUTED", "Full Results"),
+            ("IN_PROGRESS", "Current Standings"),
+        ]:
+            t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
+                            tournament_status=status)
+            p = _player(test_db, name=f"Title Player {status}")
+            _ranking(test_db, t.id, p.id, rank=1, points=50.0)
+
+            with _public_client(test_db) as client:
+                resp = client.get(f"/events/{t.id}")
+
+            assert resp.status_code == 200
+            assert expected_title in resp.text, \
+                f"Expected '{expected_title}' for status={status}"
+
+    # ── FR-05: Every ranking row renders rank, name, pts-badge ────────────────
+    def test_FR_05_ranking_rows_render_correctly(self, test_db: Session):
+        """
+        Each TournamentRanking row must appear as a table row with:
+        - rank number / medal emoji
+        - player name
+        - pts-badge with correct integer value
+        """
+        tt = _tt(test_db, fmt="HEAD_TO_HEAD")
+        t = _tournament(test_db, participant_type="INDIVIDUAL", tt=tt,
+                        tournament_status="REWARDS_DISTRIBUTED")
+        players = [_player(test_db, name=f"FR Player {i}") for i in range(1, 4)]
+        for i, p in enumerate(players, 1):
+            _ranking(test_db, t.id, p.id, rank=i, points=float(100 - (i - 1) * 10))
+
+        with _public_client(test_db) as client:
+            resp = client.get(f"/events/{t.id}")
+
+        assert resp.status_code == 200, resp.text
+        html = resp.text
+        assert "Full Results" in html
+        for i, p in enumerate(players, 1):
+            assert f"FR Player {i}" in html, f"Rank-{i} player name missing"
+        # Points: 100, 90, 80
+        assert "100" in html
+        assert "90" in html
+        assert "80" in html
+        # Medal emojis for top 3
+        assert "🥇" in html
+        assert "🥈" in html
+        assert "🥉" in html
