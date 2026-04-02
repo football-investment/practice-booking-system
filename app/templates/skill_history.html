@@ -515,7 +515,11 @@
             var evName = t.event_name || t.tournament_name || 'Event';
             return '<tr>' +
                 '<td>' + (i + 1) + '</td>' +
-                '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + evName + '">' + evName + '</td>' +
+                '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                    (t.tournament_id
+                        ? '<a href="/events/' + t.tournament_id + '" target="_blank" style="color:var(--app-link,#2563eb);text-decoration:none;" title="' + evName + '">' + evName + ' ↗</a>'
+                        : '<span title="' + evName + '">' + evName + '</span>') +
+                '</td>' +
                 '<td><span class="sh-event-badge">' + eventIcon(evType) + ' ' + eventLabel(evType) + '</span></td>' +
                 '<td>' + fmtDate(t.achieved_at) + '</td>' +
                 '<td>' + placementBadge(t.placement) + '</td>' +

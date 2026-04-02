@@ -227,6 +227,16 @@ def public_event_detail(
     for team in db.query(Team).filter(Team.id.in_(all_team_ids)).all():
         team_cache[team.id] = team.name
 
+    # Build a player-name cache for INDIVIDUAL HEAD_TO_HEAD schedules (Swiss, etc.)
+    # participant_user_ids stores 1v1 pairings when participant_type == INDIVIDUAL
+    all_schedule_uids: set[int] = set()
+    for sess in raw_sessions:
+        for uid in (sess.participant_user_ids or []):
+            all_schedule_uids.add(uid)
+    schedule_player_cache: dict[int, str] = {}
+    for u in db.query(User).filter(User.id.in_(all_schedule_uids)).all():
+        schedule_player_cache[u.id] = u.name or u.email
+
     # Build player_data caches for IR per-player display
     player_score_map: dict[int, dict] = {}  # {user_id: {score, position}}
     user_cache: dict[int, "User"] = {}       # {user_id: User}
@@ -262,18 +272,34 @@ def public_event_detail(
     schedule: list[dict] = []
     for sess in raw_sessions:
         tids = sess.participant_team_ids or []
-        name_a = team_cache.get(tids[0], f"Team #{tids[0]}") if len(tids) > 0 else "TBD"
-        name_b = team_cache.get(tids[1], f"Team #{tids[1]}") if len(tids) > 1 else "TBD"
+        uids = sess.participant_user_ids or []
         score_a = score_b = None
         rr = (sess.rounds_data or {}).get("round_results", {})
-        if rr and len(tids) >= 2:
-            r1 = rr.get("1", {})
+        r1 = rr.get("1", {}) if rr else {}
+
+        if len(tids) >= 2:
+            # TEAM HEAD_TO_HEAD: participant_team_ids carries the pairing
+            name_a = team_cache.get(tids[0], f"Team #{tids[0]}")
+            name_b = team_cache.get(tids[1], f"Team #{tids[1]}")
             raw_a = r1.get(f"team_{tids[0]}")
             raw_b = r1.get(f"team_{tids[1]}")
             if raw_a is not None:
                 score_a = int(float(raw_a))
             if raw_b is not None:
                 score_b = int(float(raw_b))
+        elif len(uids) >= 2:
+            # INDIVIDUAL HEAD_TO_HEAD: participant_user_ids carries the 1v1 pairing
+            name_a = schedule_player_cache.get(uids[0], f"Player #{uids[0]}")
+            name_b = schedule_player_cache.get(uids[1], f"Player #{uids[1]}")
+            raw_a = r1.get(str(uids[0]))
+            raw_b = r1.get(str(uids[1]))
+            if raw_a is not None:
+                score_a = int(float(raw_a))
+            if raw_b is not None:
+                score_b = int(float(raw_b))
+        else:
+            name_a = name_b = "TBD"
+
         schedule.append({
             "round":   sess.round_number,
             "date":    sess.date_start,
