@@ -92,6 +92,7 @@ class GroupStageFinalizer:
             {"session_id": s.id, "title": s.title}
             for s in sessions
             if s.game_results is None
+            and not (s.rounds_data or {}).get("round_results")
         ]
 
         return len(incomplete_matches) == 0, incomplete_matches

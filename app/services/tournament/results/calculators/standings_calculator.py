@@ -12,6 +12,7 @@ import json
 
 from app.models.session import Session as SessionModel
 from app.models.user import User as UserModel
+from app.models.team import Team as TeamModel
 
 
 class StandingsCalculator:
@@ -37,6 +38,111 @@ class StandingsCalculator:
     def calculate_group_standings(
         self,
         group_sessions: List[SessionModel]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Dispatch to TEAM or INDIVIDUAL standings calculation."""
+        is_team = any(
+            getattr(s, "participant_team_ids", None)
+            for s in group_sessions
+        )
+        if is_team:
+            return self._calculate_group_standings_team(group_sessions)
+        return self._calculate_group_standings_individual(group_sessions)
+
+    def _calculate_group_standings_team(
+        self,
+        group_sessions: List[SessionModel],
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Calculate group standings for TEAM tournaments (results in rounds_data)."""
+        group_stats: dict = defaultdict(lambda: defaultdict(lambda: {
+            "wins": 0, "losses": 0, "draws": 0, "points": 0,
+            "goals_for": 0.0, "goals_against": 0.0, "matches_played": 0,
+        }))
+
+        for session in group_sessions:
+            if session.group_identifier and session.participant_team_ids:
+                for tid in session.participant_team_ids:
+                    _ = group_stats[session.group_identifier][tid]
+
+        for session in group_sessions:
+            if not session.group_identifier:
+                continue
+            round_results = (session.rounds_data or {}).get("round_results", {})
+            if not round_results:
+                continue
+
+            team_totals: dict = {}
+            for round_data in round_results.values():
+                for key, val in (round_data or {}).items():
+                    if key.startswith("team_"):
+                        try:
+                            tid = int(key.split("_", 1)[1])
+                            team_totals[tid] = team_totals.get(tid, 0.0) + float(val)
+                        except (ValueError, IndexError):
+                            pass
+
+            if len(team_totals) != 2:
+                continue
+
+            (t1, s1), (t2, s2) = list(team_totals.items())
+            gid = session.group_identifier
+            group_stats[gid][t1]["goals_for"] += s1
+            group_stats[gid][t1]["goals_against"] += s2
+            group_stats[gid][t1]["matches_played"] += 1
+            group_stats[gid][t2]["goals_for"] += s2
+            group_stats[gid][t2]["goals_against"] += s1
+            group_stats[gid][t2]["matches_played"] += 1
+
+            if s1 > s2:
+                group_stats[gid][t1]["wins"] += 1
+                group_stats[gid][t1]["points"] += 3
+                group_stats[gid][t2]["losses"] += 1
+            elif s2 > s1:
+                group_stats[gid][t2]["wins"] += 1
+                group_stats[gid][t2]["points"] += 3
+                group_stats[gid][t1]["losses"] += 1
+            else:
+                group_stats[gid][t1]["draws"] += 1
+                group_stats[gid][t1]["points"] += 1
+                group_stats[gid][t2]["draws"] += 1
+                group_stats[gid][t2]["points"] += 1
+
+        group_standings: dict = {}
+        for group_id, stats in group_stats.items():
+            team_ids = list(stats.keys())
+            teams = self.db.query(TeamModel).filter(TeamModel.id.in_(team_ids)).all()
+            team_dict = {t.id: t for t in teams}
+
+            standings_list = []
+            for team_id, ts in stats.items():
+                team = team_dict.get(team_id)
+                goal_diff = ts["goals_for"] - ts["goals_against"]
+                standings_list.append({
+                    "team_id": team_id,
+                    "name": team.name if team else f"Team {team_id}",
+                    "points": ts["points"],
+                    "wins": ts["wins"],
+                    "draws": ts["draws"],
+                    "losses": ts["losses"],
+                    "goals_for": ts["goals_for"],
+                    "goals_against": ts["goals_against"],
+                    "goal_difference": goal_diff,
+                    "matches_played": ts["matches_played"],
+                })
+
+            standings_list.sort(
+                key=lambda x: (x["points"], x["goal_difference"], x["goals_for"]),
+                reverse=True,
+            )
+            for rank, entry in enumerate(standings_list, start=1):
+                entry["rank"] = rank
+
+            group_standings[group_id] = standings_list
+
+        return group_standings
+
+    def _calculate_group_standings_individual(
+        self,
+        group_sessions: List[SessionModel],
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Calculate standings for all groups from completed matches.

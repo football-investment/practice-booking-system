@@ -86,12 +86,12 @@ jobs:
       - name: Migrate DB
         run: alembic upgrade head
 
-      - name: Run SRL-09..15 — New tournament type lifecycle tests
+      - name: Run SRL-09..16 — All format × participant_type lifecycle tests
         run: |
           mkdir -p results
           PYTHONPATH=. pytest tests/integration/web_flows/test_lifecycle_reward_matrix.py \
             -v --tb=short \
-            -k "SRL_09 or SRL_10 or SRL_11 or SRL_12 or SRL_13 or SRL_15" \
+            -k "SRL_09 or SRL_10 or SRL_11 or SRL_12 or SRL_13 or SRL_14 or SRL_15 or SRL_16" \
             --junitxml=results/srl-new.xml
 
       - name: Run SRL-01..08 — Regression (existing lifecycle tests)
@@ -298,12 +298,11 @@ jobs:
           echo "| SRL-11 | INDIVIDUAL_RANKING | INDIVIDUAL | SCORE_BASED | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| SRL-12 | INDIVIDUAL_RANKING | TEAM | SCORE_BASED | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| SRL-13 | H2H | TEAM | knockout | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| SRL-14 | H2H | TEAM | group_knockout | ⚠️ arch-gap (not tested) |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-14 | H2H | TEAM | group_knockout | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| SRL-15 | H2H | TEAM | league (2-legs) | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SRL-16 | H2H | INDIVIDUAL | swiss | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Known Gaps (documented, not blocking)" >> $GITHUB_STEP_SUMMARY
-          echo "- **SRL-14 (TEAM+group_knockout)**: finalize path checks game_results, not rounds_data — architectural gap, tracked separately" >> $GITHUB_STEP_SUMMARY
-          echo "- **Swiss ranking**: no strategy (SGR-06 — returns 400); Swiss session gen works (SGM-03/08/10)" >> $GITHUB_STEP_SUMMARY
           echo "- **TM-01 (wizard browser test)**: marked \`@pytest.mark.slow\`, requires running server — excluded from CI" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 

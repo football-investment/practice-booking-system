@@ -59,10 +59,13 @@ class RankingStrategyFactory:
                 return HeadToHeadKnockoutRankingStrategy()
             elif tournament_type_code == "group_knockout":
                 return HeadToHeadGroupKnockoutRankingStrategy()
+            elif tournament_type_code == "swiss":
+                # Swiss uses the same W/D/L points system as league
+                return HeadToHeadLeagueRankingStrategy()
             else:
                 raise ValueError(
                     f"Unsupported HEAD_TO_HEAD tournament type: '{tournament_type_code}'. "
-                    f"Supported: league, knockout, group_knockout"
+                    f"Supported: league, knockout, group_knockout, swiss"
                 )
 
         # INDIVIDUAL tournaments

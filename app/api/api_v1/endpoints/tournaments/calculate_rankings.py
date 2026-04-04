@@ -92,6 +92,9 @@ def calculate_tournament_rankings(
     print(f"🔍 [calculate_rankings] tournament_type_code={tournament_type_code}")
     print(f"🔍 [calculate_rankings] all_sessions count={len(all_sessions)}")
 
+    def _has_results(s) -> bool:
+        return bool(s.game_results) or bool((s.rounds_data or {}).get("round_results"))
+
     # For group+knockout tournaments: use GROUP_STAGE sessions for validation,
     # but pass ALL completed sessions (group + knockout) to the ranking strategy
     # so final ranks reflect bracket position, not group stage points.
@@ -99,7 +102,7 @@ def calculate_tournament_rankings(
         group_sessions = [s for s in all_sessions if s.tournament_phase == "GROUP_STAGE"]
         knockout_sessions = [
             s for s in all_sessions
-            if s.tournament_phase == "KNOCKOUT" and s.game_results
+            if s.tournament_phase == "KNOCKOUT" and _has_results(s)
         ]
         print(f"🔍 [calculate_rankings] group_knockout: {len(group_sessions)} group, {len(knockout_sessions)} completed knockout sessions")
         if not group_sessions:
@@ -108,7 +111,7 @@ def calculate_tournament_rankings(
                 detail="No GROUP_STAGE sessions found. Cannot calculate rankings."
             )
         # Validate only group stage sessions must all have results
-        group_missing = [s for s in group_sessions if not s.game_results]
+        group_missing = [s for s in group_sessions if not _has_results(s)]
         if group_missing:
             raise HTTPException(
                 status_code=400,
@@ -127,16 +130,6 @@ def calculate_tournament_rankings(
                 status_code=400,
                 detail=f"{missing_count} session(s) do not have results submitted yet. Submit all results first."
             )
-
-    # Swiss format guard: no automatic ranking strategy available
-    if tournament_type_code == "swiss":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Swiss format does not support automatic ranking calculation. "
-                "Rankings must be entered manually."
-            ),
-        )
 
     # Calculate rankings based on tournament format
     try:

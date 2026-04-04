@@ -759,12 +759,12 @@ class TestAutoRankingTrigger:
             f"Rankings must NOT be auto-created yet (1 session still pending), got {len(rows)}"
         )
 
-    def test_ARK_03_auto_ranking_non_breaking_for_swiss(
+    def test_ARK_03_auto_ranking_works_for_swiss(
         self, test_db: Session, client, admin_user: User, admin_token: str
     ):
         """
-        ARK-03: Swiss tournament last session completed → HTTP 200 (auto-ranking
-        silently fails because Swiss has no strategy; result submission unaffected).
+        ARK-03: Swiss tournament last session completed → HTTP 200 and auto-ranking
+        succeeds. Swiss now maps to HeadToHeadLeagueRankingStrategy (W/D/L points).
         """
         tt = _tt(test_db, "swiss", min_players=4)
         t = _tournament(test_db, admin_user, tt)
@@ -780,16 +780,17 @@ class TestAutoRankingTrigger:
             json={"results": [{"user_id": p1.id, "score": 1}, {"user_id": p2.id, "score": 0}]},
             headers=hdrs,
         )
-        # Must still return 200 — auto-ranking failure must be swallowed
         assert resp.status_code == 200, (
-            f"Swiss auto-ranking failure must not break result submission: {resp.text[:300]}"
+            f"Swiss result submission must return 200: {resp.text[:300]}"
         )
-        # No ranking rows (Swiss auto-ranking raises ValueError, caught by _maybe_trigger)
+        # Swiss now has a strategy → auto-ranking fires and creates ranking rows
         test_db.expire_all()
         rows = test_db.query(TournamentRanking).filter(
             TournamentRanking.tournament_id == t.id
         ).all()
-        assert len(rows) == 0, f"Swiss must produce no auto-rankings, got {len(rows)}"
+        assert len(rows) == 2, f"Swiss auto-ranking must create 2 rows (p1 win, p2 loss), got {len(rows)}"
+        winner = next((r for r in rows if r.user_id == p1.id), None)
+        assert winner is not None and winner.rank == 1, "p1 (winner) must be rank 1"
 
 
 class TestTeamRankingDisplay:
@@ -1471,11 +1472,126 @@ class TestExtendedLifecycleMatrix:
             f"Expected 8 TournamentParticipation rows (4 teams × 2 members), got {len(participations)}"
         )
 
-    # SRL-14: TEAM + group_knockout — ARCHITECTURAL GAP (documented, not tested)
-    # finalize-group-stage and calculate-rankings group_knockout path both check
-    # s.game_results (not rounds_data). TEAM sessions store results in rounds_data,
-    # so group-stage finalization would fail. This gap requires a service-layer fix.
-    # Tracked in: SGR-06 area — not blocking this matrix release.
+    # ── SRL-14 ──────────────────────────────────────────────────────────────────
+
+    def test_SRL_14_team_group_knockout_full_lifecycle(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        SRL-14: TEAM + HEAD_TO_HEAD + group_knockout (8 teams × 2 members)
+        2 groups × 4 teams → group stage (12 sessions) → finalize-group-stage
+        → 4 qualifiers → knockout (2 SF + Final + Bronze)
+        → calculate-rankings → REWARDS_DISTRIBUTED.
+
+        Fixes tested:
+        - GroupStageFinalizer.check_all_matches_completed: accepts rounds_data
+        - StandingsCalculator: computes TEAM group standings from rounds_data
+        - AdvancementCalculator: seeds participant_team_ids for KO sessions
+        - calculate_rankings group_knockout path: accepts rounds_data for TEAM
+        """
+        from sqlalchemy.orm.attributes import flag_modified
+        from app.models.tournament_enums import TournamentPhase
+
+        tt = _tt(test_db, "group_knockout", min_players=8)
+        camp = _campus(test_db)
+        t = _tournament(test_db, admin_user, tt, participant_type="TEAM", tournament_status="DRAFT")
+        t.campus_id = camp.id
+        test_db.flush()
+
+        teams = [_make_team_with_members(test_db, count=2) for _ in range(8)]
+        for team in teams:
+            _enroll_team(test_db, t, team)
+
+        _advance_to_in_progress(client, t.id, admin_token)
+
+        # 8 teams → 2 groups × 4 teams each → 12 GROUP_STAGE + 4 KNOCKOUT sessions
+        sessions = _get_match_sessions(test_db, t.id)
+        group_sessions = [s for s in sessions if s.tournament_phase == TournamentPhase.GROUP_STAGE]
+        ko_sessions = [s for s in sessions if s.tournament_phase == TournamentPhase.KNOCKOUT]
+        assert len(group_sessions) == 12, f"Expected 12 group sessions, got {len(group_sessions)}"
+        assert len(ko_sessions) == 4, f"Expected 4 KO sessions, got {len(ko_sessions)}"
+
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+
+        # Submit all GROUP_STAGE results (lower team_id wins)
+        for gs in group_sessions:
+            tids = gs.participant_team_ids
+            assert tids and len(tids) == 2, f"Group session {gs.id} must have 2 participant_team_ids"
+            winner_tid = min(tids)
+            loser_tid = max(tids)
+            _submit_team(client, gs.id, winner_tid, loser_tid, admin_token)
+
+        # Finalize group stage → seeds KO bracket with participant_team_ids
+        resp = client.post(f"/api/v1/tournaments/{t.id}/finalize-group-stage", headers=hdrs)
+        assert resp.status_code == 200, f"finalize-group-stage failed: {resp.text[:400]}"
+        data = resp.json()
+        assert data.get("success"), f"finalize-group-stage returned success=False: {data}"
+        assert data.get("knockout_sessions_updated", 0) >= 2, (
+            f"Expected ≥2 KO sessions seeded, got {data.get('knockout_sessions_updated')}"
+        )
+
+        # Refresh — SF sessions now have participant_team_ids
+        test_db.expire_all()
+        all_sess = _get_match_sessions(test_db, t.id)
+        sf_sessions = sorted(
+            [s for s in all_sess if s.tournament_phase == TournamentPhase.KNOCKOUT
+             and s.tournament_round == 1],
+            key=lambda s: s.id,
+        )
+        # group_knockout: Final = round 2, Bronze = round 3 (knockout_rounds + 1)
+        final_session = next(
+            s for s in all_sess
+            if s.tournament_phase == TournamentPhase.KNOCKOUT
+            and s.tournament_round == 2
+        )
+        bronze_session = next(
+            s for s in all_sess
+            if s.tournament_phase == TournamentPhase.KNOCKOUT
+            and s.tournament_round == 3
+        )
+        assert len(sf_sessions) == 2, f"Expected 2 SF sessions, got {len(sf_sessions)}"
+
+        # Submit SF results (lower team_id wins)
+        sf_winners = []
+        sf_losers = []
+        for sf in sf_sessions:
+            tids = sf.participant_team_ids
+            assert tids and len(tids) == 2, f"SF {sf.id} must have participant_team_ids after seeding"
+            winner_tid = min(tids)
+            loser_tid = max(tids)
+            _submit_team(client, sf.id, winner_tid, loser_tid, admin_token)
+            sf_winners.append(winner_tid)
+            sf_losers.append(loser_tid)
+
+        # Manually seed Final and Bronze (KnockoutProgressionService not called for TEAM)
+        test_db.expire_all()
+        final_session = test_db.query(SessionModel).filter(SessionModel.id == final_session.id).first()
+        final_session.participant_team_ids = sf_winners
+        flag_modified(final_session, "participant_team_ids")
+        bronze_session = test_db.query(SessionModel).filter(SessionModel.id == bronze_session.id).first()
+        bronze_session.participant_team_ids = sf_losers
+        flag_modified(bronze_session, "participant_team_ids")
+        test_db.flush()
+
+        # Submit Final and Bronze
+        _submit_team(client, final_session.id, sf_winners[0], sf_winners[1], admin_token)
+        _submit_team(client, bronze_session.id, sf_losers[0], sf_losers[1], admin_token)
+
+        _finalize_tournament(client, t.id, admin_token, test_db)
+
+        rankings = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).order_by(TournamentRanking.rank).all()
+        assert len(rankings) >= 2, f"Expected ranking rows, got {len(rankings)}"
+        assert rankings[0].team_id is not None
+        assert rankings[0].user_id is None
+
+        participations = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id
+        ).all()
+        assert len(participations) == 16, (
+            f"Expected 16 TournamentParticipation rows (8 teams × 2 members), got {len(participations)}"
+        )
 
     # ── SRL-15 ──────────────────────────────────────────────────────────────────
 
@@ -1536,4 +1652,61 @@ class TestExtendedLifecycleMatrix:
         ).all()
         assert len(participations) == 6, (
             f"Expected 6 TournamentParticipation rows (3 teams × 2 members), got {len(participations)}"
+        )
+
+    # ── SRL-16 ──────────────────────────────────────────────────────────────────
+
+    def test_SRL_16_swiss_individual_full_lifecycle(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        SRL-16: INDIVIDUAL + HEAD_TO_HEAD + swiss (4 players)
+        ceil(log2(4))=2 rounds × 2 matches/round = 4 H2H sessions.
+        Submit all results → calculate-rankings (HeadToHeadLeagueStrategy via factory)
+        → COMPLETED → REWARDS_DISTRIBUTED.
+
+        Fixes tested:
+        - factory.py: "swiss" → HeadToHeadLeagueRankingStrategy (was ValueError)
+        - calculate_rankings.py: Swiss guard removed (was HTTP 400)
+        - ranking_service.py: Swiss guard removed (was ValueError)
+        """
+        tt = _tt(test_db, "swiss", min_players=4)
+        camp = _campus(test_db)
+        t = _tournament(test_db, admin_user, tt, tournament_status="DRAFT")
+        t.campus_id = camp.id
+        test_db.flush()
+
+        players = [_user(test_db) for _ in range(4)]
+        for p in players:
+            _enroll(test_db, t, p)
+
+        _advance_to_in_progress(client, t.id, admin_token)
+
+        # ceil(log2(4)) = 2 rounds × 2 matches = 4 sessions
+        sessions = _get_match_sessions(test_db, t.id)
+        assert len(sessions) == 4, f"Swiss 4-player must generate 4 sessions, got {len(sessions)}"
+
+        # Submit all HEAD_TO_HEAD results (lower user_id wins each match)
+        for sess in sessions:
+            pids = sess.participant_user_ids
+            assert pids and len(pids) == 2, f"Swiss session {sess.id} must have 2 participant_user_ids"
+            _submit_h2h(client, sess.id, min(pids), max(pids), admin_token)
+
+        _finalize_tournament(client, t.id, admin_token, test_db)
+
+        rankings = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).order_by(TournamentRanking.rank).all()
+        assert len(rankings) >= 2, f"Expected ranking rows for Swiss, got {len(rankings)}"
+        assert rankings[0].rank == 1
+        assert rankings[0].user_id is not None
+        assert rankings[0].user_id == min(p.id for p in players), (
+            "Lowest user_id wins all matches → must be rank 1"
+        )
+
+        participations = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id
+        ).all()
+        assert len(participations) == 4, (
+            f"Expected 4 TournamentParticipation rows (4 Swiss players), got {len(participations)}"
         )

@@ -51,23 +51,19 @@ def calculate_and_store_rankings(db, tournament_id: int) -> dict:
     if tournament.tournament_config_obj and tournament.tournament_config_obj.tournament_type:
         tournament_type_code = tournament.tournament_config_obj.tournament_type.code
 
-    # Swiss: no strategy available
-    if tournament_type_code == "swiss":
-        raise ValueError(
-            "Swiss format does not support automatic ranking calculation. "
-            "Rankings must be entered manually."
-        )
+    def _has_results(s) -> bool:
+        return bool(s.game_results) or bool((s.rounds_data or {}).get("round_results"))
 
     # Group+knockout: validate group stage only, pass all sessions to strategy
     if tournament_type_code == "group_knockout":
         group_sessions = [s for s in all_sessions if s.tournament_phase == "GROUP_STAGE"]
         knockout_sessions = [
             s for s in all_sessions
-            if s.tournament_phase == "KNOCKOUT" and s.game_results
+            if s.tournament_phase == "KNOCKOUT" and _has_results(s)
         ]
         if not group_sessions:
             raise ValueError("No GROUP_STAGE sessions found. Cannot calculate rankings.")
-        missing = [s for s in group_sessions if not s.game_results]
+        missing = [s for s in group_sessions if not _has_results(s)]
         if missing:
             raise ValueError(f"{len(missing)} GROUP_STAGE session(s) do not have results yet.")
         sessions = group_sessions + knockout_sessions

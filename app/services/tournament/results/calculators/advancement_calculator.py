@@ -55,8 +55,9 @@ class AdvancementCalculator:
         qualified_participants = []
 
         for group_id, standings in group_standings.items():
-            # Top N from each group qualify
-            qualified_from_group = [p['user_id'] for p in standings[:top_n]]
+            # Support both TEAM standings (team_id key) and INDIVIDUAL (user_id key)
+            id_key = "team_id" if (standings and "team_id" in standings[0]) else "user_id"
+            qualified_from_group = [p[id_key] for p in standings[:top_n]]
             qualified_participants.extend(qualified_from_group)
 
         return qualified_participants
@@ -86,11 +87,20 @@ class AdvancementCalculator:
         Side effects:
             Updates participant_user_ids for knockout sessions
         """
+        from sqlalchemy.orm.attributes import flag_modified
+
         sorted_groups = sorted(group_standings.items())
         num_groups = len(sorted_groups)
 
         if num_groups < 2:
             return 0
+
+        # Detect TEAM mode from first standing entry
+        first_standings = next(
+            (s for _, s in sorted_groups if s), []
+        )
+        is_team = bool(first_standings and "team_id" in first_standings[0])
+        id_key = "team_id" if is_team else "user_id"
 
         # First-round sessions (round 1 = deepest knockout round, e.g. QF or SF)
         first_round_sessions = [s for s in knockout_sessions if s.tournament_round == 1]
@@ -112,7 +122,7 @@ class AdvancementCalculator:
         for rank in range(top_n):
             for _group_id, standings in sorted_groups:
                 if len(standings) > rank:
-                    seeded.append(standings[rank]['user_id'])
+                    seeded.append(standings[rank][id_key])
 
         if len(seeded) < total_qualifiers:
             return 0  # Not enough qualified participants
@@ -122,7 +132,12 @@ class AdvancementCalculator:
         for i, session in enumerate(first_round_sessions):
             high = total_qualifiers - 1 - i
             if i < high:
-                session.participant_user_ids = [seeded[i], seeded[high]]
+                if is_team:
+                    session.participant_team_ids = [seeded[i], seeded[high]]
+                    flag_modified(session, "participant_team_ids")
+                else:
+                    session.participant_user_ids = [seeded[i], seeded[high]]
+                    flag_modified(session, "participant_user_ids")
                 sessions_updated += 1
 
         return sessions_updated
