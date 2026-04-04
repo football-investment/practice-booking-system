@@ -1,6 +1,18 @@
 name: Tournament Type Matrix (SRL-09..15 + Seed + E2E)
 
 on:
+  push:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/api/api_v1/endpoints/tournaments/calculate_rankings.py'
+      - 'app/services/tournament/ranking/**'
+      - 'app/services/tournament/session_generation/**'
+      - 'app/services/tournament/rewards/**'
+      - 'app/services/tournament/tournament_finalizer.py'
+      - 'tests/integration/web_flows/test_lifecycle_reward_matrix.py'
+      - 'tests/e2e/test_tournament_type_matrix.py'
+      - 'scripts/seed_all_tournament_types.py'
+      - '.github/workflows/tournament-type-matrix.yml'
   pull_request:
     branches: [main, develop, "feature/*", "fix/*"]
     paths:
