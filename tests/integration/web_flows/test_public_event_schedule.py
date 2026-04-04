@@ -277,11 +277,13 @@ class TestPublicEventSchedule:
         assert "Blue Eagles" in resp.text, "Team B name missing from schedule"
         assert resp.text.count(">TBD<") == 0, "TBD should not appear when participant_team_ids is set"
 
-    # ── PES-03: Missing participant data → TBD fallback, no 500 ──────────────
+    # ── PES-03: Missing participant data → session hidden, no 500 ────────────
     def test_PES_03_missing_participant_data_renders_tbd(self, test_db: Session):
         """
         Sessions with no participant_user_ids and no participant_team_ids must
-        render as 'TBD vs TBD' — not crash with 500.
+        be silently HIDDEN from the schedule (not crash with 500, not show TBD).
+        This is the correct behavior for GROUP_KNOCKOUT bracket placeholders
+        before finalize-group-stage is called.
         """
         t = _tournament(test_db, participant_type="INDIVIDUAL")
         _session(test_db, t, participant_user_ids=None, participant_team_ids=None)
@@ -290,9 +292,8 @@ class TestPublicEventSchedule:
             resp = client.get(f"/events/{t.id}")
 
         assert resp.status_code == 200, resp.text
-        assert "Match Schedule" in resp.text
-        # TBD entries are expected — one for team_a, one for team_b per match
-        assert "TBD" in resp.text, "Sessions without pairing data should display TBD"
+        # Sessions with no participants are hidden — schedule section empty, no TBD rows
+        assert "TBD" not in resp.text, "Sessions without participants should be hidden, not rendered as TBD"
 
     # ── PES-04: INDIVIDUAL with scores in rounds_data ─────────────────────────
     def test_PES_04_individual_scores_rendered(self, test_db: Session):

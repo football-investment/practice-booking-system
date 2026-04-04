@@ -629,8 +629,9 @@ class TestComputeSingleTournamentSkillDelta:
         t = _tourn(tid=10)
         p = _part(tournament=t, placement=1)
         q1 = _fluent_q(all_=[p])
-        q2 = _fluent_q(count=0)
-        db.query.side_effect = [q1, q2]
+        q2 = _fluent_q(count=0)   # TournamentRanking count=0 → fallback
+        q3 = _fluent_q(count=0)   # TournamentParticipation fallback count=0 → skip
+        db.query.side_effect = [q1, q2, q3]
         with patch(_PATCH_GBS, return_value={"passing": 60.0}), \
              patch(f"{_BASE}.get_all_skill_keys", return_value=["passing"]), \
              patch(_PATCH_ETS, return_value={"passing": 1.0}):

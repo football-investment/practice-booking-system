@@ -30,6 +30,7 @@ from ..models.user import User
 from ..models.license import UserLicense
 from ..models.football_skill_assessment import FootballSkillAssessment
 from ..models.tournament_achievement import TournamentParticipation, TournamentSkillMapping
+from ..models.tournament_ranking import TournamentRanking
 from ..skills_config import SKILL_CATEGORIES
 
 
@@ -610,7 +611,16 @@ def compute_single_tournament_skill_delta(
                 .count()
             )
         else:
-            total_players = (
+            # Prefer TournamentRanking count: fully populated by calculate-rankings which
+            # runs before distribute-rewards.  TournamentParticipation rows accumulate one
+            # per player during distribution, so counting them here would shrink the field
+            # size (e.g. rank 2 computed when only 2 rows exist → rank 2 of 2 = last place).
+            ranking_count = (
+                db.query(TournamentRanking)
+                .filter(TournamentRanking.tournament_id == tournament.id)
+                .count()
+            )
+            total_players = ranking_count if ranking_count > 0 else (
                 db.query(TournamentParticipation)
                 .filter(TournamentParticipation.semester_id == tournament.id)
                 .count()
