@@ -134,10 +134,12 @@ class AdvancementCalculator:
             if i < high:
                 if is_team:
                     session.participant_team_ids = [seeded[i], seeded[high]]
-                    flag_modified(session, "participant_team_ids")
+                    if hasattr(session, "_sa_instance_state"):
+                        flag_modified(session, "participant_team_ids")
                 else:
                     session.participant_user_ids = [seeded[i], seeded[high]]
-                    flag_modified(session, "participant_user_ids")
+                    if hasattr(session, "_sa_instance_state"):
+                        flag_modified(session, "participant_user_ids")
                 sessions_updated += 1
 
         return sessions_updated

@@ -43,11 +43,14 @@ def _make_user(uid, name=None, email=None):
     return user
 
 
-def _make_session(group_identifier=None, participant_user_ids=None, game_results=None):
+def _make_session(group_identifier=None, participant_user_ids=None, game_results=None,
+                  participant_team_ids=None, rounds_data=None):
     s = MagicMock()
     s.group_identifier = group_identifier
     s.participant_user_ids = participant_user_ids
+    s.participant_team_ids = participant_team_ids  # explicit None → INDIVIDUAL dispatch
     s.game_results = game_results
+    s.rounds_data = rounds_data
     return s
 
 

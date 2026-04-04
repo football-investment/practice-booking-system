@@ -307,13 +307,14 @@ class TestRankingStrategyFactory:
             RankingStrategyFactory.create("UNKNOWN_TYPE")
 
     # F-07
-    def test_head_to_head_swiss_raises_value_error(self):
-        """BUG-05 documented: Swiss is not registered in the factory."""
-        with pytest.raises(ValueError):
-            RankingStrategyFactory.create(
-                tournament_format="HEAD_TO_HEAD",
-                tournament_type_code="swiss"
-            )
+    def test_head_to_head_swiss_returns_h2h_league_strategy(self):
+        """Swiss is now supported: factory maps swiss → HeadToHeadLeagueRankingStrategy (SRL-16)."""
+        from app.services.tournament.ranking.strategies.head_to_head_league import HeadToHeadLeagueRankingStrategy
+        strategy = RankingStrategyFactory.create(
+            tournament_format="HEAD_TO_HEAD",
+            tournament_type_code="swiss"
+        )
+        assert isinstance(strategy, HeadToHeadLeagueRankingStrategy)
 
     # F-08
     def test_strategy_aggregate_values_match_documented_behaviour(self):
