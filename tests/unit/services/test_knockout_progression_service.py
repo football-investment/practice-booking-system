@@ -32,7 +32,9 @@ def _match(
     phase=TournamentPhase.KNOCKOUT,
     round_num=1,
     game_results=None,
+    rounds_data=None,
     participant_user_ids=None,
+    participant_team_ids=None,
     match_number=1,
     mid=1,
     date_start=None,
@@ -45,7 +47,9 @@ def _match(
     m.tournament_phase = phase
     m.tournament_round = round_num
     m.game_results = game_results
+    m.rounds_data = rounds_data
     m.participant_user_ids = participant_user_ids or []
+    m.participant_team_ids = participant_team_ids or []
     m.tournament_match_number = match_number
     m.date_start = date_start or datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc)
     m.date_end = date_end or datetime(2026, 4, 1, 11, 0, tzinfo=timezone.utc)
