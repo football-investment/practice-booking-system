@@ -1,0 +1,242 @@
+name: E2E Multi-Campus Venue + Instructor
+
+# Validates the multi-campus / multi-instructor feature end-to-end:
+#   1. Bootstrap Step 8 → 6 campuses + 18 pitches + 4 extra instructors
+#   2. seed_comprehensive_demo.py → 3 MC tournaments (GK, H2H League, IR)
+#      each with assert_ac() verifying AC-01/02 inline
+#   3. pytest MCV-01..08 → public event page venue rendering invariants
+#
+# AC coverage:
+#   AC-01  session with venue data → .match-venue line in HTML
+#   AC-02  2+ campuses → distinct campus names in schedule
+#   AC-03  MASTER instructor slot → "(Master)" chip
+#   AC-04  FIELD instructor slot  → "(Field)" chip
+#   AC-05  player in 2 campuses   → both campus names visible
+#   AC-06  IR session venue       → campus in IR results block
+#   AC-07  GK phase-split         → GROUP_STAGE vs KNOCKOUT campuses distinct
+#   AC-08  NULL venue             → 200, no "None" in HTML
+
+on:
+  push:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'scripts/bootstrap_clean.py'
+      - 'scripts/seed_comprehensive_demo.py'
+      - 'app/api/web_routes/public_tournament.py'
+      - 'app/templates/public/tournament_detail.html'
+      - 'app/models/campus.py'
+      - 'app/models/pitch.py'
+      - 'app/models/tournament_instructor_slot.py'
+      - 'app/models/location.py'
+      - 'tests/integration/web_flows/test_multi_campus_venue.py'
+      - '.github/workflows/e2e-multi-campus-venue.yml'
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'scripts/bootstrap_clean.py'
+      - 'scripts/seed_comprehensive_demo.py'
+      - 'app/api/web_routes/public_tournament.py'
+      - 'app/templates/public/tournament_detail.html'
+      - 'app/models/campus.py'
+      - 'app/models/pitch.py'
+      - 'app/models/tournament_instructor_slot.py'
+      - 'app/models/location.py'
+      - 'tests/integration/web_flows/test_multi_campus_venue.py'
+      - '.github/workflows/e2e-multi-campus-venue.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-multi-campus-venue-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-multi-campus-venue-secret-not-for-production
+
+jobs:
+  # ── Job 1: Unit/integration tests (pytest MCV-01..08) ──────────────────────
+  mcv-pytest:
+    name: "MCV-01..08 — Public page venue rendering"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-multi-campus-venue-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Run Alembic migrations
+        run: PYTHONPATH=. alembic upgrade head
+
+      - name: Run MCV pytest tests
+        run: |
+          PYTHONPATH=. python -m pytest tests/integration/web_flows/test_multi_campus_venue.py \
+            -v --tb=short \
+            --override-ini="addopts="
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## MCV Pytest Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | AC | What it proves |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-01 | AC-01 | Session with campus+pitch+instructor → venue line in schedule |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-02 | AC-02 | 2+ campuses → distinct campus names in schedule |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-03 | AC-03 | MASTER slot → \"(Master)\" chip in info grid |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-04 | AC-04 | FIELD slot → \"(Field)\" chip in info grid |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-05 | AC-05 | Player in 2 campuses → both campus names visible |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-06 | AC-06 | IR session with venue → campus in IR results block |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-07 | AC-07 | GK phase-split → GROUP_STAGE vs KNOCKOUT campuses distinct |" >> $GITHUB_STEP_SUMMARY
+          echo "| MCV-08 | AC-08 | NULL venue → 200, no \"None\" in HTML |" >> $GITHUB_STEP_SUMMARY
+
+  # ── Job 2: Bootstrap Step 8 + seed_comprehensive_demo.py ───────────────────
+  mcv-seed:
+    name: "Bootstrap Step 8 + MC seed assert_ac"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-multi-campus-venue-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Assert DB is empty
+        run: |
+          TABLE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres lfa_intern_system \
+            -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" \
+            | tr -d '[:space:]')
+          echo "Tables before bootstrap: $TABLE_COUNT"
+          if [ "$TABLE_COUNT" -ne "0" ]; then
+            echo "❌ DB is not empty before bootstrap"
+            exit 1
+          fi
+          echo "✅ Clean start confirmed"
+
+      - name: Bootstrap DB (including Step 8 — multi-campus infra)
+        run: |
+          PYTHONPATH=. python scripts/bootstrap_clean.py 2>&1 | tee /tmp/bootstrap.log
+          # Verify Step 8 succeeded
+          grep -q "6 campuses, 18 pitches, 4 extra instructors ready" /tmp/bootstrap.log || \
+            (echo "❌ Step 8 did not complete successfully" && cat /tmp/bootstrap.log && exit 1)
+          echo "✅ Bootstrap Step 8 confirmed"
+
+      - name: Validate seed state
+        run: PYTHONPATH=. python scripts/validate_seed_state.py
+
+      - name: Run seed_comprehensive_demo.py (MC tournaments + assert_ac)
+        run: |
+          PYTHONPATH=. python scripts/seed_comprehensive_demo.py 2>&1 | tee /tmp/seed.log
+          # Verify all 3 MC assert_ac() checks passed
+          AC_OK=$(grep -c "✅ AC-01" /tmp/seed.log || echo "0")
+          if [ "$AC_OK" -lt "3" ]; then
+            echo "❌ Expected ≥3 assert_ac() passes, got $AC_OK"
+            grep -E "AC-|FAIL|Error|❌" /tmp/seed.log || true
+            exit 1
+          fi
+          echo "✅ All MC assert_ac() checks passed ($AC_OK/3)"
+
+      - name: Verify MC tournament counts in DB
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres lfa_intern_system -c \
+            "SELECT name, tournament_status FROM semesters WHERE name LIKE 'MC Demo: %' ORDER BY id;"
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## MC Seed Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tournament | Expected Status | AC checks |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|-----------------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| MC Demo: Group Knockout 2026 | REWARDS_DISTRIBUTED | AC-01/02 (32 sessions, 6 campuses) |" >> $GITHUB_STEP_SUMMARY
+          echo "| MC Demo: H2H League 2026 | REWARDS_DISTRIBUTED | AC-01/02 (66 sessions, 6 campuses) |" >> $GITHUB_STEP_SUMMARY
+          echo "| MC Demo: IR 2026 | REWARDS_DISTRIBUTED | AC-01 (1 session, venue present) |" >> $GITHUB_STEP_SUMMARY
+
+  # ── Gate: both jobs must pass ───────────────────────────────────────────────
+  mcv-gate:
+    name: "MC Venue Gate"
+    runs-on: ubuntu-latest
+    needs: [mcv-pytest, mcv-seed]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.mcv-pytest.result }}" != "success" ]; then
+            echo "❌ mcv-pytest FAILED"
+            exit 1
+          fi
+          if [ "${{ needs.mcv-seed.result }}" != "success" ]; then
+            echo "❌ mcv-seed FAILED"
+            exit 1
+          fi
+          echo "✅ All MC venue CI checks passed"

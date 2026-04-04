@@ -333,6 +333,14 @@ body {
     margin-top: 0.35rem;
 }
 .sched-round-header:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.sched-phase-header {
+    font-size: 0.62rem; font-weight: 900; text-transform: uppercase;
+    letter-spacing: 0.12em; color: rgba(255,255,255,0.55);
+    padding: 1rem 0 0.3rem;
+    border-top: 2px solid rgba(255,255,255,0.18);
+    margin-top: 0.5rem;
+}
+.sched-phase-header:first-child { border-top: none; padding-top: 0.3rem; }
 .match-row {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.45rem 0.6rem;
@@ -391,6 +399,24 @@ body {
     border-radius: 99px; padding: 2px 8px;
 }
 .member-pill.captain { color: #ecc94b; }
+.skill-chip {
+    display: inline-block;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.03em;
+}
+.match-venue {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.35);
+    padding: 0.1rem 0.5rem 0.3rem;
+    display: flex;
+    gap: 0.75rem;
+}
 
 /* ── IR individual player table ──────────────────────────── */
 .ir-team-col { width: 28%; }
@@ -474,6 +500,27 @@ body {
             <div class="info-cell">
                 <span class="info-label">Legs</span>
                 <span class="info-value">🔄 {{ number_of_legs }}× legs</span>
+            </div>
+            {% endif %}
+            {% if instructors %}
+            <div class="info-cell">
+                <span class="info-label">Instructor{{ 's' if instructors|length > 1 else '' }}</span>
+                <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.2rem;">
+                    {% for instr in instructors %}
+                    <span class="skill-chip">🎓 {{ instr.name }}<span style="color:rgba(255,255,255,0.32);font-weight:400;"> ({{ instr.role }})</span></span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if game_preset_name %}
+            <div class="info-cell" style="grid-column: 1 / -1;">
+                <span class="info-label">Game Preset</span>
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.35rem;margin-top:0.2rem;">
+                    <span class="info-value" style="margin-right:0.25rem;">🎮 {{ game_preset_name }}</span>
+                    {% for skill in game_preset_skills %}
+                    <span class="skill-chip">{{ skill }}</span>
+                    {% endfor %}
+                </div>
             </div>
             {% endif %}
         </div>
@@ -683,6 +730,12 @@ body {
         <div class="section-title">📊 Event Results</div>
         {% for res in ir_results %}
         {% if res.done %}
+            {% if res.campus_name or res.session_instructor %}
+            <div class="match-venue" style="padding:0 0 0.25rem 0;">
+                {% if res.campus_name %}📍 {{ res.campus_name }}{% if res.pitch_name %} · {{ res.pitch_name }}{% endif %}{% endif %}
+                {% if res.session_instructor %}🎓 {{ res.session_instructor }}{% endif %}
+            </div>
+            {% endif %}
             {% if res.player_entries %}
             {# Per-player individual table — cross-country / positional model #}
             <table class="rankings-table" style="margin-bottom: 0.5rem;">
@@ -734,11 +787,20 @@ body {
     <div class="section">
         <div class="section-title">🎲 Match Schedule</div>
         <div class="schedule-list">
-            {% set ns = namespace(cur_round=None) %}
+            {% set ns = namespace(cur_phase=None, cur_round_name=None) %}
             {% for match in schedule %}
-                {% if match.round != ns.cur_round %}
-                    {% set ns.cur_round = match.round %}
-                    <div class="sched-round-header">Round {{ match.round or '—' }}</div>
+                {% if match.phase != ns.cur_phase %}
+                    {% set ns.cur_phase = match.phase %}
+                    {% set ns.cur_round_name = None %}
+                    {% if match.phase == 'KNOCKOUT' %}
+                    <div class="sched-phase-header">⚔️ Knockout Stage</div>
+                    {% elif match.phase == 'GROUP_STAGE' %}
+                    <div class="sched-phase-header">🏟 Group Stage</div>
+                    {% endif %}
+                {% endif %}
+                {% if match.round_name != ns.cur_round_name %}
+                    {% set ns.cur_round_name = match.round_name %}
+                    <div class="sched-round-header">{{ match.round_name }}</div>
                 {% endif %}
                 <div class="match-row{% if match.done %} match-done{% endif %}">
                     <span class="match-team team-a">{{ match.team_a }}</span>
@@ -748,6 +810,12 @@ body {
                     <span class="match-team team-b">{{ match.team_b }}</span>
                     {% if match.date %}<span class="match-date">{{ match.date.strftime('%m/%d %H:%M') }}</span>{% endif %}
                 </div>
+                {% if match.campus_name or match.session_instructor %}
+                <div class="match-venue">
+                    {% if match.campus_name %}📍 {{ match.campus_name }}{% if match.pitch_name %} · {{ match.pitch_name }}{% endif %}{% endif %}
+                    {% if match.session_instructor %}🎓 {{ match.session_instructor }}{% endif %}
+                </div>
+                {% endif %}
             {% endfor %}
         </div>
     </div>
@@ -816,6 +884,44 @@ body {
         </table>
         {% else %}
         {# WDL_BASED (League, Group Knockout): W/D/L/GF/GA always rendered #}
+        {% if group_standings %}
+        {# GROUP_KNOCKOUT: per-group tables before flat final rankings #}
+        <div style="margin-top:1rem;margin-bottom:.25rem;font-weight:600;font-size:.8rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em;">🏟 Group Stage Standings</div>
+        {% for grp_label, grp_rows in group_standings.items() %}
+        <div style="margin:.75rem 0 .25rem;font-weight:600;color:rgba(255,255,255,.75);">Group {{ grp_label }}</div>
+        <table class="rankings-table" style="margin-bottom:.5rem;">
+            <thead>
+                <tr>
+                    <th class="rank-col">#</th>
+                    <th>Player</th>
+                    <th class="num">Pts</th>
+                    <th class="num hide-sm">W</th>
+                    <th class="num hide-sm">D</th>
+                    <th class="num hide-sm">L</th>
+                    <th class="num hide-sm">GF</th>
+                    <th class="num hide-sm">GA</th>
+                    <th class="num hide-sm">GD</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in grp_rows %}
+                <tr>
+                    <td class="rank-col">{{ loop.index }}</td>
+                    <td><div class="participant-name">{{ row.name }}</div></td>
+                    <td class="num"><span class="pts-badge">{{ row.Pts }}</span></td>
+                    <td class="num hide-sm">{{ row.W }}</td>
+                    <td class="num hide-sm">{{ row.D }}</td>
+                    <td class="num hide-sm">{{ row.L }}</td>
+                    <td class="num hide-sm goals">{{ row.GF }}</td>
+                    <td class="num hide-sm goals">{{ row.GA }}</td>
+                    <td class="num hide-sm">{{ row.GD }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+        <div style="margin:1rem 0 .25rem;font-weight:600;font-size:.8rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em;">⚔️ Final Rankings</div>
+        {% endif %}
         <table class="rankings-table">
             <thead>
                 <tr>

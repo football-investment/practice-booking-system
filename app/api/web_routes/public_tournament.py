@@ -2,6 +2,7 @@
 Public tournament/event detail page — no authentication required.
 URL: GET /events/{tournament_id}
 """
+import json
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -105,11 +106,48 @@ def public_event_detail(
     except Exception:
         pass
 
-    # Tournament type display name
+    # ── Instructors ──────────────────────────────────────────────────────────
+    instructors: list[dict] = []
+    try:
+        from app.models.tournament_instructor_slot import TournamentInstructorSlot
+        seen_ids: set[int] = set()
+        if tournament.master_instructor_id:
+            mi = db.query(User).filter(User.id == tournament.master_instructor_id).first()
+            if mi:
+                instructors.append({"name": mi.name or mi.email, "role": "Master"})
+                seen_ids.add(mi.id)
+        slots = db.query(TournamentInstructorSlot).filter(
+            TournamentInstructorSlot.semester_id == tournament_id
+        ).all()
+        for slot in slots:
+            if slot.instructor_id not in seen_ids:
+                u = db.query(User).filter(User.id == slot.instructor_id).first()
+                if u:
+                    role_label = "Master" if slot.role == "MASTER" else "Field"
+                    instructors.append({"name": u.name or u.email, "role": role_label})
+                    seen_ids.add(u.id)
+    except Exception:
+        pass
+
+    # ── Game Preset ──────────────────────────────────────────────────────────
+    game_preset_name: str | None = None
+    game_preset_skills: list[str] = []
+    try:
+        gc = tournament.game_config_obj
+        if gc and gc.game_preset:
+            gp = gc.game_preset
+            game_preset_name = gp.name
+            game_preset_skills = gp.skills_tested or []
+    except Exception:
+        pass
+
+    # Tournament type display name + code
     type_name = ""
+    tournament_type_code = ""
     try:
         if cfg and cfg.tournament_type:
             type_name = cfg.tournament_type.name
+            tournament_type_code = cfg.tournament_type.code or ""
     except Exception:
         pass
 
@@ -219,7 +257,11 @@ def public_event_detail(
     raw_sessions = (
         db.query(SessionModel)
         .filter(SessionModel.semester_id == tournament_id)
-        .order_by(SessionModel.round_number.asc().nulls_last(), SessionModel.id)
+        .order_by(
+            SessionModel.tournament_phase.asc().nulls_last(),  # GROUP_STAGE → KNOCKOUT → NULL
+            SessionModel.round_number.asc().nulls_last(),
+            SessionModel.id,
+        )
         .all()
     )
     sessions_total = len(raw_sessions)
@@ -254,14 +296,43 @@ def public_event_detail(
         team_cache[team.id] = team.name
 
     # Build a player-name cache for INDIVIDUAL HEAD_TO_HEAD schedules (Swiss, etc.)
-    # participant_user_ids stores 1v1 pairings when participant_type == INDIVIDUAL
+    # participant_user_ids stores 1v1 pairings when participant_type == INDIVIDUAL.
+    # Also scan game_results.participants for knockout sessions where UIDs may not
+    # be in participant_user_ids (e.g. GROUP_KNOCKOUT sessions).
     all_schedule_uids: set[int] = set()
     for sess in raw_sessions:
         for uid in (sess.participant_user_ids or []):
             all_schedule_uids.add(uid)
+        if sess.game_results:
+            try:
+                gr = json.loads(sess.game_results) if isinstance(sess.game_results, str) else {}
+                for p in (gr.get("participants") or []):
+                    if isinstance(p.get("user_id"), int):
+                        all_schedule_uids.add(p["user_id"])
+            except Exception:
+                pass
     schedule_player_cache: dict[int, str] = {}
     for u in db.query(User).filter(User.id.in_(all_schedule_uids)).all():
         schedule_player_cache[u.id] = u.name or u.email
+
+    # ── Per-session venue caches ──────────────────────────────────────────────
+    from app.models.campus import Campus as CampusModel
+    from app.models.pitch import Pitch as PitchModel
+    _s_campus_ids = {s.campus_id    for s in raw_sessions if s.campus_id}
+    _s_pitch_ids  = {s.pitch_id     for s in raw_sessions if s.pitch_id}
+    _s_instr_ids  = {s.instructor_id for s in raw_sessions if s.instructor_id}
+    session_campus_cache: dict[int, str] = {
+        c.id: c.name
+        for c in db.query(CampusModel).filter(CampusModel.id.in_(_s_campus_ids))
+    } if _s_campus_ids else {}
+    session_pitch_cache: dict[int, str] = {
+        p.id: p.name
+        for p in db.query(PitchModel).filter(PitchModel.id.in_(_s_pitch_ids))
+    } if _s_pitch_ids else {}
+    session_instr_cache: dict[int, str] = {
+        u.id: (u.name or u.email)
+        for u in db.query(User).filter(User.id.in_(_s_instr_ids))
+    } if _s_instr_ids else {}
 
     # Build player_data caches for IR per-player display
     player_score_map: dict[int, dict] = {}  # {user_id: {score, position}}
@@ -294,6 +365,58 @@ def public_event_detail(
                     m["score"] = player_score_map[uid]["score"]
                     m["position"] = player_score_map[uid]["position"]
             rank_row["members"].sort(key=lambda m: m.get("position") or 999)
+
+    # ── Group Stage Standings (GROUP_KNOCKOUT only) ──────────────────────────
+    group_standings: dict[str, list[dict]] = {}
+    if tournament_type_code == "group_knockout":
+        grp_data: dict[str, dict[int, dict]] = {}
+        for sess in raw_sessions:
+            if sess.tournament_phase != "GROUP_STAGE":
+                continue
+            sc = sess.structure_config or {}
+            grp = sc.get("group") or "?"
+            if not sess.game_results:
+                continue
+            try:
+                gr = json.loads(sess.game_results) if isinstance(sess.game_results, str) else sess.game_results
+                parts = gr.get("participants") or []
+                if len(parts) < 2:
+                    continue
+                pa, pb = parts[0], parts[1]
+                uid_a, uid_b = pa.get("user_id"), pb.get("user_id")
+                s_a = float(pa.get("score") or 0)
+                s_b = float(pb.get("score") or 0)
+                for uid in (uid_a, uid_b):
+                    if uid is not None:
+                        grp_data.setdefault(grp, {}).setdefault(uid, {"W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0})
+                for uid, s_for, s_against, result in [
+                    (uid_a, int(s_a), int(s_b), pa.get("result", "")),
+                    (uid_b, int(s_b), int(s_a), pb.get("result", "")),
+                ]:
+                    if uid is not None and grp in grp_data and uid in grp_data[grp]:
+                        e = grp_data[grp][uid]
+                        e["GF"] += s_for
+                        e["GA"] += s_against
+                        if result == "win":
+                            e["W"] += 1
+                        elif result == "draw":
+                            e["D"] += 1
+                        else:
+                            e["L"] += 1
+            except Exception:
+                pass
+        for grp in sorted(grp_data.keys()):
+            rows_in_group = []
+            for uid, s in grp_data[grp].items():
+                pts = s["W"] * 3 + s["D"]
+                gd = s["GF"] - s["GA"]
+                rows_in_group.append({
+                    "name": schedule_player_cache.get(uid, f"Player #{uid}"),
+                    "W": s["W"], "D": s["D"], "L": s["L"],
+                    "GF": s["GF"], "GA": s["GA"], "GD": gd, "Pts": pts,
+                })
+            rows_in_group.sort(key=lambda r: (-r["Pts"], -r["GD"], -r["GF"]))
+            group_standings[grp] = rows_in_group
 
     schedule: list[dict] = []
     for sess in raw_sessions:
@@ -337,14 +460,53 @@ def public_event_detail(
         else:
             name_a = name_b = "TBD"
 
+        # game_results score fallback (GROUP_KNOCKOUT sessions use game_results, not rounds_data)
+        if score_a is None and score_b is None and sess.game_results:
+            try:
+                gr = json.loads(sess.game_results) if isinstance(sess.game_results, str) else {}
+                gr_parts = gr.get("participants") or []
+                if len(uids) >= 2 and len(gr_parts) >= 2:
+                    by_uid = {p["user_id"]: p for p in gr_parts}
+                    pa = by_uid.get(uids[0])
+                    pb = by_uid.get(uids[1])
+                    if pa is not None and pb is not None:
+                        score_a = int(pa.get("score") or 0)
+                        score_b = int(pb.get("score") or 0)
+            except Exception:
+                pass
+
+        # Compute round_name for display (uses structure_config.round_name when available)
+        sc = sess.structure_config or {}
+        phase = sess.tournament_phase or ""
+        if sc.get("round_name"):
+            # Knockout sessions: use stored round_name ("Round of 8", "Final", etc.)
+            round_name = sc["round_name"]
+        elif phase == "GROUP_STAGE":
+            group_label = sc.get("group", "")
+            rnum = sess.tournament_round or sess.round_number
+            round_name = f"Group {group_label} – Round {rnum}" if group_label else f"Group Round {rnum}"
+        elif sess.round_number:
+            round_name = f"Round {sess.round_number}"
+        else:
+            round_name = "—"
+
+        # Skip sessions where both participants are unknown (bracket not yet seeded)
+        if name_a == "TBD" and name_b == "TBD":
+            continue
+
         schedule.append({
-            "round":   sess.round_number,
-            "date":    sess.date_start,
-            "team_a":  name_a,
-            "team_b":  name_b,
-            "score_a": score_a,
-            "score_b": score_b,
-            "done":    sess.session_status == "completed",
+            "round":              sess.round_number,
+            "phase":              phase,
+            "round_name":         round_name,
+            "date":               sess.date_start,
+            "team_a":             name_a,
+            "team_b":             name_b,
+            "score_a":            score_a,
+            "score_b":            score_b,
+            "done":               sess.session_status == "completed",
+            "campus_name":        session_campus_cache.get(sess.campus_id),
+            "pitch_name":         session_pitch_cache.get(sess.pitch_id),
+            "session_instructor": session_instr_cache.get(sess.instructor_id),
         })
 
     # ── IR results (INDIVIDUAL_RANKING sessions, shown instead of H2H schedule) ─
@@ -393,10 +555,13 @@ def public_event_detail(
             player_entries.sort(key=lambda x: x["position"] or 999)
             if entries or player_entries:
                 ir_results.append({
-                    "round": sess.round_number or 1,
-                    "entries": entries,
-                    "player_entries": player_entries,
-                    "done": sess.session_status == "completed",
+                    "round":              sess.round_number or 1,
+                    "entries":            entries,
+                    "player_entries":     player_entries,
+                    "done":              sess.session_status == "completed",
+                    "campus_name":        session_campus_cache.get(sess.campus_id),
+                    "pitch_name":         session_pitch_cache.get(sess.pitch_id),
+                    "session_instructor": session_instr_cache.get(sess.instructor_id),
                 })
 
     # ── Prize pool (all states — motivational) ────────────────────────────────
@@ -490,4 +655,8 @@ def public_event_detail(
         "has_awards": has_awards,
         "is_draft": status == "DRAFT",
         "is_cancelled": status == "CANCELLED",
+        "instructors": instructors,
+        "group_standings": group_standings,
+        "game_preset_name": game_preset_name,
+        "game_preset_skills": game_preset_skills,
     })

@@ -170,7 +170,7 @@ section("Cleanup — removing existing Demo: tournaments")
 
 _existing_ids = [
     row[0] for row in db.execute(
-        _sql("SELECT id FROM semesters WHERE name LIKE 'Demo: %'")
+        _sql("SELECT id FROM semesters WHERE name LIKE 'Demo: %' OR name LIKE 'MC Demo: %'")
     ).fetchall()
 ]
 if _existing_ids:
@@ -587,6 +587,96 @@ def write_gk_game_results(tid: int) -> int:
     return written
 
 
+def seed_gk_knockout(tid: int) -> bool:
+    """
+    After group stage results are written:
+    1. Call /finalize-group-stage → seeds R1 knockout participant_user_ids
+    2. Write game_results for R1 knockout (winner = first participant)
+    3. Advance winners to R2+ and repeat until final
+    """
+    import json as _json
+
+    # Step 1: finalize group stage (computes standings, seeds R1 knockout participants)
+    r = client.post(f"/api/v1/tournaments/{tid}/finalize-group-stage")
+    if r.status_code != 200:
+        err(f"finalize-group-stage failed: HTTP {r.status_code}")
+        return False
+    result = r.json()
+    if not result.get("success"):
+        err(f"finalize-group-stage: {result.get('message')}")
+        return False
+    ok(f"Group stage finalized: {result.get('knockout_sessions_updated', '?')} knockout sessions seeded")
+
+    # Step 2 & 3: write knockout results round by round
+    db.expire_all()
+    knockout_sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.semester_id == tid,
+            SessionModel.tournament_phase == "KNOCKOUT",
+        )
+        .order_by(SessionModel.tournament_round.asc(), SessionModel.id.asc())
+        .all()
+    )
+    if not knockout_sessions:
+        err("No knockout sessions found")
+        return False
+
+    # Group sessions by round number
+    rounds: dict[int, list] = {}
+    for s in knockout_sessions:
+        rounds.setdefault(s.tournament_round or 0, []).append(s)
+
+    round_winners: dict[int, list[int]] = {}  # round_num → [winner_user_ids]
+    round_losers:  dict[int, list[int]] = {}  # round_num → [loser_user_ids]
+
+    for rnd in sorted(rounds.keys()):
+        sessions_in_round = rounds[rnd]
+
+        # R2+: populate participant_user_ids
+        # Normal rounds: use previous round winners
+        # Bronze match: use SF losers (round rnd-2) when prev winners insufficient
+        if rnd > 1:
+            prev_winners = round_winners.get(rnd - 1, [])
+            needed = 2 * len(sessions_in_round)
+            if len(prev_winners) < needed:
+                # Bronze/3rd-place match — use semifinal losers (two rounds back)
+                prev = round_losers.get(rnd - 2, [])
+            else:
+                prev = prev_winners
+            for i, sess in enumerate(sessions_in_round):
+                lo, hi = i * 2, i * 2 + 2
+                if hi <= len(prev):
+                    sess.participant_user_ids = prev[lo:hi]
+            db.commit()
+            db.expire_all()
+
+        # Write game_results: first participant wins each match
+        round_winners[rnd] = []
+        round_losers[rnd] = []
+        for sess in sessions_in_round:
+            pids = list(sess.participant_user_ids or [])
+            if len(pids) < 2:
+                info(f"  Skipping session {sess.id} (R{rnd}): no participants")
+                continue
+            sess.game_results = _json.dumps({
+                "match_format": "HEAD_TO_HEAD",
+                "participants": [
+                    {"user_id": pids[0], "score": 2.0, "result": "win"},
+                    {"user_id": pids[1], "score": 0.0, "result": "loss"},
+                ],
+            })
+            sess.session_status = "completed"
+            round_winners[rnd].append(pids[0])
+            round_losers[rnd].append(pids[1])
+        db.commit()
+        db.expire_all()
+
+    total = sum(len(v) for v in rounds.values())
+    ok(f"GK knockout seeded: {total} session(s) across {len(rounds)} round(s)")
+    return True
+
+
 def submit_individual_results(tid: int, players: list[User]) -> int:
     """Submit individual score results for all sessions (Swiss / IR)."""
     db.expire_all()
@@ -896,6 +986,7 @@ if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
     write_gk_game_results(t.id)
+    seed_gk_knockout(t.id)
     if not calculate_rankings(t.id):
         seed_individual_rankings(t.id, all_demo_players)
     transition(t.id, "COMPLETED")
@@ -910,6 +1001,7 @@ if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
     write_gk_game_results(t.id)
+    seed_gk_knockout(t.id)
     if not calculate_rankings(t.id):
         seed_individual_rankings(t.id, all_demo_players)
     if transition(t.id, "COMPLETED"):
@@ -1083,6 +1175,242 @@ t = _ir("Cancelled")
 transition(t.id, "CANCELLED")
 
 
+# ═════════════════════════════════════════════════════════════════════════════
+# MULTI-CAMPUS TOURNAMENTS (MC-1, MC-2, MC-3)
+# ═════════════════════════════════════════════════════════════════════════════
+
+section("Multi-Campus infrastructure — loading bootstrap data")
+
+from app.models.pitch import Pitch as PitchModel
+from app.models.tournament_instructor_slot import TournamentInstructorSlot
+
+# Load all 6 campuses in creation order (C0 = Főváros, C1..C5 = multi-city)
+_mc_all_campuses = db.query(Campus).filter(Campus.is_active == True).order_by(Campus.id.asc()).limit(6).all()
+if len(_mc_all_campuses) < 2:
+    print("⚠️  Less than 2 campuses found — run bootstrap_clean.py with Step 8 first. Skipping MC tournaments.")
+else:
+    _PITCHES_BY_CAMPUS: dict[int, list] = {}
+    for _c in _mc_all_campuses:
+        _PITCHES_BY_CAMPUS[_c.id] = db.query(PitchModel).filter(
+            PitchModel.campus_id == _c.id
+        ).order_by(PitchModel.pitch_number.asc()).all()
+
+    _mc_all_instructors = [
+        db.query(User).filter(User.email == "instructor@lfa.com").first(),  # I0 = MASTER
+        *[db.query(User).filter(User.email == f"lfa-instr-{n}@lfa.com").first()
+          for n in range(1, 5)],  # I1..I4 = FIELD
+    ]
+    _mc_all_instructors = [u for u in _mc_all_instructors if u]
+
+    # Load 32 bootstrap players (U15 + U18 + Adult)
+    _boot_club = db.query(Club).filter(Club.code == "LFA-BOOT").first()
+    if _boot_club:
+        _boot_players: list[User] = (
+            db.query(User)
+            .join(TeamMember, TeamMember.user_id == User.id)
+            .join(Team, Team.id == TeamMember.team_id)
+            .filter(Team.club_id == _boot_club.id, TeamMember.is_active == True)
+            .order_by(User.id.asc())
+            .limit(32)
+            .all()
+        )
+    else:
+        _boot_players = []
+    ok(f"MC infra: {len(_mc_all_campuses)} campuses, {len(_mc_all_instructors)} instructors, {len(_boot_players)} boot players")
+
+    def _enrich_sessions_with_venue(tid: int, gk_phase_split: bool = False) -> None:
+        """Deterministic campus/pitch/instructor assignment per session."""
+        db.expire_all()
+        sessions = (
+            db.query(SessionModel)
+            .filter(SessionModel.semester_id == tid)
+            .order_by(SessionModel.tournament_phase.asc().nulls_last(), SessionModel.id.asc())
+            .all()
+        )
+        N = len(_mc_all_campuses)
+        N_I = len(_mc_all_instructors)
+        if N == 0 or N_I == 0:
+            return
+
+        if gk_phase_split:
+            group_s = [s for s in sessions if s.tournament_phase == "GROUP_STAGE"]
+            ko_s    = [s for s in sessions if s.tournament_phase == "KNOCKOUT"]
+            pairs = [(s, i % 3)     for i, s in enumerate(group_s)] + \
+                    [(s, 3 + i % 3) for i, s in enumerate(ko_s)]
+        else:
+            pairs = [(s, i % N) for i, s in enumerate(sessions)]
+
+        for i, (sess, c_idx) in enumerate(pairs):
+            c_idx = min(c_idx, N - 1)
+            camp   = _mc_all_campuses[c_idx]
+            pitches = _PITCHES_BY_CAMPUS.get(camp.id, [])
+            pitch  = pitches[(i // N) % len(pitches)] if pitches else None
+            instr  = _mc_all_instructors[i % N_I]
+            sess.campus_id     = camp.id
+            sess.pitch_id      = pitch.id if pitch else None
+            sess.instructor_id = instr.id
+        db.commit()
+        info(f"  Venue enriched: {len(sessions)} sessions across {N} campuses")
+
+    def _create_instructor_slots(tid: int) -> None:
+        """1 MASTER slot (I0) + FIELD slots per unique pitch (I1..I4, no duplicates)."""
+        db.expire_all()
+        # Remove stale slots first (idempotent)
+        db.query(TournamentInstructorSlot).filter(
+            TournamentInstructorSlot.semester_id == tid
+        ).delete()
+        db.commit()
+
+        used_pitch_ids = sorted({
+            s.pitch_id for s in db.query(SessionModel).filter(SessionModel.semester_id == tid).all()
+            if s.pitch_id
+        })
+        if not _mc_all_instructors:
+            return
+        db.add(TournamentInstructorSlot(
+            semester_id=tid, instructor_id=_mc_all_instructors[0].id,
+            role="MASTER", pitch_id=None, assigned_by=admin.id, status="CONFIRMED",
+        ))
+        field_instrs = _mc_all_instructors[1:] if len(_mc_all_instructors) > 1 else _mc_all_instructors
+        used_instr_ids: set[int] = {_mc_all_instructors[0].id}
+        field_count = 0
+        for j, pid in enumerate(used_pitch_ids):
+            instr = field_instrs[j % len(field_instrs)]
+            if instr.id in used_instr_ids:
+                continue  # skip — unique constraint (1 slot per instructor per tournament)
+            used_instr_ids.add(instr.id)
+            db.add(TournamentInstructorSlot(
+                semester_id=tid, instructor_id=instr.id,
+                role="FIELD", pitch_id=pid, assigned_by=admin.id, status="CONFIRMED",
+            ))
+            field_count += 1
+        db.commit()
+        info(f"  Instructor slots: 1 MASTER + {field_count} FIELD")
+
+    def _assert_mc_ac(tid: int, require_multi_campus: bool = True) -> None:
+        """Self-validating AC check after each MC tournament seed."""
+        db.expire_all()
+        sessions = db.query(SessionModel).filter(SessionModel.semester_id == tid).all()
+        done = [s for s in sessions if s.game_results or s.rounds_data]
+        campus_set = {s.campus_id for s in sessions if s.campus_id}
+        assert all(s.campus_id and s.pitch_id and s.instructor_id for s in done), \
+            f"AC-01 FAIL t={tid}: not all done sessions have venue"
+        if require_multi_campus:
+            assert len(campus_set) >= 2, f"AC-02 FAIL t={tid}: only {len(campus_set)} campus"
+        ok(f"✅ AC-01{'AC-02' if require_multi_campus else ''} verified for tid={tid}  (campuses={len(campus_set)}, sessions={len(sessions)})")
+
+    # ── MC-1: Group Knockout, 16 players (bootstrap U15 + U18), GK phase-split
+    if len(_boot_players) >= 16:
+        section("MC Demo: Group Knockout — Multi-Campus (16 players, phase-split)")
+        t = create_tournament(
+            "MC Demo: Group Knockout 2026",
+            tt_id=tt_gk.id,
+            participant_type="INDIVIDUAL",
+            scoring_type="SCORE_BASED",
+            ranking_direction="DESC",
+        )
+        _mc1_players = _boot_players[:16]
+        enroll_individual_players(t.id, _mc1_players)
+        transition(t.id, "ENROLLMENT_OPEN")
+        transition(t.id, "ENROLLMENT_CLOSED")
+        transition(t.id, "CHECK_IN_OPEN")
+        if transition(t.id, "IN_PROGRESS"):
+            db.expire_all()
+            info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+            write_gk_game_results(t.id)
+            seed_gk_knockout(t.id)
+            _enrich_sessions_with_venue(t.id, gk_phase_split=True)
+            _create_instructor_slots(t.id)
+            if not calculate_rankings(t.id):
+                seed_individual_rankings(t.id, _mc1_players)
+            transition(t.id, "COMPLETED")
+            distribute_rewards(t.id)
+            _assert_mc_ac(t.id)
+    else:
+        print("⚠️  Not enough boot players for MC-1 (need 16)")
+
+    # ── MC-2: H2H League, 12 players (bootstrap), 6-campus round-robin
+    if len(_boot_players) >= 12:
+        import json as _json_mc2
+
+        def _write_h2h_all_sessions(tid: int) -> int:
+            """Write game_results to ALL sessions with >=2 participant_user_ids."""
+            db.expire_all()
+            sessions = db.query(SessionModel).filter(SessionModel.semester_id == tid).all()
+            written = 0
+            for sess in sessions:
+                pids = list(getattr(sess, 'participant_user_ids', None) or [])
+                if len(pids) < 2:
+                    continue
+                sess.game_results = _json_mc2.dumps({
+                    "match_format": "HEAD_TO_HEAD",
+                    "participants": [
+                        {"user_id": pids[0], "score": 3.0, "result": "win"},
+                        {"user_id": pids[1], "score": 0.0, "result": "loss"},
+                    ],
+                })
+                sess.session_status = "completed"
+                written += 1
+            db.commit()
+            info(f"H2H game_results written: {written} sessions")
+            return written
+
+        section("MC Demo: H2H League — Multi-Campus (12 players)")
+        t = create_tournament(
+            "MC Demo: H2H League 2026",
+            tt_id=tt_league.id,
+            participant_type="INDIVIDUAL",
+            scoring_type="SCORE_BASED",
+            ranking_direction="DESC",
+        )
+        _mc2_players = _boot_players[:12]
+        enroll_individual_players(t.id, _mc2_players)
+        transition(t.id, "ENROLLMENT_OPEN")
+        transition(t.id, "ENROLLMENT_CLOSED")
+        transition(t.id, "CHECK_IN_OPEN")
+        if transition(t.id, "IN_PROGRESS"):
+            db.expire_all()
+            info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+            _write_h2h_all_sessions(t.id)
+            _enrich_sessions_with_venue(t.id)
+            _create_instructor_slots(t.id)
+            if not calculate_rankings(t.id):
+                seed_individual_rankings(t.id, _mc2_players)
+            transition(t.id, "COMPLETED")
+            distribute_rewards(t.id)
+            _assert_mc_ac(t.id)
+    else:
+        print("⚠️  Not enough boot players for MC-2 (need 12)")
+
+    # ── MC-3: IR, 12 players, 6 cups across 6 campuses
+    if len(_boot_players) >= 12:
+        section("MC Demo: IR — Multi-Campus (12 players, 6 cups)")
+        t = create_tournament(
+            "MC Demo: IR 2026",
+            tt_id=None,
+            participant_type="INDIVIDUAL",
+            scoring_type="SCORE_BASED",
+            ranking_direction="DESC",
+        )
+        _mc3_players = _boot_players[:12]
+        enroll_individual_players(t.id, _mc3_players)
+        transition(t.id, "ENROLLMENT_OPEN")
+        transition(t.id, "ENROLLMENT_CLOSED")
+        transition(t.id, "CHECK_IN_OPEN")
+        if transition(t.id, "IN_PROGRESS"):
+            db.expire_all()
+            info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+            submit_individual_results(t.id, _mc3_players)
+            _enrich_sessions_with_venue(t.id)
+            _create_instructor_slots(t.id)
+            calculate_rankings(t.id)
+            transition(t.id, "COMPLETED")
+            distribute_rewards(t.id)
+            _assert_mc_ac(t.id, require_multi_campus=False)  # AC-06: venue shown, multi-campus not required for IR
+    else:
+        print("⚠️  Not enough boot players for MC-3 (need 12)")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1091,11 +1419,14 @@ db.expire_all()
 section("FINAL SUMMARY — 40 Demo Events")
 
 _FORMATS = [
-    ("A", "Demo: H2H League —",     "TEAM"),
-    ("B", "Demo: Knockout —",       "TEAM"),
-    ("C", "Demo: Group Knockout —", "INDIVIDUAL"),
-    ("D", "Demo: Swiss —",          "INDIVIDUAL"),
-    ("E", "Demo: IR —",             "INDIVIDUAL"),
+    ("A",    "Demo: H2H League —",           "TEAM"),
+    ("B",    "Demo: Knockout —",             "TEAM"),
+    ("C",    "Demo: Group Knockout —",       "INDIVIDUAL"),
+    ("D",    "Demo: Swiss —",               "INDIVIDUAL"),
+    ("E",    "Demo: IR —",                  "INDIVIDUAL"),
+    ("MC-1", "MC Demo: Group Knockout 2026", "INDIVIDUAL"),
+    ("MC-2", "MC Demo: H2H League 2026",    "INDIVIDUAL"),
+    ("MC-3", "MC Demo: IR 2026",            "INDIVIDUAL"),
 ]
 
 total = 0

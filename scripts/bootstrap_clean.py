@@ -328,6 +328,27 @@ def _seed_game_presets(db) -> int:
     return created
 
 
+_EXTRA_LOCATIONS = [
+    {"name": "LFA Debrecen", "city": "Debrecen", "country": "Hungary", "country_code": "HU",
+     "location_code": "DBRCN", "location_type": LocationType.PARTNER},
+    {"name": "LFA Győr",     "city": "Győr",     "country": "Hungary", "country_code": "HU",
+     "location_code": "GYOR",  "location_type": LocationType.PARTNER},
+]
+
+_CAMPUS_DEFS = {
+    "Budapest":  ["LFA Budapest Észak"],
+    "Debrecen":  ["LFA Debrecen Campus", "LFA Debrecen Keleti"],
+    "Győr":      ["LFA Győr Central",    "LFA Győr West"],
+}
+
+_EXTRA_INSTRUCTORS = [
+    {"email": "lfa-instr-1@lfa.com", "name": "Kiss Béla"},
+    {"email": "lfa-instr-2@lfa.com", "name": "Nagy Péter"},
+    {"email": "lfa-instr-3@lfa.com", "name": "Kovács Anna"},
+    {"email": "lfa-instr-4@lfa.com", "name": "Tóth Gábor"},
+]
+
+
 def _seed_location_campus(db) -> tuple:
     """Create Budapest location + Főváros Campus if not present."""
     # Check by city (unique) first, then fall back to location_code
@@ -405,6 +426,81 @@ def _seed_users(db) -> tuple:
         _ok(f"Instructor user created: instructor@lfa.com / instructor123 (id={instr.id})")
 
     return admin, instr
+
+
+def _seed_multi_campus(db, base_loc, base_campus) -> tuple:
+    """Idempotent: add Debrecen + Győr locations, 5 extra campuses, 3 pitches each, 4 instructors."""
+    from app.models.pitch import Pitch
+
+    all_campuses = [base_campus]   # C0 = Főváros Campus (existing)
+
+    # Extra locations (Debrecen, Győr) + their campuses
+    for loc_def in _EXTRA_LOCATIONS:
+        loc = db.query(Location).filter(Location.city == loc_def["city"]).first()
+        if not loc:
+            loc = Location(
+                name=loc_def["name"], city=loc_def["city"], country=loc_def["country"],
+                country_code=loc_def["country_code"], location_code=loc_def["location_code"],
+                location_type=loc_def["location_type"], is_active=True,
+            )
+            db.add(loc)
+            db.flush()
+            _ok(f"Location '{loc_def['city']}' created (id={loc.id})")
+        else:
+            _skip(f"Location '{loc_def['city']}' already exists")
+        for cname in _CAMPUS_DEFS[loc_def["city"]]:
+            camp = db.query(Campus).filter(Campus.name == cname).first()
+            if not camp:
+                camp = Campus(location_id=loc.id, name=cname, is_active=True)
+                db.add(camp)
+                db.flush()
+                _ok(f"Campus '{cname}' created (id={camp.id})")
+            else:
+                _skip(f"Campus '{cname}' already exists")
+            all_campuses.append(camp)
+
+    # Extra Budapest campus (C1) — same location as base_loc
+    for cname in _CAMPUS_DEFS["Budapest"]:
+        camp = db.query(Campus).filter(Campus.name == cname).first()
+        if not camp:
+            camp = Campus(location_id=base_loc.id, name=cname, is_active=True)
+            db.add(camp)
+            db.flush()
+            _ok(f"Campus '{cname}' created (id={camp.id})")
+        else:
+            _skip(f"Campus '{cname}' already exists")
+        all_campuses.append(camp)   # C0..C5 total (order: Főváros, Dc1, Dc2, Gy1, Gy2, Bp2)
+
+    # 3 Pitches per campus (idempotent by campus_id + pitch_number)
+    for camp in all_campuses:
+        for n in range(1, 4):
+            exists = db.query(Pitch).filter(
+                Pitch.campus_id == camp.id, Pitch.pitch_number == n
+            ).first()
+            if not exists:
+                db.add(Pitch(campus_id=camp.id, pitch_number=n, name=f"Pálya {n}", is_active=True))
+    db.flush()
+    _ok(f"Pitches seeded (3 per campus × {len(all_campuses)} campuses)")
+
+    # 4 extra Instructor users (I1..I4)
+    extra_instrs = []
+    for idef in _EXTRA_INSTRUCTORS:
+        u = db.query(User).filter(User.email == idef["email"]).first()
+        if not u:
+            u = User(
+                name=idef["name"], email=idef["email"],
+                password_hash=get_password_hash("instructor123"),
+                role=UserRole.INSTRUCTOR, is_active=True, onboarding_completed=True,
+            )
+            db.add(u)
+            db.flush()
+            _ok(f"Instructor '{idef['name']}' created ({idef['email']})")
+        else:
+            _skip(f"Instructor '{idef['email']}' already exists")
+        extra_instrs.append(u)
+
+    db.commit()
+    return all_campuses, extra_instrs
 
 
 def _seed_bootstrap_club(db) -> Club:
@@ -614,6 +710,11 @@ def run():
             if missing:
                 db.commit()
                 print(f"       → assigned default game preset to {len(missing)} tournament(s)")
+
+        # Step 8: Multi-campus infrastructure
+        _step(8, "Multi-campus infrastructure (Locations + Campuses + Pitches + Instructors)")
+        all_campuses, extra_instrs = _seed_multi_campus(db, loc, campus)
+        _ok(f"{len(all_campuses)} campuses, {len(all_campuses)*3} pitches, {len(extra_instrs)} extra instructors ready")
 
         # Summary
         print("\n" + "="*70)
