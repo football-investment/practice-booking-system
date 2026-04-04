@@ -50,6 +50,13 @@ class KnockoutProgressionService:
 
         self.logger = logger or logging.getLogger(__name__)
 
+    @staticmethod
+    def _has_results(session: SessionModel) -> bool:
+        """Check if a session has any results (INDIVIDUAL game_results or TEAM rounds_data)."""
+        return bool(session.game_results) or bool(
+            (session.rounds_data or {}).get("round_results")
+        )
+
     def process_knockout_progression(
         self,
         session: SessionModel,
@@ -70,6 +77,9 @@ class KnockoutProgressionService:
         # Phase 2.1: Use TournamentPhase enum for type-safe comparison
         if session.tournament_phase != TournamentPhase.KNOCKOUT:
             return None
+
+        # TEAM mode: detect from participant_team_ids (mutually exclusive with participant_user_ids)
+        is_team = bool(session.participant_team_ids)
 
         # Phase 2.2: Use repository for data access
         # Determine tournament structure to handle progression correctly
@@ -92,7 +102,9 @@ class KnockoutProgressionService:
             exclude_bronze=True
         )
 
-        completed_count = sum(1 for m in all_matches_in_round if m.game_results)
+        # ✅ TEAM FIX: use _has_results() to check both game_results (INDIVIDUAL)
+        # and rounds_data.round_results (TEAM)
+        completed_count = sum(1 for m in all_matches_in_round if self._has_results(m))
 
         if completed_count < len(all_matches_in_round):
             return {
@@ -105,7 +117,8 @@ class KnockoutProgressionService:
             total_rounds=total_rounds,
             completed_matches=all_matches_in_round,
             tournament=tournament,
-            tournament_phase=session.tournament_phase
+            tournament_phase=session.tournament_phase,
+            is_team=is_team,
         )
 
     def _handle_semifinal_completion(
@@ -286,13 +299,15 @@ class KnockoutProgressionService:
         total_rounds: int,
         completed_matches: List[SessionModel],
         tournament: Semester,
-        tournament_phase: str
+        tournament_phase: str,
+        is_team: bool = False,
     ) -> Dict[str, Any]:
         """
         ✅ NEW: Handle completion of any knockout round dynamically.
 
         Determines winners from completed matches and updates participant_user_ids
-        for existing next-round matches (which were pre-generated with NULL participants).
+        (INDIVIDUAL) or participant_team_ids (TEAM) for existing next-round matches
+        (which were pre-generated with NULL participants).
 
         Args:
             round_num: Current round number (1 = first round)
@@ -300,6 +315,7 @@ class KnockoutProgressionService:
             completed_matches: All completed matches from this round
             tournament: Tournament object
             tournament_phase: TournamentPhase.KNOCKOUT (canonical enum value)
+            is_team: True for TEAM tournaments (reads rounds_data, writes participant_team_ids)
 
         Returns:
             Dict with progression status and updated sessions
@@ -314,10 +330,28 @@ class KnockoutProgressionService:
         losers = []
 
         for match in completed_matches:
-            if not match.game_results:
+            if not self._has_results(match):  # ✅ TEAM FIX: was: if not match.game_results
                 continue
 
-            # Parse game_results
+            # ✅ TEAM FIX: extract winner from rounds_data (TEAM) or game_results (INDIVIDUAL)
+            if is_team:
+                round_results = (match.rounds_data or {}).get("round_results", {})
+                team_totals: Dict[int, float] = {}
+                for rd in round_results.values():
+                    for key, val in (rd or {}).items():
+                        if key.startswith("team_"):
+                            try:
+                                tid = int(key.split("_", 1)[1])
+                                team_totals[tid] = team_totals.get(tid, 0.0) + float(val)
+                            except (ValueError, IndexError):
+                                pass
+                if len(team_totals) >= 2:
+                    sorted_teams = sorted(team_totals.items(), key=lambda x: x[1], reverse=True)
+                    winners.append(sorted_teams[0][0])   # highest score = winner team_id
+                    losers.append(sorted_teams[1][0])    # lowest score = loser team_id
+                continue  # skip INDIVIDUAL parsing for TEAM matches
+
+            # Parse game_results (INDIVIDUAL path)
             results = parse_game_results(match.game_results)
 
             # ✅ NATIVE SUPPORT: Handle both HEAD_TO_HEAD and INDIVIDUAL formats
@@ -396,7 +430,8 @@ class KnockoutProgressionService:
                 losers=losers,
                 tournament=tournament,
                 tournament_phase=tournament_phase,
-                reference_session=completed_matches[0]
+                reference_session=completed_matches[0],
+                is_team=is_team,
             )
         else:
             # This is earlier round (QF, R16, etc.) - update next round matches
@@ -405,7 +440,8 @@ class KnockoutProgressionService:
                 winners=winners,
                 losers=losers,
                 tournament=tournament,
-                tournament_phase=tournament_phase
+                tournament_phase=tournament_phase,
+                is_team=is_team,
             )
 
     def _update_next_round_matches(
@@ -414,15 +450,18 @@ class KnockoutProgressionService:
         winners: List[int],
         tournament: Semester,
         tournament_phase: str,
-        losers: List[int] = None
+        losers: List[int] = None,
+        is_team: bool = False,
     ) -> Dict[str, Any]:
         """
-        ✅ NEW: Update participant_user_ids for next round matches.
+        ✅ NEW: Update participant_user_ids / participant_team_ids for next round matches.
 
         Next round matches already exist (created during tournament generation),
-        but participant_user_ids is NULL. We populate them with winners.
+        but participant_user_ids / participant_team_ids is NULL. We populate them with winners.
         Also assigns losers to the bronze/3rd place match in the final round.
         """
+        from sqlalchemy.orm.attributes import flag_modified
+
         next_round = round_num + 1
         losers = losers or []
 
@@ -448,11 +487,16 @@ class KnockoutProgressionService:
             p2_idx = idx * 2 + 1
 
             if p1_idx < len(winners) and p2_idx < len(winners):
-                match.participant_user_ids = [winners[p1_idx], winners[p2_idx]]
+                pair = [winners[p1_idx], winners[p2_idx]]
+                if is_team:
+                    match.participant_team_ids = pair
+                    flag_modified(match, "participant_team_ids")
+                else:
+                    match.participant_user_ids = pair
                 updated_sessions.append({
                     "session_id": match.id,
                     "title": match.title,
-                    "participants": [winners[p1_idx], winners[p2_idx]]
+                    "participants": pair,
                 })
 
         # Assign losers to the bronze/3rd place match if it exists in a later round
@@ -470,14 +514,25 @@ class KnockoutProgressionService:
                     for session in final_round_sessions:
                         title_lower = session.title.lower()
                         if "bronze" in title_lower or "3rd" in title_lower:
-                            if not session.participant_user_ids:
-                                session.participant_user_ids = losers[:2]
-                                updated_sessions.append({
-                                    "session_id": session.id,
-                                    "title": session.title,
-                                    "type": "bronze",
-                                    "participants": losers[:2]
-                                })
+                            if is_team:
+                                if not session.participant_team_ids:
+                                    session.participant_team_ids = losers[:2]
+                                    flag_modified(session, "participant_team_ids")
+                                    updated_sessions.append({
+                                        "session_id": session.id,
+                                        "title": session.title,
+                                        "type": "bronze",
+                                        "participants": losers[:2],
+                                    })
+                            else:
+                                if not session.participant_user_ids:
+                                    session.participant_user_ids = losers[:2]
+                                    updated_sessions.append({
+                                        "session_id": session.id,
+                                        "title": session.title,
+                                        "type": "bronze",
+                                        "participants": losers[:2],
+                                    })
                             break
 
         self.db.commit()
@@ -493,14 +548,18 @@ class KnockoutProgressionService:
         losers: List[int],
         tournament: Semester,
         tournament_phase: str,
-        reference_session: SessionModel
+        reference_session: SessionModel,
+        is_team: bool = False,
     ) -> Dict[str, Any]:
         """
         ✅ NEW: Update Final and Bronze match participants after semifinals.
 
         These matches were already created during tournament generation,
-        but participant_user_ids is NULL. We populate them with winners/losers.
+        but participant_user_ids / participant_team_ids is NULL.
+        We populate them with winners/losers.
         """
+        from sqlalchemy.orm.attributes import flag_modified
+
         updated_sessions = []
 
         # Phase 2.2: Use repository for data access
@@ -527,11 +586,15 @@ class KnockoutProgressionService:
                 break
 
         if final_match and len(winners) >= 2:
-            final_match.participant_user_ids = winners[:2]
+            if is_team:
+                final_match.participant_team_ids = winners[:2]
+                flag_modified(final_match, "participant_team_ids")
+            else:
+                final_match.participant_user_ids = winners[:2]
             updated_sessions.append({
                 "type": "final",
                 "session_id": final_match.id,
-                "participants": winners[:2]
+                "participants": winners[:2],
             })
 
         # Find Bronze match
@@ -543,11 +606,15 @@ class KnockoutProgressionService:
                 break
 
         if bronze_match and len(losers) >= 2:
-            bronze_match.participant_user_ids = losers[:2]
+            if is_team:
+                bronze_match.participant_team_ids = losers[:2]
+                flag_modified(bronze_match, "participant_team_ids")
+            else:
+                bronze_match.participant_user_ids = losers[:2]
             updated_sessions.append({
                 "type": "bronze",
                 "session_id": bronze_match.id,
-                "participants": losers[:2]
+                "participants": losers[:2],
             })
 
         # Phase 2.2: Still need db access for commit (will be moved to repository later)

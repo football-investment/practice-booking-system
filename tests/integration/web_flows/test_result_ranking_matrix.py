@@ -524,30 +524,26 @@ class TestResultRankingMatrix:
         # Team1 scored 5.0 > 3.0 → should be rank 1 with DESC
         assert team1_row.rank == 1, f"Higher score team must be rank 1, got {team1_row.rank}"
 
-    def test_SGR_06_swiss_ranking_unsupported_documented(
+    def test_SGR_06_swiss_ranking_supported_via_h2h_strategy(
         self, test_db: Session, client, admin_user: User, admin_token: str
     ):
         """
-        SGR-06: Swiss tournament → calculate-rankings → 400 (RankingStrategyFactory
-        has no Swiss strategy). Documents deterministic failure behavior.
+        SGR-06: Swiss tournament → calculate-rankings → 200.
+        Swiss format maps to HeadToHeadLeagueRankingStrategy (fixed in SRL-16).
 
-        Implication: Bye player gets NO ranking — the entire Swiss ranking pipeline
-        is unsupported. factory.py docstring claims 'swiss' is handled but the
-        implementation only supports league/knockout/group_knockout.
-
-        This test pins the behavior so future Swiss strategy additions are validated.
+        Previously documented as unsupported (400). Now supported — this test
+        pins the new behavior so any regression is caught.
         """
-        # Use existing "swiss" type from DB (get-or-create)
+        import json as _json
+
         tt = _tt(test_db, "swiss", min_players=4)
         t = _tournament(test_db, admin_user, tt)
 
-        # Enroll 5 players (odd count → bye in session generation)
-        players = [_user(test_db) for _ in range(5)]
+        players = [_user(test_db) for _ in range(4)]
         for p in players:
             _enroll(test_db, t, p)
 
-        # Directly inject a completed session with game_results (bypass H2H endpoint)
-        import json as _json
+        # Inject a completed session so rankings have data to process
         sess = _match_session(test_db, t)
         sess.game_results = _json.dumps({
             "participants": [
@@ -560,24 +556,9 @@ class TestResultRankingMatrix:
         test_db.flush()
 
         hdrs = {"Authorization": f"Bearer {admin_token}"}
-
         resp = client.post(f"/api/v1/tournaments/{t.id}/calculate-rankings", headers=hdrs)
 
-        # Swiss is not supported: expect 400
-        assert resp.status_code == 400, (
-            f"Expected 400 for Swiss calculate-rankings (unsupported strategy), "
+        assert resp.status_code == 200, (
+            f"Swiss calculate-rankings should return 200 (HeadToHeadLeagueRankingStrategy), "
             f"got {resp.status_code}: {resp.text[:300]}"
-        )
-        body = resp.json()
-        detail = (body.get("error") or body).get("message") or body.get("detail", "")
-        assert "swiss" in detail.lower() or "unsupported" in detail.lower(), (
-            f"Error must mention Swiss or unsupported: {detail}"
-        )
-
-        # No TournamentRanking rows created — no player (including bye player) gets a rank
-        rows = test_db.query(TournamentRanking).filter(
-            TournamentRanking.tournament_id == t.id
-        ).all()
-        assert len(rows) == 0, (
-            f"No ranking rows should exist after failed calculate-rankings, got {len(rows)}"
         )

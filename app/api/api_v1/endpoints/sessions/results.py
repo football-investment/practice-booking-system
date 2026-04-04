@@ -521,6 +521,23 @@ def submit_team_results(
     _publish_session_result(db, session)
     _maybe_trigger_auto_ranking(db, session.semester_id)
 
+    # KNOCKOUT progression: auto-seed next round participants (mirrors INDIVIDUAL branch)
+    from app.models.tournament_enums import TournamentPhase
+    if session.tournament_phase == TournamentPhase.KNOCKOUT:
+        try:
+            from app.services.tournament.knockout_progression_service import KnockoutProgressionService
+            progression_service = KnockoutProgressionService(db)
+            progression_service.process_knockout_progression(
+                session=session,
+                tournament=tournament,
+                game_results=None,  # TEAM: KPS reads rounds_data directly
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"[team-results] KnockoutProgressionService non-critical error: {e}"
+            )
+
     return {
         "session_id": session_id,
         "round_number": request.round_number,

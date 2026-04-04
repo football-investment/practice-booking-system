@@ -1396,12 +1396,9 @@ class TestExtendedLifecycleMatrix:
     ):
         """
         SRL-13: TEAM + HEAD_TO_HEAD + knockout (4 teams × 2 members)
-        submit_team_results does NOT call KnockoutProgressionService, so Final's
-        participant_team_ids must be seeded manually after the SFs.
-        SF1 + SF2 (manual Final seeding) → Final → calculate-rankings → REWARDS_DISTRIBUTED.
+        submit_team_results → KnockoutProgressionService TEAM ág → auto-seeds Final + Bronze.
+        SF1 + SF2 (KPS auto-seeding) → Final → Bronze → calculate-rankings → REWARDS_DISTRIBUTED.
         """
-        from sqlalchemy.orm.attributes import flag_modified
-
         tt = _tt(test_db, "knockout", min_players=4)
         camp = _campus(test_db)
         t = _tournament(test_db, admin_user, tt, participant_type="TEAM", tournament_status="DRAFT")
@@ -1419,7 +1416,6 @@ class TestExtendedLifecycleMatrix:
         assert len(sessions) == 4, f"4-team knockout must generate 4 sessions (SF+Final+Bronze), got {len(sessions)}"
 
         sf_sessions = [s for s in sessions if s.tournament_round == 1]
-        # Final has match_number != 999; bronze has match_number == 999
         final_session = next(
             s for s in sessions
             if s.tournament_round == 2 and (s.tournament_match_number or 0) != 999
@@ -1430,31 +1426,27 @@ class TestExtendedLifecycleMatrix:
         )
         assert len(sf_sessions) == 2
 
-        # Track SF winners (lower team_id wins — deterministic)
-        sf_winners = []
-        sf_losers = []
+        # Submit both SFs via API (lower team_id wins — deterministic)
+        # KnockoutProgressionService TEAM ág automatikusan seedi Final + Bronze
         for sf in sf_sessions:
             tids = sf.participant_team_ids
             assert tids and len(tids) == 2
-            winner_tid = min(tids)
-            loser_tid = max(tids)
-            _submit_team(client, sf.id, winner_tid, loser_tid, admin_token)
-            sf_winners.append(winner_tid)
-            sf_losers.append(loser_tid)
+            _submit_team(client, sf.id, min(tids), max(tids), admin_token)
 
-        # Manually seed Final and Bronze (KnockoutProgressionService not called for TEAM)
+        # KPS must have auto-seeded Final + Bronze (EC-03-AT: no DB-write shortcut)
         test_db.expire_all()
         final_session = test_db.query(SessionModel).filter(SessionModel.id == final_session.id).first()
-        final_session.participant_team_ids = sf_winners
-        flag_modified(final_session, "participant_team_ids")
         bronze_session = test_db.query(SessionModel).filter(SessionModel.id == bronze_session.id).first()
-        bronze_session.participant_team_ids = sf_losers
-        flag_modified(bronze_session, "participant_team_ids")
-        test_db.flush()
+        assert final_session.participant_team_ids, \
+            "KnockoutProgressionService TEAM ágnak auto-seedelnie kell a Döntőt az SF eredmények után"
+        assert bronze_session.participant_team_ids, \
+            "KnockoutProgressionService TEAM ágnak auto-seedelnie kell a Bronzot az SF eredmények után"
 
-        # Submit Final and Bronze
-        _submit_team(client, final_session.id, sf_winners[0], sf_winners[1], admin_token)
-        _submit_team(client, bronze_session.id, sf_losers[0], sf_losers[1], admin_token)
+        # Submit Final and Bronze using KPS-seeded participants
+        final_tids = final_session.participant_team_ids
+        bronze_tids = bronze_session.participant_team_ids
+        _submit_team(client, final_session.id, min(final_tids), max(final_tids), admin_token)
+        _submit_team(client, bronze_session.id, min(bronze_tids), max(bronze_tids), admin_token)
 
         _finalize_tournament(client, t.id, admin_token, test_db)
 
@@ -1488,8 +1480,8 @@ class TestExtendedLifecycleMatrix:
         - StandingsCalculator: computes TEAM group standings from rounds_data
         - AdvancementCalculator: seeds participant_team_ids for KO sessions
         - calculate_rankings group_knockout path: accepts rounds_data for TEAM
+        - EC-03-AT: KnockoutProgressionService TEAM ág — SF results via API → auto-seeds Final + Bronze
         """
-        from sqlalchemy.orm.attributes import flag_modified
         from app.models.tournament_enums import TournamentPhase
 
         tt = _tt(test_db, "group_knockout", min_players=8)
@@ -1551,31 +1543,27 @@ class TestExtendedLifecycleMatrix:
         )
         assert len(sf_sessions) == 2, f"Expected 2 SF sessions, got {len(sf_sessions)}"
 
-        # Submit SF results (lower team_id wins)
-        sf_winners = []
-        sf_losers = []
+        # Submit SF results via API (lower team_id wins — deterministic)
+        # EC-03-AT: KnockoutProgressionService TEAM ág automatikusan seedi Final + Bronze
         for sf in sf_sessions:
             tids = sf.participant_team_ids
             assert tids and len(tids) == 2, f"SF {sf.id} must have participant_team_ids after seeding"
-            winner_tid = min(tids)
-            loser_tid = max(tids)
-            _submit_team(client, sf.id, winner_tid, loser_tid, admin_token)
-            sf_winners.append(winner_tid)
-            sf_losers.append(loser_tid)
+            _submit_team(client, sf.id, min(tids), max(tids), admin_token)
 
-        # Manually seed Final and Bronze (KnockoutProgressionService not called for TEAM)
+        # KPS must have auto-seeded Final + Bronze — no DB-write shortcut (EC-03-AT)
         test_db.expire_all()
         final_session = test_db.query(SessionModel).filter(SessionModel.id == final_session.id).first()
-        final_session.participant_team_ids = sf_winners
-        flag_modified(final_session, "participant_team_ids")
         bronze_session = test_db.query(SessionModel).filter(SessionModel.id == bronze_session.id).first()
-        bronze_session.participant_team_ids = sf_losers
-        flag_modified(bronze_session, "participant_team_ids")
-        test_db.flush()
+        assert final_session.participant_team_ids, \
+            "EC-03-AT: KnockoutProgressionService TEAM ágnak auto-seedelnie kell a Döntőt az SF eredmények után"
+        assert bronze_session.participant_team_ids, \
+            "EC-03-AT: KnockoutProgressionService TEAM ágnak auto-seedelnie kell a Bronzot az SF eredmények után"
 
-        # Submit Final and Bronze
-        _submit_team(client, final_session.id, sf_winners[0], sf_winners[1], admin_token)
-        _submit_team(client, bronze_session.id, sf_losers[0], sf_losers[1], admin_token)
+        # Submit Final and Bronze using KPS-seeded participants
+        final_tids = final_session.participant_team_ids
+        bronze_tids = bronze_session.participant_team_ids
+        _submit_team(client, final_session.id, min(final_tids), max(final_tids), admin_token)
+        _submit_team(client, bronze_session.id, min(bronze_tids), max(bronze_tids), admin_token)
 
         _finalize_tournament(client, t.id, admin_token, test_db)
 
