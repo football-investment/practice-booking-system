@@ -1091,6 +1091,9 @@ body {
     <div class="section">
         <div class="section-title">📍 Draw</div>
         <div class="draw-section">
+            {% if not venue_schedule %}
+            <div style="font-size:0.8rem;color:rgba(255,255,255,0.3);padding:0.6rem 0;">No matches scheduled yet.</div>
+            {% endif %}
             {% for campus in venue_schedule %}
             <div class="draw-campus-card">
                 <div class="draw-campus-header">📍 {{ campus.campus_name }}</div>
