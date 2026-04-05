@@ -1,0 +1,279 @@
+name: Group Standings Correctness Validation
+
+# Validates that group_knockout standing calculation and qualification are correct
+# after every push that touches any related code path.
+#
+# Three hard-fail conditions (exit 1):
+#   GS-01  Any group has all-zero standings (game_results not parsed)
+#   GS-02  Non-deterministic ordering (reversed input → different order)
+#   GS-03  Qualified participants ≠ standings[:top_n] from each group
+#
+# Pipeline:
+#   seed  →  validate  →  gate
+
+on:
+  push:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/services/tournament/results/calculators/standings_calculator.py'
+      - 'app/services/tournament/results/calculators/advancement_calculator.py'
+      - 'app/services/tournament/results/finalization/group_stage_finalizer.py'
+      - 'app/services/tournament/session_generation/formats/group_knockout_generator.py'
+      - 'app/api/api_v1/endpoints/sessions/results.py'
+      - 'app/api/api_v1/endpoints/tournaments/results/finalization.py'
+      - 'scripts/seed_rewards_distributed_showcase.py'
+      - 'scripts/validate_group_standings.py'
+      - 'scripts/bootstrap_clean.py'
+      - 'alembic/versions/**'
+      - '.github/workflows/group-standings-validation.yml'
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'app/services/tournament/results/calculators/standings_calculator.py'
+      - 'app/services/tournament/results/calculators/advancement_calculator.py'
+      - 'app/services/tournament/results/finalization/group_stage_finalizer.py'
+      - 'app/services/tournament/session_generation/formats/group_knockout_generator.py'
+      - 'app/api/api_v1/endpoints/sessions/results.py'
+      - 'app/api/api_v1/endpoints/tournaments/results/finalization.py'
+      - 'scripts/seed_rewards_distributed_showcase.py'
+      - 'scripts/validate_group_standings.py'
+      - 'scripts/bootstrap_clean.py'
+      - 'alembic/versions/**'
+      - '.github/workflows/group-standings-validation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: group-standings-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-group-standings-secret-not-for-production
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 1: Seed — bootstrap + full REWARDS_DISTRIBUTED showcase (formats C and H
+#         are group_knockout; both go through group-stage finalization)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  seed:
+    name: "Seed — bootstrap + showcase (formats C & H = group_knockout)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-group-standings-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Assert clean DB
+        run: |
+          TABLE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres lfa_intern_system \
+            -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" \
+            | tr -d '[:space:]')
+          echo "Tables before bootstrap: $TABLE_COUNT"
+          if [ "$TABLE_COUNT" -ne "0" ]; then
+            echo "❌ DB not empty ($TABLE_COUNT tables) — expected clean start"
+            exit 1
+          fi
+          echo "✅ DB is empty"
+
+      - name: Bootstrap DB
+        run: PYTHONPATH=. python scripts/bootstrap_clean.py
+
+      - name: Validate bootstrap state
+        run: PYTHONPATH=. python scripts/validate_seed_state.py
+
+      - name: Seed REWARDS_DISTRIBUTED showcase (all 11 formats)
+        run: |
+          PYTHONPATH=. python scripts/seed_rewards_distributed_showcase.py 2>&1 | \
+            grep -E "✅|❌|⚠️|📊|Format [A-K]|SUMMARY|event\(s\)" || true
+
+      - name: Confirm seed summary (11/11 events)
+        run: |
+          RESULT=$(PYTHONPATH=. python -c "
+          import os, sys
+          os.environ.setdefault('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/lfa_intern_system')
+          os.environ.setdefault('SECRET_KEY', 'ci-group-standings-secret-not-for-production')
+          sys.path.insert(0, '.')
+          from app.database import SessionLocal
+          from app.models.semester import Semester
+          db = SessionLocal()
+          n = db.query(Semester).filter(
+              Semester.name.like('Showcase:%'),
+              Semester.tournament_status == 'REWARDS_DISTRIBUTED'
+          ).count()
+          db.close()
+          print(n)
+          ")
+          echo "REWARDS_DISTRIBUTED showcase events: $RESULT"
+          if [ "$RESULT" -ne "11" ]; then
+            echo "❌ Expected 11 showcase events, found $RESULT"
+            exit 1
+          fi
+          echo "✅ 11 / 11 showcase events confirmed"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 2: Validate — GS-01 / GS-02 / GS-03 checks on seeded data
+# ─────────────────────────────────────────────────────────────────────────────
+  validate:
+    name: "Validate — GS-01 not-zero · GS-02 determinism · GS-03 qualification"
+    runs-on: ubuntu-latest
+    needs: seed
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-group-standings-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Bootstrap + seed (replay in this job's DB)
+        run: |
+          PYTHONPATH=. python scripts/bootstrap_clean.py
+          PYTHONPATH=. python scripts/seed_rewards_distributed_showcase.py 2>&1 | \
+            grep -E "✅|❌|📊|SUMMARY" || true
+
+      - name: Run validate_group_standings.py (pass 1)
+        run: |
+          PYTHONPATH=. python scripts/validate_group_standings.py 2>&1 | tee /tmp/gs_run1.txt
+          # tee hides the exit code — re-check explicitly
+          PYTHONPATH=. python scripts/validate_group_standings.py > /dev/null 2>&1
+
+      - name: Run validate_group_standings.py (pass 2 — cross-process determinism)
+        run: |
+          PYTHONPATH=. python scripts/validate_group_standings.py 2>&1 | tee /tmp/gs_run2.txt
+          PYTHONPATH=. python scripts/validate_group_standings.py > /dev/null 2>&1
+
+      - name: Compare qualification lists across both passes
+        run: |
+          QUAL_1=$(grep "Actual qualified" /tmp/gs_run1.txt | sort)
+          QUAL_2=$(grep "Actual qualified" /tmp/gs_run2.txt | sort)
+          if [ "$QUAL_1" != "$QUAL_2" ]; then
+            echo "❌ Cross-process non-determinism detected!"
+            echo "--- Pass 1 ---"
+            echo "$QUAL_1"
+            echo "--- Pass 2 ---"
+            echo "$QUAL_2"
+            exit 1
+          fi
+          echo "✅ Cross-process determinism confirmed — qualification lists identical"
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Group Standings Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Description | Fail condition |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------------|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| GS-01 | Not-zero standings | Any group has all 0 pts / 0 GF |" >> $GITHUB_STEP_SUMMARY
+          echo "| GS-02 | Determinism (reversed input order) | Reversed sessions → different player order |" >> $GITHUB_STEP_SUMMARY
+          echo "| GS-03 | Qualification = top-N | Knockout R1 participants ≠ standings[:top_n] |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cross-process | Two separate runs identical | Qualification lists differ between runs |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation Output" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E "✅|❌|GS-0|Group [A-Z]|qualified|SUMMARY|checked|failure" /tmp/gs_run1.txt \
+            >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "(no output captured)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 3: Gate — always runs, fails pipeline if any upstream job failed
+# ─────────────────────────────────────────────────────────────────────────────
+  gate:
+    name: "Gate — standings correctness confirmed"
+    runs-on: ubuntu-latest
+    needs: [seed, validate]
+    if: always()
+
+    steps:
+      - name: Check upstream results
+        run: |
+          SEED_RESULT="${{ needs.seed.result }}"
+          VALIDATE_RESULT="${{ needs.validate.result }}"
+          echo "seed     : $SEED_RESULT"
+          echo "validate : $VALIDATE_RESULT"
+          if [ "$SEED_RESULT" != "success" ] || [ "$VALIDATE_RESULT" != "success" ]; then
+            echo ""
+            echo "❌ Pipeline FAILED — group standings validation did not pass"
+            echo ""
+            echo "  Possible root causes:"
+            echo "    GS-01 → game_results key mismatch (participants vs raw_results)"
+            echo "    GS-02 → non-stable sort / insertion-order dependence in standings_calculator"
+            echo "    GS-03 → qualification uses different ordering than standings display"
+            exit 1
+          fi
+          echo "✅ All jobs passed — group standings are correct and deterministic"
