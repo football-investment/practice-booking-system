@@ -192,12 +192,13 @@ def enroll_teams(tid: int) -> list[Team]:
     return enrolled
 
 
-def enroll_individual_players(tid: int) -> list[User]:
-    """Enroll all 36 bootstrap players individually."""
+def enroll_individual_players(tid: int, count: int | None = None) -> list[User]:
+    """Enroll bootstrap players individually. count limits how many (default: all 36)."""
     db.expire_all()
     from app.models.license import UserLicense
+    players = all_boot_players[:count] if count else all_boot_players
     enrolled = []
-    for u in all_boot_players:
+    for u in players:
         lic = db.query(UserLicense).filter(
             UserLicense.user_id == u.id,
             UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
@@ -312,6 +313,108 @@ def write_gk_game_results(tid: int) -> int:
     db.commit()
     info(f"GK group results written: {written} session(s)")
     return written
+
+
+def finalize_group_stage(tid: int) -> bool:
+    """Call finalize-group-stage API to seed knockout bracket from group standings."""
+    r = client.post(f"/api/v1/tournaments/{tid}/finalize-group-stage")
+    if r.status_code != 200:
+        err(f"finalize-group-stage failed: {r.status_code}")
+        return False
+    result = r.json()
+    if not result.get("success"):
+        err(f"finalize-group-stage: {result.get('message')}")
+        return False
+    ok(f"Group stage finalized: {result.get('knockout_sessions_updated','?')} KO sessions seeded")
+    return True
+
+
+def seed_gk_knockout(tid: int) -> bool:
+    """Write game_results for knockout sessions round-by-round.
+    Tracks round_winners + round_losers for bronze match seeding."""
+    import json as _json
+    db.expire_all()
+    knockout_sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.semester_id == tid,
+                SessionModel.tournament_phase == "KNOCKOUT")
+        .order_by(SessionModel.tournament_round.asc(), SessionModel.id.asc())
+        .all()
+    )
+    if not knockout_sessions:
+        err("No knockout sessions found after finalize")
+        return False
+
+    rounds: dict[int, list] = {}
+    for s in knockout_sessions:
+        rounds.setdefault(s.tournament_round or 0, []).append(s)
+
+    round_winners: dict[int, list[int]] = {}
+    round_losers:  dict[int, list[int]] = {}
+
+    for rnd in sorted(rounds.keys()):
+        sessions_in_round = rounds[rnd]
+        if rnd > min(rounds.keys()):
+            prev_winners = round_winners.get(rnd - 1, [])
+            needed = 2 * len(sessions_in_round)
+            if len(prev_winners) < needed:
+                prev = round_losers.get(rnd - 2, [])  # bronze: SF losers
+            else:
+                prev = prev_winners
+            for i, sess in enumerate(sessions_in_round):
+                lo, hi = i * 2, i * 2 + 2
+                if hi <= len(prev):
+                    sess.participant_user_ids = prev[lo:hi]
+            db.commit()
+            db.expire_all()
+
+        round_winners[rnd] = []
+        round_losers[rnd] = []
+        for sess in sessions_in_round:
+            pids = list(sess.participant_user_ids or [])
+            if len(pids) < 2:
+                info(f"  Skip session {sess.id} (R{rnd}): no participants")
+                continue
+            sess.game_results = _json.dumps({
+                "match_format": "HEAD_TO_HEAD",
+                "participants": [
+                    {"user_id": pids[0], "score": 2.0, "result": "win"},
+                    {"user_id": pids[1], "score": 0.0, "result": "loss"},
+                ],
+            })
+            sess.session_status = "completed"
+            round_winners[rnd].append(pids[0])
+            round_losers[rnd].append(pids[1])
+        db.commit()
+        db.expire_all()
+
+    total = sum(len(v) for v in rounds.values())
+    ok(f"GK knockout seeded: {total} session(s) across {len(rounds)} round(s)")
+    return True
+
+
+def submit_h2h_individual_results(tid: int) -> int:
+    """Submit HEAD_TO_HEAD results for Swiss sessions via API (uses head-to-head-results endpoint)."""
+    db.expire_all()
+    sessions = db.query(SessionModel).filter(SessionModel.semester_id == tid).all()
+    submitted = 0
+    for sess in sessions:
+        pids = list(sess.participant_user_ids or [])
+        if len(pids) < 2:
+            continue
+        r = client.patch(
+            f"/api/v1/sessions/{sess.id}/head-to-head-results",
+            json={"results": [
+                {"user_id": pids[0], "score": 3},
+                {"user_id": pids[1], "score": 1},
+            ]},
+        )
+        if r.status_code in (200, 201):
+            submitted += 1
+        else:
+            err(f"H2H result session {sess.id}: {r.status_code} {r.text[:120]}")
+    info(f"H2H results submitted: {submitted}/{len(sessions)}")
+    return submitted
 
 
 def seed_individual_rankings(tid: int, players: list[User]) -> int:
@@ -509,7 +612,7 @@ if transition(t.id, "IN_PROGRESS"):
 
 print("\n[B6/8] COMPLETED")
 t = create_tournament("Group Knockout — Completed 2026", tt_gk.id, "INDIVIDUAL")
-players = enroll_individual_players(t.id)
+players = enroll_individual_players(t.id, count=16)   # 16 players → 4 groups → clean bracket
 transition(t.id, "ENROLLMENT_OPEN")
 transition(t.id, "ENROLLMENT_CLOSED")
 transition(t.id, "CHECK_IN_OPEN")
@@ -517,12 +620,15 @@ if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions generated: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
     write_gk_game_results(t.id)
-    calculate_rankings(t.id)
+    if finalize_group_stage(t.id):
+        seed_gk_knockout(t.id)
+    if not calculate_rankings(t.id):
+        seed_individual_rankings(t.id, players)
     transition(t.id, "COMPLETED")
 
 print("\n[B7/8] REWARDS_DISTRIBUTED")
 t = create_tournament("Group Knockout — Rewards Distributed 2026", tt_gk.id, "INDIVIDUAL")
-players = enroll_individual_players(t.id)
+players = enroll_individual_players(t.id, count=16)   # 16 players → 4 groups → clean bracket
 transition(t.id, "ENROLLMENT_OPEN")
 transition(t.id, "ENROLLMENT_CLOSED")
 transition(t.id, "CHECK_IN_OPEN")
@@ -530,7 +636,10 @@ if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions generated: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
     write_gk_game_results(t.id)
-    calculate_rankings(t.id)
+    if finalize_group_stage(t.id):
+        seed_gk_knockout(t.id)
+    if not calculate_rankings(t.id):
+        seed_individual_rankings(t.id, players)
     if transition(t.id, "COMPLETED"):
         distribute_rewards(t.id)
 
@@ -589,8 +698,8 @@ transition(t.id, "CHECK_IN_OPEN")
 if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions generated: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
-    submit_individual_results(t.id, players)
-    seed_individual_rankings(t.id, players)   # Swiss: no API ranking strategy
+    submit_h2h_individual_results(t.id)
+    calculate_rankings(t.id)
     transition(t.id, "COMPLETED")
 
 print("\n[C7/8] REWARDS_DISTRIBUTED")
@@ -602,8 +711,8 @@ transition(t.id, "CHECK_IN_OPEN")
 if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions generated: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
-    submit_individual_results(t.id, players)
-    seed_individual_rankings(t.id, players)   # Swiss: no API ranking strategy
+    submit_h2h_individual_results(t.id)
+    calculate_rankings(t.id)
     if transition(t.id, "COMPLETED"):
         distribute_rewards(t.id)
 

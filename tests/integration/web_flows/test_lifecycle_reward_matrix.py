@@ -930,6 +930,46 @@ def _campus(db: Session) -> "Campus":
     return camp
 
 
+def _ir_tournament_ex(
+    db: Session,
+    instructor: User,
+    scoring_type: str = "SCORE_BASED",
+    ranking_direction: str = "DESC",
+    participant_type: str = "INDIVIDUAL",
+    tournament_status: str = "DRAFT",
+) -> Semester:
+    """Create an INDIVIDUAL_RANKING tournament with custom scoring_type and ranking_direction."""
+    preset = _preset(db)
+    t = Semester(
+        name=f"SRL IR {_uid()}",
+        code=f"SRL-IR-{_uid()}",
+        master_instructor_id=instructor.id,
+        start_date=date(2026, 6, 1),
+        end_date=date(2026, 6, 30),
+        status=SemesterStatus.ONGOING,
+        semester_category=SemesterCategory.TOURNAMENT,
+        tournament_status=tournament_status,
+    )
+    db.add(t)
+    db.flush()
+    db.add(TournamentConfiguration(
+        semester_id=t.id,
+        tournament_type_id=None,
+        participant_type=participant_type,
+        max_players=32,
+        number_of_rounds=1,
+        parallel_fields=1,
+        ranking_direction=ranking_direction,
+        scoring_type=scoring_type,
+    ))
+    db.add(GameConfiguration(
+        semester_id=t.id,
+        game_preset_id=preset.id,
+    ))
+    db.flush()
+    return t
+
+
 def _ir_tournament(
     db: Session,
     instructor: User,
@@ -1699,4 +1739,145 @@ class TestExtendedLifecycleMatrix:
         ).all()
         assert len(participations) == 4, (
             f"Expected 4 TournamentParticipation rows (4 Swiss players), got {len(participations)}"
+        )
+
+    # ── SRL-17 ──────────────────────────────────────────────────────────────────
+
+    def test_SRL_17_time_based_individual_full_lifecycle(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        SRL-17: INDIVIDUAL_RANKING + INDIVIDUAL + TIME_BASED (4 players)
+        Validates TimeBasedStrategy: ASC sort → lowest score = rank 1.
+        Players submit times [10, 20, 30, 40] → player[0] (time=10) wins.
+
+        Tests unique code path: RankingStrategyFactory → TimeBasedStrategy
+        (not covered by any SRL-01..16 test).
+        """
+        camp = _campus(test_db)
+        t = _ir_tournament_ex(
+            test_db,
+            admin_user,
+            scoring_type="TIME_BASED",
+            ranking_direction="ASC",
+            tournament_status="DRAFT",
+        )
+        t.campus_id = camp.id
+        test_db.flush()
+
+        players = [_user(test_db) for _ in range(4)]
+        for p in players:
+            _enroll(test_db, t, p)
+
+        _advance_to_in_progress(client, t.id, admin_token)
+
+        sessions = _get_match_sessions(test_db, t.id)
+        assert len(sessions) == 1, (
+            f"TIME_BASED IR must auto-generate exactly 1 session, got {len(sessions)}"
+        )
+        sess = sessions[0]
+
+        # Submit time scores: player[0]=10 (fastest), player[3]=40 (slowest)
+        # TimeBasedStrategy: ASC → player with lowest time = rank 1
+        time_scores = [10.0, 20.0, 30.0, 40.0]
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/sessions/{sess.id}/results",
+            json={"results": [
+                {"user_id": players[i].id, "score": time_scores[i], "rank": i + 1}
+                for i in range(4)
+            ]},
+            headers=hdrs,
+        )
+        assert resp.status_code == 200, f"TIME_BASED results submission failed: {resp.text[:300]}"
+
+        _finalize_tournament(client, t.id, admin_token, test_db)
+
+        test_db.expire_all()
+        rankings = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).order_by(TournamentRanking.rank).all()
+        assert len(rankings) == 4, f"Expected 4 ranking rows, got {len(rankings)}"
+        # ASC: player with lowest time (10.0) must be rank 1
+        rank1 = next(r for r in rankings if r.rank == 1)
+        assert rank1.user_id == players[0].id, (
+            f"Rank 1 must be player with lowest time score (user {players[0].id}), "
+            f"got user {rank1.user_id}"
+        )
+
+        participations = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id
+        ).all()
+        assert len(participations) == 4, (
+            f"Expected 4 TournamentParticipation rows, got {len(participations)}"
+        )
+
+    # ── SRL-18 ──────────────────────────────────────────────────────────────────
+
+    def test_SRL_18_placement_individual_full_lifecycle(
+        self, test_db: Session, client, admin_user: User, admin_token: str
+    ):
+        """
+        SRL-18: INDIVIDUAL_RANKING + INDIVIDUAL + PLACEMENT (4 players)
+        Validates PlacementStrategy: ASC sort → lowest placement sum = rank 1.
+        Players submit placements [1, 2, 3, 4] → player[0] (placement=1) wins.
+
+        Tests unique code path: RankingStrategyFactory → PlacementStrategy
+        (not covered by any SRL-01..17 test).
+        """
+        camp = _campus(test_db)
+        t = _ir_tournament_ex(
+            test_db,
+            admin_user,
+            scoring_type="PLACEMENT",
+            ranking_direction="ASC",
+            tournament_status="DRAFT",
+        )
+        t.campus_id = camp.id
+        test_db.flush()
+
+        players = [_user(test_db) for _ in range(4)]
+        for p in players:
+            _enroll(test_db, t, p)
+
+        _advance_to_in_progress(client, t.id, admin_token)
+
+        sessions = _get_match_sessions(test_db, t.id)
+        assert len(sessions) == 1, (
+            f"PLACEMENT IR must auto-generate exactly 1 session, got {len(sessions)}"
+        )
+        sess = sessions[0]
+
+        # Submit placement scores: player[0]=1 (1st place), player[3]=4 (4th place)
+        # PlacementStrategy: ASC → lowest placement sum = rank 1
+        hdrs = {"Authorization": f"Bearer {admin_token}"}
+        resp = client.patch(
+            f"/api/v1/sessions/{sess.id}/results",
+            json={"results": [
+                {"user_id": players[i].id, "score": float(i + 1), "rank": i + 1}
+                for i in range(4)
+            ]},
+            headers=hdrs,
+        )
+        assert resp.status_code == 200, f"PLACEMENT results submission failed: {resp.text[:300]}"
+
+        _finalize_tournament(client, t.id, admin_token, test_db)
+
+        test_db.expire_all()
+        rankings = test_db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id == t.id
+        ).order_by(TournamentRanking.rank).all()
+        assert len(rankings) == 4, f"Expected 4 ranking rows, got {len(rankings)}"
+        # ASC: player with lowest placement (1.0) must be rank 1
+        rank1 = next(r for r in rankings if r.rank == 1)
+        assert rank1.user_id == players[0].id, (
+            f"Rank 1 must be player with lowest placement score (user {players[0].id}), "
+            f"got user {rank1.user_id}"
+        )
+
+        participations = test_db.query(TournamentParticipation).filter(
+            TournamentParticipation.semester_id == t.id
+        ).all()
+        assert len(participations) == 4, (
+            f"Expected 4 TournamentParticipation rows, got {len(participations)}"
         )

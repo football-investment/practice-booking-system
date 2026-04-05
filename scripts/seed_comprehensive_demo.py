@@ -97,6 +97,14 @@ _DEMO_TEAMS = [
      "dob": date(1995, 6, 1)},
 ]
 
+# 4 extra minimal teams for Format H (group_knockout × TEAM needs 8 teams)
+_GK_EXTRA_TEAMS = [
+    {"name": "Demo GK-1", "age_group_label": "U12"},
+    {"name": "Demo GK-2", "age_group_label": "U15"},
+    {"name": "Demo GK-3", "age_group_label": "U18"},
+    {"name": "Demo GK-4", "age_group_label": "ADULT"},
+]
+
 # 4 players per team — unique names per age group
 _DEMO_PLAYERS: dict[str, list[tuple[str, str]]] = {
     "Demo U12":    [("Aaron", "Adams"), ("Billy", "Baker"), ("Charlie", "Cole"), ("David", "Dean")],
@@ -328,6 +336,32 @@ all_demo_players = (
 )
 print(f"  → Demo teams: {[t.name for t in demo_teams]}")
 print(f"  → Demo players: {len(all_demo_players)} total")
+
+# Extra teams for Format H (group_knockout × TEAM needs 8 teams)
+gk_extra_teams: list[Team] = []
+for gdef in _GK_EXTRA_TEAMS:
+    team = db.query(Team).filter(
+        Team.club_id == demo_club.id,
+        Team.name == gdef["name"],
+    ).first()
+    if not team:
+        team = Team(
+            name=gdef["name"],
+            club_id=demo_club.id,
+            age_group_label=gdef["age_group_label"],
+            is_active=True,
+        )
+        db.add(team)
+        db.flush()
+    gk_extra_teams.append(team)
+db.commit()
+db.expire_all()
+gk_extra_teams = [
+    db.query(Team).filter(Team.club_id == demo_club.id, Team.name == gdef["name"]).first()
+    for gdef in _GK_EXTRA_TEAMS
+]
+gk_all_teams = demo_teams + gk_extra_teams  # 8 teams total for GK × TEAM
+print(f"  → GK extra teams: {[t.name for t in gk_extra_teams]}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -697,6 +731,162 @@ def submit_individual_results(tid: int, players: list[User]) -> int:
             err(f"Individual result session {sess.id}: {r.status_code} {r.text[:120]}")
     info(f"Individual results submitted: {submitted} session(s)")
     return submitted
+
+
+def submit_h2h_individual_results(tid: int) -> int:
+    """Submit HEAD_TO_HEAD results for all sessions (Swiss / league × IND).
+
+    Uses PATCH /sessions/{id}/head-to-head-results with the 2 participants
+    from each session's participant_user_ids. Score 3-1 so player-0 wins.
+    """
+    db.expire_all()
+    sessions = db.query(SessionModel).filter(SessionModel.semester_id == tid).all()
+    submitted = 0
+    for sess in sessions:
+        pids = list(sess.participant_user_ids or [])
+        if len(pids) < 2:
+            err(f"H2H session {sess.id} has <2 participants — skipping")
+            continue
+        r = client.patch(
+            f"/api/v1/sessions/{sess.id}/head-to-head-results",
+            json={"results": [
+                {"user_id": pids[0], "score": 3},
+                {"user_id": pids[1], "score": 1},
+            ]},
+        )
+        if r.status_code in (200, 201):
+            submitted += 1
+        else:
+            err(f"H2H result session {sess.id}: {r.status_code} {r.text[:120]}")
+    info(f"H2H individual results submitted: {submitted}/{len(sessions)} session(s)")
+    return submitted
+
+
+def submit_h2h_results_by_round(tid: int) -> int:
+    """Submit H2H individual results round-by-round for knockout × IND.
+
+    Between rounds, db.expire_all() allows KPS-seeded participant_user_ids to
+    become visible before the next round's sessions are queried.
+    """
+    total = 0
+    for rn in range(1, 6):  # safety: up to 5 knockout rounds
+        db.expire_all()
+        round_sessions = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.semester_id == tid,
+                SessionModel.tournament_round == rn,
+            )
+            .all()
+        )
+        if not round_sessions:
+            break
+        submitted = 0
+        for sess in round_sessions:
+            pids = list(sess.participant_user_ids or [])
+            if len(pids) < 2:
+                continue
+            r = client.patch(
+                f"/api/v1/sessions/{sess.id}/head-to-head-results",
+                json={"results": [
+                    {"user_id": pids[0], "score": 3},
+                    {"user_id": pids[1], "score": 1},
+                ]},
+            )
+            if r.status_code in (200, 201):
+                submitted += 1
+                total += 1
+            else:
+                err(f"KO IND R{rn} session {sess.id}: {r.status_code} {r.text[:120]}")
+        info(f"KO IND R{rn}: {submitted}/{len(round_sessions)} sessions submitted")
+    return total
+
+
+def submit_gk_team_results_api(tid: int) -> bool:
+    """Submit GK × TEAM results end-to-end via API only.
+
+    1. GROUP_STAGE: submit all sessions with participant_team_ids
+    2. POST /finalize-group-stage → seeds knockout participant_team_ids
+    3. KNOCKOUT: submit round-by-round (KPS TEAM auto-seeds next round)
+    """
+    # --- GROUP_STAGE ---
+    db.expire_all()
+    gs_sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.semester_id == tid,
+            SessionModel.tournament_phase == "GROUP_STAGE",
+        )
+        .all()
+    )
+    gs_submitted = 0
+    for sess in gs_sessions:
+        pids = list(sess.participant_team_ids or [])
+        if len(pids) < 2:
+            continue
+        r = client.patch(
+            f"/api/v1/sessions/{sess.id}/team-results",
+            json={
+                "results": [
+                    {"team_id": pids[0], "score": 2},
+                    {"team_id": pids[1], "score": 0},
+                ],
+                "round_number": 1,
+            },
+        )
+        if r.status_code in (200, 201):
+            gs_submitted += 1
+        else:
+            err(f"GK GS session {sess.id}: {r.status_code} {r.text[:120]}")
+    info(f"GK group stage: {gs_submitted}/{len(gs_sessions)} sessions submitted")
+
+    # --- FINALIZE GROUP STAGE ---
+    r = client.post(f"/api/v1/tournaments/{tid}/finalize-group-stage")
+    if r.status_code != 200:
+        err(f"finalize-group-stage failed: {r.status_code} {r.text[:120]}")
+        return False
+    res = r.json()
+    if not res.get("success"):
+        err(f"finalize-group-stage: {res.get('message')}")
+        return False
+    ok(f"Group stage finalized: {res.get('knockout_sessions_updated', '?')} KO sessions seeded")
+
+    # --- KNOCKOUT (round-by-round, KPS TEAM auto-seeds next round) ---
+    for rn in range(1, 6):
+        db.expire_all()
+        ko_sessions = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.semester_id == tid,
+                SessionModel.tournament_phase == "KNOCKOUT",
+                SessionModel.tournament_round == rn,
+            )
+            .all()
+        )
+        if not ko_sessions:
+            break
+        round_submitted = 0
+        for sess in ko_sessions:
+            pids = list(sess.participant_team_ids or [])
+            if len(pids) < 2:
+                continue
+            r = client.patch(
+                f"/api/v1/sessions/{sess.id}/team-results",
+                json={
+                    "results": [
+                        {"team_id": pids[0], "score": 2},
+                        {"team_id": pids[1], "score": 0},
+                    ],
+                    "round_number": 1,
+                },
+            )
+            if r.status_code in (200, 201):
+                round_submitted += 1
+            else:
+                err(f"GK KO R{rn} session {sess.id}: {r.status_code} {r.text[:120]}")
+        info(f"GK KO R{rn}: {round_submitted}/{len(ko_sessions)} sessions submitted")
+
+    return True
 
 
 def seed_individual_rankings(tid: int, players: list[User]) -> int:
@@ -1070,8 +1260,8 @@ transition(t.id, "CHECK_IN_OPEN")
 if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
-    submit_individual_results(t.id, all_demo_players)
-    seed_individual_rankings(t.id, all_demo_players)   # Swiss has no API ranking strategy
+    submit_h2h_individual_results(t.id)
+    calculate_rankings(t.id)
     transition(t.id, "COMPLETED")
 
 print("\n[D7/8] REWARDS_DISTRIBUTED")
@@ -1083,8 +1273,8 @@ transition(t.id, "CHECK_IN_OPEN")
 if transition(t.id, "IN_PROGRESS"):
     db.expire_all()
     info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
-    submit_individual_results(t.id, all_demo_players)
-    seed_individual_rankings(t.id, all_demo_players)
+    submit_h2h_individual_results(t.id)
+    calculate_rankings(t.id)
     if transition(t.id, "COMPLETED"):
         distribute_rewards(t.id)
 
@@ -1172,6 +1362,492 @@ if transition(t.id, "IN_PROGRESS"):
 
 print("\n[E8/8] CANCELLED")
 t = _ir("Cancelled")
+transition(t.id, "CANCELLED")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FORMAT F — H2H LEAGUE (INDIVIDUAL, WDL_BASED) — KPS not triggered (league)
+# ═════════════════════════════════════════════════════════════════════════════
+
+section("FORMAT F — H2H League (INDIVIDUAL, WDL_BASED) — 8 states")
+
+def _league_ind(label: str) -> Semester:
+    return create_tournament(
+        f"Demo: H2H League IND — {label}",
+        tt_id=tt_league.id,
+        participant_type="INDIVIDUAL",
+        scoring_type="SCORE_BASED",
+        ranking_direction="DESC",
+    )
+
+print("\n[F1/8] DRAFT")
+_league_ind("Draft")
+
+print("\n[F2/8] ENROLLMENT_OPEN")
+t = _league_ind("Enrollment Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+
+print("\n[F3/8] ENROLLMENT_CLOSED")
+t = _league_ind("Enrollment Closed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+
+print("\n[F4/8] CHECK_IN_OPEN")
+t = _league_ind("Check-In Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+db.expire_all()
+info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+
+print("\n[F5/8] IN_PROGRESS")
+t = _league_ind("In Progress")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    info("No results — standings_state=NONE")
+
+print("\n[F6/8] COMPLETED")
+t = _league_ind("Completed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_h2h_individual_results(t.id)
+    calculate_rankings(t.id)
+    transition(t.id, "COMPLETED")
+
+print("\n[F7/8] REWARDS_DISTRIBUTED")
+t = _league_ind("Rewards Distributed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_h2h_individual_results(t.id)
+    calculate_rankings(t.id)
+    if transition(t.id, "COMPLETED"):
+        distribute_rewards(t.id)
+
+print("\n[F8/8] CANCELLED")
+t = _league_ind("Cancelled")
+transition(t.id, "CANCELLED")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FORMAT G — KNOCKOUT (INDIVIDUAL, WDL_BASED) — KPS IND auto-seeds Final+Bronze
+# ═════════════════════════════════════════════════════════════════════════════
+
+section("FORMAT G — Knockout (INDIVIDUAL, WDL_BASED, KPS IND) — 8 states")
+
+def _knockout_ind(label: str) -> Semester:
+    return create_tournament(
+        f"Demo: Knockout IND — {label}",
+        tt_id=tt_knockout.id,
+        participant_type="INDIVIDUAL",
+        scoring_type="SCORE_BASED",
+        ranking_direction="DESC",
+    )
+
+print("\n[G1/8] DRAFT")
+_knockout_ind("Draft")
+
+print("\n[G2/8] ENROLLMENT_OPEN")
+t = _knockout_ind("Enrollment Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+
+print("\n[G3/8] ENROLLMENT_CLOSED")
+t = _knockout_ind("Enrollment Closed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+
+print("\n[G4/8] CHECK_IN_OPEN")
+t = _knockout_ind("Check-In Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+db.expire_all()
+info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+
+print("\n[G5/8] IN_PROGRESS")
+t = _knockout_ind("In Progress")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    info("No results — standings_state=NONE")
+
+print("\n[G6/8] COMPLETED")
+t = _knockout_ind("Completed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_h2h_results_by_round(t.id)
+    calculate_rankings(t.id)
+    transition(t.id, "COMPLETED")
+
+print("\n[G7/8] REWARDS_DISTRIBUTED")
+t = _knockout_ind("Rewards Distributed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_h2h_results_by_round(t.id)
+    calculate_rankings(t.id)
+    if transition(t.id, "COMPLETED"):
+        distribute_rewards(t.id)
+
+print("\n[G8/8] CANCELLED")
+t = _knockout_ind("Cancelled")
+transition(t.id, "CANCELLED")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FORMAT H — GROUP KNOCKOUT (TEAM, WDL_BASED) — KPS TEAM (EC-03-AT)
+# ═════════════════════════════════════════════════════════════════════════════
+
+section("FORMAT H — Group Knockout (TEAM, WDL_BASED, KPS TEAM) — 8 states")
+
+def _gk_team(label: str) -> Semester:
+    return create_tournament(
+        f"Demo: Group Knockout TEAM — {label}",
+        tt_id=tt_gk.id,
+        participant_type="TEAM",
+        scoring_type="SCORE_BASED",
+        ranking_direction="DESC",
+    )
+
+print("\n[H1/8] DRAFT")
+_gk_team("Draft")
+
+print("\n[H2/8] ENROLLMENT_OPEN")
+t = _gk_team("Enrollment Open")
+enroll_teams(t.id, gk_all_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+
+print("\n[H3/8] ENROLLMENT_CLOSED")
+t = _gk_team("Enrollment Closed")
+enroll_teams(t.id, gk_all_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+
+print("\n[H4/8] CHECK_IN_OPEN")
+t = _gk_team("Check-In Open")
+enroll_teams(t.id, gk_all_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+db.expire_all()
+info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+
+print("\n[H5/8] IN_PROGRESS")
+t = _gk_team("In Progress")
+enroll_teams(t.id, gk_all_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    info("No results — standings_state=NONE")
+
+print("\n[H6/8] COMPLETED")
+t = _gk_team("Completed")
+enroll_teams(t.id, gk_all_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_gk_team_results_api(t.id)
+    calculate_rankings(t.id)
+    transition(t.id, "COMPLETED")
+
+print("\n[H7/8] REWARDS_DISTRIBUTED")
+t = _gk_team("Rewards Distributed")
+enroll_teams(t.id, gk_all_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_gk_team_results_api(t.id)
+    calculate_rankings(t.id)
+    if transition(t.id, "COMPLETED"):
+        distribute_rewards(t.id)
+
+print("\n[H8/8] CANCELLED")
+t = _gk_team("Cancelled")
+transition(t.id, "CANCELLED")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FORMAT I — INDIVIDUAL RANKING (TEAM, SCORE_BASED)
+# ═════════════════════════════════════════════════════════════════════════════
+
+section("FORMAT I — Individual Ranking (TEAM, SCORE_BASED) — 8 states")
+
+def _ir_team(label: str) -> Semester:
+    return create_tournament(
+        f"Demo: IR TEAM — {label}",
+        tt_id=None,
+        participant_type="TEAM",
+        scoring_type="SCORE_BASED",
+        ranking_direction="DESC",
+    )
+
+print("\n[I1/8] DRAFT")
+_ir_team("Draft")
+
+print("\n[I2/8] ENROLLMENT_OPEN")
+t = _ir_team("Enrollment Open")
+enroll_teams(t.id, demo_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+
+print("\n[I3/8] ENROLLMENT_CLOSED")
+t = _ir_team("Enrollment Closed")
+enroll_teams(t.id, demo_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+
+print("\n[I4/8] CHECK_IN_OPEN")
+t = _ir_team("Check-In Open")
+enroll_teams(t.id, demo_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+db.expire_all()
+info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+
+print("\n[I5/8] IN_PROGRESS")
+t = _ir_team("In Progress")
+enroll_teams(t.id, demo_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    info("No results — standings_state=NONE")
+
+print("\n[I6/8] COMPLETED")
+t = _ir_team("Completed")
+enroll_teams(t.id, demo_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_team_results(t.id)
+    calculate_rankings(t.id)
+    transition(t.id, "COMPLETED")
+
+print("\n[I7/8] REWARDS_DISTRIBUTED")
+t = _ir_team("Rewards Distributed")
+enroll_teams(t.id, demo_teams)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_team_results(t.id)
+    calculate_rankings(t.id)
+    if transition(t.id, "COMPLETED"):
+        distribute_rewards(t.id)
+
+print("\n[I8/8] CANCELLED")
+t = _ir_team("Cancelled")
+transition(t.id, "CANCELLED")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FORMAT J — INDIVIDUAL RANKING (INDIVIDUAL, TIME_BASED)
+# ═════════════════════════════════════════════════════════════════════════════
+
+section("FORMAT J — Individual Ranking (INDIVIDUAL, TIME_BASED) — 8 states")
+
+def _ir_time(label: str) -> Semester:
+    return create_tournament(
+        f"Demo: IR Time — {label}",
+        tt_id=None,
+        participant_type="INDIVIDUAL",
+        scoring_type="TIME_BASED",
+        ranking_direction="ASC",
+    )
+
+print("\n[J1/8] DRAFT")
+_ir_time("Draft")
+
+print("\n[J2/8] ENROLLMENT_OPEN")
+t = _ir_time("Enrollment Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+
+print("\n[J3/8] ENROLLMENT_CLOSED")
+t = _ir_time("Enrollment Closed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+
+print("\n[J4/8] CHECK_IN_OPEN")
+t = _ir_time("Check-In Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+db.expire_all()
+info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+
+print("\n[J5/8] IN_PROGRESS")
+t = _ir_time("In Progress")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    info("No results — standings_state=NONE")
+
+print("\n[J6/8] COMPLETED")
+t = _ir_time("Completed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_individual_results(t.id, all_demo_players)
+    calculate_rankings(t.id)
+    transition(t.id, "COMPLETED")
+
+print("\n[J7/8] REWARDS_DISTRIBUTED")
+t = _ir_time("Rewards Distributed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_individual_results(t.id, all_demo_players)
+    calculate_rankings(t.id)
+    if transition(t.id, "COMPLETED"):
+        distribute_rewards(t.id)
+
+print("\n[J8/8] CANCELLED")
+t = _ir_time("Cancelled")
+transition(t.id, "CANCELLED")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FORMAT K — INDIVIDUAL RANKING (INDIVIDUAL, PLACEMENT)
+# ═════════════════════════════════════════════════════════════════════════════
+
+section("FORMAT K — Individual Ranking (INDIVIDUAL, PLACEMENT) — 8 states")
+
+def _ir_placement(label: str) -> Semester:
+    return create_tournament(
+        f"Demo: IR Placement — {label}",
+        tt_id=None,
+        participant_type="INDIVIDUAL",
+        scoring_type="PLACEMENT",
+        ranking_direction="ASC",
+    )
+
+print("\n[K1/8] DRAFT")
+_ir_placement("Draft")
+
+print("\n[K2/8] ENROLLMENT_OPEN")
+t = _ir_placement("Enrollment Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+
+print("\n[K3/8] ENROLLMENT_CLOSED")
+t = _ir_placement("Enrollment Closed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+
+print("\n[K4/8] CHECK_IN_OPEN")
+t = _ir_placement("Check-In Open")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+db.expire_all()
+info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+
+print("\n[K5/8] IN_PROGRESS")
+t = _ir_placement("In Progress")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    info("No results — standings_state=NONE")
+
+print("\n[K6/8] COMPLETED")
+t = _ir_placement("Completed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_individual_results(t.id, all_demo_players)
+    calculate_rankings(t.id)
+    transition(t.id, "COMPLETED")
+
+print("\n[K7/8] REWARDS_DISTRIBUTED")
+t = _ir_placement("Rewards Distributed")
+enroll_individual_players(t.id, all_demo_players)
+transition(t.id, "ENROLLMENT_OPEN")
+transition(t.id, "ENROLLMENT_CLOSED")
+transition(t.id, "CHECK_IN_OPEN")
+if transition(t.id, "IN_PROGRESS"):
+    db.expire_all()
+    info(f"Sessions: {db.query(SessionModel).filter(SessionModel.semester_id == t.id).count()}")
+    submit_individual_results(t.id, all_demo_players)
+    calculate_rankings(t.id)
+    if transition(t.id, "COMPLETED"):
+        distribute_rewards(t.id)
+
+print("\n[K8/8] CANCELLED")
+t = _ir_placement("Cancelled")
 transition(t.id, "CANCELLED")
 
 
@@ -1416,17 +2092,23 @@ else:
 # ─────────────────────────────────────────────────────────────────────────────
 
 db.expire_all()
-section("FINAL SUMMARY — 40 Demo Events")
+section("FINAL SUMMARY — 88 Demo Events (A-K × 8 states + 3 MC)")
 
 _FORMATS = [
-    ("A",    "Demo: H2H League —",           "TEAM"),
-    ("B",    "Demo: Knockout —",             "TEAM"),
-    ("C",    "Demo: Group Knockout —",       "INDIVIDUAL"),
-    ("D",    "Demo: Swiss —",               "INDIVIDUAL"),
-    ("E",    "Demo: IR —",                  "INDIVIDUAL"),
-    ("MC-1", "MC Demo: Group Knockout 2026", "INDIVIDUAL"),
-    ("MC-2", "MC Demo: H2H League 2026",    "INDIVIDUAL"),
-    ("MC-3", "MC Demo: IR 2026",            "INDIVIDUAL"),
+    ("A",    "Demo: H2H League —",               "TEAM"),
+    ("B",    "Demo: Knockout —",                 "TEAM"),
+    ("C",    "Demo: Group Knockout —",           "INDIVIDUAL"),
+    ("D",    "Demo: Swiss —",                   "INDIVIDUAL"),
+    ("E",    "Demo: IR —",                      "INDIVIDUAL"),
+    ("F",    "Demo: H2H League IND —",          "INDIVIDUAL"),
+    ("G",    "Demo: Knockout IND —",            "INDIVIDUAL"),
+    ("H",    "Demo: Group Knockout TEAM —",     "TEAM"),
+    ("I",    "Demo: IR TEAM —",                 "TEAM"),
+    ("J",    "Demo: IR Time —",                 "INDIVIDUAL"),
+    ("K",    "Demo: IR Placement —",            "INDIVIDUAL"),
+    ("MC-1", "MC Demo: Group Knockout 2026",    "INDIVIDUAL"),
+    ("MC-2", "MC Demo: H2H League 2026",        "INDIVIDUAL"),
+    ("MC-3", "MC Demo: IR 2026",                "INDIVIDUAL"),
 ]
 
 total = 0
