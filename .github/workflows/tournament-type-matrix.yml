@@ -1,4 +1,4 @@
-name: Tournament Type Matrix (SRL-09..15 + Seed + E2E)
+name: Tournament Type Matrix (SRL-09..18 + Seed + E2E)
 
 on:
   push:
@@ -41,10 +41,10 @@ env:
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
   SECRET_KEY: ci-tournament-matrix-secret-not-for-production
 
-# ── Job 1: SRL-09..15 Integration tests ───────────────────────────────────────
+# ── Job 1: SRL-09..18 Integration tests ───────────────────────────────────────
 jobs:
   integration:
-    name: "SRL-09..15 Lifecycle Reward Matrix"
+    name: "SRL-09..18 Lifecycle Reward Matrix"
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -92,12 +92,12 @@ jobs:
       - name: Migrate DB
         run: alembic upgrade head
 
-      - name: Run SRL-09..16 — All format × participant_type lifecycle tests
+      - name: Run SRL-09..18 — All format × participant_type lifecycle tests
         run: |
           mkdir -p results
           PYTHONPATH=. pytest tests/integration/web_flows/test_lifecycle_reward_matrix.py \
             -v --tb=short \
-            -k "SRL_09 or SRL_10 or SRL_11 or SRL_12 or SRL_13 or SRL_14 or SRL_15 or SRL_16" \
+            -k "SRL_09 or SRL_10 or SRL_11 or SRL_12 or SRL_13 or SRL_14 or SRL_15 or SRL_16 or SRL_17 or SRL_18" \
             --junitxml=results/srl-new.xml
 
       - name: Run SRL-01..08 — Regression (existing lifecycle tests)
