@@ -1,3 +1,20 @@
+/* ── CSS Custom Property Tokens (light-mode defaults) ─────────────────────
+   admin_base.html does NOT load style.css, so tokens must be defined here.
+   dark-mode.css overrides these inside @media (prefers-color-scheme: dark). */
+:root {
+    --app-bg:         #f5f7fa;
+    --app-card:       #ffffff;
+    --app-card-alt:   #f8f9fa;
+    --app-input-bg:   #ffffff;
+    --app-text:       #2c3e50;
+    --app-text-muted: #718096;
+    --app-border:     #e2e8f0;
+    --app-shadow:     rgba(0,0,0,0.10);
+    --app-success:    #27ae60;
+    --app-warning:    #f39c12;
+    --app-error:      #e74c3c;
+}
+
 /* ── Reset & Base ──────────────────────────────────────────────────── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -118,7 +135,7 @@ body {
     z-index: 200;
     padding: 0.35rem 0;
 }
-.nav-group:hover .nav-dropdown,
+/* Desktop hover is managed by JS (initNavHover) — only .dropdown-open triggers display */
 .nav-group.dropdown-open .nav-dropdown {
     display: block;
 }
@@ -443,7 +460,6 @@ td { padding: 0.85rem 0.75rem; color: var(--app-text-muted); }
         padding: 0;
         margin-bottom: 0.15rem;
     }
-    .nav-group:hover .nav-dropdown { display: none; }
     .nav-group.dropdown-open .nav-dropdown { display: block; }
     .nav-dropdown-item {
         color: rgba(255,255,255,0.78);

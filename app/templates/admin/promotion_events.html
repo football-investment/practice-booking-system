@@ -27,7 +27,8 @@
     margin-bottom: 1.25rem;
     flex-wrap: wrap;
 }
-.filter-bar select {
+.filter-bar select,
+.filter-bar input[type="search"] {
     padding: 0.38rem 0.75rem;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -35,6 +36,10 @@
     background: white;
     color: #2d3748;
     cursor: pointer;
+}
+.filter-bar input[type="search"] {
+    cursor: text;
+    min-width: 160px;
 }
 .filter-count {
     margin-left: auto;
@@ -244,6 +249,10 @@
 
 <!-- Filter bar -->
 <div class="filter-bar">
+    <!-- Name search -->
+    <input id="nameSearch" type="search" placeholder="Search by name…" oninput="applyFilters()">
+
+    <!-- Status -->
     <select id="statusFilter" onchange="applyFilters()">
         <option value="all">All statuses</option>
         <option value="DRAFT">Draft</option>
@@ -251,21 +260,45 @@
         <option value="ENROLLMENT_CLOSED">Enrollment Closed</option>
         <option value="CHECK_IN_OPEN">Check-In Open</option>
         <option value="IN_PROGRESS">In Progress</option>
+        <option value="STUCK">⚠ Stuck (no sessions)</option>
         <option value="COMPLETED">Completed</option>
         <option value="REWARDS_DISTRIBUTED">Rewards Distributed</option>
         <option value="CANCELLED">Cancelled</option>
     </select>
-    <select id="fmtFilter" onchange="applyFilters()">
+
+    <!-- Participant type (NEW) -->
+    <select id="ptFilter" onchange="applyFilters()">
+        <option value="all">All participant types</option>
+        <option value="TEAM">Teams</option>
+        <option value="INDIVIDUAL">Individual</option>
+    </select>
+
+    <!-- Tournament type / structure (NEW) -->
+    <select id="typeFilter" onchange="applyFilters()">
         <option value="all">All formats</option>
-        <option value="HEAD_TO_HEAD">Head-to-Head (Team)</option>
+        <option value="IR">Individual Ranking</option>
+        <option value="league">League (Round Robin)</option>
+        <option value="knockout">Knockout</option>
+        <option value="group_knockout">Group + Knockout</option>
+        <option value="swiss">Swiss</option>
+    </select>
+
+    <!-- High-level format (label fixed) -->
+    <select id="fmtFilter" onchange="applyFilters()">
+        <option value="all">All match types</option>
+        <option value="HEAD_TO_HEAD">Head-to-Head</option>
         <option value="INDIVIDUAL_RANKING">Individual Ranking</option>
     </select>
+
+    <!-- Age group (PRO added) -->
     <select id="agFilter" onchange="applyFilters()">
         <option value="all">All age groups</option>
         <option value="PRE">U12 (Pre)</option>
         <option value="YOUTH">U13–U18 (Youth)</option>
         <option value="AMATEUR">U19+ (Amateur)</option>
+        <option value="PRO">Pro</option>
     </select>
+
     <span class="filter-count" id="filterCount">{{ promo_info|length }} event{% if promo_info|length != 1 %}s{% endif %}</span>
 </div>
 
@@ -277,7 +310,14 @@
     {% set is_stuck = status == 'IN_PROGRESS' and info.session_count == 0 %}
     {% set row_class = 'STUCK' if is_stuck else status %}
 
-    <div class="event-row s-{{ row_class }}" data-status="{{ status }}" data-ag="{{ t.age_group or '' }}" data-fmt="{{ info.fmt or '' }}">
+    <div class="event-row s-{{ row_class }}"
+         data-status="{{ status }}"
+         data-ag="{{ t.age_group or '' }}"
+         data-fmt="{{ info.fmt or '' }}"
+         data-pt="{{ info.participant_type }}"
+         data-type="{{ info.type_code or 'IR' }}"
+         data-stuck="{{ 'true' if is_stuck else 'false' }}"
+         data-name="{{ t.name | lower }}">
 
         <!-- Main info -->
         <div class="event-main">
@@ -343,17 +383,28 @@
 {% block scripts %}
 <script>
 function applyFilters() {
+    const nameVal   = (document.getElementById('nameSearch').value || '').toLowerCase().trim();
     const statusVal = document.getElementById('statusFilter').value;
+    const ptVal     = document.getElementById('ptFilter').value;
+    const typeVal   = document.getElementById('typeFilter').value;
     const fmtVal    = document.getElementById('fmtFilter').value;
     const agVal     = document.getElementById('agFilter').value;
     const rows      = document.querySelectorAll('#eventList .event-row');
     let visible = 0;
     rows.forEach(row => {
-        const statusOk = statusVal === 'all' || row.dataset.status === statusVal;
-        const fmtOk    = fmtVal === 'all' || row.dataset.fmt === fmtVal;
-        const agOk     = agVal === 'all' || row.dataset.ag === agVal;
-        row.style.display = (statusOk && fmtOk && agOk) ? '' : 'none';
-        if (statusOk && fmtOk && agOk) visible++;
+        const nameOk   = !nameVal || (row.dataset.name || '').includes(nameVal);
+        // "STUCK" is a pseudo-status: IN_PROGRESS rows with data-stuck=true
+        const statusOk = statusVal === 'all'
+            || (statusVal === 'STUCK'
+                ? row.dataset.stuck === 'true'
+                : row.dataset.status === statusVal);
+        const ptOk     = ptVal   === 'all' || row.dataset.pt   === ptVal;
+        const typeOk   = typeVal === 'all' || row.dataset.type === typeVal;
+        const fmtOk    = fmtVal  === 'all' || row.dataset.fmt  === fmtVal;
+        const agOk     = agVal   === 'all' || row.dataset.ag   === agVal;
+        const show     = nameOk && statusOk && ptOk && typeOk && fmtOk && agOk;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
     });
     document.getElementById('filterCount').textContent =
         visible + ' / {{ promo_info|length }} event' + ({{ promo_info|length }} !== 1 ? 's' : '');

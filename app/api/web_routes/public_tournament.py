@@ -6,6 +6,7 @@ import json
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import case as sql_case
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
@@ -146,7 +147,7 @@ def public_event_detail(
     tournament_type_code = ""
     try:
         if cfg and cfg.tournament_type:
-            type_name = cfg.tournament_type.name
+            type_name = cfg.tournament_type.display_name  # BUG-1 fix: was .name (no such attr)
             tournament_type_code = cfg.tournament_type.code or ""
     except Exception:
         pass
@@ -254,11 +255,21 @@ def public_event_detail(
                 })
 
     # ── Schedule (shown when sessions exist, any state) ───────────────────────
+    # KO-03: explicit phase ordering (alphabetical asc is wrong: FINALS < GROUP_STAGE)
+    _phase_order = sql_case(
+        (SessionModel.tournament_phase == "GROUP_STAGE", 1),
+        (SessionModel.tournament_phase == "KNOCKOUT", 2),
+        (SessionModel.tournament_phase == "FINALS", 3),
+        (SessionModel.tournament_phase == "PLACEMENT", 4),
+        (SessionModel.tournament_phase == "SWISS", 5),
+        (SessionModel.tournament_phase == "INDIVIDUAL_RANKING", 6),
+        else_=9,
+    )
     raw_sessions = (
         db.query(SessionModel)
         .filter(SessionModel.semester_id == tournament_id)
         .order_by(
-            SessionModel.tournament_phase.asc().nulls_last(),  # GROUP_STAGE → KNOCKOUT → NULL
+            _phase_order,
             SessionModel.round_number.asc().nulls_last(),
             SessionModel.id,
         )
@@ -319,6 +330,9 @@ def public_event_detail(
     from app.models.campus import Campus as CampusModel
     from app.models.pitch import Pitch as PitchModel
     _s_campus_ids = {s.campus_id    for s in raw_sessions if s.campus_id}
+    # Include tournament-level campus so venue fallback works (sess.campus_id or tournament.campus_id)
+    if tournament.campus_id:
+        _s_campus_ids.add(tournament.campus_id)
     _s_pitch_ids  = {s.pitch_id     for s in raw_sessions if s.pitch_id}
     _s_instr_ids  = {s.instructor_id for s in raw_sessions if s.instructor_id}
     session_campus_cache: dict[int, str] = {
@@ -367,56 +381,139 @@ def public_event_detail(
             rank_row["members"].sort(key=lambda m: m.get("position") or 999)
 
     # ── Group Stage Standings (GROUP_KNOCKOUT only) ──────────────────────────
+    # BUG-2 fix: handles both INDIVIDUAL (game_results) and TEAM (rounds_data) storage
     group_standings: dict[str, list[dict]] = {}
+    group_matches: dict[str, list[dict]] = {}   # per-group match list for official record
+    qualifiers_set: set[int] = set()  # participant IDs that appear in first KO round
+    qualifiers_per_group: int = 0
     if tournament_type_code == "group_knockout":
+        # Build qualifier set from round_number==1 knockout sessions
+        for sess in raw_sessions:
+            if sess.tournament_phase == "KNOCKOUT" and sess.round_number == 1:
+                for tid in (sess.participant_team_ids or []):
+                    qualifiers_set.add(tid)
+                for uid in (sess.participant_user_ids or []):
+                    qualifiers_set.add(uid)
+
         grp_data: dict[str, dict[int, dict]] = {}
         for sess in raw_sessions:
             if sess.tournament_phase != "GROUP_STAGE":
                 continue
             sc = sess.structure_config or {}
             grp = sc.get("group") or "?"
-            if not sess.game_results:
-                continue
-            try:
-                gr = json.loads(sess.game_results) if isinstance(sess.game_results, str) else sess.game_results
-                parts = gr.get("participants") or []
-                if len(parts) < 2:
-                    continue
-                pa, pb = parts[0], parts[1]
-                uid_a, uid_b = pa.get("user_id"), pb.get("user_id")
-                s_a = float(pa.get("score") or 0)
-                s_b = float(pb.get("score") or 0)
-                for uid in (uid_a, uid_b):
-                    if uid is not None:
-                        grp_data.setdefault(grp, {}).setdefault(uid, {"W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0})
-                for uid, s_for, s_against, result in [
-                    (uid_a, int(s_a), int(s_b), pa.get("result", "")),
-                    (uid_b, int(s_b), int(s_a), pb.get("result", "")),
-                ]:
-                    if uid is not None and grp in grp_data and uid in grp_data[grp]:
-                        e = grp_data[grp][uid]
-                        e["GF"] += s_for
-                        e["GA"] += s_against
-                        if result == "win":
-                            e["W"] += 1
-                        elif result == "draw":
-                            e["D"] += 1
-                        else:
-                            e["L"] += 1
-            except Exception:
-                pass
+
+            # Path A: INDIVIDUAL — results in game_results
+            if sess.game_results:
+                try:
+                    gr = json.loads(sess.game_results) if isinstance(sess.game_results, str) else sess.game_results
+                    parts = gr.get("participants") or []
+                    if len(parts) < 2:
+                        continue
+                    pa, pb = parts[0], parts[1]
+                    uid_a, uid_b = pa.get("user_id"), pb.get("user_id")
+                    s_a = float(pa.get("score") or 0)
+                    s_b = float(pb.get("score") or 0)
+                    for uid in (uid_a, uid_b):
+                        if uid is not None:
+                            grp_data.setdefault(grp, {}).setdefault(uid, {"W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0, "is_team": False})
+                    for uid, s_for, s_against, result in [
+                        (uid_a, int(s_a), int(s_b), pa.get("result", "")),
+                        (uid_b, int(s_b), int(s_a), pb.get("result", "")),
+                    ]:
+                        if uid is not None and grp in grp_data and uid in grp_data[grp]:
+                            e = grp_data[grp][uid]
+                            e["GF"] += s_for
+                            e["GA"] += s_against
+                            if result == "win":
+                                e["W"] += 1
+                            elif result == "draw":
+                                e["D"] += 1
+                            else:
+                                e["L"] += 1
+                    # Record per-group match for official record
+                    n_a = schedule_player_cache.get(uid_a, f"#{uid_a}") if uid_a else "?"
+                    n_b = schedule_player_cache.get(uid_b, f"#{uid_b}") if uid_b else "?"
+                    group_matches.setdefault(grp, []).append({
+                        "team_a": n_a, "team_b": n_b,
+                        "score_a": int(s_a), "score_b": int(s_b),
+                        "done": sess.session_status == "completed",
+                        "date": sess.date_start,
+                        "campus_name": session_campus_cache.get(sess.campus_id or tournament.campus_id),
+                        "pitch_name":  session_pitch_cache.get(sess.pitch_id),
+                        "session_instructor": session_instr_cache.get(sess.instructor_id),
+                    })
+                except Exception:
+                    pass
+
+            # Path B: TEAM — results in rounds_data["round_results"]["1"]["team_XXXX"]
+            elif sess.rounds_data:
+                try:
+                    tids_gs = list(sess.participant_team_ids or [])
+                    if len(tids_gs) < 2:
+                        continue
+                    rr_gs = sess.rounds_data.get("round_results", {})
+                    r1_gs = rr_gs.get("1", {}) if rr_gs else {}
+                    raw_a_gs = r1_gs.get(f"team_{tids_gs[0]}")
+                    raw_b_gs = r1_gs.get(f"team_{tids_gs[1]}")
+                    if raw_a_gs is None and raw_b_gs is None:
+                        continue
+                    s_a_gs = float(raw_a_gs or 0)
+                    s_b_gs = float(raw_b_gs or 0)
+                    for tid in tids_gs[:2]:
+                        grp_data.setdefault(grp, {}).setdefault(tid, {"W": 0, "D": 0, "L": 0, "GF": 0, "GA": 0, "is_team": True})
+                    res_a = "win" if s_a_gs > s_b_gs else ("draw" if s_a_gs == s_b_gs else "loss")
+                    res_b = "win" if s_b_gs > s_a_gs else ("draw" if s_b_gs == s_a_gs else "loss")
+                    for pid, s_for, s_against, result in [
+                        (tids_gs[0], int(s_a_gs), int(s_b_gs), res_a),
+                        (tids_gs[1], int(s_b_gs), int(s_a_gs), res_b),
+                    ]:
+                        if grp in grp_data and pid in grp_data[grp]:
+                            e = grp_data[grp][pid]
+                            e["GF"] += s_for
+                            e["GA"] += s_against
+                            if result == "win":
+                                e["W"] += 1
+                            elif result == "draw":
+                                e["D"] += 1
+                            else:
+                                e["L"] += 1
+                    # Record per-group match for official record
+                    n_a = team_cache.get(tids_gs[0], f"Team #{tids_gs[0]}")
+                    n_b = team_cache.get(tids_gs[1], f"Team #{tids_gs[1]}")
+                    group_matches.setdefault(grp, []).append({
+                        "team_a": n_a, "team_b": n_b,
+                        "score_a": int(s_a_gs), "score_b": int(s_b_gs),
+                        "done": sess.session_status == "completed",
+                        "date": sess.date_start,
+                        "campus_name": session_campus_cache.get(sess.campus_id or tournament.campus_id),
+                        "pitch_name":  session_pitch_cache.get(sess.pitch_id),
+                        "session_instructor": session_instr_cache.get(sess.instructor_id),
+                    })
+                except Exception:
+                    pass
+
         for grp in sorted(grp_data.keys()):
             rows_in_group = []
-            for uid, s in grp_data[grp].items():
+            for pid, s in grp_data[grp].items():
                 pts = s["W"] * 3 + s["D"]
                 gd = s["GF"] - s["GA"]
+                if s["is_team"]:
+                    name = team_cache.get(pid, f"Team #{pid}")
+                else:
+                    name = schedule_player_cache.get(pid, f"Player #{pid}")
                 rows_in_group.append({
-                    "name": schedule_player_cache.get(uid, f"Player #{uid}"),
+                    "name": name,
                     "W": s["W"], "D": s["D"], "L": s["L"],
                     "GF": s["GF"], "GA": s["GA"], "GD": gd, "Pts": pts,
+                    "qualifies": pid in qualifiers_set,
                 })
             rows_in_group.sort(key=lambda r: (-r["Pts"], -r["GD"], -r["GF"]))
             group_standings[grp] = rows_in_group
+
+    # How many qualifiers per group (for "top N advance" note)
+    qualifiers_per_group = (
+        len(qualifiers_set) // max(len(group_standings), 1) if group_standings else 0
+    )
 
     schedule: list[dict] = []
     for sess in raw_sessions:
@@ -504,10 +601,146 @@ def public_event_detail(
             "score_a":            score_a,
             "score_b":            score_b,
             "done":               sess.session_status == "completed",
-            "campus_name":        session_campus_cache.get(sess.campus_id),
+            "leg_number":         getattr(sess, "leg_number", None),
+            "campus_name":        session_campus_cache.get(sess.campus_id or tournament.campus_id),
             "pitch_name":         session_pitch_cache.get(sess.pitch_id),
             "session_instructor": session_instr_cache.get(sess.instructor_id),
         })
+
+    # ── Knockout bracket rounds (KO-01: visual bracket display) ─────────────────
+    _KO_PHASES = {"KNOCKOUT", "FINALS", "PLACEMENT"}
+    bracket_rounds: list[dict] = []
+    if tournament_type_code in ("knockout", "group_knockout"):
+        round_map: dict[int, dict] = {}
+        for sess in raw_sessions:
+            phase_s = sess.tournament_phase or ""
+            if tournament_type_code == "group_knockout" and phase_s not in _KO_PHASES:
+                continue
+            rn = sess.round_number or 0
+            sc_b = sess.structure_config or {}
+            rname = sc_b.get("round_name") or (f"Round {rn}" if rn > 0 else "Round")
+            tids_b = list(sess.participant_team_ids or [])
+            uids_b = list(sess.participant_user_ids or [])
+            rr_b = (sess.rounds_data or {}).get("round_results", {})
+            r1_b = rr_b.get("1", {}) if rr_b else {}
+            score_a_b = score_b_b = None
+            if len(tids_b) >= 2:
+                a_b = team_cache.get(tids_b[0], "TBD")
+                b_b = team_cache.get(tids_b[1], "TBD")
+                raw_a_b = r1_b.get(f"team_{tids_b[0]}")
+                raw_b_b = r1_b.get(f"team_{tids_b[1]}")
+                if raw_a_b is not None:
+                    score_a_b = int(float(raw_a_b))
+                if raw_b_b is not None:
+                    score_b_b = int(float(raw_b_b))
+            elif len(uids_b) >= 2:
+                a_b = schedule_player_cache.get(uids_b[0], "TBD")
+                b_b = schedule_player_cache.get(uids_b[1], "TBD")
+                raw_a_b = r1_b.get(str(uids_b[0]))
+                raw_b_b = r1_b.get(str(uids_b[1]))
+                if raw_a_b is not None:
+                    score_a_b = int(float(raw_a_b))
+                if raw_b_b is not None:
+                    score_b_b = int(float(raw_b_b))
+            else:
+                a_b = b_b = "TBD"
+            if rn not in round_map:
+                round_map[rn] = {"round": rn, "round_name": rname, "matches": []}
+            round_map[rn]["matches"].append({
+                "team_a":  a_b,
+                "team_b":  b_b,
+                "score_a": score_a_b,
+                "score_b": score_b_b,
+                "done":    sess.session_status == "completed",
+                "tbd":     a_b == "TBD" and b_b == "TBD",
+                "date":              sess.date_start,
+                "campus_name":       session_campus_cache.get(sess.campus_id or tournament.campus_id),
+                "pitch_name":        session_pitch_cache.get(sess.pitch_id),
+                "session_instructor": session_instr_cache.get(sess.instructor_id),
+            })
+        bracket_rounds = sorted(round_map.values(), key=lambda r: r["round"])
+
+    # ── Venue-organized Draw (group_knockout / knockout) ─────────────────────
+    # Groups all sessions by campus → pitch → time for player-friendly "where/when/who" view
+    venue_schedule: list[dict] = []
+    if tournament_type_code in ("group_knockout", "knockout"):
+        _vmap: dict[tuple[str, str], list[dict]] = {}
+        for sess in raw_sessions:
+            eff_campus_id = sess.campus_id or tournament.campus_id
+            c_name = session_campus_cache.get(eff_campus_id) or "—"
+            p_name = session_pitch_cache.get(sess.pitch_id) or "—"
+            tids_v = list(sess.participant_team_ids or [])
+            uids_v = list(sess.participant_user_ids or [])
+            rr_v = (sess.rounds_data or {}).get("round_results", {})
+            r1_v = rr_v.get("1", {}) if rr_v else {}
+            sa_v = sb_v = None
+            if len(tids_v) >= 2:
+                na_v = team_cache.get(tids_v[0], "TBD")
+                nb_v = team_cache.get(tids_v[1], "TBD")
+                raw_av = r1_v.get(f"team_{tids_v[0]}")
+                raw_bv = r1_v.get(f"team_{tids_v[1]}")
+                if raw_av is not None:
+                    sa_v = int(float(raw_av))
+                if raw_bv is not None:
+                    sb_v = int(float(raw_bv))
+            elif len(uids_v) >= 2:
+                na_v = schedule_player_cache.get(uids_v[0], "TBD")
+                nb_v = schedule_player_cache.get(uids_v[1], "TBD")
+                raw_av = r1_v.get(str(uids_v[0]))
+                raw_bv = r1_v.get(str(uids_v[1]))
+                if raw_av is not None:
+                    sa_v = int(float(raw_av))
+                if raw_bv is not None:
+                    sb_v = int(float(raw_bv))
+                if sa_v is None and sess.game_results:
+                    try:
+                        gr_v = json.loads(sess.game_results) if isinstance(sess.game_results, str) else {}
+                        by_uid_v = {p["user_id"]: p for p in (gr_v.get("participants") or [])}
+                        pa_v = by_uid_v.get(uids_v[0])
+                        pb_v = by_uid_v.get(uids_v[1])
+                        if pa_v and pb_v:
+                            sa_v = int(pa_v.get("score") or 0)
+                            sb_v = int(pb_v.get("score") or 0)
+                    except Exception:
+                        pass
+            else:
+                na_v = nb_v = "TBD"
+            # Context label (phase/round)
+            sc_v = sess.structure_config or {}
+            ph_v = sess.tournament_phase or ""
+            if sc_v.get("round_name"):
+                ctx_v = sc_v["round_name"]
+            elif ph_v == "GROUP_STAGE":
+                gv = sc_v.get("group", "")
+                rn_v = sess.tournament_round or sess.round_number
+                ctx_v = f"Group {gv} – Round {rn_v}" if gv else f"Group Round {rn_v}"
+            elif sess.round_number:
+                ctx_v = f"Round {sess.round_number}"
+            else:
+                ctx_v = ph_v.replace("_", " ").title() if ph_v else "—"
+            _vmap.setdefault((c_name, p_name), []).append({
+                "date":    sess.date_start,
+                "team_a":  na_v, "team_b": nb_v,
+                "score_a": sa_v, "score_b": sb_v,
+                "done":    sess.session_status == "completed",
+                "context": ctx_v,
+                "session_instructor": session_instr_cache.get(sess.instructor_id),
+            })
+        # Sort matches within each venue chronologically (None dates last)
+        for key in _vmap:
+            _vmap[key].sort(key=lambda m: (m["date"] is None, m["date"]))
+        # Build venue_schedule: campus → pitches list
+        _cmap: dict[str, list[dict]] = {}
+        for (c_name, p_name), matches in _vmap.items():
+            _cmap.setdefault(c_name, []).append({"pitch_name": p_name, "matches": matches})
+        for c in _cmap:
+            _cmap[c].sort(key=lambda p: p["pitch_name"] or "")
+        # Primary tournament campus first, rest alphabetical
+        _primary_c = session_campus_cache.get(tournament.campus_id) if tournament.campus_id else None
+        if _primary_c and _primary_c in _cmap:
+            venue_schedule.append({"campus_name": _primary_c, "pitches": _cmap.pop(_primary_c)})
+        for c_name, pitches in sorted(_cmap.items()):
+            venue_schedule.append({"campus_name": c_name, "pitches": pitches})
 
     # ── IR results (INDIVIDUAL_RANKING sessions, shown instead of H2H schedule) ─
     ir_results: list[dict] = []
@@ -559,7 +792,7 @@ def public_event_detail(
                     "entries":            entries,
                     "player_entries":     player_entries,
                     "done":              sess.session_status == "completed",
-                    "campus_name":        session_campus_cache.get(sess.campus_id),
+                    "campus_name":        session_campus_cache.get(sess.campus_id or tournament.campus_id),
                     "pitch_name":         session_pitch_cache.get(sess.pitch_id),
                     "session_instructor": session_instr_cache.get(sess.instructor_id),
                 })
@@ -657,6 +890,11 @@ def public_event_detail(
         "is_cancelled": status == "CANCELLED",
         "instructors": instructors,
         "group_standings": group_standings,
+        "group_matches": group_matches,
+        "qualifiers_per_group": qualifiers_per_group,
+        "tournament_type_code": tournament_type_code,
         "game_preset_name": game_preset_name,
         "game_preset_skills": game_preset_skills,
+        "bracket_rounds": bracket_rounds,
+        "venue_schedule": venue_schedule,
     })

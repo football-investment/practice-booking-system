@@ -184,6 +184,25 @@
 </script>
 
 <script>
+// Desktop nav dropdown hover — 150 ms close delay prevents snap-close on slow mouse
+(function initNavHover() {
+    var timers = {};
+    document.querySelectorAll('.nav-group').forEach(function(group, idx) {
+        group.addEventListener('mouseenter', function() {
+            if (window.innerWidth < 640) return;
+            if (timers[idx]) { clearTimeout(timers[idx]); timers[idx] = null; }
+            group.classList.add('dropdown-open');
+        });
+        group.addEventListener('mouseleave', function() {
+            if (window.innerWidth < 640) return;
+            timers[idx] = setTimeout(function() {
+                group.classList.remove('dropdown-open');
+                timers[idx] = null;
+            }, 150);
+        });
+    });
+})();
+
 function toggleAdminNav() {
     var nav = document.getElementById('admin-nav');
     var btn = document.getElementById('nav-hamburger-btn');
@@ -192,7 +211,7 @@ function toggleAdminNav() {
     btn.textContent = open ? '✕' : '☰';
 }
 function toggleNavDropdown(evt, trigger) {
-    if (window.innerWidth >= 640) return; // desktop: CSS hover handles it
+    if (window.innerWidth >= 640) return; // desktop: JS hover (initNavHover) handles it
     evt.preventDefault();
     var group = trigger.closest('.nav-group');
     var wasOpen = group.classList.contains('dropdown-open');

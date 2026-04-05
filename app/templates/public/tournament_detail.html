@@ -425,6 +425,182 @@ body {
     background: rgba(255,255,255,0.05); border-radius: 4px;
     padding: 2px 7px; white-space: nowrap;
 }
+
+/* ── Group Stage 2-column layout ────────────────────────── */
+.group-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+}
+.group-col-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+}
+.group-qualifier-badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #48bb78;
+    background: rgba(72,187,120,0.15);
+    border: 1px solid rgba(72,187,120,0.3);
+    border-radius: 3px;
+    padding: 0 4px;
+    margin-right: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+}
+.group-advance-note {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.35);
+    margin: 0.6rem 0 0;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* ── Group match list (official record — inlined per group card) ── */
+.group-matches-inset { margin-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 0.4rem; }
+.group-matches-inset-label { font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.28); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.3rem; }
+.group-match-row { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.78rem; padding: 0.2rem 0; border-top: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; }
+.group-match-row:first-child { border-top: none; }
+.group-match-date { font-size: 0.65rem; color: rgba(255,255,255,0.35); min-width: 52px; flex-shrink: 0; }
+.group-match-teams { flex: 1; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.group-match-score { font-weight: 700; font-size: 0.82rem; min-width: 36px; text-align: center; flex-shrink: 0; }
+.group-match-meta { font-size: 0.65rem; color: rgba(255,255,255,0.32); width: 100%; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+/* ── Venue Draw (campus → pitch → chronological) ─────────── */
+.draw-section { display: flex; flex-direction: column; gap: 1.2rem; }
+.draw-campus-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+}
+.draw-campus-header {
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.1em; color: rgba(255,255,255,0.55);
+    padding-bottom: 0.45rem;
+    border-bottom: 2px solid rgba(255,255,255,0.15);
+    margin-bottom: 0.6rem;
+}
+.draw-pitch-block { margin-bottom: 0.4rem; }
+.draw-pitch-header {
+    font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.3);
+    text-transform: uppercase; letter-spacing: 0.07em;
+    padding: 0.25rem 0 0.3rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    margin-bottom: 0.25rem;
+}
+.draw-match-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 8px;
+    padding: 0.45rem 0.65rem;
+    margin-bottom: 0.3rem;
+}
+.draw-match-card:last-child { margin-bottom: 0; }
+.draw-match-card.done { border-color: rgba(72,187,120,0.22); background: rgba(72,187,120,0.04); }
+.draw-card-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.6rem; color: rgba(255,255,255,0.3); margin-bottom: 0.3rem; }
+.draw-card-context { font-style: italic; }
+.draw-card-match { display: flex; align-items: center; gap: 0.5rem; }
+.draw-card-team { flex: 1; font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.85); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.draw-card-team.right { text-align: right; }
+.draw-card-instr { font-size: 0.62rem; color: rgba(255,255,255,0.28); margin-top: 0.25rem; }
+
+/* ── Knockout bracket ────────────────────────────────────── */
+.bracket-wrap {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding: 0.5rem 0 1rem;
+    -webkit-overflow-scrolling: touch;
+}
+.bracket-round {
+    display: flex;
+    flex-direction: column;
+    min-width: 144px;
+    max-width: 190px;
+    flex: 1 1 144px;
+}
+.bracket-round-label {
+    font-size: 0.63rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    text-align: center;
+    padding: 0 0.5rem 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.bracket-matches {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    justify-content: space-around;
+    flex: 1;
+}
+.bracket-match {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 8px;
+    padding: 0.4rem 0.65rem;
+    margin: 0 0.4rem;
+    font-size: 0.78rem;
+}
+.bracket-match.done { border-color: rgba(72,187,120,0.3); background: rgba(72,187,120,0.05); }
+.bracket-match.tbd  { opacity: 0.35; }
+.bracket-team {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.4rem;
+    color: rgba(255,255,255,0.75);
+    padding: 0.12rem 0;
+}
+.bracket-team span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+.bracket-team.winner { color: #ecc94b; font-weight: 700; }
+.bracket-score {
+    font-weight: 700;
+    font-size: 0.85rem;
+    min-width: 14px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.bracket-separator { height: 1px; background: rgba(255,255,255,0.08); margin: 0.1rem 0; }
+.bracket-venue { font-size: 0.62rem; color: rgba(255,255,255,0.28); margin-top: 0.28rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.bracket-arrow {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.18);
+    padding: 0 0.15rem;
+    align-self: center;
+    flex-shrink: 0;
+    padding-bottom: 1.2rem; /* align with labels */
+}
+
+/* ── Match upcoming / leg badge ──────────────────────────── */
+.match-row.match-upcoming .match-vs { color: rgba(255,255,255,0.28); }
+.match-leg {
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.38);
+    background: rgba(255,255,255,0.07);
+    border-radius: 4px;
+    padding: 1px 6px;
+    flex-shrink: 0;
+}
 </style>
 </head>
 <body>
@@ -440,25 +616,42 @@ body {
         <div class="event-meta-row">
             <span class="status-badge{% if status == 'IN_PROGRESS' %} badge-live{% endif %}" style="background: {{ status_color }};">{{ status_label }}</span>
             {% if tournament_format %}
-            <span class="meta-chip">{{ tournament_format.replace('_', ' ') }}</span>
+            <span class="meta-chip">
+                {%- if tournament_format == 'HEAD_TO_HEAD' %}Head-to-Head
+                {%- elif tournament_format == 'INDIVIDUAL_RANKING' %}Individual Ranking
+                {%- else %}{{ tournament_format.replace('_', ' ') }}{%- endif %}
+            </span>
             {% endif %}
             {% if type_name %}
             <span class="meta-chip">{{ type_name }}</span>
             {% endif %}
-            <span class="meta-chip">{{ participant_type }}</span>
+            {% if t.age_group %}
+            <span class="meta-chip">
+                {%- if t.age_group == 'PRE' %}U12 (Pre)
+                {%- elif t.age_group == 'YOUTH' %}U13–U18 (Youth)
+                {%- elif t.age_group == 'AMATEUR' %}U19+ (Amateur)
+                {%- elif t.age_group == 'PRO' %}Pro
+                {%- else %}{{ t.age_group }}{%- endif %}
+            </span>
+            {% endif %}
+            <span class="meta-chip">
+                {%- if participant_type == 'TEAM' %}Teams
+                {%- elif participant_type == 'INDIVIDUAL' %}Individual
+                {%- else %}{{ participant_type }}{%- endif %}
+            </span>
         </div>
 
         <div class="event-info-grid">
             {% if t.start_date %}
             <div class="info-cell">
                 <span class="info-label">Start</span>
-                <span class="info-value">📅 {{ t.start_date.strftime('%Y-%m-%d') }}</span>
+                <span class="info-value">📅 {{ t.start_date.strftime('%b %-d, %Y') }}</span>
             </div>
             {% endif %}
             {% if t.end_date %}
             <div class="info-cell">
                 <span class="info-label">End</span>
-                <span class="info-value">📅 {{ t.end_date.strftime('%Y-%m-%d') }}</span>
+                <span class="info-value">📅 {{ t.end_date.strftime('%b %-d, %Y') }}</span>
             </div>
             {% endif %}
             {% if location_name or campus_name %}
@@ -470,12 +663,12 @@ body {
             {% if t.age_group %}
             <div class="info-cell">
                 <span class="info-label">Age Group</span>
-                <span class="info-value">👦 {{ t.age_group }}</span>
+                <span class="info-value">👦 {% if t.age_group == 'PRE' %}U12 (Pre){% elif t.age_group == 'YOUTH' %}U13–U18 (Youth){% elif t.age_group == 'AMATEUR' %}U19+ (Amateur){% elif t.age_group == 'PRO' %}Pro{% else %}{{ t.age_group }}{% endif %}</span>
             </div>
             {% endif %}
             <div class="info-cell">
                 <span class="info-label">Participants</span>
-                <span class="info-value">👥 {{ enrolled_count }}{% if max_players %} / {{ max_players }}{% endif %}</span>
+                <span class="info-value">👥 {{ enrolled_count }} {{ 'team' if participant_type == 'TEAM' else 'player' }}{{ 's' if enrolled_count != 1 else '' }}{% if max_players %} / {{ max_players }}{% endif %}</span>
             </div>
             {% if tournament_format == 'INDIVIDUAL_RANKING' and scoring_type %}
             <div class="info-cell">
@@ -724,6 +917,79 @@ body {
     </div>
     {% endif %}
 
+    {# ── Group Stage Standings — standalone section (GROUP_KNOCKOUT only) ── #}
+    {% if group_standings %}
+    <div class="section">
+        <div class="section-title">🏟 Group Stage</div>
+        <div class="group-grid">
+            {% for grp_label, grp_rows in group_standings.items() %}
+            <div>
+                <div class="group-col-label">Group {{ grp_label }}</div>
+                <table class="rankings-table" style="margin-bottom:0;">
+                    <thead>
+                        <tr>
+                            <th class="rank-col">#</th>
+                            <th>{{ 'Team' if participant_type == 'TEAM' else 'Player' }}</th>
+                            <th class="num">Pts</th>
+                            <th class="num hide-sm">W</th>
+                            <th class="num hide-sm">D</th>
+                            <th class="num hide-sm">L</th>
+                            <th class="num hide-sm">GD</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in grp_rows %}
+                        <tr>
+                            <td class="rank-col">{{ loop.index }}</td>
+                            <td>
+                                {% if row.qualifies %}<span class="group-qualifier-badge">Q</span>{% endif %}
+                                <div class="participant-name" style="display:inline;">{{ row.name }}</div>
+                            </td>
+                            <td class="num"><span class="pts-badge">{{ row.Pts }}</span></td>
+                            <td class="num hide-sm">{{ row.W }}</td>
+                            <td class="num hide-sm">{{ row.D }}</td>
+                            <td class="num hide-sm">{{ row.L }}</td>
+                            <td class="num hide-sm">{{ row.GD }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {# ── Per-group match list (official record: venue + instructor) ── #}
+                {% set gm_list = group_matches.get(grp_label, []) %}
+                {% if gm_list %}
+                <div class="group-matches-inset">
+                    <div class="group-matches-inset-label">Matches</div>
+                    {% for gm in gm_list %}
+                    <div class="group-match-row">
+                        <span class="group-match-date">{% if gm.date %}{{ gm.date.strftime('%b %-d') }}{% else %}—{% endif %}</span>
+                        <span class="group-match-teams">{{ gm.team_a }} vs {{ gm.team_b }}</span>
+                        <span class="group-match-score">
+                            {%- if gm.done and gm.score_a is not none and gm.score_b is not none -%}
+                                {{ gm.score_a }}–{{ gm.score_b }}
+                            {%- else -%}—{%- endif -%}
+                        </span>
+                        {% if gm.campus_name or gm.session_instructor %}
+                        <span class="group-match-meta">
+                            {% if gm.campus_name %}📍 {{ gm.campus_name }}{% if gm.pitch_name %} · {{ gm.pitch_name }}{% endif %}{% endif %}
+                            {% if gm.session_instructor %}🎓 {{ gm.session_instructor }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% if qualifiers_per_group > 0 %}
+        <div class="group-advance-note">
+            <span class="group-qualifier-badge">Q</span>
+            top {{ qualifiers_per_group }} from each group advance to knockout
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {# ── IR event results (shown for INDIVIDUAL_RANKING sessions) ── #}
     {% if tournament_format == 'INDIVIDUAL_RANKING' and ir_results %}
     <div class="section">
@@ -784,6 +1050,79 @@ body {
     </div>
     {# ── H2H match schedule / draw ── #}
     {% elif schedule %}
+    {# ── Knockout bracket visualization (KO-01) ─────────────────────────── #}
+    {% if bracket_rounds %}
+    <div class="section">
+        <div class="section-title">⚔️ Bracket</div>
+        <div class="bracket-wrap">
+            {% for rd in bracket_rounds %}
+            <div class="bracket-round">
+                <div class="bracket-round-label">{{ rd.round_name }}</div>
+                <div class="bracket-matches">
+                    {% for m in rd.matches %}
+                    <div class="bracket-match{% if m.done %} done{% elif m.tbd %} tbd{% endif %}">
+                        <div class="bracket-team{% if m.score_a is not none and m.score_b is not none and m.score_a > m.score_b %} winner{% endif %}">
+                            <span>{{ m.team_a }}</span>
+                            <span class="bracket-score">{% if m.score_a is not none %}{{ m.score_a }}{% endif %}</span>
+                        </div>
+                        <div class="bracket-separator"></div>
+                        <div class="bracket-team{% if m.score_a is not none and m.score_b is not none and m.score_b > m.score_a %} winner{% endif %}">
+                            <span>{{ m.team_b }}</span>
+                            <span class="bracket-score">{% if m.score_b is not none %}{{ m.score_b }}{% endif %}</span>
+                        </div>
+                        {% if m.campus_name or m.session_instructor or m.date %}
+                        <div class="bracket-venue">
+                            {% if m.date %}<span>{{ m.date.strftime('%b %-d') }}</span>{% endif %}
+                            {% if m.campus_name %}<span>📍 {{ m.campus_name }}{% if m.pitch_name %} · {{ m.pitch_name }}{% endif %}</span>{% endif %}
+                            {% if m.session_instructor %}<span>🎓 {{ m.session_instructor }}</span>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if not loop.last %}<div class="bracket-arrow">›</div>{% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {# ── Venue-organized Draw (group_knockout / knockout) ── #}
+    {% if tournament_type_code in ('group_knockout', 'knockout') %}
+    <div class="section">
+        <div class="section-title">📍 Draw</div>
+        <div class="draw-section">
+            {% for campus in venue_schedule %}
+            <div class="draw-campus-card">
+                <div class="draw-campus-header">📍 {{ campus.campus_name }}</div>
+                {% for pitch in campus.pitches %}
+                <div class="draw-pitch-block">
+                    {% if pitch.pitch_name and pitch.pitch_name != '—' %}
+                    <div class="draw-pitch-header">{{ pitch.pitch_name }}</div>
+                    {% endif %}
+                    {% for dm in pitch.matches %}
+                    <div class="draw-match-card{% if dm.done %} done{% endif %}">
+                        <div class="draw-card-meta">
+                            <span>{% if dm.date %}{{ dm.date.strftime('%b %-d  %H:%M') }}{% else %}—{% endif %}</span>
+                            <span class="draw-card-context">{{ dm.context }}</span>
+                        </div>
+                        <div class="draw-card-match">
+                            <span class="draw-card-team right">{{ dm.team_a }}</span>
+                            <span class="match-vs">{%- if dm.done and dm.score_a is not none and dm.score_b is not none -%}{{ dm.score_a }}–{{ dm.score_b }}{%- else -%}vs{%- endif -%}</span>
+                            <span class="draw-card-team">{{ dm.team_b }}</span>
+                        </div>
+                        {% if dm.session_instructor %}
+                        <div class="draw-card-instr">🎓 {{ dm.session_instructor }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    {# ── Flat schedule (league / swiss / other H2H formats) ── #}
     <div class="section">
         <div class="section-title">🎲 Match Schedule</div>
         <div class="schedule-list">
@@ -802,13 +1141,14 @@ body {
                     {% set ns.cur_round_name = match.round_name %}
                     <div class="sched-round-header">{{ match.round_name }}</div>
                 {% endif %}
-                <div class="match-row{% if match.done %} match-done{% endif %}">
+                <div class="match-row{% if match.done %} match-done{% else %} match-upcoming{% endif %}">
                     <span class="match-team team-a">{{ match.team_a }}</span>
                     <span class="match-vs">
                         {% if match.score_a is not none and match.score_b is not none %}{{ match.score_a }}–{{ match.score_b }}{% else %}vs{% endif %}
                     </span>
                     <span class="match-team team-b">{{ match.team_b }}</span>
-                    {% if match.date %}<span class="match-date">{{ match.date.strftime('%m/%d %H:%M') }}</span>{% endif %}
+                    {% if match.leg_number and number_of_legs and number_of_legs > 1 %}<span class="match-leg">Leg {{ match.leg_number }}</span>{% endif %}
+                    {% if match.date %}<span class="match-date">{{ match.date.strftime('%b %-d %H:%M') }}</span>{% endif %}
                 </div>
                 {% if match.campus_name or match.session_instructor %}
                 <div class="match-venue">
@@ -819,6 +1159,7 @@ body {
             {% endfor %}
         </div>
     </div>
+    {% endif %}
     {% endif %}
 
     {# ── Standings / Rankings ──────────────────────────────────────────────── #}
@@ -883,45 +1224,35 @@ body {
             </tbody>
         </table>
         {% else %}
-        {# WDL_BASED (League, Group Knockout): W/D/L/GF/GA always rendered #}
-        {% if group_standings %}
-        {# GROUP_KNOCKOUT: per-group tables before flat final rankings #}
-        <div style="margin-top:1rem;margin-bottom:.25rem;font-weight:600;font-size:.8rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em;">🏟 Group Stage Standings</div>
-        {% for grp_label, grp_rows in group_standings.items() %}
-        <div style="margin:.75rem 0 .25rem;font-weight:600;color:rgba(255,255,255,.75);">Group {{ grp_label }}</div>
-        <table class="rankings-table" style="margin-bottom:.5rem;">
+        {# WDL_BASED: League = full W/D/L table; Group Knockout = rank-only (BUG-3 fix) #}
+        {% if tournament_type_code == 'group_knockout' %}
+        {# GROUP_KNOCKOUT: simple rank table — combined W/D/L across phases is misleading #}
+        <table class="rankings-table">
             <thead>
                 <tr>
                     <th class="rank-col">#</th>
-                    <th>Player</th>
-                    <th class="num">Pts</th>
-                    <th class="num hide-sm">W</th>
-                    <th class="num hide-sm">D</th>
-                    <th class="num hide-sm">L</th>
-                    <th class="num hide-sm">GF</th>
-                    <th class="num hide-sm">GA</th>
-                    <th class="num hide-sm">GD</th>
+                    <th>{{ 'Team' if participant_type == 'TEAM' else 'Player' }}</th>
+                    <th>Club</th>
                 </tr>
             </thead>
             <tbody>
-                {% for row in grp_rows %}
+                {% for row in rankings %}
                 <tr>
-                    <td class="rank-col">{{ loop.index }}</td>
+                    <td class="rank-col">
+                        {% if row.rank == 1 %}<span class="rank-medal">🥇</span>
+                        {% elif row.rank == 2 %}<span class="rank-medal">🥈</span>
+                        {% elif row.rank == 3 %}<span class="rank-medal">🥉</span>
+                        {% elif row.rank %}{{ row.rank }}
+                        {% else %}<span style="color:rgba(255,255,255,0.3)">—</span>{% endif %}
+                    </td>
                     <td><div class="participant-name">{{ row.name }}</div></td>
-                    <td class="num"><span class="pts-badge">{{ row.Pts }}</span></td>
-                    <td class="num hide-sm">{{ row.W }}</td>
-                    <td class="num hide-sm">{{ row.D }}</td>
-                    <td class="num hide-sm">{{ row.L }}</td>
-                    <td class="num hide-sm goals">{{ row.GF }}</td>
-                    <td class="num hide-sm goals">{{ row.GA }}</td>
-                    <td class="num hide-sm">{{ row.GD }}</td>
+                    <td><div class="club-sub">{{ row.club_name or '—' }}</div></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        {% endfor %}
-        <div style="margin:1rem 0 .25rem;font-weight:600;font-size:.8rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em;">⚔️ Final Rankings</div>
-        {% endif %}
+        {% else %}
+        {# LEAGUE / other WDL_BASED: full W/D/L/GF/GA/GD table #}
         <table class="rankings-table">
             <thead>
                 <tr>
@@ -933,6 +1264,7 @@ body {
                     <th class="num hide-sm">L</th>
                     <th class="num hide-sm">GF</th>
                     <th class="num hide-sm">GA</th>
+                    <th class="num hide-sm">GD</th>
                 </tr>
             </thead>
             <tbody>
@@ -955,10 +1287,12 @@ body {
                     <td class="num hide-sm">{{ row.losses or 0 }}</td>
                     <td class="num hide-sm goals">{{ row.goals_for or 0 }}</td>
                     <td class="num hide-sm goals">{{ row.goals_against or 0 }}</td>
+                    <td class="num hide-sm">{{ (row.goals_for or 0) - (row.goals_against or 0) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% endif %}
         {% endif %}
     </div>
     {% elif standings_state == 'PENDING' %}
