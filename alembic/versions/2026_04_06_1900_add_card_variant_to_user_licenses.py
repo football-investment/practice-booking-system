@@ -12,7 +12,6 @@ These columns are orthogonal to card_theme / unlocked_card_themes (colour system
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "2026_04_06_1900"
@@ -36,9 +35,9 @@ def upgrade() -> None:
         "user_licenses",
         sa.Column(
             "unlocked_card_variants",
-            postgresql.ARRAY(sa.String(length=30)),
+            sa.JSON,
             nullable=False,
-            server_default="{}",
+            server_default="[]",
             comment="Premium variant IDs unlocked by this user (e.g. ['compact', 'showcase'])",
         ),
     )
