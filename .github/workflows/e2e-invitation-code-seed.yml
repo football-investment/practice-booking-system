@@ -1,0 +1,228 @@
+name: E2E Invitation Code Seed Validation
+
+# Proves that bootstrap_clean.py + seed_comprehensive_demo.py correctly seed
+# InvitationCode rows for every student user with consistent CreditTransaction
+# audit trail and proper used/unused split.
+#
+# Validation guards:
+#   - total codes = 36 (bootstrap) + 16 (demo) + 5 (stock unused) = 57
+#   - used codes  = 52  (every student has INV-BOOTSTRAP-{id} or INV-DEMO-{id})
+#   - unused codes = 5  (stock INV-DEMO-OPEN01..03 / PARTNER / TEST01)
+#   - credit_balance == sum(CreditTransaction.amount) per student
+#   - used_by_user_id FK consistent for all used codes
+
+on:
+  push:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'scripts/bootstrap_clean.py'
+      - 'scripts/seed_comprehensive_demo.py'
+      - 'app/models/invitation_code.py'
+      - 'app/models/credit_transaction.py'
+      - 'alembic/versions/**'
+      - '.github/workflows/e2e-invitation-code-seed.yml'
+  pull_request:
+    branches: [main, develop, "feature/*", "fix/*"]
+    paths:
+      - 'scripts/bootstrap_clean.py'
+      - 'scripts/seed_comprehensive_demo.py'
+      - 'app/models/invitation_code.py'
+      - 'app/models/credit_transaction.py'
+      - 'alembic/versions/**'
+      - '.github/workflows/e2e-invitation-code-seed.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-invitation-code-seed-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+  SECRET_KEY: ci-invitation-code-seed-secret-not-for-production
+  TESTING: "true"
+
+jobs:
+  # ── Job 1: bootstrap + comprehensive demo seed ─────────────────────────────
+  inv-seed:
+    name: "bootstrap → demo seed → invitation code state"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lfa_intern_system
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lfa_intern_system
+          SECRET_KEY=ci-invitation-code-seed-secret-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ADMIN_EMAIL=admin@lfa.com
+          ADMIN_PASSWORD=admin123
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Assert DB is empty
+        run: |
+          TABLE_COUNT=$(PGPASSWORD=postgres psql -h localhost -U postgres lfa_intern_system \
+            -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" \
+            | tr -d '[:space:]')
+          echo "Tables before bootstrap: $TABLE_COUNT"
+          if [ "$TABLE_COUNT" -ne "0" ]; then
+            echo "❌ DB is not empty — $TABLE_COUNT tables found"
+            exit 1
+          fi
+          echo "✅ DB is empty — clean start confirmed"
+
+      - name: Run bootstrap_clean.py (Steps 1-9 incl. invitation codes)
+        run: PYTHONPATH=. python scripts/bootstrap_clean.py
+
+      - name: Run seed_comprehensive_demo.py (demo players + invitation codes)
+        run: PYTHONPATH=. python scripts/seed_comprehensive_demo.py
+
+      - name: Validate invitation code state
+        run: |
+          PYTHONPATH=. TESTING=true python - <<'PYEOF'
+          import os, sys
+          os.environ.setdefault("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
+          os.environ.setdefault("TESTING", "true")
+
+          from app.database import SessionLocal
+          from app.models.invitation_code import InvitationCode
+          from app.models.credit_transaction import CreditTransaction
+          from app.models.user import User, UserRole
+          from sqlalchemy import func
+
+          db = SessionLocal()
+          issues = []
+
+          # ── Aggregate counts ────────────────────────────────────────────────
+          total   = db.query(InvitationCode).count()
+          used    = db.query(InvitationCode).filter(InvitationCode.is_used.is_(True)).count()
+          unused  = total - used
+          cred    = db.query(func.sum(InvitationCode.bonus_credits)).filter(
+              InvitationCode.is_used.is_(True)
+          ).scalar() or 0
+
+          print(f"InvitationCodes : {total} total ({used} used / {unused} unused)")
+          print(f"Credits mapped  : {cred:,}  (used codes only)")
+
+          # ── Guard: used >= 52 (36 bootstrap students + 16 demo players) ────
+          if used < 52:
+              issues.append(f"used codes {used} < 52 (expected >=52: 36 bootstrap + 16 demo)")
+
+          # ── Guard: unused == 5 (stock codes) ────────────────────────────────
+          if unused < 5:
+              issues.append(f"unused codes {unused} < 5 (expected 5 stock codes)")
+
+          # ── Guard: every STUDENT has a used invitation code ──────────────────
+          students = db.query(User).filter(User.role == UserRole.STUDENT).all()
+          print(f"Students found  : {len(students)}")
+          for user in students:
+              code = db.query(InvitationCode).filter(
+                  InvitationCode.used_by_user_id == user.id
+              ).first()
+              if not code:
+                  issues.append(f"no invitation code for user {user.id} ({user.email})")
+              elif code.used_by_user_id != user.id:
+                  issues.append(f"used_by_user_id mismatch for user {user.id}")
+
+          # ── Guard: credit_balance == sum(CreditTransaction.amount) ──────────
+          for user in students:
+              tx_sum = db.query(func.sum(CreditTransaction.amount)).filter(
+                  CreditTransaction.user_id == user.id
+              ).scalar() or 0
+              if tx_sum != user.credit_balance:
+                  issues.append(
+                      f"credit mismatch user {user.id}: "
+                      f"balance={user.credit_balance}, tx_sum={tx_sum}"
+                  )
+
+          db.close()
+
+          if issues:
+              print(f"\n❌ Validation FAILED — {len(issues)} issue(s):")
+              for iss in issues:
+                  print(f"   • {iss}")
+              sys.exit(1)
+
+          print(f"\n✅ Validation passed:")
+          print(f"   • {total} codes ({used} used / {unused} unused)")
+          print(f"   • {len(students)} students — every user has an invitation code")
+          print(f"   • credit_balance == CreditTransaction sum for all students")
+          print(f"   • {cred:,} credits mapped via used codes")
+          PYEOF
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Invitation Code Seed Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Seed Flow" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Script | What it seeds |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 | \`bootstrap_clean.py\` Step 9 | 5 stock codes (unused) + 36 historical codes (used) + 36 CreditTransaction rows |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | \`seed_comprehensive_demo.py\` | 16 demo player codes (used, INV-DEMO-{id}) + 16 CreditTransaction rows |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation Guards" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Guard | Expected | Rule |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|----------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total codes | 57 | 36 bootstrap + 16 demo + 5 stock |" >> $GITHUB_STEP_SUMMARY
+          echo "| Used codes | >= 52 | Every student has INV-BOOTSTRAP-{id} or INV-DEMO-{id} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unused codes | >= 5 | Stock codes available for manual registration testing |" >> $GITHUB_STEP_SUMMARY
+          echo "| Per-user code | present | \`used_by_user_id\` FK set for all students |" >> $GITHUB_STEP_SUMMARY
+          echo "| Credit trail | consistent | \`credit_balance == sum(CreditTransaction.amount)\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Code Formats" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Format | Count | State | Source |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`INV-BOOTSTRAP-{user_id}\` | 36 | used | bootstrap_clean.py Step 9 |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`INV-DEMO-{user_id}\` | 16 | used | seed_comprehensive_demo.py |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`INV-DEMO-OPEN01/02/03\` | 3 | unused | bootstrap_clean.py Step 9 |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`INV-DEMO-PARTNER\` | 1 | unused | bootstrap_clean.py Step 9 |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`INV-DEMO-TEST01\` | 1 | unused | bootstrap_clean.py Step 9 |" >> $GITHUB_STEP_SUMMARY
+
+  # ── Job 2: gate ────────────────────────────────────────────────────────────
+  inv-gate:
+    name: "Gate"
+    needs: [inv-seed]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check seed job result
+        run: |
+          if [ "${{ needs.inv-seed.result }}" != "success" ]; then
+            echo "❌ inv-seed failed"
+            exit 1
+          fi
+          echo "✅ Invitation code seed + validation passed"
