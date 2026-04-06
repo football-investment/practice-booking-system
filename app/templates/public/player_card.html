@@ -120,6 +120,9 @@
     --card-pill-bg:       rgba(246,173,60,0.10);
     --card-pill-border:   rgba(246,173,60,0.25);
     --card-pill-text:     rgba(246,173,60,0.90);
+    /* Contrast fixes: faint text was ~2.5:1 on very dark gold bg → raised */
+    --card-val-neutral:   rgba(255,255,255,0.68);
+    --card-text-faint:    rgba(255,255,255,0.48);
 }
 .theme-emerald {
     --card-panel-bg:  linear-gradient(155deg, #0a2d0a 0%, #144d1e 60%, #0a2d14 100%);
@@ -134,6 +137,9 @@
     --card-pill-bg:       rgba(76,222,130,0.08);
     --card-pill-border:   rgba(76,222,130,0.22);
     --card-pill-text:     rgba(76,222,130,0.85);
+    /* Contrast fixes: faint text was ~2.5:1 on very dark green bg → raised */
+    --card-val-neutral:   rgba(255,255,255,0.68);
+    --card-text-faint:    rgba(255,255,255,0.48);
 }
 .theme-crimson {
     --card-panel-bg:  linear-gradient(155deg, #3d0a0a 0%, #5c1414 60%, #3d0a14 100%);
@@ -148,6 +154,11 @@
     --card-pill-bg:       rgba(255,107,107,0.08);
     --card-pill-border:   rgba(255,107,107,0.22);
     --card-pill-text:     rgba(255,107,107,0.85);
+    /* Contrast fixes: red-on-dark-red was ~1.5:1 → raised to readable levels */
+    --card-skill-dn:      #ffb3b3;
+    --card-skill-up:      #68d391;
+    --card-val-neutral:   rgba(255,255,255,0.65);
+    --card-text-faint:    rgba(255,255,255,0.38);
 }
 .theme-arctic {
     --card-body-bg:        #f7fafc;
@@ -342,7 +353,8 @@ body {
 /* ── 561px-767px (tablet landscape) ─────────────────────────
    4-col skills but wrapping allowed — names never truncate     */
 @media (min-width: 561px) and (max-width: 767px) {
-    .skill-name { white-space: normal; line-height: 1.3; }
+    .skill-name     { white-space: normal; line-height: 1.3; }
+    .skill-cat-name { white-space: normal; line-height: 1.3; }
 }
 /* ── 768px+ (desktop / large tablet) ────────────────────────
    Wider card (960px), scaled header, larger controls           */
@@ -527,7 +539,7 @@ body {
             </div>
             {% endfor %}
         {% else %}
-            <div class="ev-empty">Még nincs tornaadat.</div>
+            <div class="ev-empty">No tournament data yet.</div>
         {% endif %}
     </div>
 

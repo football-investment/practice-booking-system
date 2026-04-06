@@ -98,6 +98,7 @@ def public_player_card(
         position = ms.get("position", "Unknown")
 
     # Age group from date_of_birth
+    # PRE = under 7, YOUTH = 7–18 (U15 + U18 players), AMATEUR = 19+
     age_group = "AMATEUR"
     if user.date_of_birth:
         dob = user.date_of_birth if hasattr(user.date_of_birth, "year") else user.date_of_birth
@@ -105,7 +106,7 @@ def public_player_card(
         age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
         if age < 7:
             age_group = "PRE"
-        elif age < 15:
+        elif age < 19:
             age_group = "YOUTH"
 
     # Tier
@@ -124,13 +125,24 @@ def public_player_card(
     parts = (user.name or user.email).split()
     initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
 
-    # Teams
+    # Teams — batch load to avoid N+1 queries
+    _team_members = db.query(TeamMember).filter(TeamMember.user_id == user_id).all()
+    _team_ids = [tm.team_id for tm in _team_members]
+    _teams = (
+        {t.id: t for t in db.query(Team).filter(Team.id.in_(_team_ids)).all()}
+        if _team_ids else {}
+    )
+    _club_ids = [t.club_id for t in _teams.values() if t.club_id]
+    _clubs = (
+        {c.id: c for c in db.query(Club).filter(Club.id.in_(_club_ids)).all()}
+        if _club_ids else {}
+    )
     teams_info = []
-    for tm in db.query(TeamMember).filter(TeamMember.user_id == user_id).all():
-        team = db.query(Team).filter(Team.id == tm.team_id).first()
+    for tm in _team_members:
+        team = _teams.get(tm.team_id)
         if not team:
             continue
-        club = db.query(Club).filter(Club.id == team.club_id).first() if team.club_id else None
+        club = _clubs.get(team.club_id) if team.club_id else None
         teams_info.append({
             "team_name": team.name,
             "club_name": club.name if club else None,
