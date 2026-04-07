@@ -339,6 +339,91 @@ def get_lfa_age_category(date_of_birth):
         return None, None, None, f"Age {age} - Below minimum age requirement (5 years)"
 
 
+@router.get("/dashboard/lfa-football-player/card-editor", response_class=HTMLResponse)
+async def lfa_player_card_editor(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Dedicated sub-page for LFA Football Player card editing (Phase 1 extraction)."""
+    spec_enum = "LFA_FOOTBALL_PLAYER"
+
+    # Same license guard as spec_dashboard
+    user_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == spec_enum,
+    ).first()
+
+    if not user_license:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to LFA Football Player. Please unlock it first.",
+        )
+
+    # Same onboarding guard as spec_dashboard
+    has_enrollment = db.query(SemesterEnrollment.id).filter(
+        SemesterEnrollment.user_license_id == user_license.id
+    ).first() is not None
+    effective_onboarding = (
+        user_license.onboarding_completed
+        or user_license.football_skills is not None
+        or has_enrollment
+    )
+    if not effective_onboarding:
+        return RedirectResponse(url="/specialization/lfa-player/onboarding", status_code=303)
+
+    credit_balance = user.credit_balance if hasattr(user, "credit_balance") else 0
+
+    # Card theme picker data — identical logic to spec_dashboard
+    from ...services.card_theme_service import get_all_themes as _get_all_themes, is_unlocked as _is_theme_unlocked
+    card_themes = [
+        {
+            "id": t.id,
+            "label": t.label,
+            "dot_color": t.dot_color,
+            "is_premium": t.is_premium,
+            "credit_cost": t.credit_cost,
+            "unlocked": _is_theme_unlocked(user_license, t.id),
+        }
+        for t in _get_all_themes()
+    ]
+    active_card_theme = user_license.card_theme or "default"
+
+    # Card variant picker data — identical logic to spec_dashboard
+    from ...services.card_variant_service import (  # noqa: E402
+        get_all_variants as _get_all_variants,
+        is_variant_unlocked as _is_variant_unlocked,
+    )
+    card_variants = [
+        {
+            "id": v.id,
+            "label": v.label,
+            "description": v.description,
+            "is_premium": v.is_premium,
+            "credit_cost": v.credit_cost,
+            "available": v.available,
+            "unlocked": _is_variant_unlocked(user_license, v.id),
+        }
+        for v in _get_all_variants()
+    ]
+    active_card_variant = user_license.card_variant or "fifa"
+
+    return templates.TemplateResponse(
+        "dashboard_card_editor.html",
+        {
+            "request": request,
+            "user": user,
+            "user_license": user_license,
+            "credit_balance": credit_balance,
+            "card_themes": card_themes,
+            "active_card_theme": active_card_theme,
+            "card_variants": card_variants,
+            "active_card_variant": active_card_variant,
+            "show_variant_picker": True,  # page is LFA Football Player only
+        },
+    )
+
+
 @router.get("/dashboard/{spec_type}", response_class=HTMLResponse)
 async def spec_dashboard(
     request: Request,
@@ -492,42 +577,6 @@ async def spec_dashboard(
     }
     spec_header_class = _spec_header_map.get(spec_enum, "hdr-football")
 
-    # Theme picker data
-    from ...services.card_theme_service import get_all_themes as _get_all_themes, is_unlocked as _is_theme_unlocked
-    card_themes = [
-        {
-            "id": t.id,
-            "label": t.label,
-            "dot_color": t.dot_color,
-            "is_premium": t.is_premium,
-            "credit_cost": t.credit_cost,
-            "unlocked": _is_theme_unlocked(user_license, t.id) if user_license else not t.is_premium,
-        }
-        for t in _get_all_themes()
-    ]
-    active_card_theme = user_license.card_theme if user_license and user_license.card_theme else "default"
-
-    # Variant picker data
-    from ...services.card_variant_service import (  # noqa: E402
-        get_all_variants as _get_all_variants,
-        is_variant_unlocked as _is_variant_unlocked,
-    )
-    card_variants = [
-        {
-            "id": v.id,
-            "label": v.label,
-            "description": v.description,
-            "is_premium": v.is_premium,
-            "credit_cost": v.credit_cost,
-            "available": v.available,
-            "unlocked": _is_variant_unlocked(user_license, v.id) if user_license else not v.is_premium,
-        }
-        for v in _get_all_variants()
-    ]
-    active_card_variant = user_license.card_variant if user_license and user_license.card_variant else "fifa"
-    # Variant picker only relevant for LFA Football Player specialization
-    show_variant_picker = (spec_enum == "LFA_FOOTBALL_PLAYER" and user_license is not None)
-
     return templates.TemplateResponse(
         "dashboard_student_new.html",
         {
@@ -551,13 +600,6 @@ async def spec_dashboard(
             "age_description": age_description,
             "user_age": user_age,
             "spec_header_class": spec_header_class,
-            # Card theme picker
-            "card_themes": card_themes,
-            "active_card_theme": active_card_theme,
-            # Card variant picker
-            "card_variants": card_variants,
-            "active_card_variant": active_card_variant,
-            "show_variant_picker": show_variant_picker,
         }
     )
 

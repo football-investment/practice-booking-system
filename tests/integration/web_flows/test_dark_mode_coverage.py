@@ -19,6 +19,7 @@ DM-14  GET /admin/tournaments/{id}/attendance → dark-mode.css present
 DM-15  GET /events/{id}                  → dark-mode.css NOT present (isolated design, regression guard)
 DM-16  GET /login                        → dark-mode.css present (extends base.html)
 DM-17  GET /profile                      → dark-mode.css present
+DM-18  GET /dashboard/lfa-football-player/card-editor → dark-mode.css present (extends student_base.html)
 
 All tests run against real DB in SAVEPOINT-isolated transaction (auto-rollback).
 CSRF is bypassed via Authorization: Bearer header (middleware skips validation for Bearer auth).
@@ -525,5 +526,21 @@ def test_DM_17_profile_page_has_dark_mode_css(test_db: Session):
     resp = client.get("/profile")
     assert resp.status_code == 200, resp.text
     assert "dark-mode.css" in resp.text, "dark-mode.css not found on profile page"
+
+    app.dependency_overrides.clear()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DM-18: Card editor page — dark-mode.css present (extends student_base.html)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_DM_18_card_editor_has_dark_mode_css(test_db: Session):
+    """GET /dashboard/lfa-football-player/card-editor — dark-mode.css must be present."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+
+    resp = client.get("/dashboard/lfa-football-player/card-editor")
+    assert resp.status_code == 200, resp.text
+    assert "dark-mode.css" in resp.text, "dark-mode.css not found on card editor page"
 
     app.dependency_overrides.clear()

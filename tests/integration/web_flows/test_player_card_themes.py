@@ -36,7 +36,7 @@ def test_db():
     transaction = connection.begin()
     TestSession = sessionmaker(autocommit=False, autoflush=False, bind=connection)
     session = TestSession()
-    connection.begin_nested()
+    session.begin_nested()
 
     @event.listens_for(session, "after_transaction_end")
     def restart_savepoint(session, txn):
@@ -85,7 +85,9 @@ def _player_with_license(db: Session, credit_balance: int = 100) -> tuple[User, 
 
 def _student_client(db: Session, user: User) -> TestClient:
     """TestClient with student user injected. Bearer header bypasses CSRF middleware."""
-    app.dependency_overrides[get_db] = lambda: db
+    def _override_db():
+        yield db
+    app.dependency_overrides[get_db] = _override_db
     app.dependency_overrides[get_current_user_web] = lambda: user
     return TestClient(
         app,
@@ -96,7 +98,9 @@ def _student_client(db: Session, user: User) -> TestClient:
 
 def _public_client(db: Session) -> TestClient:
     """TestClient for public routes (no auth required)."""
-    app.dependency_overrides[get_db] = lambda: db
+    def _override_db():
+        yield db
+    app.dependency_overrides[get_db] = _override_db
     return TestClient(app, raise_server_exceptions=True)
 
 
@@ -250,3 +254,91 @@ def test_PC_09_apply_compact_bg_after_unlock(test_db: Session):
 
     test_db.refresh(lic)
     assert lic.card_variant == "compact_bg"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PC-10: Card editor page returns 200 with correct HTML for licensed player
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_PC_10_card_editor_200(test_db: Session):
+    """GET /dashboard/lfa-football-player/card-editor returns 200 with card editor HTML."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+    resp = client.get("/dashboard/lfa-football-player/card-editor")
+    assert resp.status_code == 200, resp.text
+    html = resp.text
+    assert "player-card-iframe" in html
+    assert "theme-picker" in html
+    assert "variant-picker" in html
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PC-11: Card editor returns 403 for user without LFA license
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_PC_11_card_editor_403_no_license(test_db: Session):
+    """GET /dashboard/lfa-football-player/card-editor returns 403 when no LFA license."""
+    user = User(
+        email=f"pc-nolic+{uuid.uuid4().hex[:8]}@lfa.com",
+        name="PC NoLic",
+        password_hash=get_password_hash("Test1234!"),
+        role=UserRole.STUDENT,
+        is_active=True,
+        onboarding_completed=True,
+        credit_balance=0,
+    )
+    test_db.add(user)
+    test_db.flush()
+
+    client = _student_client(test_db, user)
+    resp = client.get("/dashboard/lfa-football-player/card-editor", follow_redirects=False)
+    assert resp.status_code == 403, resp.text
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PC-12: Card editor redirects to onboarding when license not yet completed
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_PC_12_card_editor_redirect_no_onboarding(test_db: Session):
+    """GET /dashboard/lfa-football-player/card-editor redirects if onboarding incomplete."""
+    user = User(
+        email=f"pc-noob+{uuid.uuid4().hex[:8]}@lfa.com",
+        name="PC NoOnboard",
+        password_hash=get_password_hash("Test1234!"),
+        role=UserRole.STUDENT,
+        is_active=True,
+        onboarding_completed=False,
+        credit_balance=0,
+    )
+    test_db.add(user)
+    test_db.flush()
+    lic = UserLicense(
+        user_id=user.id,
+        specialization_type=SpecializationType.LFA_FOOTBALL_PLAYER.value,
+        started_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        is_active=True,
+        onboarding_completed=False,  # not yet completed
+    )
+    test_db.add(lic)
+    test_db.flush()
+
+    client = _student_client(test_db, user)
+    resp = client.get("/dashboard/lfa-football-player/card-editor", follow_redirects=False)
+    assert resp.status_code == 303, resp.text
+    assert "/onboarding" in resp.headers["location"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PC-13: Card editor shows photo upload section and "My Player Card" heading
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_PC_13_card_editor_shows_photo_and_heading(test_db: Session):
+    """GET /dashboard/lfa-football-player/card-editor contains photo section and heading."""
+    player, _ = _player_with_license(test_db)
+    client = _student_client(test_db, player)
+    resp = client.get("/dashboard/lfa-football-player/card-editor")
+    assert resp.status_code == 200, resp.text
+    html = resp.text
+    assert "My Player Card" in html
+    assert "player-photo-section" in html
+    assert "player-photo-section-title" in html

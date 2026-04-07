@@ -11,6 +11,7 @@ on:
       - 'app/models/license.py'
       - 'app/templates/public/player_card*.html'
       - 'app/templates/dashboard_student_new.html'
+      - 'app/templates/dashboard_card_editor.html'
       - 'alembic/versions/2026_04_01_card_theme.py'
       - 'alembic/versions/2026_04_06_1900_add_card_variant_to_user_licenses.py'
       - 'alembic/versions/2026_04_07_1000_add_variant_photos_to_user_licenses.py'
