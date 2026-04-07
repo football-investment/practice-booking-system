@@ -212,7 +212,8 @@
         {% for cat in skill_categories %}
             {% set ns = namespace(total=0, count=0) %}
             {% for skill in cat.skills %}
-                {% set val = player.skills.get(skill.key, 0) %}
+                {% set skill_data = player.skills.get(skill.key) %}
+                {% set val = skill_data.current_level if skill_data else 0 %}
                 {% if val %}
                     {% set ns.total = ns.total + val %}
                     {% set ns.count = ns.count + 1 %}
