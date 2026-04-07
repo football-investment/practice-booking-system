@@ -8,7 +8,7 @@ body { background: var(--card-page-bg); }
 
 /* ── Card wrapper — column, not row ── */
 .card-wrap {
-    max-width: min(440px, calc(100vw - 1.5rem));
+    max-width: min(520px, calc(100vw - 1.5rem));
     display: flex;
     flex-direction: column;
     border-radius: 14px; overflow: hidden;
@@ -115,22 +115,21 @@ body { background: var(--card-page-bg); }
 }
 .skill-cats {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 0.45rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
 }
-@media (max-width: 360px) { .skill-cats { grid-template-columns: 1fr 1fr; } }
-.skill-cat { background: var(--card-cat-bg); border-radius: 9px; padding: 0.55rem 0.5rem; min-width: 0; }
+.skill-cat { background: var(--card-cat-bg); border-radius: 9px; padding: 0.55rem 0.65rem; min-width: 0; }
 .skill-cat-name {
-    font-size: 0.56rem; font-weight: 800; text-transform: uppercase;
+    font-size: 0.58rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: 0.08em; color: var(--card-text-muted); margin-bottom: 0.38rem;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.skill-row { display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.25rem; }
+.skill-row { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.25rem; }
 .skill-row:last-child { margin-bottom: 0; }
-.skill-name { font-size: 0.58rem; color: var(--card-text-secondary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.skill-val { font-size: 0.62rem; font-weight: 700; width: 24px; text-align: right; flex-shrink: 0; }
-.skill-up { font-size: 0.56rem; font-weight: 900; flex-shrink: 0; line-height: 1; }
-.skill-bar-bg { flex: 0 1 28px; height: 3px; background: var(--card-bar-bg); border-radius: 2px; }
+.skill-name { font-size: 0.62rem; color: var(--card-text-secondary); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skill-val { font-size: 0.63rem; font-weight: 700; width: 26px; text-align: right; flex-shrink: 0; }
+.skill-up { font-size: 0.58rem; font-weight: 900; flex-shrink: 0; line-height: 1; }
+.skill-bar-bg { flex: 0 1 36px; height: 3px; background: var(--card-bar-bg); border-radius: 2px; }
 .skill-bar-fill { height: 100%; border-radius: 2px; }
 
 /* ── Events section — full card width ── */
