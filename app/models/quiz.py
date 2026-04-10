@@ -38,7 +38,7 @@ class Quiz(Base):
     difficulty = Column(SQLEnum(QuizDifficulty), nullable=False, default=QuizDifficulty.MEDIUM)
     time_limit_minutes = Column(Integer, nullable=False, default=15)  # időkorlát percekben
     xp_reward = Column(Integer, nullable=False, default=50)  # XP jutalom sikeres kitöltésért
-    passing_score = Column(Float, nullable=False, default=70.0)  # minimum pont százalékban
+    passing_score = Column(Float, nullable=False, default=0.70)  # minimum pont arányban, 0.0–1.0 (pl. 0.70 = 70%)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

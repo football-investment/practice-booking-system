@@ -239,7 +239,7 @@ def create_promo_quiz() -> Quiz:
         difficulty=QuizDifficulty.MEDIUM,
         time_limit_minutes=20,
         xp_reward=100,
-        passing_score=60.0,
+        passing_score=0.60,
         is_active=True,
     )
     db.add(quiz)
@@ -498,7 +498,7 @@ def simulate_quiz_attempts(
             total_questions=total_q,
             correct_answers=correct,
             xp_awarded=0,
-            passed=(score >= quiz.passing_score),
+            passed=(score >= quiz.passing_score * 100),
         )
         db.add(attempt)
     db.commit()

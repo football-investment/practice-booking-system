@@ -413,7 +413,19 @@ async def session_details(
             })
 
     # Check if current user is enrolled and get their attendance
-    is_enrolled = any(b.user_id == user.id for b in bookings)
+    # Split booking vs. tournament enrollment so can_cancel_booking stays Booking-only
+    booking_for_user = next((b for b in bookings if b.user_id == user.id), None)
+    is_enrolled = booking_for_user is not None
+
+    # Virtual tournament sessions: students enroll via SemesterEnrollment (no Booking created)
+    if not is_enrolled and session.session_type == SessionType.virtual and session.semester_id:
+        is_enrolled = db.query(SemesterEnrollment).filter(
+            SemesterEnrollment.user_id == user.id,
+            SemesterEnrollment.semester_id == session.semester_id,
+            SemesterEnrollment.is_active.is_(True),
+            SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+        ).first() is not None
+
     is_instructor = user.role == UserRole.INSTRUCTOR and session.instructor_id == user.id
 
     # Get current user's attendance status (for students)
@@ -448,7 +460,7 @@ async def session_details(
     # Check if booking can be cancelled (12-hour deadline)
     # CANNOT cancel if: attendance exists OR instructor review exists OR past 12-hour deadline
     cancellation_deadline = session_start - timedelta(hours=12)
-    can_cancel_booking = is_enrolled and not is_instructor and now < cancellation_deadline and not my_attendance and not my_instructor_review
+    can_cancel_booking = booking_for_user is not None and not is_instructor and now < cancellation_deadline and not my_attendance and not my_instructor_review
     can_book_session = not is_enrolled and not is_instructor and now < cancellation_deadline  # Can only book if 12+ hours before session start
 
     # Load quiz data for HYBRID and VIRTUAL sessions

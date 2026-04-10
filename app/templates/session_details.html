@@ -114,8 +114,22 @@ if (urlParams.get('error') === 'quiz_locked') {
                 <p style="margin: 0.25rem 0 0 0;">{{ session.date_start.strftime('%H:%M') }} - {{ session.date_end.strftime('%H:%M') }}</p>
             </div>
             <div>
-                <strong>📍 Location:</strong>
-                <p style="margin: 0.25rem 0 0 0;">{{ session.location or 'TBA' }}</p>
+                {% if session.session_type.value == 'virtual' %}
+                    <strong>💻 Meeting Link:</strong>
+                    <p style="margin: 0.25rem 0 0 0;">
+                        {% if session.meeting_link %}
+                            <a href="{{ session.meeting_link }}" target="_blank"
+                               style="color: #3498db; text-decoration: none; word-break: break-all;">
+                                {{ session.meeting_link }}
+                            </a>
+                        {% else %}
+                            TBA
+                        {% endif %}
+                    </p>
+                {% else %}
+                    <strong>📍 Location:</strong>
+                    <p style="margin: 0.25rem 0 0 0;">{{ session.location or 'TBA' }}</p>
+                {% endif %}
             </div>
             <div>
                 <strong>👨‍🏫 Instructor:</strong>
