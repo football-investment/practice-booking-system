@@ -27,6 +27,38 @@
 /* Hover effect */
 .star-rating label:hover,
 .star-rating label:hover ~ label { color: #ffc107; }
+
+/* ── Quiz section — design-system tokens, no hardcoded hex ── */
+.attempt-row { padding: 0.75rem; margin-bottom: 0.5rem; background: var(--app-card);
+               border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+.attempt-row.passed { border-left: 4px solid var(--app-success); }
+.attempt-row.failed  { border-left: 4px solid var(--app-error);   }
+.attempt-result.passed { color: var(--app-success); font-weight: bold; }
+.attempt-result.failed  { color: var(--app-error);   font-weight: bold; }
+.attempt-score { font-size: 1.2rem; font-weight: bold; }
+.attempt-score.passed { color: var(--app-success); }
+.attempt-score.failed  { color: var(--app-error);   }
+.attempt-meta  { font-size: 0.82rem; color: var(--app-text-muted); }
+.quiz-review-btn { font-size: 0.78rem; margin-top: 0.3rem; padding: 2px 10px; }
+.quiz-state-box  { padding: 1.5rem; border-radius: 6px; text-align: center; border: 2px solid; margin-bottom: 0.5rem; }
+.quiz-state-box.state-passed { background: var(--app-card-alt); border-color: var(--app-success); color: var(--app-success); }
+.quiz-state-box.state-failed { background: var(--app-card-alt); border-color: var(--app-error);   color: var(--app-error);   }
+.quiz-state-box.state-locked { background: var(--app-card-alt); border-color: var(--app-warning); color: var(--app-warning); }
+.quiz-state-box.state-info   { background: var(--app-card-alt); border-color: var(--app-border);  color: var(--app-text-muted); }
+.quiz-state-icon  { font-size: 2rem; margin-bottom: 0.5rem; }
+.quiz-state-title { font-size: 1.2rem; font-weight: bold; }
+.quiz-state-sub   { margin: 0.5rem 0 0; font-size: 0.9rem; opacity: 0.9; }
+.instr-quiz-banner { padding: 1rem; background: var(--app-card-alt); border-left: 4px solid var(--app-success); border-radius: 4px; margin-bottom: 1rem; color: var(--app-text); }
+.student-result-row { padding: 0.75rem; margin-bottom: 0.5rem; background: var(--app-card); border-radius: 4px; }
+.student-result-row.passed  { border-left: 4px solid var(--app-success); }
+.student-result-row.failed  { border-left: 4px solid var(--app-error);   }
+.student-result-row.pending { border-left: 4px solid var(--app-border);  }
+.student-result-inner { display: flex; justify-content: space-between; align-items: center; }
+.student-attempts-body { margin-top: 0.5rem; padding: 0.5rem; background: var(--app-card-alt); border-radius: 4px; }
+.student-attempt-mini { padding: 0.5rem; margin-bottom: 0.25rem; background: var(--app-card); font-size: 0.85rem; }
+.student-attempt-mini.passed { border-left: 2px solid var(--app-success); }
+.student-attempt-mini.failed  { border-left: 2px solid var(--app-error);   }
+.no-results-box { padding: 1rem; background: var(--app-card-alt); border-radius: 4px; text-align: center; color: var(--app-text-muted); }
 </style>
 {% endblock %}
 
@@ -303,33 +335,28 @@ if (urlParams.get('error') === 'quiz_locked') {
                 <!-- Previous Attempts -->
                 {% if user_attempts %}
                 <div style="margin-bottom: 1.5rem;">
-                    <strong>📋 Your Attempts ({{ attempts_count }}{% if sq.max_attempts %}/{{ sq.max_attempts }}{% endif %}):</strong>
+                    <strong style="color: var(--app-text);">📋 Your Attempts ({{ attempts_count }}{% if sq.max_attempts %}/{{ sq.max_attempts }}{% endif %}):</strong>
                     <div style="margin-top: 0.5rem;">
                         {% for attempt in user_attempts %}
-                        <div style="padding: 0.75rem; margin-bottom: 0.5rem; background-color: white; border-left: 4px solid
-                            {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %}; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                        <div class="attempt-row {{ 'passed' if attempt.passed else 'failed' }}">
                             <div>
-                                <strong>Attempt #{{ loop.revindex }}</strong> -
-                                <span style="color: {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %}; font-weight: bold;">
-                                    {% if attempt.passed %}✓ PASSED{% else %}✗ FAILED{% endif %}
+                                <strong>Attempt #{{ loop.revindex }}</strong>
+                                <span class="attempt-result {{ 'passed' if attempt.passed else 'failed' }}">
+                                    — {% if attempt.passed %}✓ PASSED{% else %}✗ FAILED{% endif %}
                                 </span>
                                 <br>
-                                <span style="font-size: 0.85rem; color: #7f8c8d;">
+                                <span class="attempt-meta">
                                     {{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') if attempt.completed_at else 'In Progress' }}
                                 </span>
                             </div>
                             <div style="text-align: right;">
-                                <div style="font-size: 1.2rem; font-weight: bold; color: {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %};">
+                                <div class="attempt-score {{ 'passed' if attempt.passed else 'failed' }}">
                                     {{ attempt.score|int }}%
                                 </div>
-                                <div style="font-size: 0.75rem; color: #7f8c8d;">
-                                    {{ attempt.correct_answers }}/{{ attempt.total_questions }} correct
-                                </div>
+                                <div class="attempt-meta">{{ attempt.correct_answers }}/{{ attempt.total_questions }} correct</div>
                                 {% if attempt.id and attempt.completed_at %}
                                 <a href="/quizzes/attempts/{{ attempt.id }}/review?session_id={{ session.id }}"
-                                   style="font-size: 0.75rem; color: #3498db; text-decoration: none;">
-                                    📝 Review
-                                </a>
+                                   class="btn btn-secondary quiz-review-btn">📝 Review</a>
                                 {% endif %}
                             </div>
                         </div>
@@ -343,67 +370,51 @@ if (urlParams.get('error') === 'quiz_locked') {
                 {% set has_passed = latest_attempt and latest_attempt.passed %}
 
                 {% if has_passed %}
-                    <!-- Already Passed -->
-                    <div style="padding: 1.5rem; background-color: #d4edda; border: 2px solid #27ae60; border-radius: 6px; text-align: center;">
-                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
-                        <strong style="color: #155724; font-size: 1.2rem;">
-                            {% if session.session_type.value == 'hybrid' %}Understood!{% else %}PASSED - Certificate Awarded!{% endif %}
-                        </strong>
-                        <p style="margin: 0.5rem 0 0 0; color: #155724;">
-                            Score: {{ latest_attempt.score|int }}% ({{ latest_attempt.correct_answers }}/{{ latest_attempt.total_questions }} correct)
-                        </p>
+                    <div class="quiz-state-box state-passed">
+                        <div class="quiz-state-icon">✅</div>
+                        <div class="quiz-state-title">
+                            {% if session.session_type.value == 'hybrid' %}Understood!{% else %}PASSED — Certificate Awarded!{% endif %}
+                        </div>
+                        <p class="quiz-state-sub">Score: {{ latest_attempt.score|int }}% ({{ latest_attempt.correct_answers }}/{{ latest_attempt.total_questions }} correct)</p>
                     </div>
                 {% elif can_attempt %}
-                    <!-- Can Take Quiz -->
 
                     {% if not is_enrolled %}
-                        <!-- NOT BOOKED: Must book session first -->
-                        <div style="padding: 1.5rem; background-color: #f8d7da; border: 2px solid #e74c3c; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
-                            <strong style="color: #721c24; font-size: 1.2rem;">Enrollment Required</strong>
-                            <p style="margin: 0.5rem 0 1rem 0; color: #721c24;">
-                                You must book this session before you can take the quiz.
-                            </p>
-                            <a href="#booking-section" class="btn" style="background-color: #e74c3c; color: white; text-decoration: none; padding: 0.75rem 1.5rem; display: inline-block;">
-                                📝 Book Session First
-                            </a>
+                        <div class="quiz-state-box state-failed">
+                            <div class="quiz-state-icon">🔒</div>
+                            <div class="quiz-state-title">Enrollment Required</div>
+                            <p class="quiz-state-sub">You must book this session before you can take the quiz.</p>
+                            <a href="#booking-section" class="btn btn-primary" style="margin-top: 1rem;">📝 Book Session First</a>
                         </div>
                     {% elif now < session.date_start %}
-                        <!-- SESSION NOT STARTED: Quiz not available yet -->
-                        <div style="padding: 1.5rem; background-color: #d1ecf1; border: 2px solid #17a2b8; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">⏰</div>
-                            <strong style="color: #0c5460; font-size: 1.2rem;">Quiz Not Yet Available</strong>
-                            <p style="margin: 0.5rem 0 0 0; color: #0c5460;">
+                        <div class="quiz-state-box state-info">
+                            <div class="quiz-state-icon">⏰</div>
+                            <div class="quiz-state-title">Quiz Not Yet Available</div>
+                            <p class="quiz-state-sub">
                                 The quiz will be available when the session starts:<br>
                                 <strong>{{ session.date_start.strftime('%Y-%m-%d %H:%M') }}</strong>
                             </p>
                         </div>
                     {% elif session.session_type.value == 'hybrid' and not session.quiz_unlocked %}
-                        <!-- HYBRID: Quiz is LOCKED until instructor unlocks -->
-                        <div style="padding: 1.5rem; background-color: #fff3cd; border: 2px solid #f39c12; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
-                            <strong style="color: #856404; font-size: 1.2rem;">Quiz Locked</strong>
-                            <p style="margin: 0.5rem 0 0 0; color: #856404;">
-                                The instructor will unlock the quiz when ready. Please wait.
-                            </p>
+                        <div class="quiz-state-box state-locked">
+                            <div class="quiz-state-icon">🔒</div>
+                            <div class="quiz-state-title">Quiz Locked</div>
+                            <p class="quiz-state-sub">The instructor will unlock the quiz when ready. Please wait.</p>
                         </div>
                     {% else %}
-                        <!-- Quiz is available (ENROLLED + either VIRTUAL or HYBRID unlocked) -->
                         <a href="/quizzes/{{ sq.quiz.id }}/take?session_id={{ session.id }}"
-                           class="btn"
-                           style="width: 100%; background-color: {% if session.session_type.value == 'hybrid' %}#3498db{% else %}#e74c3c{% endif %}; color: white; text-align: center; padding: 1rem; font-size: 1.1rem; text-decoration: none; display: block;">
-                            {% if attempts_count > 0 %}
-                                🔄 Retry Quiz
-                            {% else %}
-                                ▶️ Start {{ 'Understanding Check' if session.session_type.value == 'hybrid' else 'Certification Exam' }}
+                           class="btn btn-primary"
+                           style="width: 100%; text-align: center; padding: 1rem; font-size: 1.1rem; display: block;">
+                            {% if attempts_count > 0 %}🔄 Retry Quiz
+                            {% else %}▶️ Start {{ 'Understanding Check' if session.session_type.value == 'hybrid' else 'Certification Exam' }}
                             {% endif %}
                         </a>
                     {% endif %}
 
-                    {% if session.session_type.value == 'virtual' %}
-                    <div style="margin-top: 1rem; padding: 1rem; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
-                        <strong style="color: #856404;">⚠️ Important:</strong>
-                        <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: #856404;">
+                    {% if session.session_type.value == 'virtual' and can_attempt and is_enrolled and now >= session.date_start %}
+                    <div style="margin-top: 1rem; padding: 1rem; background: var(--app-card-alt); border-left: 4px solid var(--app-warning); border-radius: 4px;">
+                        <strong style="color: var(--app-warning);">⚠️ Important:</strong>
+                        <ul style="margin: 0.5rem 0 0; padding-left: 1.5rem; color: var(--app-text-muted);">
                             <li>This is an official certification exam</li>
                             <li>You have {{ sq.max_attempts }} attempt(s) maximum</li>
                             <li>Passing awards you an official certificate</li>
@@ -412,20 +423,17 @@ if (urlParams.get('error') === 'quiz_locked') {
                     </div>
                     {% endif %}
                 {% else %}
-                    <!-- No More Attempts -->
-                    <div style="padding: 1.5rem; background-color: #f8d7da; border: 2px solid #e74c3c; border-radius: 6px; text-align: center;">
-                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">❌</div>
-                        <strong style="color: #721c24; font-size: 1.2rem;">No More Attempts</strong>
-                        <p style="margin: 0.5rem 0 0 0; color: #721c24;">
-                            You have used all {{ sq.max_attempts }} attempts. Best score: {{ (latest_attempt.score * 100)|int }}%
-                        </p>
+                    <div class="quiz-state-box state-failed">
+                        <div class="quiz-state-icon">❌</div>
+                        <div class="quiz-state-title">No More Attempts</div>
+                        <p class="quiz-state-sub">You have used all {{ sq.max_attempts }} attempts. Best score: {{ (latest_attempt.score * 100)|int }}%</p>
                     </div>
                 {% endif %}
             {% else %}
                 <!-- Instructor View: Show student quiz results -->
-                <div style="padding: 1rem; background-color: #e8f5e9; border-left: 4px solid #27ae60; border-radius: 4px; margin-bottom: 1rem;">
-                    <strong>👨‍🏫 Instructor View - Student Results</strong>
-                    <p style="margin: 0.5rem 0 0 0; color: #2e7d32; font-size: 0.9rem;">
+                <div class="instr-quiz-banner">
+                    <strong>👨‍🏫 Instructor View — Student Results</strong>
+                    <p style="margin: 0.5rem 0 0; font-size: 0.9rem; color: var(--app-text-muted);">
                         {% if session.session_type.value == 'virtual' %}
                         Virtual exam results are shown below. Students complete the exam on their own schedule.
                         {% else %}
@@ -434,20 +442,19 @@ if (urlParams.get('error') === 'quiz_locked') {
                     </p>
                 </div>
 
-                <!-- Student Quiz Results Table -->
                 {% if sq.student_results %}
                 <div style="margin-top: 1rem;">
-                    <strong>📊 Student Results ({{ sq.student_results|length }}/{{ enrolled_students|length }})</strong>
+                    <strong class="attempt-meta">📊 Student Results ({{ sq.student_results|length }}/{{ enrolled_students|length }})</strong>
                     <div style="margin-top: 0.5rem;">
                         {% for result in sq.student_results %}
-                        <div style="padding: 0.75rem; margin-bottom: 0.5rem; background-color: white; border-left: 4px solid
-                            {% if result.best_passed %}#27ae60{% elif result.attempts_count > 0 %}#e74c3c{% else %}#95a5a6{% endif %}; border-radius: 4px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                        {% set row_class = 'passed' if result.best_passed else ('failed' if result.attempts_count > 0 else 'pending') %}
+                        <div class="student-result-row {{ row_class }}">
+                            <div class="student-result-inner">
                                 <div>
                                     <strong>{{ result.student_name }}</strong>
-                                    <span style="margin-left: 0.5rem; font-size: 0.85rem; color: #7f8c8d;">{{ result.student_email }}</span>
+                                    <span class="attempt-meta" style="margin-left: 0.5rem;">{{ result.student_email }}</span>
                                     <br>
-                                    <span style="font-size: 0.85rem; color: #7f8c8d;">
+                                    <span class="attempt-meta">
                                         {% if result.attempts_count > 0 %}
                                             {{ result.attempts_count }} attempt{{ 's' if result.attempts_count != 1 else '' }}
                                             {% if sq.max_attempts %}/ {{ sq.max_attempts }} max{% endif %}
@@ -458,56 +465,46 @@ if (urlParams.get('error') === 'quiz_locked') {
                                 </div>
                                 <div style="text-align: right;">
                                     {% if result.best_score is not none %}
-                                        <div style="font-size: 1.2rem; font-weight: bold; color: {% if result.best_passed %}#27ae60{% else %}#e74c3c{% endif %};">
+                                        <div class="attempt-result {{ 'passed' if result.best_passed else 'failed' }}">
                                             {% if result.best_passed %}✓ PASSED{% else %}✗ FAILED{% endif %}
                                         </div>
-                                        <div style="font-size: 1rem; color: {% if result.best_passed %}#27ae60{% else %}#e74c3c{% endif %};">
+                                        <div class="attempt-score {{ 'passed' if result.best_passed else 'failed' }}" style="font-size: 1rem;">
                                             Best: {{ result.best_score|int }}%
                                         </div>
-                                        <div style="font-size: 0.75rem; color: #7f8c8d;">
-                                            {{ result.best_correct }}/{{ result.total_questions }} correct
-                                        </div>
+                                        <div class="attempt-meta">{{ result.best_correct }}/{{ result.total_questions }} correct</div>
                                         {% if result.last_attempt_date %}
-                                        <div style="font-size: 0.75rem; color: #7f8c8d; margin-top: 0.25rem;">
-                                            Last: {{ result.last_attempt_date.strftime('%Y-%m-%d %H:%M') }}
-                                        </div>
+                                        <div class="attempt-meta">Last: {{ result.last_attempt_date.strftime('%Y-%m-%d %H:%M') }}</div>
                                         {% endif %}
                                         {% if result.all_attempts and result.all_attempts[0].id %}
                                         <div style="margin-top: 0.5rem;">
                                             <a href="/quizzes/attempts/{{ result.all_attempts[0].id }}/review?session_id={{ session.id }}"
-                                               style="font-size: 0.75rem; color: #3498db; text-decoration: none;">
-                                                📝 Review
-                                            </a>
+                                               class="btn btn-secondary quiz-review-btn">📝 Review</a>
                                         </div>
                                         {% endif %}
                                     {% else %}
-                                        <div style="font-size: 0.9rem; color: #95a5a6;">
-                                            Not started
-                                        </div>
+                                        <span class="attempt-meta">Not started</span>
                                     {% endif %}
                                 </div>
                             </div>
 
-                            <!-- Show all attempts in expandable section -->
                             {% if result.all_attempts and result.all_attempts|length > 1 %}
                             <details style="margin-top: 0.5rem;">
-                                <summary style="cursor: pointer; font-size: 0.85rem; color: #3498db; padding: 0.25rem;">
+                                <summary style="cursor: pointer; font-size: 0.85rem; color: var(--app-text-muted); padding: 0.25rem;">
                                     📋 View All {{ result.all_attempts|length }} Attempts
                                 </summary>
-                                <div style="margin-top: 0.5rem; padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px;">
+                                <div class="student-attempts-body">
                                     {% for attempt in result.all_attempts %}
-                                    <div style="padding: 0.5rem; margin-bottom: 0.25rem; border-left: 2px solid {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %}; background-color: white; font-size: 0.85rem;">
-                                        <strong>Attempt #{{ loop.revindex }}</strong> -
-                                        <span style="color: {% if attempt.passed %}#27ae60{% else %}#e74c3c{% endif %};">
-                                            {{ (attempt.score * 100)|int }}% ({{ attempt.correct_answers }}/{{ attempt.total_questions }})
+                                    <div class="student-attempt-mini {{ 'passed' if attempt.passed else 'failed' }}">
+                                        <strong>Attempt #{{ loop.revindex }}</strong> —
+                                        <span class="attempt-result {{ 'passed' if attempt.passed else 'failed' }}">
+                                            {{ (attempt.score * 100)|int }}%
+                                            ({{ attempt.correct_answers }}/{{ attempt.total_questions }})
+                                            {% if attempt.passed %}✓ PASSED{% else %}✗ FAILED{% endif %}
                                         </span>
-                                        {% if attempt.passed %}<strong style="color: #27ae60;">✓ PASSED</strong>{% else %}<strong style="color: #e74c3c;">✗ FAILED</strong>{% endif %}
                                         <br>
-                                        <span style="color: #7f8c8d; font-size: 0.8rem;">
+                                        <span class="attempt-meta">
                                             {{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') if attempt.completed_at else 'In progress' }}
-                                            {% if attempt.time_spent_minutes %}
-                                            - {{ attempt.time_spent_minutes|int }} min
-                                            {% endif %}
+                                            {% if attempt.time_spent_minutes %}- {{ attempt.time_spent_minutes|int }} min{% endif %}
                                         </span>
                                     </div>
                                     {% endfor %}
@@ -519,7 +516,7 @@ if (urlParams.get('error') === 'quiz_locked') {
                     </div>
                 </div>
                 {% else %}
-                <div style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px; text-align: center; color: #7f8c8d;">
+                <div class="no-results-box" style="margin-top: 1rem;">
                     No student results yet. Students will appear here after they start the quiz.
                 </div>
                 {% endif %}
