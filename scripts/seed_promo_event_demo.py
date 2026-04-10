@@ -379,7 +379,6 @@ def create_promo_tournament(name: str) -> Semester:
     reward_cfg = TournamentRewardConfig(
         semester_id=sem.id,
         reward_config=_REWARD_CONFIG,
-        is_active=True,
     )
     db.add(reward_cfg)
 
@@ -539,24 +538,54 @@ ok(f"Ranked {len(ranked)} participants via quiz scores")
 for r in ranked:
     info(f"  Rank {r['rank']:2d} — user_id={r['user_id']}  score={r['score']}")
 
-# Transition to COMPLETED via lifecycle API → notification trigger fires
-resp = client.patch(
+# Transition through state machine: DRAFT → IN_PROGRESS → COMPLETED
+# DRAFT → IN_PROGRESS
+r_ip = client.patch(
+    f"/api/v1/tournaments/{completed_sem.id}/status",
+    json={"new_status": "IN_PROGRESS"},
+)
+if r_ip.status_code == 200:
+    ok("Status → IN_PROGRESS")
+else:
+    info(f"IN_PROGRESS transition returned {r_ip.status_code} — trying direct override")
+    client.patch(
+        f"/api/v1/tournaments/{completed_sem.id}",
+        json={"tournament_status": "IN_PROGRESS"},
+    )
+
+# IN_PROGRESS → COMPLETED (notification trigger fires in lifecycle.py)
+r_comp = client.patch(
     f"/api/v1/tournaments/{completed_sem.id}/status",
     json={"new_status": "COMPLETED"},
 )
-if resp.status_code == 200:
-    ok("Status → COMPLETED (via lifecycle API)")
+if r_comp.status_code == 200:
+    ok("Status → COMPLETED (lifecycle API — notifications triggered)")
 else:
-    # Fallback: admin override (bypasses state machine)
-    resp2 = client.patch(
+    info(f"COMPLETED lifecycle returned {r_comp.status_code} — falling back to override + manual notifications")
+    client.patch(
         f"/api/v1/tournaments/{completed_sem.id}",
         json={"tournament_status": "COMPLETED"},
     )
-    if resp2.status_code == 200:
-        ok("Status → COMPLETED (via admin override)")
-    else:
-        err(f"Failed to set COMPLETED status: {resp.status_code} / {resp2.status_code}")
-        err(resp.text[:300])
+    # Manually fire notifications since we bypassed the lifecycle trigger
+    from app.services import notification_service as _ns
+    from app.models.user import User as _User
+    from app.models.semester_enrollment import SemesterEnrollment as _SE, EnrollmentStatus as _ES
+    db.expire_all()
+    _enrolled_users = (
+        db.query(_User)
+        .join(_SE, _SE.user_id == _User.id)
+        .filter(
+            _SE.semester_id == completed_sem.id,
+            _SE.is_active == True,
+            _SE.request_status == _ES.APPROVED,
+        )
+        .all()
+    )
+    _ns.create_result_published_notification(
+        db=db, tournament=completed_sem, enrolled_users=_enrolled_users,
+    )
+    db.commit()
+    ok(f"Manually sent {len(_enrolled_users)} result notifications")
 
 ok(f"✅ Promo Event: Completed  [{completed_sem.id}]  session={completed_session.id}")
 
@@ -600,20 +629,28 @@ missing_link = [s.id for s in comp_sessions if not s.meeting_link]
 if missing_link:
     issues.append(f"Sessions {missing_link} missing meeting_link")
 
-# Rankings created
-rankings = db.query(TournamentRanking).filter(
-    TournamentRanking.tournament_id == comp.id
-).order_by(TournamentRanking.rank).all()
-if not rankings:
-    issues.append("No TournamentRanking rows found for COMPLETED event")
-else:
-    # Rank 1 should have the highest quiz score (user_id of boot_players[0])
-    rank1_user_id = boot_players[0].id
-    if rankings[0].user_id != rank1_user_id:
-        issues.append(
-            f"Expected rank 1 = user_id {rank1_user_id} (score 95), "
-            f"got user_id {rankings[0].user_id}"
-        )
+# Quiz ranking written to rounds_data (auto_rank_from_quiz writes here, not TournamentRanking)
+db.expire_all()
+comp_sessions_fresh = db.query(SessionModel).filter(
+    SessionModel.semester_id == comp.id
+).all()
+for s in comp_sessions_fresh:
+    if not s.rounds_data or "round_results" not in s.rounds_data:
+        issues.append(f"Session {s.id} missing rounds_data.round_results after ranking")
+    else:
+        rd_results = s.rounds_data["round_results"].get("1", {}).get("results", [])
+        if not rd_results:
+            issues.append(f"Session {s.id} has empty round_results[\"1\"] after ranking")
+        else:
+            # Rank 1 should be the player with score 95 (boot_players[0])
+            rank1_entry = next((r for r in rd_results if r["rank"] == 1), None)
+            if rank1_entry is None:
+                issues.append("No rank=1 entry in rounds_data.round_results")
+            elif rank1_entry["user_id"] != boot_players[0].id:
+                issues.append(
+                    f"Expected rank 1 = user_id {boot_players[0].id} (score 95), "
+                    f"got user_id {rank1_entry['user_id']}"
+                )
 
 # Notifications sent
 notifs = db.query(Notification).filter(
@@ -645,9 +682,11 @@ for t in promo_tournaments:
     print(f"   ✅ {t.name}  [{t.tournament_status}]  "
           f"{len(t_sessions)} session(s)  type={t_type}  base_xp={t_xp}")
 
-print(f"\n   Rankings for {comp.name}:")
-for r in rankings:
-    print(f"     Rank {r.rank:2d} — user_id={r.user_id}  points={r.points}")
+print(f"\n   Quiz ranking for {comp.name} (from rounds_data):")
+for s in comp_sessions_fresh:
+    rd_results = (s.rounds_data or {}).get("round_results", {}).get("1", {}).get("results", [])
+    for r in rd_results:
+        print(f"     Rank {r['rank']:2d} — user_id={r['user_id']}  score={r['score']}")
 
 print(f"\n   Notifications sent: {len(notifs)}")
 for n in notifs:
