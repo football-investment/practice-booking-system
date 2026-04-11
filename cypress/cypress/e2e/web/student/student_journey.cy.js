@@ -222,8 +222,8 @@ describe('A. Student Core Journey — Skill Progression', {
     cy.get('.s-kpi-row').should('exist');
     cy.get('.s-kpi-card').should('have.length', 4);
 
-    // Skill Snapshot + Last Result sections visible
-    cy.contains('h2', 'Skill Snapshot').should('be.visible');
+    // Player Card + Last Result sections visible (licensed user → card shown, not snapshot)
+    cy.contains('h2', 'My Player Card').should('be.visible');
     cy.contains('h2', 'Last Skill Event').should('be.visible');
     cy.contains('h2', 'Available Events').should('be.visible');
 
@@ -243,8 +243,8 @@ describe('A. Student Core Journey — Skill Progression', {
     cy.get('#kpi-avg', { timeout: 10000 }).should('not.contain.text', '—');
     cy.get('#kpi-tournaments').should('contain.text', '2');
 
-    // Skill snapshot renders at least 1 bar
-    cy.get('#s-snapshot .s-snapshot-row', { timeout: 8000 }).should('have.length.gte', 1);
+    // Player Card iframe renders (licensed user — snapshot section replaced by card)
+    cy.get('.player-card-embed-wrap iframe').should('exist');
 
     // Last skill event shows the most recent event (T2: placed 1st, positive delta)
     cy.get('#s-last-result', { timeout: 8000 }).should('not.contain.text', 'No skill events yet');

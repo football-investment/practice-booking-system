@@ -156,7 +156,7 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
       cy.get('.result-title').should('be.visible');
 
       // Stats block is present
-      cy.get('.stats').should('be.visible');
+      cy.get('.result-stats').should('be.visible');
       cy.get('.stat-label').should('contain.text', 'Score');
       cy.get('.stat-label').should('contain.text', 'Correct Answers');
 
@@ -181,8 +181,8 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
           failOnStatusCode: false,
         }).then((resp) => {
           expect(resp.status).to.equal(200);
-          // "Try Again" button is present in the result HTML
-          expect(resp.body).to.include('Try Again');
+          // "Retry Quiz" button is present in the result HTML
+          expect(resp.body).to.include('Retry Quiz');
         });
       });
     });
@@ -272,10 +272,10 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
         .should('have.class', 'failed')
         .and('contain.text', 'Needs Review');
 
-      // "Try Again" link is present and visible
+      // "Retry Quiz" link is present and visible
       cy.get('a.btn-secondary')
         .should('be.visible')
-        .and('contain.text', 'Try Again');
+        .and('contain.text', 'Retry Quiz');
     });
   });
 
