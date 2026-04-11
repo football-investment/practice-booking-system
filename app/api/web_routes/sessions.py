@@ -77,6 +77,13 @@ async def sessions_page(
             enrolled_count = db.query(Booking).filter(
                 Booking.session_id == session.id
             ).count()
+            # Virtual tournament sessions use SemesterEnrollment (no Booking rows)
+            if enrolled_count == 0 and session.session_type == SessionType.virtual and session.semester_id:
+                enrolled_count = db.query(SemesterEnrollment).filter(
+                    SemesterEnrollment.semester_id == session.semester_id,
+                    SemesterEnrollment.is_active.is_(True),
+                    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+                ).count()
             session.enrolled_count = enrolled_count
             session.instructor_name = user.name
 
@@ -188,6 +195,13 @@ async def sessions_page(
             enrolled_count = db.query(Booking).filter(
                 Booking.session_id == session.id
             ).count()
+            # Virtual tournament sessions use SemesterEnrollment (no Booking rows)
+            if enrolled_count == 0 and session.session_type == SessionType.virtual and session.semester_id:
+                enrolled_count = db.query(SemesterEnrollment).filter(
+                    SemesterEnrollment.semester_id == session.semester_id,
+                    SemesterEnrollment.is_active.is_(True),
+                    SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+                ).count()
             session.enrolled_count = enrolled_count
 
             # Get performance review from instructor (if exists)
