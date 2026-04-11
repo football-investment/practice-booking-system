@@ -206,8 +206,8 @@ describe('A. Student Core Journey — Skill Progression', {
     // Student nav must be rendered by student_base.html (not the old base.html header)
     cy.get('.student-header').should('exist');
 
-    // Nav has LFA Player link — Hub is in footer, not header nav
-    cy.get('.student-nav a[href="/dashboard/lfa-football-player"]').should('contain.text', 'LFA Player');
+    // Nav has LFA Football Player link — Hub is in footer, not header nav
+    cy.get('.student-nav a[href="/dashboard/lfa-football-player"]').should('contain.text', 'LFA Football Player');
     cy.get('.student-nav a[href="/dashboard/lfa-football-player"]').should('have.class', 'active');
     cy.get('.student-nav a[href="/dashboard"]').should('not.exist');
     // Hub link is in footer
