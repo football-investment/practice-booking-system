@@ -65,7 +65,7 @@ describe('Tournament Lifecycle — Student', {
     cy.contains('Events').should('be.visible');  // nav/title renamed A-group
     cy.get('[data-testid="tournament-card"]').should('have.length.at.least', 1);
     cy.contains('E2E Tournament').should('be.visible');
-    cy.contains('Enrollment Open').should('be.visible');
+    cy.contains('Open').should('be.visible');  // status badge (was 'Enrollment Open', now '🟢 Open')
 
     // Enroll button shows the entry fee cost
     cy.get('[data-testid="enroll-btn"]').should('be.visible')
