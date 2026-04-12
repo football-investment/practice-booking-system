@@ -47,9 +47,13 @@
 }
 .status-enrollment-open { background: #d5f5e3; color: #1a7a4a; }
 .status-in-progress    { background: #fdebd0; color: #a04000; }
-.badge-virtual { background: #e8d5f5; color: #6c3483; }
-.badge-hybrid  { background: #d6eaf8; color: #1a5276; }
-.badge-format  { background: #fef9e7; color: #7d6608; }
+.status-completed      { background: #eaecee; color: #566573; }
+.status-closed         { background: #fef9e7; color: #7d6608; }
+.badge-virtual  { background: #e8d5f5; color: #6c3483; }
+.badge-hybrid   { background: #d6eaf8; color: #1a5276; }
+.badge-onsite   { background: #d5f5e3; color: #1a7a4a; }
+.badge-format   { background: #fef9e7; color: #7d6608; }
+.badge-rounds   { background: #fef3cd; color: #856404; }
 .tournament-body {
     padding: 0 1.5rem 1.2rem;
 }
@@ -115,6 +119,63 @@
     letter-spacing: 0.05em;
     margin-bottom: 1rem;
 }
+
+/* ── Filter bar ─────────────────────────────────────────────────────────────── */
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--app-card-alt);
+    border-radius: 10px;
+    border: 1px solid var(--app-border);
+}
+.filter-group {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.filter-group-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 0.2rem;
+}
+.filter-btn {
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+    border: 1px solid var(--app-border);
+    background: var(--app-card);
+    color: var(--app-text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.filter-btn:hover { border-color: #3498db; color: #1a5276; }
+.filter-btn.active {
+    background: #3498db;
+    border-color: #2980b9;
+    color: #fff;
+}
+.filter-divider {
+    width: 1px;
+    background: var(--app-border);
+    align-self: stretch;
+    margin: 0 0.1rem;
+}
+#browse-no-results {
+    text-align: center;
+    padding: 2.5rem;
+    background: var(--app-card-alt);
+    border-radius: 10px;
+    color: var(--app-text-muted);
+}
 </style>
 {% endblock %}
 
@@ -143,9 +204,7 @@
 </div>
 {% endif %}
 
-{# ── My Events ────────────────────────────────────────────────────────────────
-   Always rendered — enrolled events regardless of status or date.
-#}
+{# ── My Tournaments ─────────────────────────────────────────────────────────── #}
 <div id="my-events" class="events-section-title">✅ My Tournaments</div>
 
 {% if enrolled_events %}
@@ -166,18 +225,33 @@
             {% elif t.tournament_status == 'IN_PROGRESS' %}
             <span class="status-badge status-in-progress">⏳ In Progress</span>
             {% elif t.tournament_status in ('COMPLETED', 'REWARDS_DISTRIBUTED') %}
-            <span class="status-badge" style="background:#f0f0f0; color:#666;">✔ Completed</span>
+            <span class="status-badge status-completed">✔ Completed</span>
             {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
-            <span class="status-badge" style="background:#fef9e7; color:#7d6608;">🔒 Closed</span>
+            <span class="status-badge status-closed">🔒 Closed</span>
             {% endif %}
+
+            {# Delivery type — all three variants #}
             {% if item.session_type_config == 'virtual' %}
             <span class="status-badge badge-virtual">💻 Virtual</span>
             {% elif item.session_type_config == 'hybrid' %}
             <span class="status-badge badge-hybrid">🔀 Hybrid</span>
+            {% else %}
+            <span class="status-badge badge-onsite">🏟️ On-Site</span>
             {% endif %}
+
             {% if item.tournament_type_code %}
-            <span class="status-badge badge-format">{{ item.tournament_type_code | title }}</span>
+            <span class="status-badge badge-format">{{ item.tournament_type_code | replace('_', ' ') | title }}</span>
             {% endif %}
+
+            {# Round / session info #}
+            {% if item.tournament_type_code == 'group_knockout' %}
+            <span class="status-badge badge-rounds">Group + KO</span>
+            {% elif item.tournament_type_code == 'knockout' %}
+            <span class="status-badge badge-rounds">Knockout</span>
+            {% elif item.session_count %}
+            <span class="status-badge badge-rounds">{{ item.session_count }} sessions</span>
+            {% endif %}
+
             {% if t.age_group %}
             <span class="status-badge" style="background:#eaf2ff; color:#1a5276;">{{ t.age_group }}</span>
             {% endif %}
@@ -237,16 +311,34 @@
 
 {% else %}
 <div class="card" style="padding: 1.5rem; margin-bottom: 1.5rem; text-align: center; color: var(--app-text-muted);">
-    You haven't enrolled in any events yet. Browse below to join one.
+    You haven't enrolled in any tournaments yet. Browse below to join one.
 </div>
 {% endif %}
 
 <hr class="section-divider">
 
-{# ── Browse Events ─────────────────────────────────────────────────────────────
-   Only ENROLLMENT_OPEN + future — events the student can still join.
-#}
-<div class="events-section-title">🔍 Open for Enrollment</div>
+{# ── Browse All Tournaments ──────────────────────────────────────────────────── #}
+<div class="events-section-title">🔍 Browse All Tournaments</div>
+
+{# Filter bar #}
+<div class="filter-bar">
+    <div class="filter-group">
+        <span class="filter-group-label">Status</span>
+        <button class="filter-btn active" data-filter-status="all" onclick="setBrowseStatus(this,'all')">All</button>
+        <button class="filter-btn" data-filter-status="ENROLLMENT_OPEN" onclick="setBrowseStatus(this,'ENROLLMENT_OPEN')">🟢 Open</button>
+        <button class="filter-btn" data-filter-status="IN_PROGRESS" onclick="setBrowseStatus(this,'IN_PROGRESS')">⏳ In Progress</button>
+        <button class="filter-btn" data-filter-status="completed" onclick="setBrowseStatus(this,'completed')">✔ Completed</button>
+        <button class="filter-btn" data-filter-status="ENROLLMENT_CLOSED" onclick="setBrowseStatus(this,'ENROLLMENT_CLOSED')">🔒 Closed</button>
+    </div>
+    <div class="filter-divider"></div>
+    <div class="filter-group">
+        <span class="filter-group-label">Delivery</span>
+        <button class="filter-btn active" data-filter-type="all" onclick="setBrowseType(this,'all')">All</button>
+        <button class="filter-btn" data-filter-type="on_site" onclick="setBrowseType(this,'on_site')">🏟️ On-Site</button>
+        <button class="filter-btn" data-filter-type="virtual" onclick="setBrowseType(this,'virtual')">💻 Virtual</button>
+        <button class="filter-btn" data-filter-type="hybrid" onclick="setBrowseType(this,'hybrid')">🔀 Hybrid</button>
+    </div>
+</div>
 
 {% if browse_events %}
 {% for item in browse_events %}
@@ -254,8 +346,10 @@
 {% set pct = (item.enrollment_count / item.max_players * 100) | int if item.max_players < 999 else 0 %}
 {% set is_full = item.enrollment_count >= item.max_players and item.max_players < 999 %}
 
-<div class="tournament-card {% if is_full %}full{% endif %}"
-     data-testid="tournament-card" data-tournament-id="{{ t.id }}">
+<div class="tournament-card browse-card {% if is_full %}full{% endif %}"
+     data-testid="tournament-card" data-tournament-id="{{ t.id }}"
+     data-status="{{ t.tournament_status or 'DRAFT' }}"
+     data-session-type="{{ item.session_type_config }}">
 
     <div class="tournament-header">
         <div>
@@ -263,15 +357,41 @@
             <p style="color: var(--app-text-muted); font-size: 0.85rem; margin: 0.25rem 0 0;">{{ t.code }}</p>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            {# Status badge — all states #}
+            {% if t.tournament_status == 'ENROLLMENT_OPEN' %}
             <span class="status-badge status-enrollment-open">🟢 Open</span>
+            {% elif t.tournament_status == 'IN_PROGRESS' %}
+            <span class="status-badge status-in-progress">⏳ In Progress</span>
+            {% elif t.tournament_status in ('COMPLETED', 'REWARDS_DISTRIBUTED') %}
+            <span class="status-badge status-completed">✔ Completed</span>
+            {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
+            <span class="status-badge status-closed">🔒 Closed</span>
+            {% else %}
+            <span class="status-badge" style="background:#eaecee; color:#566573;">{{ t.tournament_status or 'Draft' }}</span>
+            {% endif %}
+
+            {# Delivery type — all three variants #}
             {% if item.session_type_config == 'virtual' %}
             <span class="status-badge badge-virtual">💻 Virtual</span>
             {% elif item.session_type_config == 'hybrid' %}
             <span class="status-badge badge-hybrid">🔀 Hybrid</span>
+            {% else %}
+            <span class="status-badge badge-onsite">🏟️ On-Site</span>
             {% endif %}
+
             {% if item.tournament_type_code %}
-            <span class="status-badge badge-format">{{ item.tournament_type_code | title }}</span>
+            <span class="status-badge badge-format">{{ item.tournament_type_code | replace('_', ' ') | title }}</span>
             {% endif %}
+
+            {# Round / session info #}
+            {% if item.tournament_type_code == 'group_knockout' %}
+            <span class="status-badge badge-rounds">Group + KO</span>
+            {% elif item.tournament_type_code == 'knockout' %}
+            <span class="status-badge badge-rounds">Knockout</span>
+            {% elif item.session_count %}
+            <span class="status-badge badge-rounds">{{ item.session_count }} sessions</span>
+            {% endif %}
+
             {% if t.age_group %}
             <span class="status-badge" style="background:#eaf2ff; color:#1a5276;">{{ t.age_group }}</span>
             {% endif %}
@@ -320,34 +440,90 @@
 
         <div class="action-row">
             <a href="/events/tournaments/{{ t.id }}" class="btn btn-outline" data-testid="view-details-btn">📋 View Details</a>
-            {% if is_full %}
-                <button class="btn btn-secondary" disabled>Event Full</button>
-            {% else %}
-                <form method="POST" action="/tournaments/{{ t.id }}/enroll" style="margin: 0;">
-                    <button type="submit" class="btn btn-primary" data-testid="enroll-btn">
-                        ⚽ Enroll ({{ t.enrollment_cost if t.enrollment_cost is not none else 500 }} credits)
-                    </button>
-                </form>
+            {% if t.tournament_status == 'ENROLLMENT_OPEN' %}
+                {% if is_full %}
+                    <button class="btn btn-secondary" disabled>Event Full</button>
+                {% else %}
+                    <form method="POST" action="/tournaments/{{ t.id }}/enroll" style="margin: 0;">
+                        <button type="submit" class="btn btn-primary" data-testid="enroll-btn">
+                            ⚽ Enroll ({{ t.enrollment_cost if t.enrollment_cost is not none else 500 }} credits)
+                        </button>
+                    </form>
+                {% endif %}
             {% endif %}
         </div>
     </div>
 </div>
 {% endfor %}
 
+{# No-results banner — shown by JS when all cards are filtered out #}
+<div id="browse-no-results" hidden>
+    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
+    <p style="margin: 0 0 1rem;">No tournaments match your current filters.</p>
+    <button class="btn btn-outline" onclick="clearBrowseFilters()">Clear filters</button>
+</div>
+
 {% else %}
-{# Browse empty state — always show, never hides My Events above #}
+{# DB-level empty: no non-enrolled tournaments at all #}
 <div class="card text-center" style="padding: 2.5rem;">
     <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📭</div>
-    <h3 style="margin-bottom: 0.5rem;">No events open for enrollment</h3>
+    <h3 style="margin-bottom: 0.5rem;">No other tournaments available</h3>
     <p style="color: var(--app-text-muted); margin-bottom: 1.5rem;">
-        All upcoming events are currently closed for registration.
+        You are enrolled in all currently available tournaments.
     </p>
     {% if enrolled_events %}
-    <a href="#my-events" class="btn btn-primary">View my active events ↑</a>
+    <a href="#my-events" class="btn btn-primary">View my tournaments ↑</a>
     {% else %}
     <a href="/sessions" class="btn btn-primary">Browse my sessions →</a>
     {% endif %}
 </div>
 {% endif %}
+
+<script>
+let browseStatusFilter = 'all';
+let browseTypeFilter   = 'all';
+
+function applyBrowseFilters() {
+    const cards = document.querySelectorAll('.browse-card');
+    let visible = 0;
+    cards.forEach(card => {
+        const s = card.dataset.status;
+        const t = card.dataset.sessionType;
+        const sOk = browseStatusFilter === 'all'
+            || (browseStatusFilter === 'completed'
+                ? ['COMPLETED', 'REWARDS_DISTRIBUTED'].includes(s)
+                : s === browseStatusFilter);
+        const tOk = browseTypeFilter === 'all' || t === browseTypeFilter;
+        card.hidden = !(sOk && tOk);
+        if (sOk && tOk) visible++;
+    });
+    const noResults = document.getElementById('browse-no-results');
+    if (noResults) noResults.hidden = visible > 0;
+}
+
+function setBrowseStatus(btn, value) {
+    browseStatusFilter = value;
+    document.querySelectorAll('[data-filter-status]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyBrowseFilters();
+}
+
+function setBrowseType(btn, value) {
+    browseTypeFilter = value;
+    document.querySelectorAll('[data-filter-type]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyBrowseFilters();
+}
+
+function clearBrowseFilters() {
+    browseStatusFilter = 'all';
+    browseTypeFilter   = 'all';
+    document.querySelectorAll('[data-filter-status]').forEach(b =>
+        b.classList.toggle('active', b.dataset.filterStatus === 'all'));
+    document.querySelectorAll('[data-filter-type]').forEach(b =>
+        b.classList.toggle('active', b.dataset.filterType === 'all'));
+    applyBrowseFilters();
+}
+</script>
 
 {% endblock %}

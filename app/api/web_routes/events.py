@@ -18,7 +18,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import and_, update as sql_update
+from sqlalchemy import update as sql_update
 from sqlalchemy.orm import Session
 
 from ...database import get_db
@@ -114,9 +114,8 @@ async def events_tournaments_list(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """TOURNAMENT browse — enrolled (all active statuses) + browse (open only)."""
+    """TOURNAMENT browse — enrolled (all active statuses) + browse (all non-cancelled)."""
     from ...models.quiz import SessionQuiz
-    from sqlalchemy import or_
 
     # Enrolled: all tournaments where the student has an active enrollment (no date filter)
     enrolled_semester_ids = [
@@ -132,22 +131,11 @@ async def events_tournaments_list(
     all_tournaments = (
         db.query(Semester)
         .filter(
-            and_(
-                Semester.semester_category == SemesterCategory.TOURNAMENT,
-                Semester.specialization_type == "LFA_FOOTBALL_PLAYER",
-                Semester.status != SemesterStatus.CANCELLED,
-                or_(
-                    # enrolled: show regardless of date/status
-                    Semester.id.in_(enrolled_semester_ids),
-                    # browse: only open + future
-                    and_(
-                        Semester.tournament_status == "ENROLLMENT_OPEN",
-                        Semester.end_date >= date.today(),
-                    ),
-                ),
-            )
+            Semester.semester_category == SemesterCategory.TOURNAMENT,
+            Semester.specialization_type == "LFA_FOOTBALL_PLAYER",
+            Semester.status != SemesterStatus.CANCELLED,
         )
-        .order_by(Semester.start_date.asc())
+        .order_by(Semester.start_date.desc())  # most recent first for discovery
         .all()
     )
 
