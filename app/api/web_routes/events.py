@@ -15,10 +15,10 @@ URL structure:
 from datetime import datetime, date
 from pathlib import Path
 
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import update as sql_update, text
+from sqlalchemy import update as sql_update, text, func, case as sql_case
 from sqlalchemy.orm import Session
 
 from ...database import get_db
@@ -109,16 +109,34 @@ async def events_landing(
 
 # ── Tournaments ────────────────────────────────────────────────────────────────
 
+_VALID_STATUSES   = {"all", "open", "in_progress", "completed", "closed"}
+_VALID_DELIVERIES = {"all", "on_site", "virtual", "hybrid"}
+_STATUS_MAP: dict[str, list[str]] = {
+    "open":        ["ENROLLMENT_OPEN"],
+    "in_progress": ["IN_PROGRESS"],
+    "completed":   ["COMPLETED", "REWARDS_DISTRIBUTED"],
+    "closed":      ["ENROLLMENT_CLOSED", "CHECK_IN_OPEN", "DRAFT"],
+}
+
+
 @router.get("/events/tournaments", response_class=HTMLResponse)
 async def events_tournaments_list(
     request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
+    status: str = Query(default="all"),
+    delivery: str = Query(default="all"),
 ):
-    """TOURNAMENT browse — enrolled (all active statuses) + browse (all non-cancelled)."""
+    """TOURNAMENT browse — My (no filter) + Browse (status + delivery filtered, backend SOT)."""
     from ...models.quiz import SessionQuiz
 
-    # Enrolled: all tournaments where the student has an active enrollment (no date filter)
+    # Defensive param validation — unknown values silently fall back to 'all'
+    if status not in _VALID_STATUSES:
+        status = "all"
+    if delivery not in _VALID_DELIVERIES:
+        delivery = "all"
+
+    # ── Enrolled semester IDs (individual enrollment only) ───────────────────
     enrolled_semester_ids = [
         row.semester_id
         for row in db.query(SemesterEnrollment.semester_id)
@@ -129,15 +147,57 @@ async def events_tournaments_list(
         .all()
     ]
 
-    all_tournaments = (
+    # ── Priority ordering: IN_PROGRESS → OPEN → CLOSED → COMPLETED ──────────
+    _priority = sql_case(
+        {
+            "IN_PROGRESS":         1,
+            "ENROLLMENT_OPEN":     2,
+            "CHECK_IN_OPEN":       3,
+            "ENROLLMENT_CLOSED":   3,
+            "COMPLETED":           4,
+            "REWARDS_DISTRIBUTED": 5,
+            "DRAFT":               6,
+        },
+        value=Semester.tournament_status,
+        else_=7,
+    )
+
+    # ── My Tournaments — enrolled, NO filter ─────────────────────────────────
+    enrolled_tournaments = (
         db.query(Semester)
         .filter(
+            Semester.id.in_(enrolled_semester_ids),
             Semester.semester_category == SemesterCategory.TOURNAMENT,
             Semester.status != SemesterStatus.CANCELLED,
         )
-        .order_by(Semester.start_date.desc())  # most recent first for discovery
+        .order_by(_priority, Semester.start_date.desc())
         .all()
+    ) if enrolled_semester_ids else []
+
+    # ── Browse — not enrolled, status + delivery filters applied ─────────────
+    browse_q = db.query(Semester).filter(
+        Semester.semester_category == SemesterCategory.TOURNAMENT,
+        Semester.status != SemesterStatus.CANCELLED,
     )
+    if enrolled_semester_ids:
+        browse_q = browse_q.filter(~Semester.id.in_(enrolled_semester_ids))
+    if status != "all" and (ts := _STATUS_MAP.get(status)):
+        browse_q = browse_q.filter(Semester.tournament_status.in_(ts))
+    if delivery != "all":
+        browse_q = (
+            browse_q
+            .outerjoin(
+                TournamentConfiguration,
+                TournamentConfiguration.semester_id == Semester.id,
+            )
+            .filter(
+                func.coalesce(TournamentConfiguration.session_type_config, "on_site") == delivery
+            )
+        )
+    browse_tournaments = browse_q.order_by(_priority, Semester.start_date.desc()).all()
+
+    # ── Combined for batch queries ────────────────────────────────────────────
+    all_tournaments = enrolled_tournaments + browse_tournaments
 
     # ── Batch queries (0 extra N+1) ──────────────────────────────────────────
     all_tournament_ids = [t.id for t in all_tournaments]
@@ -190,19 +250,12 @@ async def events_tournaments_list(
                 "completed":     int(row.completed or 0),
             }
 
-    enrolled_id_set = set(enrolled_semester_ids)
-    enrolled_events = []
-    browse_events = []
-    for t in all_tournaments:
+    def _build_info(t: Semester, is_enrolled: bool) -> dict:
         enrollment_count = (
             db.query(SemesterEnrollment)
-            .filter(
-                SemesterEnrollment.semester_id == t.id,
-                SemesterEnrollment.is_active.is_(True),
-            )
+            .filter(SemesterEnrollment.semester_id == t.id, SemesterEnrollment.is_active.is_(True))
             .count()
         )
-        is_enrolled = t.id in enrolled_id_set
         user_enrollment = None
         if is_enrolled:
             user_enrollment = (
@@ -227,49 +280,47 @@ async def events_tournaments_list(
             .count()
         ) > 0
         session_type_config = cfg.session_type_config if cfg else "on_site"
-        tournament_type_code = (
-            cfg.tournament_type.code if cfg and cfg.tournament_type else None
-        )
+        tournament_type_code = cfg.tournament_type.code if cfg and cfg.tournament_type else None
 
         st = session_stats.get(t.id, {})
         current_phase = st.get("current_phase")
-        my_rank = my_rankings_by_tid.get(t.id)
 
-        info = {
-            "tournament": t,
-            "enrollment_count": enrollment_count,
-            "max_players": t.max_players or 999,
-            "is_enrolled": is_enrolled,
-            "enrollment_status": user_enrollment.request_status.value if user_enrollment else None,
-            "instructor": instructor,
-            "session_count": session_count,
-            "has_quiz": has_quiz,
+        return {
+            "tournament":          t,
+            "enrollment_count":    enrollment_count,
+            "max_players":         t.max_players or 999,
+            "is_enrolled":         is_enrolled,
+            "enrollment_status":   user_enrollment.request_status.value if user_enrollment else None,
+            "instructor":          instructor,
+            "session_count":       session_count,
+            "has_quiz":            has_quiz,
             "session_type_config": session_type_config,
             "tournament_type_code": tournament_type_code,
-            # State machine fields
-            "current_phase":        current_phase,
-            "current_phase_label":  _PHASE_LABELS.get(current_phase, ""),
-            "completed_sessions":   st.get("completed", 0),
-            "my_ranking":           my_rank,
-            "show_wdl":             (t.ranking_type == RankingType.WDL_BASED),
+            "current_phase":       current_phase,
+            "current_phase_label": _PHASE_LABELS.get(current_phase, ""),
+            "completed_sessions":  st.get("completed", 0),
+            "my_ranking":          my_rankings_by_tid.get(t.id),
+            "show_wdl":            (t.ranking_type == RankingType.WDL_BASED),
         }
-        if is_enrolled:
-            enrolled_events.append(info)
-        else:
-            browse_events.append(info)
+
+    enrolled_events = [_build_info(t, is_enrolled=True)  for t in enrolled_tournaments]
+    browse_events   = [_build_info(t, is_enrolled=False) for t in browse_tournaments]
 
     return templates.TemplateResponse(
         "events_tournaments.html",
         {
-            "request": request,
-            "user": user,
+            "request":         request,
+            "user":            user,
             "enrolled_events": enrolled_events,
-            "browse_events": browse_events,
-            "tournaments": enrolled_events + browse_events,
-            "flash": request.query_params.get("flash"),
-            "flash_type": request.query_params.get("flash_type", "info"),
-            "active_page": "events",
-            "show_spec_nav": True,
+            "browse_events":   browse_events,
+            "tournaments":     enrolled_events + browse_events,
+            "filter_status":   status,
+            "filter_delivery": delivery,
+            "filter_active":   (status != "all" or delivery != "all"),
+            "flash":           request.query_params.get("flash"),
+            "flash_type":      request.query_params.get("flash_type", "info"),
+            "active_page":     "events",
+            "show_spec_nav":   True,
             **_spec_ctx(user, db),
         },
     )

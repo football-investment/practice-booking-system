@@ -368,23 +368,32 @@
 {# ── Browse All Tournaments ──────────────────────────────────────────────────── #}
 <div class="events-section-title">🔍 Browse All Tournaments</div>
 
-{# Filter bar #}
+{# Filter bar — href-based, backend is source of truth #}
 <div class="filter-bar">
     <div class="filter-group">
         <span class="filter-group-label">Status</span>
-        <button class="filter-btn active" data-filter-status="all" onclick="setBrowseStatus(this,'all')">All</button>
-        <button class="filter-btn" data-filter-status="ENROLLMENT_OPEN" onclick="setBrowseStatus(this,'ENROLLMENT_OPEN')">🟢 Open</button>
-        <button class="filter-btn" data-filter-status="IN_PROGRESS" onclick="setBrowseStatus(this,'IN_PROGRESS')">⏳ In Progress</button>
-        <button class="filter-btn" data-filter-status="completed" onclick="setBrowseStatus(this,'completed')">✔ Completed</button>
-        <button class="filter-btn" data-filter-status="ENROLLMENT_CLOSED" onclick="setBrowseStatus(this,'ENROLLMENT_CLOSED')">🔒 Closed</button>
+        <a href="?status=all&delivery={{ filter_delivery }}"
+           class="filter-btn {% if filter_status == 'all' %}active{% endif %}">All</a>
+        <a href="?status=open&delivery={{ filter_delivery }}"
+           class="filter-btn {% if filter_status == 'open' %}active{% endif %}">🟢 Open</a>
+        <a href="?status=in_progress&delivery={{ filter_delivery }}"
+           class="filter-btn {% if filter_status == 'in_progress' %}active{% endif %}">⏳ In Progress</a>
+        <a href="?status=completed&delivery={{ filter_delivery }}"
+           class="filter-btn {% if filter_status == 'completed' %}active{% endif %}">✔ Completed</a>
+        <a href="?status=closed&delivery={{ filter_delivery }}"
+           class="filter-btn {% if filter_status == 'closed' %}active{% endif %}">🔒 Closed</a>
     </div>
     <div class="filter-divider"></div>
     <div class="filter-group">
         <span class="filter-group-label">Delivery</span>
-        <button class="filter-btn active" data-filter-type="all" onclick="setBrowseType(this,'all')">All</button>
-        <button class="filter-btn" data-filter-type="on_site" onclick="setBrowseType(this,'on_site')">🏟️ On-Site</button>
-        <button class="filter-btn" data-filter-type="virtual" onclick="setBrowseType(this,'virtual')">💻 Virtual</button>
-        <button class="filter-btn" data-filter-type="hybrid" onclick="setBrowseType(this,'hybrid')">🔀 Hybrid</button>
+        <a href="?status={{ filter_status }}&delivery=all"
+           class="filter-btn {% if filter_delivery == 'all' %}active{% endif %}">All</a>
+        <a href="?status={{ filter_status }}&delivery=on_site"
+           class="filter-btn {% if filter_delivery == 'on_site' %}active{% endif %}">🏟️ On-Site</a>
+        <a href="?status={{ filter_status }}&delivery=virtual"
+           class="filter-btn {% if filter_delivery == 'virtual' %}active{% endif %}">💻 Virtual</a>
+        <a href="?status={{ filter_status }}&delivery=hybrid"
+           class="filter-btn {% if filter_delivery == 'hybrid' %}active{% endif %}">🔀 Hybrid</a>
     </div>
 </div>
 
@@ -509,74 +518,34 @@
 </div>
 {% endfor %}
 
-{# No-results banner — shown by JS when all cards are filtered out #}
-<div id="browse-no-results" hidden>
-    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
-    <p style="margin: 0 0 1rem;">No tournaments match your current filters.</p>
-    <button class="btn btn-outline" onclick="clearBrowseFilters()">Clear filters</button>
-</div>
-
 {% else %}
-{# DB-level empty: no non-enrolled tournaments at all #}
+{# Empty state — 3 explicit cases #}
 <div class="card text-center" style="padding: 2.5rem;">
-    <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📭</div>
-    <h3 style="margin-bottom: 0.5rem;">No other tournaments available</h3>
+    {% if filter_active %}
+    {# Case 1: filter is active but yields no results #}
+    <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🔍</div>
+    <h3 style="margin-bottom: 0.5rem;">No tournaments match your filters</h3>
     <p style="color: var(--app-text-muted); margin-bottom: 1.5rem;">
-        You are enrolled in all currently available tournaments.
+        Try a different status or delivery type.
     </p>
-    {% if enrolled_events %}
+    <a href="/events/tournaments" class="btn btn-outline">Clear filters</a>
+    {% elif enrolled_events %}
+    {# Case 2: no filter, enrolled in everything #}
+    <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🏆</div>
+    <h3 style="margin-bottom: 0.5rem;">You are enrolled in all available tournaments</h3>
+    <p style="color: var(--app-text-muted); margin-bottom: 1.5rem;">
+        Check your active tournaments above.
+    </p>
     <a href="#my-events" class="btn btn-primary">View my tournaments ↑</a>
     {% else %}
-    <a href="/sessions" class="btn btn-primary">Browse my sessions →</a>
+    {# Case 3: no filter, system is empty #}
+    <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📭</div>
+    <h3 style="margin-bottom: 0.5rem;">No tournaments available yet</h3>
+    <p style="color: var(--app-text-muted);">
+        New tournaments will appear here when they open for enrollment.
+    </p>
     {% endif %}
 </div>
 {% endif %}
-
-<script>
-let browseStatusFilter = 'all';
-let browseTypeFilter   = 'all';
-
-function applyBrowseFilters() {
-    const cards = document.querySelectorAll('.browse-card');
-    let visible = 0;
-    cards.forEach(card => {
-        const s = card.dataset.status;
-        const t = card.dataset.sessionType;
-        const sOk = browseStatusFilter === 'all'
-            || (browseStatusFilter === 'completed'
-                ? ['COMPLETED', 'REWARDS_DISTRIBUTED'].includes(s)
-                : s === browseStatusFilter);
-        const tOk = browseTypeFilter === 'all' || t === browseTypeFilter;
-        card.hidden = !(sOk && tOk);
-        if (sOk && tOk) visible++;
-    });
-    const noResults = document.getElementById('browse-no-results');
-    if (noResults) noResults.hidden = visible > 0;
-}
-
-function setBrowseStatus(btn, value) {
-    browseStatusFilter = value;
-    document.querySelectorAll('[data-filter-status]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    applyBrowseFilters();
-}
-
-function setBrowseType(btn, value) {
-    browseTypeFilter = value;
-    document.querySelectorAll('[data-filter-type]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    applyBrowseFilters();
-}
-
-function clearBrowseFilters() {
-    browseStatusFilter = 'all';
-    browseTypeFilter   = 'all';
-    document.querySelectorAll('[data-filter-status]').forEach(b =>
-        b.classList.toggle('active', b.dataset.filterStatus === 'all'));
-    document.querySelectorAll('[data-filter-type]').forEach(b =>
-        b.classList.toggle('active', b.dataset.filterType === 'all'));
-    applyBrowseFilters();
-}
-</script>
 
 {% endblock %}
