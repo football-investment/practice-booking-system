@@ -18,7 +18,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import update as sql_update
+from sqlalchemy import update as sql_update, text
 from sqlalchemy.orm import Session
 
 from ...database import get_db
@@ -32,6 +32,7 @@ from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel
 from ...models.tournament_configuration import TournamentConfiguration
 from ...models.tournament_ranking import TournamentRanking
+from ...models.ranking_type import RankingType
 from ...models.user import User, UserRole
 from .student_features import _spec_ctx
 
@@ -139,6 +140,57 @@ async def events_tournaments_list(
         .all()
     )
 
+    # ── Batch queries (0 extra N+1) ──────────────────────────────────────────
+    all_tournament_ids = [t.id for t in all_tournaments]
+
+    # Batch: my TournamentRanking in all tournaments at once
+    my_rankings_by_tid: dict[int, TournamentRanking] = {
+        r.tournament_id: r
+        for r in db.query(TournamentRanking).filter(
+            TournamentRanking.tournament_id.in_(all_tournament_ids),
+            TournamentRanking.user_id == user.id,
+        ).all()
+    } if all_tournament_ids else {}
+
+    # Batch: current phase + session counts per tournament (1 SQL)
+    _PHASE_BY_RANK = {
+        1: "GROUP_STAGE", 2: "KNOCKOUT", 3: "FINALS",
+        4: "PLACEMENT",   5: "SWISS",    6: "INDIVIDUAL_RANKING",
+    }
+    _PHASE_LABELS = {
+        "GROUP_STAGE":        "Group Stage",
+        "KNOCKOUT":           "Knockout",
+        "FINALS":             "Finals",
+        "PLACEMENT":          "Placement",
+        "SWISS":              "Swiss",
+        "INDIVIDUAL_RANKING": "Individual Ranking",
+    }
+    session_stats: dict[int, dict] = {}
+    if all_tournament_ids:
+        _phase_sql = text("""
+            SELECT
+                semester_id,
+                MAX(CASE tournament_phase
+                    WHEN 'GROUP_STAGE'        THEN 1
+                    WHEN 'KNOCKOUT'           THEN 2
+                    WHEN 'FINALS'             THEN 3
+                    WHEN 'PLACEMENT'          THEN 4
+                    WHEN 'SWISS'              THEN 5
+                    WHEN 'INDIVIDUAL_RANKING' THEN 6
+                    ELSE 0 END) AS phase_rank,
+                COUNT(*) AS total,
+                COUNT(CASE WHEN session_status = 'completed' THEN 1 END) AS completed
+            FROM sessions
+            WHERE semester_id = ANY(:ids)
+            GROUP BY semester_id
+        """)
+        for row in db.execute(_phase_sql, {"ids": all_tournament_ids}).fetchall():
+            session_stats[row.semester_id] = {
+                "current_phase": _PHASE_BY_RANK.get(row.phase_rank),
+                "total":         int(row.total or 0),
+                "completed":     int(row.completed or 0),
+            }
+
     enrolled_id_set = set(enrolled_semester_ids)
     enrolled_events = []
     browse_events = []
@@ -180,6 +232,10 @@ async def events_tournaments_list(
             cfg.tournament_type.code if cfg and cfg.tournament_type else None
         )
 
+        st = session_stats.get(t.id, {})
+        current_phase = st.get("current_phase")
+        my_rank = my_rankings_by_tid.get(t.id)
+
         info = {
             "tournament": t,
             "enrollment_count": enrollment_count,
@@ -191,6 +247,12 @@ async def events_tournaments_list(
             "has_quiz": has_quiz,
             "session_type_config": session_type_config,
             "tournament_type_code": tournament_type_code,
+            # State machine fields
+            "current_phase":        current_phase,
+            "current_phase_label":  _PHASE_LABELS.get(current_phase, ""),
+            "completed_sessions":   st.get("completed", 0),
+            "my_ranking":           my_rank,
+            "show_wdl":             (t.ranking_type == RankingType.WDL_BASED),
         }
         if is_enrolled:
             enrolled_events.append(info)

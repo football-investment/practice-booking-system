@@ -54,6 +54,21 @@
 .badge-onsite   { background: #d5f5e3; color: #1a7a4a; }
 .badge-format   { background: #fef9e7; color: #7d6608; }
 .badge-rounds   { background: #fef3cd; color: #856404; }
+.badge-phase    { background: #dbeafe; color: #1d4ed8; }
+
+/* Personal rank preview */
+.rank-preview {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    background: var(--app-card-alt); border: 1px solid var(--app-border);
+    border-radius: 8px; padding: 0.45rem 0.85rem;
+    margin-bottom: 0.6rem; font-size: 0.88rem;
+}
+.rank-preview-num    { font-weight: 700; font-size: 1.05rem; color: var(--app-text); }
+.rank-preview-detail { color: var(--app-text-muted); font-size: 0.82rem; }
+
+/* Session progress mini bar */
+.sess-progress-bar  { height: 3px; background: var(--app-border); border-radius: 2px; margin-top: 0.3rem; }
+.sess-progress-fill { height: 100%; background: #3498db; border-radius: 2px; }
 .tournament-body {
     padding: 0 1.5rem 1.2rem;
 }
@@ -230,6 +245,11 @@
             <span class="status-badge status-closed">🔒 Closed</span>
             {% endif %}
 
+            {# Current phase badge — only for IN_PROGRESS #}
+            {% if t.tournament_status == 'IN_PROGRESS' and item.current_phase %}
+            <span class="status-badge badge-phase">{{ item.current_phase_label }}</span>
+            {% endif %}
+
             {# Delivery type — all three variants #}
             {% if item.session_type_config == 'virtual' %}
             <span class="status-badge badge-virtual">💻 Virtual</span>
@@ -259,6 +279,27 @@
     </div>
 
     <div class="tournament-body">
+        {# Personal rank preview — shown when rankings exist #}
+        {% if item.my_ranking %}
+        <div class="rank-preview" data-testid="rank-preview">
+            <span class="rank-preview-num">
+                {% if item.my_ranking.rank == 1 %}🥇
+                {% elif item.my_ranking.rank == 2 %}🥈
+                {% elif item.my_ranking.rank == 3 %}🥉
+                {% else %}#{{ item.my_ranking.rank }}{% endif %}
+            </span>
+            {% if item.show_wdl %}
+            <span class="rank-preview-detail">
+                {{ item.my_ranking.wins or 0 }}W · {{ item.my_ranking.draws or 0 }}D · {{ item.my_ranking.losses or 0 }}L
+            </span>
+            {% else %}
+            <span class="rank-preview-detail">
+                {{ item.my_ranking.points | round(1) }} pts
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <a href="/events/tournaments/{{ t.id }}" class="enrolled-badge" data-testid="enrolled-badge">
             ✅ Enrolled — View Event →
         </a>
@@ -282,7 +323,14 @@
             </div>
             <div class="meta-item">
                 <strong>📋 Sessions</strong>
-                {{ item.session_count }}{% if item.has_quiz %} · 📝 Quiz{% endif %}
+                {{ item.completed_sessions }} / {{ item.session_count }} done
+                {% if item.session_count > 0 %}
+                <div class="sess-progress-bar">
+                    <div class="sess-progress-fill"
+                         style="width: {{ [((item.completed_sessions / item.session_count) * 100) | int, 100] | min }}%">
+                    </div>
+                </div>
+                {% endif %}
             </div>
             {% if item.instructor %}
             <div class="meta-item">
@@ -368,6 +416,11 @@
             <span class="status-badge status-closed">🔒 Closed</span>
             {% else %}
             <span class="status-badge" style="background:#eaecee; color:#566573;">{{ t.tournament_status or 'Draft' }}</span>
+            {% endif %}
+
+            {# Current phase badge — only for IN_PROGRESS #}
+            {% if t.tournament_status == 'IN_PROGRESS' and item.current_phase %}
+            <span class="status-badge badge-phase">{{ item.current_phase_label }}</span>
             {% endif %}
 
             {# Delivery type — all three variants #}
