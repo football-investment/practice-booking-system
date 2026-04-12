@@ -114,27 +114,47 @@ async def events_tournaments_list(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """TOURNAMENT browse — same content as old /tournaments, under /events/tournaments."""
+    """TOURNAMENT browse — enrolled (all active statuses) + browse (open only)."""
     from ...models.quiz import SessionQuiz
+    from sqlalchemy import or_
 
-    tournaments = (
+    # Enrolled: all tournaments where the student has an active enrollment (no date filter)
+    enrolled_semester_ids = [
+        row.semester_id
+        for row in db.query(SemesterEnrollment.semester_id)
+        .filter(
+            SemesterEnrollment.user_id == user.id,
+            SemesterEnrollment.is_active.is_(True),
+        )
+        .all()
+    ]
+
+    all_tournaments = (
         db.query(Semester)
         .filter(
             and_(
                 Semester.semester_category == SemesterCategory.TOURNAMENT,
-                Semester.tournament_status.in_(["ENROLLMENT_OPEN", "IN_PROGRESS"]),
                 Semester.specialization_type == "LFA_FOOTBALL_PLAYER",
                 Semester.status != SemesterStatus.CANCELLED,
-                Semester.end_date >= date.today(),
+                or_(
+                    # enrolled: show regardless of date/status
+                    Semester.id.in_(enrolled_semester_ids),
+                    # browse: only open + future
+                    and_(
+                        Semester.tournament_status == "ENROLLMENT_OPEN",
+                        Semester.end_date >= date.today(),
+                    ),
+                ),
             )
         )
         .order_by(Semester.start_date.asc())
         .all()
     )
 
+    enrolled_id_set = set(enrolled_semester_ids)
     enrolled_events = []
     browse_events = []
-    for t in tournaments:
+    for t in all_tournaments:
         enrollment_count = (
             db.query(SemesterEnrollment)
             .filter(
@@ -143,15 +163,18 @@ async def events_tournaments_list(
             )
             .count()
         )
-        user_enrollment = (
-            db.query(SemesterEnrollment)
-            .filter(
-                SemesterEnrollment.semester_id == t.id,
-                SemesterEnrollment.user_id == user.id,
-                SemesterEnrollment.is_active.is_(True),
+        is_enrolled = t.id in enrolled_id_set
+        user_enrollment = None
+        if is_enrolled:
+            user_enrollment = (
+                db.query(SemesterEnrollment)
+                .filter(
+                    SemesterEnrollment.semester_id == t.id,
+                    SemesterEnrollment.user_id == user.id,
+                    SemesterEnrollment.is_active.is_(True),
+                )
+                .first()
             )
-            .first()
-        )
         instructor = None
         if t.master_instructor_id:
             instructor = db.query(User).filter(User.id == t.master_instructor_id).first()
@@ -173,7 +196,7 @@ async def events_tournaments_list(
             "tournament": t,
             "enrollment_count": enrollment_count,
             "max_players": t.max_players or 999,
-            "is_enrolled": user_enrollment is not None,
+            "is_enrolled": is_enrolled,
             "enrollment_status": user_enrollment.request_status.value if user_enrollment else None,
             "instructor": instructor,
             "session_count": session_count,
@@ -181,7 +204,7 @@ async def events_tournaments_list(
             "session_type_config": session_type_config,
             "tournament_type_code": tournament_type_code,
         }
-        if user_enrollment is not None:
+        if is_enrolled:
             enrolled_events.append(info)
         else:
             browse_events.append(info)
