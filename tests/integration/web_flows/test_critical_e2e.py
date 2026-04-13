@@ -1,7 +1,7 @@
 """
 Critical E2E Tests
 ==================
-8 full-chain tests covering previously-identified coverage gaps:
+12 full-chain tests covering previously-identified coverage gaps:
 
   QRB — Quiz Retry Best Score      : fail → retry → pass (UI + DB)
   QEG — Quiz Enrollment Gate       : no booking → 403; with booking → 200
@@ -11,6 +11,10 @@ Critical E2E Tests
   QAL — Quiz Attempt Limit         : fail × max_attempts → "No More Attempts" UI state
   QIS — Quiz Interrupted Resume    : start → abandon → re-GET → same attempt resumed
   QPG — Quiz State Progression     : no attempt → fail → pass → session_details tracks state
+  TCR — Tournament Credit Refund   : enroll → deduct → unenroll → 50% refund CreditTransaction
+  ISC — Instructor Slot Conflict   : add instructor → duplicate rejected → 409 Conflict
+  ICR — Invitation Code Reg.       : valid code + registration → User.credit_balance = bonus
+  APR — Admin Password Reset       : admin resets → old fails login → new succeeds
 
 Design rules:
   - Self-contained: each test creates all required data inline via db.flush()
@@ -30,8 +34,10 @@ from sqlalchemy.orm import Session
 from app.main import app
 from app.database import get_db
 from app.dependencies import get_current_user_web, get_current_user_optional
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.models.user import User, UserRole, SpecializationType
+from app.models.invitation_code import InvitationCode
+from app.models.tournament_instructor_slot import TournamentInstructorSlot
 from app.models.license import UserLicense
 from app.models.semester import Semester, SemesterStatus, SemesterCategory
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
@@ -766,3 +772,294 @@ def test_quiz_required_state_progression(test_db: Session, client: TestClient):
         f"Expected 'PASSED' state after passing quiz. Snippet: {r3.text[:600]}"
     )
     assert "Retry Quiz" not in r3.text, "Retry button must not show after passing"
+
+
+# ── Test 9: TCR — Tournament Credit Refund ────────────────────────────────────
+
+def test_tournament_unenrollment_credit_refund(test_db: Session, client: TestClient):
+    """TCR: enroll in paid tournament → credit deducted → unenroll → 50% refund.
+
+    Closes gap: tournament unenrollment refund chain verified at HTTP + DB level.
+    Complements Cypress TOUR-S-05 (browser-level) with a Python integration test.
+
+    Refund invariant (enrollment_cost=200):
+      Enroll  : 1000 → 800  (−200)
+      Unenroll:  800 → 900  (+100 = 50% of 200)
+    CreditTransaction(TOURNAMENT_UNENROLL_REFUND, amount=100) must be created.
+    """
+    student = _make_user(test_db, credit_balance=1000)
+    lic = _make_license(test_db, student)
+    tourn = _make_tournament(test_db, enrollment_cost=200)
+
+    app.dependency_overrides[get_current_user_optional] = lambda: student
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # Step 1: Enroll → credits 1000 → 800
+    r_enroll = client.post(
+        f"/tournaments/{tourn.id}/enroll",
+        follow_redirects=False,
+    )
+    assert r_enroll.status_code == 303, (
+        f"Enrollment must return 303 redirect. Got {r_enroll.status_code}: {r_enroll.text[:400]}"
+    )
+
+    test_db.refresh(student)
+    assert student.credit_balance == 800, (
+        f"Expected 800 after 200 deduction, got {student.credit_balance}"
+    )
+
+    # DB: SemesterEnrollment created and active
+    enrollment = test_db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == tourn.id,
+        SemesterEnrollment.user_id == student.id,
+    ).first()
+    assert enrollment is not None, "SemesterEnrollment must exist after enroll"
+    assert enrollment.is_active is True
+
+    # Step 2: Unenroll → 50% refund applied
+    r_unenroll = client.post(
+        f"/tournaments/{tourn.id}/unenroll",
+        follow_redirects=False,
+    )
+    assert r_unenroll.status_code == 303, (
+        f"Unenrollment must return 303 redirect. Got {r_unenroll.status_code}: {r_unenroll.text[:400]}"
+    )
+
+    # DB: enrollment marked inactive + withdrawn
+    test_db.refresh(enrollment)
+    assert enrollment.is_active is False, "Enrollment must be inactive after unenroll"
+    assert enrollment.request_status == EnrollmentStatus.WITHDRAWN, (
+        f"Enrollment status must be WITHDRAWN, got {enrollment.request_status}"
+    )
+
+    # DB: 50% refund applied to credit balance (800 + 100 = 900)
+    test_db.refresh(student)
+    expected = 900  # 800 + 100 (50% of 200)
+    assert student.credit_balance == expected, (
+        f"Expected balance {expected} after 50% refund, got {student.credit_balance}"
+    )
+
+    # DB: CreditTransaction(refund, amount=100) created
+    tx = (
+        test_db.query(CreditTransaction)
+        .filter(
+            CreditTransaction.user_license_id == lic.id,
+            CreditTransaction.amount > 0,
+        )
+        .order_by(CreditTransaction.id.desc())
+        .first()
+    )
+    assert tx is not None, "Refund CreditTransaction must be created on unenrollment"
+    assert tx.amount == 100, f"Expected refund amount=100 (50% of 200), got {tx.amount}"
+    assert tx.balance_after == expected, (
+        f"Expected balance_after={expected}, got {tx.balance_after}"
+    )
+    tx_type = str(tx.transaction_type).upper()
+    assert "REFUND" in tx_type or "UNENROLL" in tx_type, (
+        f"Expected refund transaction type, got {tx.transaction_type}"
+    )
+
+
+# ── Test 10: ISC — Instructor Slot Conflict ───────────────────────────────────
+
+def test_instructor_slot_duplicate_rejected(test_db: Session, client: TestClient):
+    """ISC: add instructor to tournament → same instructor again → 409 Conflict.
+
+    Closes gap: instructor scheduling conflict enforcement verified at HTTP level.
+    Unique constraint (semester_id, instructor_id) prevents double-booking an instructor
+    in the same tournament. Validated via service-layer check before the DB constraint fires.
+
+    DB: only 1 TournamentInstructorSlot exists after the duplicate is rejected.
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    instructor = _make_user(test_db, role=UserRole.INSTRUCTOR)
+    tourn = _make_tournament(test_db)
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+
+    # Step 1: Add instructor as MASTER → must succeed
+    r1 = client.post(
+        f"/admin/tournaments/{tourn.id}/instructor-slots",
+        data={
+            "instructor_id": str(instructor.id),
+            "role": "MASTER",
+        },
+        follow_redirects=False,
+    )
+    assert r1.status_code in (200, 201, 303), (
+        f"First instructor slot assignment must succeed. "
+        f"Got {r1.status_code}: {r1.text[:400]}"
+    )
+
+    # DB: exactly 1 slot created
+    test_db.expire_all()
+    slots = test_db.query(TournamentInstructorSlot).filter(
+        TournamentInstructorSlot.semester_id == tourn.id,
+        TournamentInstructorSlot.instructor_id == instructor.id,
+    ).all()
+    assert len(slots) == 1, f"Expected 1 instructor slot after first assignment, got {len(slots)}"
+
+    # Step 2: Attempt to add same instructor again → 409 Conflict
+    test_db.expire_all()
+    r2 = client.post(
+        f"/admin/tournaments/{tourn.id}/instructor-slots",
+        data={
+            "instructor_id": str(instructor.id),
+            "role": "MASTER",
+        },
+        follow_redirects=False,
+    )
+    assert r2.status_code == 409, (
+        f"Duplicate instructor slot must be rejected with 409. "
+        f"Got {r2.status_code}: {r2.text[:400]}"
+    )
+    # Response explains the conflict
+    response_text = r2.text.lower()
+    assert "already" in response_text or "roster" in response_text or "conflict" in response_text, (
+        f"409 response must explain the duplicate conflict. Snippet: {r2.text[:400]}"
+    )
+
+    # DB: still only 1 slot (no duplicate row created)
+    test_db.expire_all()
+    slot_count = test_db.query(TournamentInstructorSlot).filter(
+        TournamentInstructorSlot.semester_id == tourn.id,
+        TournamentInstructorSlot.instructor_id == instructor.id,
+    ).count()
+    assert slot_count == 1, (
+        f"DB must have exactly 1 instructor slot after rejection, got {slot_count}"
+    )
+
+
+# ── Test 11: ICR — Invitation Code Registration ───────────────────────────────
+
+def test_invitation_code_registration_grants_credits(test_db: Session, client: TestClient):
+    """ICR: valid invitation code used during registration → User.credit_balance = bonus_credits.
+
+    Closes gap: student registration with invitation code verified E2E (HTTP + DB).
+    Flow: create code in DB → POST /register with all fields → verify:
+      - HTTP 303 redirect (registration succeeded)
+      - InvitationCode.is_used = True + used_by_user_id set
+      - New User.credit_balance equals the code's bonus_credits
+    """
+    uid = _uid()
+    code_str = f"INV-E2E-{uid[:6].upper()}"
+    inv_code = InvitationCode(
+        code=code_str,
+        invited_name="E2E Test Partner",
+        bonus_credits=500,
+        is_used=False,
+    )
+    test_db.add(inv_code)
+    test_db.flush()
+
+    email = f"reg-{uid}@test.lfa"
+    r = client.post(
+        "/register",
+        data={
+            "first_name": "Test",
+            "last_name": "Registrant",
+            "nickname": "tstreg",
+            "email": email,
+            "password": "Test123!",
+            "phone": "+36201234567",
+            "date_of_birth": "2000-01-01",
+            "nationality": "Hungarian",
+            "gender": "Male",
+            "street_address": "Test Street 1",
+            "city": "Budapest",
+            "postal_code": "1055",
+            "country": "Hungary",
+            "invitation_code": code_str,
+        },
+        follow_redirects=False,
+    )
+    # Success: redirect to /dashboard (auto-login after registration)
+    assert r.status_code == 303, (
+        f"Expected 303 redirect after registration. Got {r.status_code}. "
+        f"Validation errors appear as 200. Body snippet: {r.text[:500]}"
+    )
+
+    # DB: InvitationCode marked as used with back-reference to new user
+    test_db.refresh(inv_code)
+    assert inv_code.is_used is True, "InvitationCode must be marked is_used=True"
+    assert inv_code.used_at is not None, "InvitationCode.used_at must be set"
+
+    # DB: new User created with credit balance equal to bonus_credits
+    new_user = test_db.query(User).filter(User.email == email).first()
+    assert new_user is not None, f"Registered user not found in DB (email: {email})"
+    assert new_user.credit_balance == 500, (
+        f"User.credit_balance must equal bonus_credits=500, got {new_user.credit_balance}"
+    )
+    assert inv_code.used_by_user_id == new_user.id, (
+        f"InvitationCode.used_by_user_id must reference the new user. "
+        f"Got {inv_code.used_by_user_id}, expected {new_user.id}"
+    )
+
+
+# ── Test 12: APR — Admin Password Reset + Login Chain ────────────────────────
+
+def test_admin_password_reset_enables_login(test_db: Session, client: TestClient):
+    """APR: admin resets student password → old password fails login → new password succeeds.
+
+    Closes gap: admin password reset chain verified E2E (HTTP + DB + auth).
+    Proves the full round-trip: admin action → DB hash update → login gate enforces it.
+
+    Flow:
+      1. Admin POSTs /admin/users/{id}/reset-password → 303
+      2. DB: verify_password(new) = True, verify_password(old) = False
+      3. POST /login with old password → 200 (error re-render)
+      4. POST /login with new password → 303 redirect to /dashboard
+    """
+    student = _make_user(test_db, role=UserRole.STUDENT)
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    old_password = "Test123!"   # password set in _make_user
+    new_password = "NewPass456!"
+
+    # Step 1: Admin resets password
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    r_reset = client.post(
+        f"/admin/users/{student.id}/reset-password",
+        data={"new_password": new_password},
+        follow_redirects=False,
+    )
+    assert r_reset.status_code == 303, (
+        f"Admin password reset must return 303. Got {r_reset.status_code}: {r_reset.text[:400]}"
+    )
+
+    # DB: new password verifies, old does not
+    test_db.refresh(student)
+    assert verify_password(new_password, student.password_hash), (
+        "New password must verify against the updated hash"
+    )
+    assert not verify_password(old_password, student.password_hash), (
+        "Old password must no longer verify after reset"
+    )
+
+    # Step 2: Test login — auth override does not affect /login (uses form credentials only)
+    # Login with old password → 200 error template (credentials rejected)
+    r_old = client.post(
+        "/login",
+        data={"email": student.email, "password": old_password},
+        follow_redirects=False,
+    )
+    assert r_old.status_code == 200, (
+        f"Old password login must fail (200 error page). Got {r_old.status_code}"
+    )
+    assert "Invalid" in r_old.text or "incorrect" in r_old.text.lower(), (
+        f"Login error message not found. Snippet: {r_old.text[:400]}"
+    )
+
+    # Login with new password → 303 redirect to /dashboard (success)
+    r_new = client.post(
+        "/login",
+        data={"email": student.email, "password": new_password},
+        follow_redirects=False,
+    )
+    assert r_new.status_code == 303, (
+        f"New password login must succeed (303 redirect). "
+        f"Got {r_new.status_code}: {r_new.text[:400]}"
+    )
+    location = r_new.headers.get("location", "")
+    assert "/dashboard" in location, (
+        f"Successful login must redirect to /dashboard. Got location: {location}"
+    )
