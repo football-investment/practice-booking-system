@@ -1,7 +1,7 @@
 """
 Critical E2E Tests
 ==================
-13 full-chain tests covering previously-identified coverage gaps:
+14 full-chain tests covering previously-identified coverage gaps:
 
   QRB — Quiz Retry Best Score      : fail → retry → pass (UI + DB)
   QEG — Quiz Enrollment Gate       : no booking → 403; with booking → 200
@@ -16,6 +16,7 @@ Critical E2E Tests
   ICR — Invitation Code Reg.       : valid code + registration → User.credit_balance = bonus
   APR — Admin Password Reset       : admin resets → old fails login → new succeeds
   LRC — License Revoke Cascade     : license revoked → SemesterEnrollment.is_active = False
+  CEE — Camp Enrollment E2E        : camp enroll → deduct → unenroll → 50% refund (CAMP category)
 
 Design rules:
   - Self-contained: each test creates all required data inline via db.flush()
@@ -119,6 +120,22 @@ def _make_tournament(db: Session, enrollment_cost: int = 0) -> Semester:
         max_players=100,
     )
     db.add(cfg)
+    db.flush()
+    return sem
+
+
+def _make_camp(db: Session, enrollment_cost: int = 200) -> Semester:
+    sem = Semester(
+        code=f"CAMP-{_uid()}",
+        name=f"E2E Camp {_uid()}",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=7),
+        status=SemesterStatus.ONGOING,
+        semester_category=SemesterCategory.CAMP,
+        tournament_status="ENROLLMENT_OPEN",
+        enrollment_cost=enrollment_cost,
+    )
+    db.add(sem)
     db.flush()
     return sem
 
@@ -1121,4 +1138,94 @@ def test_license_revoke_cascades_to_enrollments(test_db: Session, client: TestCl
     assert enrollment.is_active is False, (
         "SemesterEnrollment.is_active must be False after license revoke. "
         "Without the cascade fix, this would be True (orphaned active enrollment)."
+    )
+
+
+# ── Test 14: CEE — Camp Enrollment Credit Deduction and Refund ───────────────
+
+def test_camp_enrollment_credit_deduction_and_refund(test_db: Session, client: TestClient):
+    """CEE: camp enroll → credit deduction → SemesterEnrollment(APPROVED) → unenroll → 50% refund.
+
+    Closes gap: CAMP category enrollment/unenrollment had zero E2E coverage.
+    Camps differ from tournaments: auto-approved (no admin step), SemesterCategory.CAMP filter.
+
+    Flow:
+      1. POST /events/camps/{id}/enroll → 303
+      2. DB: SemesterEnrollment.request_status=APPROVED, is_active=True, credit_balance=800 (-200)
+      3. DB: CreditTransaction(amount=-200, type=TOURNAMENT_ENROLLMENT)
+      4. POST /events/camps/{id}/unenroll → 303
+      5. DB: enrollment.is_active=False, enrollment.request_status=WITHDRAWN, credit_balance=900 (+100)
+      6. DB: CreditTransaction(amount=100, type=TOURNAMENT_UNENROLL_REFUND)
+    """
+    student = _make_user(test_db, credit_balance=1000)
+    lic = _make_license(test_db, student)
+    camp = _make_camp(test_db, enrollment_cost=200)
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # Step 1: Enroll in camp → auto-approved, no admin step needed
+    r_enroll = client.post(
+        f"/events/camps/{camp.id}/enroll",
+        follow_redirects=False,
+    )
+    assert r_enroll.status_code == 303, (
+        f"Camp enroll must return 303 redirect. Got {r_enroll.status_code}: {r_enroll.text[:400]}"
+    )
+
+    # DB: enrollment created and auto-approved (unlike tournaments which need admin approval)
+    enrollment = test_db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.user_id == student.id,
+        SemesterEnrollment.semester_id == camp.id,
+    ).first()
+    assert enrollment is not None, "SemesterEnrollment must be created on camp enroll"
+    assert enrollment.request_status == EnrollmentStatus.APPROVED, (
+        f"Camp enrollment must be auto-APPROVED. Got {enrollment.request_status}"
+    )
+    assert enrollment.is_active is True, "Enrollment must be active after enroll"
+
+    # DB: credits deducted
+    test_db.refresh(student)
+    assert student.credit_balance == 800, (
+        f"Expected 800 after 200 deduction, got {student.credit_balance}"
+    )
+
+    # DB: CreditTransaction(amount=-200) recorded
+    tx_enroll = test_db.query(CreditTransaction).filter(
+        CreditTransaction.user_license_id == lic.id,
+        CreditTransaction.semester_id == camp.id,
+        CreditTransaction.amount == -200,
+    ).first()
+    assert tx_enroll is not None, "CreditTransaction for camp enrollment (amount=-200) must exist"
+
+    # Step 2: Unenroll from camp → 50% refund (200 // 2 = 100)
+    r_unenroll = client.post(
+        f"/events/camps/{camp.id}/unenroll",
+        follow_redirects=False,
+    )
+    assert r_unenroll.status_code == 303, (
+        f"Camp unenroll must return 303 redirect. Got {r_unenroll.status_code}: {r_unenroll.text[:400]}"
+    )
+
+    # DB: enrollment deactivated and status set to WITHDRAWN
+    test_db.refresh(enrollment)
+    assert enrollment.is_active is False, "Enrollment.is_active must be False after unenroll"
+    assert enrollment.request_status == EnrollmentStatus.WITHDRAWN, (
+        f"Enrollment status must be WITHDRAWN after unenroll. Got {enrollment.request_status}"
+    )
+
+    # DB: 50% refund applied
+    test_db.refresh(student)
+    assert student.credit_balance == 900, (
+        f"Expected 900 after 100 refund (50% of 200), got {student.credit_balance}"
+    )
+
+    # DB: CreditTransaction(amount=100, TOURNAMENT_UNENROLL_REFUND) recorded
+    tx_refund = test_db.query(CreditTransaction).filter(
+        CreditTransaction.user_license_id == lic.id,
+        CreditTransaction.semester_id == camp.id,
+        CreditTransaction.amount == 100,
+    ).first()
+    assert tx_refund is not None, "CreditTransaction for camp refund (amount=100) must exist"
+    assert tx_refund.transaction_type == "TOURNAMENT_UNENROLL_REFUND", (
+        f"Refund tx type must be TOURNAMENT_UNENROLL_REFUND. Got {tx_refund.transaction_type}"
     )

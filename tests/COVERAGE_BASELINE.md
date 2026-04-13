@@ -1,5 +1,5 @@
 # E2E Coverage Baseline — Practice Booking System
-**Frozen: 2026-04-13 | Branch: fix/e2e-ops-seed-1024**
+**Last updated: 2026-04-13 | Branch: fix/e2e-ops-seed-1024**
 
 This document is the reference baseline for end-to-end test coverage.
 Every future feature **must** add a corresponding E2E test and keep CI green.
@@ -25,10 +25,10 @@ Every future feature **must** add a corresponding E2E test and keep CI green.
 
 | Suite | Count |
 |-------|-------|
-| `tests/integration/web_flows/` | **553** (41 files) |
+| `tests/integration/web_flows/` | **554** (41 files) |
 | `tests/integration/api_smoke/` | **1,741** |
 | Cypress (`cypress/e2e/`) | **13** (4 files) |
-| **Total** | **2,307** |
+| **Total** | **2,308** |
 
 ---
 
@@ -52,6 +52,11 @@ Each entry has: at least 1 HTTP assertion + DB assertion + UI assertion.
 | CDE — Credit Deduction | POST /enroll (paid) → credit_balance−200 → CreditTransaction → history page |
 | TCR — Tournament Credit Refund | POST /enroll → POST /unenroll → 50% refund → CreditTransaction(REFUND) |
 | TOUR-S-01..05 (Cypress) | UI: balance=1000 → enroll → 900 → unenroll → 950 |
+
+### Camp domain
+| Test | Chain |
+|------|-------|
+| CEE — Camp Enrollment E2E | POST /events/camps/{id}/enroll → auto-APPROVED, credit−200 → POST /unenroll → +100 refund, WITHDRAWN |
 
 ### Admin domain
 | Test | Chain |
