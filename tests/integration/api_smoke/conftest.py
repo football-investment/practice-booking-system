@@ -406,6 +406,7 @@ def test_tournament(test_db: Session, test_campus_id: int, _student_user: User) 
         }
     """
     from app.models.campus_schedule_config import CampusScheduleConfig
+    from app.models.tournament_configuration import TournamentConfiguration
     from app.models.tournament_reward_config import TournamentRewardConfig
     from app.models.license import UserLicense
     from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
@@ -426,6 +427,16 @@ def test_tournament(test_db: Session, test_campus_id: int, _student_user: User) 
     test_db.add(tournament)
     test_db.commit()
     test_db.refresh(tournament)
+
+    tournament_config = TournamentConfiguration(
+        semester_id=tournament.id,
+        participant_type="INDIVIDUAL",
+        scoring_type="PLACEMENT",
+        parallel_fields=1,
+        number_of_rounds=1,
+    )
+    test_db.add(tournament_config)
+    test_db.commit()
 
     campus_schedule = CampusScheduleConfig(
         tournament_id=tournament.id,
