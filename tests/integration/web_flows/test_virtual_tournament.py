@@ -237,3 +237,8 @@ def test_VT_05_public_event_page_renders_for_virtual_tournament(
         f"Expected 200 for /events/{{id}} on virtual tournament in DRAFT, "
         f"got {resp.status_code}: {resp.text[:300]}"
     )
+    # UI: rendered HTML must contain the tournament name (proves it's not an error page)
+    assert tournament.name in resp.text, (
+        f"Tournament name '{tournament.name}' must appear in rendered HTML. "
+        f"Snippet: {resp.text[:400]}"
+    )

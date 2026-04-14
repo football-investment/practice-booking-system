@@ -50,6 +50,13 @@ class TestBookingCancellationLifecycle:
         assert booking is not None
         assert booking.status == BookingStatus.CONFIRMED
 
+        # UI: session details show cancel action available (booking state reflected in HTML)
+        r_details = student_client.get(f"/sessions/{future_session.id}")
+        assert r_details.status_code == 200
+        assert "cancel" in r_details.text.lower(), (
+            f"Session details must show cancel option after booking. Snippet: {r_details.text[:400]}"
+        )
+
     def test_cancel_booking_removes_row_from_db(
         self,
         student_client,
@@ -73,6 +80,13 @@ class TestBookingCancellationLifecycle:
         test_db.expire_all()
         gone = test_db.query(Booking).filter(Booking.id == booking_id).first()
         assert gone is None
+
+        # UI: session details show book action available again (cancellation state reflected in HTML)
+        r_details = student_client.get(f"/sessions/{future_session.id}")
+        assert r_details.status_code == 200
+        assert "book" in r_details.text.lower(), (
+            f"Session details must show Book option after cancellation. Snippet: {r_details.text[:400]}"
+        )
 
     def test_book_already_booked_returns_info_redirect(
         self,

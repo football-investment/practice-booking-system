@@ -306,6 +306,16 @@ class TestAdminTournamentUI:
             f"game_preset_id must be {game_preset.id}, got {game_cfg.game_preset_id}"
         )
 
+        # UI: follow-up GET to edit page confirms tournament type visible in rendered HTML
+        r_edit = admin_client.get(f"/admin/tournaments/{tourn_id}/edit")
+        assert r_edit.status_code == 200, (
+            f"Edit page must render 200 after creation, got {r_edit.status_code}"
+        )
+        assert tournament_type.display_name in r_edit.text, (
+            f"Tournament type '{tournament_type.display_name}' must appear in edit page HTML. "
+            f"Snippet: {r_edit.text[:400]}"
+        )
+
     def test_UI03_edit_page_shows_tournament_type_in_dropdown(
         self,
         admin_client: TestClient,

@@ -63,7 +63,7 @@ Each entry has: at least 1 HTTP assertion + DB assertion + UI assertion.
 |------|-------|
 | ISC — Instructor Slot Conflict | POST instructor slot → POST same instructor again → 409 → DB count=1 |
 | APR — Admin Password Reset | POST /reset-password → verify_password(new)=True → old login 200 → new login 303 |
-| test_admin_smoke (143 tests) | Page loads, CRUD operations, capacity, ban, license revoke |
+| test_admin_smoke (157 tests) | Page loads, CRUD operations, capacity, ban, license revoke |
 
 ### Credit / Registration domain
 | Test | Chain |
@@ -93,8 +93,8 @@ Each entry has: at least 1 HTTP assertion + DB assertion + UI assertion.
 | Multi-campus venue | 8 MCV tests: venue in schedule, cross-campus, phase split |
 | Dark mode | 17 HTTP + 11 static: CSS token audit, no hardcoded colors |
 | Invitation code seed | CI seed validation: 52 used / 5 unused, 44k credits |
-| Virtual tournament | 5 VT tests: session_type=virtual, XP, gate |
-| Lifecycle/state machine | 40 tournament_lifecycle + 23 reward_matrix |
+| Virtual tournament | 5 VT tests: session_type=virtual, XP, gate (VT-01/02 = UNIT; VT-03/04/05 = E2E) |
+| Lifecycle/state machine | 40 tournament_lifecycle + 22 reward_matrix |
 
 ---
 

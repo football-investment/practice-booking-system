@@ -877,6 +877,13 @@ def test_tournament_unenrollment_credit_refund(test_db: Session, client: TestCli
         f"Expected refund transaction type, got {tx.transaction_type}"
     )
 
+    # UI: /credits page renders the refunded balance (900) — follow-up GET after redirect
+    r_credits = client.get("/credits")
+    assert r_credits.status_code == 200
+    assert "900" in r_credits.text, (
+        f"Balance 900 not visible on /credits after 50% refund. Snippet: {r_credits.text[:400]}"
+    )
+
 
 # ── Test 10: ISC — Instructor Slot Conflict ───────────────────────────────────
 
@@ -1013,6 +1020,15 @@ def test_invitation_code_registration_grants_credits(test_db: Session, client: T
         f"Got {inv_code.used_by_user_id}, expected {new_user.id}"
     )
 
+    # UI: /credits page shows invitation code bonus for the newly registered user
+    app.dependency_overrides[get_current_user_optional] = lambda: new_user
+    r_credits = client.get("/credits")
+    assert r_credits.status_code == 200
+    assert "500" in r_credits.text, (
+        f"Invitation code bonus (500 credits) not visible on /credits after registration. "
+        f"Snippet: {r_credits.text[:400]}"
+    )
+
 
 # ── Test 12: APR — Admin Password Reset + Login Chain ────────────────────────
 
@@ -1140,6 +1156,14 @@ def test_license_revoke_cascades_to_enrollments(test_db: Session, client: TestCl
         "Without the cascade fix, this would be True (orphaned active enrollment)."
     )
 
+    # UI: admin user edit page reflects revoke — revoke form absent for inactive license
+    r_edit = client.get(f"/admin/users/{student.id}/edit")
+    assert r_edit.status_code == 200
+    assert student.email in r_edit.text, "Admin user edit page must render student email"
+    assert f"/admin/users/{student.id}/revoke-license/{lic.id}" not in r_edit.text, (
+        "Revoke form must not render for an already-revoked license (template guards on lic.is_active)"
+    )
+
 
 # ── Test 14: CEE — Camp Enrollment Credit Deduction and Refund ───────────────
 
@@ -1228,4 +1252,13 @@ def test_camp_enrollment_credit_deduction_and_refund(test_db: Session, client: T
     assert tx_refund is not None, "CreditTransaction for camp refund (amount=100) must exist"
     assert tx_refund.transaction_type == "TOURNAMENT_UNENROLL_REFUND", (
         f"Refund tx type must be TOURNAMENT_UNENROLL_REFUND. Got {tx_refund.transaction_type}"
+    )
+
+    # UI: /credits page renders the refunded balance (900) — follow-up GET after redirect
+    # /credits uses get_current_user_optional; must override so auth works in test context
+    app.dependency_overrides[get_current_user_optional] = lambda: student
+    r_credits = client.get("/credits")
+    assert r_credits.status_code == 200
+    assert "900" in r_credits.text, (
+        f"Balance 900 not visible on /credits after camp 50% refund. Snippet: {r_credits.text[:400]}"
     )
