@@ -1527,3 +1527,54 @@ def test_team_enrollment_deducts_credits(test_db: Session, client: TestClient):
         f"Credits page must show updated balance {500 - COST}. "
         f"Snippet: {r_credits.text[:500]}"
     )
+
+
+def test_admin_grant_credit(test_db: Session, client: TestClient):
+    """GAP-04: Admin grants credits to student → CreditTransaction(ADMIN_ADJUSTMENT) + balance updated.
+
+    Chain:
+      POST /admin/users/{id}/grant-credit  (Form: amount=200, reason=...)  → 303
+      DB:  CreditTransaction(ADMIN_ADJUSTMENT, amount=+200, user_id=student.id)
+      DB:  User.credit_balance == 300 + 200 == 500
+      GET  /admin/users/{id}/edit  → "500" visible in admin user edit page
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db, credit_balance=300)
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    resp = client.post(
+        f"/admin/users/{student.id}/grant-credit",
+        data={"amount": "200", "reason": "E2E GAP-04 grant test"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303, (
+        f"Expected 303 redirect after grant-credit, got {resp.status_code}: {resp.text[:300]}"
+    )
+
+    # DB: CreditTransaction(ADMIN_ADJUSTMENT, amount=+200) created
+    test_db.expire_all()
+    tx = (
+        test_db.query(CreditTransaction)
+        .filter(
+            CreditTransaction.user_id == student.id,
+            CreditTransaction.amount == 200,
+        )
+        .first()
+    )
+    assert tx is not None, "CreditTransaction(amount=+200) must exist after admin grant-credit"
+    assert "ADMIN" in tx.transaction_type.upper(), (
+        f"transaction_type must be ADMIN_ADJUSTMENT, got {tx.transaction_type}"
+    )
+
+    # DB: User.credit_balance updated
+    test_db.refresh(student)
+    assert student.credit_balance == 500, (
+        f"User.credit_balance must be 500 after +200 grant, got {student.credit_balance}"
+    )
+
+    # UI: admin user edit page shows updated balance
+    r_edit = client.get(f"/admin/users/{student.id}/edit")
+    assert r_edit.status_code == 200, f"Admin user edit page must render 200, got {r_edit.status_code}"
+    assert "500" in r_edit.text, (
+        f"Admin user edit page must show credit balance 500. Snippet: {r_edit.text[:500]}"
+    )
