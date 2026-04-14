@@ -1578,3 +1578,67 @@ def test_admin_grant_credit(test_db: Session, client: TestClient):
     assert "500" in r_edit.text, (
         f"Admin user edit page must show credit balance 500. Snippet: {r_edit.text[:500]}"
     )
+
+
+def test_license_renewal_updates_expiry(test_db: Session, client: TestClient):
+    """GAP-05: Admin renews active license → expires_at updated + LicenseProgression('RENEWED').
+
+    Chain:
+      POST /admin/users/{id}/renew-license/{lid}  (Form: new_expires_at=YYYY-MM-DD, reason=...)  → 303
+      DB:  LicenseProgression(requirements_met='RENEWED') created
+      DB:  UserLicense.expires_at == new future date
+      GET  /admin/users/{id}/edit  → expiry year visible in licenses section
+    """
+    from app.models.license import LicenseProgression
+
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db, credit_balance=0)
+    lic = UserLicense(
+        user_id=student.id,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        is_active=True,
+        onboarding_completed=True,
+        started_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        expires_at=datetime(2026, 6, 1),   # expires soon
+        football_skills={},
+    )
+    test_db.add(lic)
+    test_db.flush()
+
+    new_expiry = "2027-12-31"
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    resp = client.post(
+        f"/admin/users/{student.id}/renew-license/{lic.id}",
+        data={"new_expires_at": new_expiry, "reason": "E2E GAP-05 renewal test"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303, (
+        f"Expected 303 redirect after renew-license, got {resp.status_code}: {resp.text[:300]}"
+    )
+
+    # DB: LicenseProgression('RENEWED') created
+    test_db.expire_all()
+    prog = (
+        test_db.query(LicenseProgression)
+        .filter(LicenseProgression.user_license_id == lic.id)
+        .first()
+    )
+    assert prog is not None, "LicenseProgression row must exist after renewal"
+    assert "RENEWED" in (prog.requirements_met or ""), (
+        f"requirements_met must contain 'RENEWED', got {prog.requirements_met}"
+    )
+
+    # DB: expires_at updated
+    test_db.refresh(lic)
+    assert lic.expires_at is not None
+    assert lic.expires_at.year == 2027, (
+        f"expires_at year must be 2027, got {lic.expires_at.year}"
+    )
+
+    # UI: admin user edit page shows new expiry year
+    r_edit = client.get(f"/admin/users/{student.id}/edit")
+    assert r_edit.status_code == 200, f"Admin user edit page must render 200, got {r_edit.status_code}"
+    assert "2027" in r_edit.text, (
+        f"Admin user edit page must show expiry year 2027. Snippet: {r_edit.text[:500]}"
+    )
