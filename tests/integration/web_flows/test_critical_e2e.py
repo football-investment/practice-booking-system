@@ -1795,3 +1795,188 @@ def test_session_capacity_waitlist(test_db: Session, client: TestClient):
     assert "WAITLISTED" in r_admin.text or "Waitlisted" in r_admin.text or "waitlisted" in r_admin.text.lower(), (
         f"Admin bookings page must show WAITLISTED status. Snippet: {r_admin.text[:600]}"
     )
+
+
+def test_public_event_group_standings_gd_column(test_db: Session, client: TestClient):
+    """GAP-08: Public event page for group_knockout tournament shows GD column in group standings.
+
+    Chain:
+      group_knockout tournament + 1 GROUP_STAGE session with game_results (win/loss)
+      GET /events/{id}  (no auth required)  → "GD" visible in HTML standings table
+    """
+    from app.models.tournament_type import TournamentType
+    from app.models.tournament_enums import TournamentPhase
+    import json as _json
+
+    # Use existing group_knockout TournamentType (seeded by baseline migration)
+    tt = test_db.query(TournamentType).filter(TournamentType.code == "group_knockout").first()
+    if not tt:
+        pytest.skip("group_knockout TournamentType not seeded in test DB")
+
+    # Tournament
+    tournament = Semester(
+        code=f"E2E-GK-{_uid()}",
+        name=f"E2E GroupKO {_uid()}",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=30),
+        status=SemesterStatus.ONGOING,
+        semester_category=SemesterCategory.TOURNAMENT,
+        tournament_status="IN_PROGRESS",
+    )
+    test_db.add(tournament)
+    test_db.flush()
+    cfg = TournamentConfiguration(
+        semester_id=tournament.id,
+        participant_type="INDIVIDUAL",
+        tournament_type_id=tt.id,
+        session_type_config="on_site",
+    )
+    test_db.add(cfg)
+    test_db.flush()
+
+    # Two players
+    p1 = _make_user(test_db)
+    p2 = _make_user(test_db)
+    instr = _make_user(test_db, role=UserRole.INSTRUCTOR)
+
+    # GROUP_STAGE session with game_results (p1 wins 3-1)
+    game_results_data = {
+        "participants": [
+            {"user_id": p1.id, "score": 3, "result": "win"},
+            {"user_id": p2.id, "score": 1, "result": "loss"},
+        ]
+    }
+    sess = SessionModel(
+        title=f"Group A Match {_uid()}",
+        session_type=SessionType.on_site,
+        date_start=datetime(2026, 12, 1, 10, 0),
+        date_end=datetime(2026, 12, 1, 12, 0),
+        capacity=20,
+        semester_id=tournament.id,
+        instructor_id=instr.id,
+        tournament_phase=TournamentPhase.GROUP_STAGE,
+        structure_config={"group": "A"},
+        game_results=_json.dumps(game_results_data),
+        participant_user_ids=[p1.id, p2.id],
+    )
+    test_db.add(sess)
+    test_db.flush()
+
+    # GET /events/{id} — public page, no auth needed
+    resp = client.get(f"/events/{tournament.id}")
+    assert resp.status_code == 200, f"Public event page must render 200, got {resp.status_code}"
+    assert "GD" in resp.text, (
+        f"Group standings table must include 'GD' column. Snippet: {resp.text[:800]}"
+    )
+
+
+def test_public_event_knockout_bracket_section(test_db: Session, client: TestClient):
+    """GAP-09: Public event page for knockout tournament renders bracket section.
+
+    Chain:
+      knockout tournament + 1 KNOCKOUT session with participant_team_ids
+      GET /events/{id}  (no auth required)  → bracket-match or "Bracket" visible in HTML
+    """
+    from app.models.tournament_type import TournamentType
+    from app.models.tournament_enums import TournamentPhase
+    import json as _json
+
+    tt = test_db.query(TournamentType).filter(TournamentType.code == "knockout").first()
+    if not tt:
+        pytest.skip("knockout TournamentType not seeded in test DB")
+
+    tournament = Semester(
+        code=f"E2E-KO-{_uid()}",
+        name=f"E2E Knockout {_uid()}",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=30),
+        status=SemesterStatus.ONGOING,
+        semester_category=SemesterCategory.TOURNAMENT,
+        tournament_status="IN_PROGRESS",
+    )
+    test_db.add(tournament)
+    test_db.flush()
+    cfg = TournamentConfiguration(
+        semester_id=tournament.id,
+        participant_type="TEAM",
+        tournament_type_id=tt.id,
+        session_type_config="on_site",
+    )
+    test_db.add(cfg)
+    test_db.flush()
+
+    instr = _make_user(test_db, role=UserRole.INSTRUCTOR)
+    captain1 = _make_user(test_db)
+    captain2 = _make_user(test_db)
+
+    team1 = Team(name=f"Team A {_uid()}", code=f"TA{_uid()[:6]}", captain_user_id=captain1.id, is_active=True)
+    team2 = Team(name=f"Team B {_uid()}", code=f"TB{_uid()[:6]}", captain_user_id=captain2.id, is_active=True)
+    test_db.add_all([team1, team2])
+    test_db.flush()
+
+    # KNOCKOUT session round 1
+    sess = SessionModel(
+        title=f"KO Round 1 {_uid()}",
+        session_type=SessionType.on_site,
+        date_start=datetime(2026, 12, 2, 10, 0),
+        date_end=datetime(2026, 12, 2, 12, 0),
+        capacity=20,
+        semester_id=tournament.id,
+        instructor_id=instr.id,
+        tournament_phase=TournamentPhase.KNOCKOUT,
+        round_number=1,
+        structure_config={"round_name": "Semi-Final"},
+        participant_team_ids=[team1.id, team2.id],
+    )
+    test_db.add(sess)
+    test_db.flush()
+
+    resp = client.get(f"/events/{tournament.id}")
+    assert resp.status_code == 200, f"Public event page must render 200, got {resp.status_code}"
+    assert "bracket" in resp.text.lower() or "Bracket" in resp.text or "⚔" in resp.text, (
+        f"Knockout bracket section must be visible. Snippet: {resp.text[:800]}"
+    )
+
+
+def test_admin_create_invitation_code(test_db: Session, client: TestClient):
+    """GAP-10: Admin creates invitation code → InvitationCode row + visible in admin list.
+
+    Chain:
+      POST /api/v1/admin/invitation-codes  (JSON: invited_name, bonus_credits)  → 200, code returned
+      DB:  InvitationCode(invited_name=..., bonus_credits=500, is_used=False)
+      GET  /admin/invitation-codes  → code appears in admin list page
+    """
+    from app.dependencies import get_current_admin_user_hybrid
+
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    invited_name = f"E2E Invite {_uid()}"
+
+    app.dependency_overrides[get_current_admin_user_hybrid] = lambda: admin
+    resp = client.post(
+        "/api/v1/admin/invitation-codes",
+        json={"invited_name": invited_name, "bonus_credits": 500},
+    )
+    assert resp.status_code == 200, (
+        f"Expected 200 after creating invitation code, got {resp.status_code}: {resp.text[:300]}"
+    )
+    body = resp.json()
+    code_str = body.get("code", "")
+    assert code_str, f"Response must include generated code, got: {body}"
+    assert body.get("bonus_credits") == 500
+    assert body.get("is_used") is False
+
+    # DB: InvitationCode row created
+    test_db.expire_all()
+    inv = test_db.query(InvitationCode).filter(InvitationCode.code == code_str).first()
+    assert inv is not None, f"InvitationCode row must exist for code={code_str}"
+    assert inv.invited_name == invited_name
+    assert inv.bonus_credits == 500
+    assert inv.is_used is False
+
+    # UI: admin invitation codes list shows the new code
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    r_list = client.get("/admin/invitation-codes")
+    assert r_list.status_code == 200, f"Admin invitation codes page must render 200, got {r_list.status_code}"
+    assert code_str in r_list.text, (
+        f"New invitation code {code_str} must appear in admin list. Snippet: {r_list.text[:600]}"
+    )
