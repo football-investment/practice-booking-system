@@ -25,10 +25,10 @@ Every future feature **must** add a corresponding E2E test and keep CI green.
 
 | Suite | Count |
 |-------|-------|
-| `tests/integration/web_flows/` | **558** (41 files) |
+| `tests/integration/web_flows/` | **552** (41 files) |
 | `tests/integration/api_smoke/` | **1,741** |
 | Cypress (`cypress/e2e/`) | **13** (4 files) |
-| **Total** | **2,312** |
+| **Total** | **2,306** |
 
 ---
 
