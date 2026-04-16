@@ -61,6 +61,7 @@ from app.models.credit_transaction import CreditTransaction
 from app.models.audit_log import AuditLog
 from app.models.message import Message, MessagePriority
 from app.models.notification import Notification, NotificationType
+from app.models.invoice_request import InvoiceRequest
 from app.models.tournament_achievement import TournamentParticipation
 from app.models.team import Team, TeamMember, TournamentTeamEnrollment, TeamInvite, TeamInviteStatus
 
@@ -3329,4 +3330,250 @@ def test_messages_inbox_shows_unread_for_recipient(test_db: Session, client: Tes
     assert unread is not None, "Unread Message must exist for recipient in DB"
     assert unread.subject == subject, (
         f"Unread message subject must match, got '{unread.subject}'"
+    )
+
+
+# ── Sprint 6 — Admin Operations (F-52..F-56) ──────────────────────────────────
+
+
+def test_admin_invoice_verify_credits_student(test_db: Session, client: TestClient):
+    """F-52 (INVMAN-01) — POST /admin/invoices/{id}/verify → 200 JSON + credits added.
+
+    POST /admin/invoices/{id}/verify (admin) → 200 JSON {"success": true, "credits_added": N}
+    DB:  InvoiceRequest.status="verified", verified_at set; User.credit_balance += credit_amount;
+         CreditTransaction(PURCHASE, idempotency_key="invoice-verify-{id}") created
+    UI:  "credits_added" in JSON response text
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db, role=UserRole.STUDENT, credit_balance=100)
+    uid = _uid()
+    invoice = InvoiceRequest(
+        user_id=student.id,
+        payment_reference=f"LFA-VER-{uid}",
+        amount_eur=10.0,
+        credit_amount=50,
+        status="pending",
+    )
+    test_db.add(invoice)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    r = client.post(f"/admin/invoices/{invoice.id}/verify")
+    assert r.status_code == 200, (
+        f"Invoice verify must return 200, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: JSON response contains credits_added key
+    assert "credits_added" in r.text, (
+        f"Response must contain 'credits_added'. Body: {r.text[:300]}"
+    )
+
+    # DB: status changed, credit_balance increased, CreditTransaction created
+    test_db.expire_all()
+    inv = test_db.query(InvoiceRequest).filter(InvoiceRequest.id == invoice.id).first()
+    assert inv.status == "verified", f"Invoice must be verified, got '{inv.status}'"
+    assert inv.verified_at is not None, "verified_at must be set after verify"
+    stu = test_db.query(User).filter(User.id == student.id).first()
+    assert stu.credit_balance == 150, (
+        f"credit_balance must be 100+50=150, got {stu.credit_balance}"
+    )
+    ct = test_db.query(CreditTransaction).filter(
+        CreditTransaction.idempotency_key == f"invoice-verify-{invoice.id}"
+    ).first()
+    assert ct is not None, "CreditTransaction(PURCHASE) must be created on verify"
+    assert ct.amount == 50, f"Transaction amount must be 50, got {ct.amount}"
+
+
+def test_admin_invoice_cancel_sets_cancelled_status(test_db: Session, client: TestClient):
+    """F-53 (INVMAN-02) — POST /admin/invoices/{id}/cancel → 200 JSON + status=cancelled.
+
+    POST /admin/invoices/{id}/cancel (admin, form reason) → 200 JSON {"success": true}
+    DB:  InvoiceRequest.status="cancelled"; User.credit_balance unchanged (no credits involved)
+    UI:  "Invoice cancelled" in JSON response text
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db, role=UserRole.STUDENT, credit_balance=300)
+    uid = _uid()
+    invoice = InvoiceRequest(
+        user_id=student.id,
+        payment_reference=f"LFA-CAN-{uid}",
+        amount_eur=15.0,
+        credit_amount=75,
+        status="pending",
+    )
+    test_db.add(invoice)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    r = client.post(
+        f"/admin/invoices/{invoice.id}/cancel",
+        data={"reason": "Test cancellation reason"},
+    )
+    assert r.status_code == 200, (
+        f"Invoice cancel must return 200, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: response confirms cancellation
+    assert "Invoice cancelled" in r.text, (
+        f"Response must contain 'Invoice cancelled'. Body: {r.text[:300]}"
+    )
+
+    # DB: status=cancelled, credit_balance unchanged (no credit side-effects on cancel)
+    test_db.refresh(invoice)
+    assert invoice.status == "cancelled", (
+        f"Invoice status must be 'cancelled', got '{invoice.status}'"
+    )
+    test_db.refresh(student)
+    assert student.credit_balance == 300, (
+        f"credit_balance must be unchanged (300), got {student.credit_balance}"
+    )
+
+
+def test_admin_invoice_unverify_reverts_credits(test_db: Session, client: TestClient):
+    """F-54 (INVMAN-03) — POST /admin/invoices/{id}/unverify → 200 JSON + credits reverted.
+
+    POST /admin/invoices/{id}/unverify (admin) → 200 JSON {"success": true, "credits_removed": N}
+    DB:  InvoiceRequest.status reverts to "pending", verified_at=None;
+         User.credit_balance -= credit_amount; CreditTransaction(REFUND, amount<0) created
+    UI:  "credits_removed" in JSON response text
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db, role=UserRole.STUDENT, credit_balance=200)
+    uid = _uid()
+    invoice = InvoiceRequest(
+        user_id=student.id,
+        payment_reference=f"LFA-UNV-{uid}",
+        amount_eur=10.0,
+        credit_amount=50,
+        status="verified",
+        verified_at=datetime.now(timezone.utc),
+    )
+    test_db.add(invoice)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    r = client.post(f"/admin/invoices/{invoice.id}/unverify")
+    assert r.status_code == 200, (
+        f"Invoice unverify must return 200, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: JSON response confirms credits removed
+    assert "credits_removed" in r.text, (
+        f"Response must contain 'credits_removed'. Body: {r.text[:300]}"
+    )
+
+    # DB: status reverted, verified_at cleared, balance decreased, REFUND transaction created
+    test_db.expire_all()
+    inv = test_db.query(InvoiceRequest).filter(InvoiceRequest.id == invoice.id).first()
+    assert inv.status == "pending", (
+        f"Invoice must revert to 'pending', got '{inv.status}'"
+    )
+    assert inv.verified_at is None, "verified_at must be cleared after unverify"
+    stu = test_db.query(User).filter(User.id == student.id).first()
+    assert stu.credit_balance == 150, (
+        f"credit_balance must be 200-50=150, got {stu.credit_balance}"
+    )
+    ct = test_db.query(CreditTransaction).filter(
+        CreditTransaction.idempotency_key == f"invoice-unverify-{invoice.id}"
+    ).first()
+    assert ct is not None, "CreditTransaction(REFUND) must be created on unverify"
+    assert ct.amount == -50, f"Transaction amount must be -50, got {ct.amount}"
+
+
+def test_admin_batch_enroll_players_creates_enrollments(test_db: Session, client: TestClient):
+    """F-55 (BATCH-01) — POST /api/v1/tournaments/{id}/admin/batch-enroll → 2 SemesterEnrollments.
+
+    POST /api/v1/tournaments/{id}/admin/batch-enroll (admin, JSON player_ids) → 200 JSON
+    DB:  SemesterEnrollment × 2 with is_active=True, request_status=APPROVED, payment_verified=True
+    UI:  "enrolled_count" key present in JSON response text (idempotency: re-POST skips existing)
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    sem = _make_tournament(test_db)
+    student1 = _make_user(test_db, role=UserRole.STUDENT)
+    student2 = _make_user(test_db, role=UserRole.STUDENT)
+    # Batch-enroll requires LFA_FOOTBALL_PLAYER license per player
+    _make_license(test_db, student1)
+    _make_license(test_db, student2)
+
+    app.dependency_overrides[get_current_user] = lambda: admin
+    r = client.post(
+        f"/api/v1/tournaments/{sem.id}/admin/batch-enroll",
+        json={"player_ids": [student1.id, student2.id]},
+    )
+    assert r.status_code == 200, (
+        f"Batch enroll must return 200, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: JSON response contains enrolled_count
+    assert "enrolled_count" in r.text, (
+        f"Response must contain 'enrolled_count'. Body: {r.text[:300]}"
+    )
+
+    # DB: exactly 2 active APPROVED enrollments created (transactional integrity)
+    test_db.expire_all()
+    enrollments = test_db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == sem.id,
+        SemesterEnrollment.is_active == True,
+    ).all()
+    assert len(enrollments) == 2, (
+        f"Exactly 2 active enrollments must exist, got {len(enrollments)}"
+    )
+    assert all(e.request_status == EnrollmentStatus.APPROVED for e in enrollments), (
+        "All batch-enrolled players must have APPROVED status"
+    )
+    assert all(e.payment_verified is True for e in enrollments), (
+        "All batch-enrolled players must have payment_verified=True (admin bypass)"
+    )
+
+
+def test_admin_team_bulk_enroll_creates_team_enrollments(test_db: Session, client: TestClient):
+    """F-56 (BATCH-02) — POST /admin/tournaments/{id}/teams/enroll-bulk → 2 TournamentTeamEnrollments.
+
+    POST /admin/tournaments/{id}/teams/enroll-bulk (admin, form team_ids) → 303 redirect
+    DB:  TournamentTeamEnrollment × 2 with is_active=True, payment_verified=True
+    UI:  "enrolled" in redirect Location header (flash message in URL)
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    uid = _uid()
+    sem = Semester(
+        code=f"BULK-{uid}",
+        name=f"Bulk Team Enroll Test {uid}",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=30),
+        status=SemesterStatus.ONGOING,
+        tournament_status="ENROLLMENT_OPEN",
+    )
+    test_db.add(sem)
+    test_db.flush()
+    team1 = Team(name=f"Bulk Team Alpha {uid}")
+    team2 = Team(name=f"Bulk Team Beta {uid}")
+    test_db.add_all([team1, team2])
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+    r = client.post(
+        f"/admin/tournaments/{sem.id}/teams/enroll-bulk",
+        data={"team_ids": [str(team1.id), str(team2.id)]},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, (
+        f"Team bulk-enroll must return 303, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: redirect URL contains "enrolled" flash message
+    assert "enrolled" in r.headers["location"], (
+        f"Redirect URL must contain 'enrolled'. Location: {r.headers.get('location', '')}"
+    )
+
+    # DB: 2 active TournamentTeamEnrollments with payment_verified=True (admin bypass)
+    test_db.expire_all()
+    enrollments = test_db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == sem.id,
+        TournamentTeamEnrollment.is_active == True,
+    ).all()
+    assert len(enrollments) == 2, (
+        f"Exactly 2 team enrollments must exist, got {len(enrollments)}"
+    )
+    assert all(e.payment_verified is True for e in enrollments), (
+        "All bulk-enrolled teams must have payment_verified=True"
     )

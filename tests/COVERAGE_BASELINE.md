@@ -1,5 +1,5 @@
 # E2E Coverage Baseline — Practice Booking System
-**Last updated: 2026-04-16 | Branch: fix/e2e-ops-seed-1024 | Sprint 5**
+**Last updated: 2026-04-16 | Branch: fix/e2e-ops-seed-1024 | Sprint 6**
 
 ---
 
@@ -14,8 +14,8 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Metric | Value |
 |--------|-------|
-| Total defined flows | **51** |
-| Covered (all 3 layers) | **51** |
+| Total defined flows | **56** |
+| Covered (all 3 layers) | **56** |
 | Not Covered | **0** |
 | **Coverage KPI** | **100%** |
 | Sprint 1 additions | +5 flows (F-03, F-14, F-15, F-16, F-29) |
@@ -23,6 +23,7 @@ A flow is COVERED only when ALL 3 layers are proven:
 | Sprint 3 additions | +2 flows (F-41, F-42) |
 | Sprint 4 additions | +4 flows (F-43, F-44, F-45, F-46) — Instructor domain |
 | Sprint 5 additions | +5 flows (F-47, F-48, F-49, F-50, F-51) — Communications domain |
+| Sprint 6 additions | +5 flows (F-52, F-53, F-54, F-55, F-56) — Admin Operations domain |
 
 ---
 
@@ -45,10 +46,10 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Suite | Count |
 |-------|-------|
-| `tests/integration/web_flows/` | **575** (41 files) |
+| `tests/integration/web_flows/` | **580** (41 files) |
 | `tests/integration/api_smoke/` | **1,741** |
 | Cypress (`cypress/e2e/`) | **13** (4 files) |
-| **Total** | **2,329** |
+| **Total** | **2,334** |
 
 ---
 
@@ -114,6 +115,11 @@ A flow is COVERED only when ALL 3 layers are proven:
 | F-49 | Notifications read-all (POST → 303) → all Notification.is_read=True | ✅ | ✅ | ✅ | **COVERED** | test_notifications_read_all_marks_all_read |
 | F-50 | Notification single read (POST → 200 JSON) → Notification.is_read=True | ✅ | ✅ | ✅ | **COVERED** | test_notification_single_read_updates_state |
 | F-51 | Inbox user separation: recipient sees unread subject, sender row absent | ✅ | ✅ | ✅ | **COVERED** | test_messages_inbox_shows_unread_for_recipient |
+| F-52 | Admin invoice verify → InvoiceRequest.status="verified" + User.credit_balance += amount + CreditTransaction(PURCHASE) | ✅ | ✅ | ✅ | **COVERED** | test_admin_invoice_verify_credits_student |
+| F-53 | Admin invoice cancel → InvoiceRequest.status="cancelled"; credit_balance unchanged | ✅ | ✅ | ✅ | **COVERED** | test_admin_invoice_cancel_sets_cancelled_status |
+| F-54 | Admin invoice unverify → status reverts to "pending", verified_at=None, credit_balance -= amount + CreditTransaction(REFUND) | ✅ | ✅ | ✅ | **COVERED** | test_admin_invoice_unverify_reverts_credits |
+| F-55 | Admin player batch-enroll → SemesterEnrollment × N (APPROVED, payment_verified=True, is_active=True) | ✅ | ✅ | ✅ | **COVERED** | test_admin_batch_enroll_players_creates_enrollments |
+| F-56 | Admin team bulk-enroll → TournamentTeamEnrollment × N (is_active=True, payment_verified=True) → 303 | ✅ | ✅ | ✅ | **COVERED** | test_admin_team_bulk_enroll_creates_team_enrollments |
 
 ---
 
