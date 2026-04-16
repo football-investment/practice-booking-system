@@ -759,6 +759,29 @@ async def admin_delete_tournament(
     if not t:
         return RedirectResponse(url="/admin/tournaments?error=Tournament+not+found", status_code=303)
 
+    # MF-02 guard: block delete when enrollments exist to prevent silent credit loss.
+    # Individual enrollments (SemesterEnrollment) have credits already deducted;
+    # team enrollments (TournamentTeamEnrollment) have captain credits already deducted.
+    # Use Cancel (which processes refunds) instead of Delete in these cases.
+    ind_count = db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.semester_id == tournament_id,
+        SemesterEnrollment.is_active == True,
+    ).count()
+    team_count = db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tournament_id,
+        TournamentTeamEnrollment.is_active == True,
+    ).count()
+    total_enrollments = ind_count + team_count
+    if total_enrollments > 0:
+        return RedirectResponse(
+            url=(
+                f"/admin/tournaments/{tournament_id}/edit"
+                f"?error=Cannot+delete:+{total_enrollments}+active+enrollment(s)+exist."
+                f"+Use+Cancel+to+process+refunds+first."
+            ),
+            status_code=303,
+        )
+
     code = t.code
     db.delete(t)
     db.commit()
