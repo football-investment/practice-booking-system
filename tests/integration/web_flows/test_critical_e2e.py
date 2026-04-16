@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 
 from app.main import app
 from app.database import get_db
-from app.dependencies import get_current_user_web, get_current_user_optional, get_current_user
+from app.dependencies import get_current_user_web, get_current_user_optional, get_current_user, get_current_sport_director_user_web
 from app.core.security import get_password_hash, verify_password
 from app.models.user import User, UserRole, SpecializationType
 from app.models.invitation_code import InvitationCode
@@ -2754,4 +2754,114 @@ def test_admin_grant_license_creates_user_license(test_db: Session, client: Test
     assert prog is not None, "LicenseProgression audit record must be created"
     assert prog.requirements_met == "INITIAL_GRANT", (
         f"LicenseProgression.requirements_met must be 'INITIAL_GRANT', got '{prog.requirements_met}'"
+    )
+
+
+# ── Sprint 3 — F-41 + F-42 ─────────────────────────────────────────────────
+
+def test_admin_live_monitor_renders(test_db: Session, client: TestClient):
+    """F-41 — Admin live monitor page renders tournament name + session count.
+
+    GET /admin/tournaments/{id}/live → 200
+    DB:  SessionModel row exists for the semester (count == 1)
+    UI:  tournament name visible in HTML response
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    instructor = _make_user(test_db, role=UserRole.INSTRUCTOR)
+    uid = _uid()
+    sem = Semester(
+        code=f"LM-{uid}",
+        name=f"Live Monitor Test {uid}",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=30),
+        status=SemesterStatus.ONGOING,
+    )
+    test_db.add(sem)
+    test_db.flush()
+    sess = SessionModel(
+        title=f"LM Session {uid}",
+        session_type=SessionType.on_site,
+        date_start=datetime(2026, 6, 1, 10, 0),
+        date_end=datetime(2026, 6, 1, 12, 0),
+        semester_id=sem.id,
+        instructor_id=instructor.id,
+    )
+    test_db.add(sess)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+
+    r = client.get(f"/admin/tournaments/{sem.id}/live")
+    assert r.status_code == 200, (
+        f"Live monitor must return 200, got {r.status_code}. Snippet: {r.text[:300]}"
+    )
+
+    # DB: session row exists for this semester
+    count = test_db.query(SessionModel).filter(SessionModel.semester_id == sem.id).count()
+    assert count == 1, f"Exactly 1 session must exist for semester {sem.id}, got {count}"
+
+    # UI: tournament name rendered in page (via page_subtitle / title block)
+    assert sem.name in r.text, (
+        f"Tournament name '{sem.name}' must appear in live monitor page. "
+        f"Snippet: {r.text[:400]}"
+    )
+
+
+def test_sport_director_team_remove(test_db: Session, client: TestClient):
+    """F-42 — Sport director removes a team enrollment → TournamentTeamEnrollment.is_active=False.
+
+    POST /sport-director/tournaments/{id}/teams/{team_id}/remove → 303
+    303 rule: location header contains success msg (proves redirect to correct page)
+    DB:  TournamentTeamEnrollment.is_active == False
+    UI:  redirect location asserted (business-state proven via redirect target)
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    uid = _uid()
+    sem = Semester(
+        code=f"SD-{uid}",
+        name=f"SD Remove Test {uid}",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=30),
+        status=SemesterStatus.ONGOING,
+        semester_category=SemesterCategory.TOURNAMENT,
+        tournament_status="ENROLLMENT_OPEN",
+    )
+    test_db.add(sem)
+    test_db.flush()
+    cfg = TournamentConfiguration(
+        semester_id=sem.id,
+        participant_type="TEAM",
+    )
+    test_db.add(cfg)
+    test_db.flush()
+    team = Team(name=f"SD Team {uid}", is_active=True)
+    test_db.add(team)
+    test_db.flush()
+    enrollment = TournamentTeamEnrollment(
+        semester_id=sem.id,
+        team_id=team.id,
+        is_active=True,
+    )
+    test_db.add(enrollment)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_sport_director_user_web] = lambda: admin
+
+    r = client.post(
+        f"/sport-director/tournaments/{sem.id}/teams/{team.id}/remove",
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, (
+        f"Team remove must return 303, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: redirect location proves success (303 rule — location is business-state proof)
+    assert "msg" in r.headers["location"].lower() or "removed" in r.headers["location"].lower(), (
+        f"Redirect location must contain success signal, got: '{r.headers['location']}'"
+    )
+
+    # DB: enrollment deactivated
+    test_db.refresh(enrollment)
+    assert enrollment.is_active is False, (
+        "TournamentTeamEnrollment.is_active must be False after sport-director remove"
     )

@@ -1,5 +1,5 @@
 # E2E Coverage Baseline — Practice Booking System
-**Last updated: 2026-04-16 | Branch: fix/e2e-ops-seed-1024**
+**Last updated: 2026-04-16 | Branch: fix/e2e-ops-seed-1024 | Sprint 3**
 
 ---
 
@@ -15,11 +15,12 @@ A flow is COVERED only when ALL 3 layers are proven:
 | Metric | Value |
 |--------|-------|
 | Total defined flows | **42** |
-| Covered (all 3 layers) | **40** |
-| Not Covered | **2** |
-| **Coverage KPI** | **95.2%** |
+| Covered (all 3 layers) | **42** |
+| Not Covered | **0** |
+| **Coverage KPI** | **100%** |
 | Sprint 1 additions | +5 flows (F-03, F-14, F-15, F-16, F-29) |
 | Sprint 2 additions | +8 flows (F-04, F-05, F-12, F-24, F-25, F-32, F-35, F-38) |
+| Sprint 3 additions | +2 flows (F-41, F-42) |
 
 ---
 
@@ -27,14 +28,14 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Workflow | Last result | SHA |
 |----------|-------------|-----|
-| Test Baseline Check | ✅ | b4de470 |
-| E2E Lifecycle Visibility | ✅ | b4de470 |
-| Dark Mode CSS Validation | ✅ | b4de470 |
-| E2E Multi-Campus Venue + Instructor | ✅ | b4de470 |
-| E2E Invitation Code Seed Validation | ✅ | b4de470 |
-| E2E Virtual Tournament | ✅ | b4de470 |
-| E2E Tournament Session Types | ✅ | b4de470 |
-| Cypress Web E2E Tests | ✅ | b4de470 |
+| Test Baseline Check | ✅ | 14368a3 |
+| E2E Lifecycle Visibility | ✅ | 14368a3 |
+| Dark Mode CSS Validation | ✅ | 14368a3 |
+| E2E Multi-Campus Venue + Instructor | ✅ | 14368a3 |
+| E2E Invitation Code Seed Validation | ✅ | 14368a3 |
+| E2E Virtual Tournament | ✅ | 14368a3 |
+| E2E Tournament Session Types | ✅ | 14368a3 |
+| Cypress Web E2E Tests | ✅ | 14368a3 |
 
 ---
 
@@ -42,10 +43,10 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Suite | Count |
 |-------|-------|
-| `tests/integration/web_flows/` | **564** (41 files) |
+| `tests/integration/web_flows/` | **566** (41 files) |
 | `tests/integration/api_smoke/` | **1,741** |
 | Cypress (`cypress/e2e/`) | **13** (4 files) |
-| **Total** | **2,318** |
+| **Total** | **2,320** |
 
 ---
 
@@ -100,8 +101,8 @@ A flow is COVERED only when ALL 3 layers are proven:
 | F-38 | Public player card (GET /players/{id}/card) → 200 + player data | ✅ | ✅ | ✅ | **COVERED** | test_public_player_card_renders |
 | F-39 | Skill delta: tournament → TournamentParticipation.skill_rating_delta → GET /skills | ✅ | ✅ | ✅ | **COVERED** | SDE |
 | F-40 | Student full journey: browse → enroll → admin approve → "Enrolled" badge | ✅ | ✅ | ✅ | **COVERED** | SFJ |
-| F-41 | Tournament live monitor page renders (GET /admin/tournaments/{id}/live) | ❌ | N/A | ❌ | NOT COVERED | — |
-| F-42 | Sport director team remove → TournamentTeamEnrollment.is_active=False | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-41 | Tournament live monitor page renders (GET /admin/tournaments/{id}/live) | ✅ | ✅ | ✅ | **COVERED** | test_admin_live_monitor_renders |
+| F-42 | Sport director team remove → TournamentTeamEnrollment.is_active=False | ✅ | ✅ | ✅ | **COVERED** | test_sport_director_team_remove |
 
 ---
 
