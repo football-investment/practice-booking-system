@@ -21,7 +21,7 @@ Four gates. A/B/C required. D optional (future layer). All required gates satisf
 |------|-----------|----------|--------|
 | **Gate A** | pytest CI conclusion = `success` | `gh run view 24533537667 --json conclusion` | ✅ |
 | **Gate B** | 59 test_critical_e2e.py nodeids in log AND 0 failed | `wc -l` = 59; `7766 passed, 2 skipped, 21 xfailed, 1 xpassed` | ✅ |
-| **Gate C** | Cypress E2E suite — all 5 jobs pass, 0 skipped | `gh run list --workflow=cypress-web-e2e.yml --branch=main --limit=1` | ✅ (post-fix) |
+| **Gate C** | Cypress E2E suite — all 5 jobs pass, 0 skipped | run `24538022311` — SHA `0d74407` — 5/5 success, 0 skipped | ✅ |
 | **Gate D** | JUnit XML + per-assertion runtime values | NOT YET AVAILABLE — RFC-001 backlog | 🔵 optional |
 
 **pytest run:** **`24533537667`** — SHA `3138f5b` — 2026-04-16T20:56Z — 24/24 jobs ✅

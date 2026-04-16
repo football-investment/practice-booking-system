@@ -71,8 +71,8 @@ All are independently verifiable from GitHub Actions artifacts.
 | Tolerance | 0 failed jobs; 0 skipped jobs |
 | Evidence source | `gh run list --workflow=cypress-web-e2e.yml --branch=main --limit=1 --json databaseId,conclusion` |
 | Status at freeze (pre-fix) | ⚠️ PARTIAL — 4/5 jobs passed; `cypress-web-integration` was SKIPPED (PR-only condition) |
-| Status after fix | ✅ REQUIRED — `cypress-web-e2e.yml` line 138 amended; `push` events now trigger integration job |
-| Fix SHA | see commit after this amendment |
+| Status after fix | ✅ SATISFIED — run `24538022311` on SHA `0d74407`; all 5 jobs success, 0 skipped |
+| Fix SHA | `0d74407` — commit `fix(ci): add Cypress E2E as required Gate C in release gate` |
 
 **Gap that was present:** `cypress-web-integration` had `if: github.event_name == 'pull_request'` — the cross-role full student lifecycle Cypress test was never executed on push to main. Fixed by extending the condition to `if: github.event_name == 'pull_request' || github.event_name == 'push'`.
 
