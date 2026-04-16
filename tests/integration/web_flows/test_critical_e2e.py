@@ -40,7 +40,7 @@ from app.core.security import get_password_hash, verify_password
 from app.models.user import User, UserRole, SpecializationType
 from app.models.invitation_code import InvitationCode
 from app.models.tournament_instructor_slot import TournamentInstructorSlot
-from app.models.license import UserLicense
+from app.models.license import UserLicense, LicenseProgression
 from app.models.semester import Semester, SemesterStatus, SemesterCategory
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.tournament_configuration import TournamentConfiguration
@@ -51,6 +51,7 @@ from app.models.quiz import (
     QuizQuestion,
     QuizAnswerOption,
     QuizAttempt,
+    QuizUserAnswer,
     SessionQuiz,
     QuizCategory,
     QuizDifficulty,
@@ -58,7 +59,7 @@ from app.models.quiz import (
 )
 from app.models.credit_transaction import CreditTransaction
 from app.models.tournament_achievement import TournamentParticipation
-from app.models.team import Team, TeamMember, TournamentTeamEnrollment
+from app.models.team import Team, TeamMember, TournamentTeamEnrollment, TeamInvite, TeamInviteStatus
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -2270,4 +2271,487 @@ def test_admin_deduct_credit(test_db: Session, client: TestClient):
     )
     assert "ADMIN" in tx.transaction_type.upper(), (
         f"CreditTransaction.transaction_type must contain 'ADMIN', got '{tx.transaction_type}'"
+    )
+
+
+# ── Sprint 2 — MEDIUM gaps (F-04, F-05, F-12, F-24, F-25, F-32, F-35, F-38) ──
+
+
+def test_team_create_by_captain(test_db: Session, client: TestClient):
+    """F-24 — Captain creates team in TEAM tournament → Team + TeamMember(CAPTAIN) created.
+
+    POST /tournaments/{id}/team/create (Form: name) → 303
+    303 rule: GET /teams/{team_id} → 200, team name visible
+    DB: Team.captain_user_id==captain.id, TeamMember.role=='CAPTAIN'
+    """
+    uid = _uid()
+    captain = _make_user(test_db)
+    team_name = f"E2E Team {uid}"
+
+    sem = Semester(
+        code=f"TCC-{uid}", name=f"Team Tournament {uid}",
+        start_date=date(2025, 1, 1), end_date=date(2025, 12, 31),
+        status=SemesterStatus.ONGOING, semester_category=SemesterCategory.TOURNAMENT,
+    )
+    test_db.add(sem)
+    test_db.flush()
+
+    cfg = TournamentConfiguration(
+        semester_id=sem.id,
+        participant_type="TEAM",
+        team_enrollment_cost=0,  # free → no credit deduction
+    )
+    test_db.add(cfg)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: captain
+
+    # HTTP: POST → 303
+    r_create = client.post(
+        f"/tournaments/{sem.id}/team/create",
+        data={"name": team_name},
+        follow_redirects=False,
+    )
+    assert r_create.status_code == 303, (
+        f"Team create must return 303, got {r_create.status_code}"
+    )
+
+    # 303 rule: GET team dashboard
+    redirect_url = r_create.headers["location"]
+    r_team = client.get(redirect_url.split("?")[0])
+    assert r_team.status_code == 200, (
+        f"Team dashboard must return 200, got {r_team.status_code}"
+    )
+    assert team_name in r_team.text, (
+        f"Team name '{team_name}' must appear on team dashboard"
+    )
+
+    # DB: Team created with correct captain
+    test_db.expire_all()
+    team = test_db.query(Team).filter(Team.captain_user_id == captain.id).first()
+    assert team is not None, "Team row must be created"
+    assert team.name == team_name
+
+    # DB: Captain is CAPTAIN member
+    member = test_db.query(TeamMember).filter(
+        TeamMember.team_id == team.id,
+        TeamMember.user_id == captain.id,
+    ).first()
+    assert member is not None, "TeamMember(CAPTAIN) must be created"
+    assert member.role == "CAPTAIN", f"Expected role CAPTAIN, got {member.role}"
+
+
+def test_team_invite_accept_adds_member(test_db: Session, client: TestClient):
+    """F-25 — Captain invites player → player accepts → TeamMember(PLAYER) created.
+
+    POST /teams/{id}/invite (Form: invited_user_id) → 303
+    POST /teams/invites/{id}/accept → 303
+    303 rule: GET /teams/invites → 200
+    DB: TeamInvite.status==ACCEPTED, TeamMember.role=='PLAYER'
+    UI: GET /teams/{id} → invited.name visible on team dashboard
+    """
+    uid = _uid()
+    captain = _make_user(test_db)
+    invited = _make_user(test_db)
+
+    # Create team directly in DB (skip service to avoid tournament dependency)
+    team = Team(
+        name=f"Invite Team {uid}",
+        captain_user_id=captain.id,
+        specialization_type="TEAM",
+        is_active=True,
+    )
+    test_db.add(team)
+    test_db.flush()
+    test_db.add(TeamMember(team_id=team.id, user_id=captain.id, role="CAPTAIN", is_active=True))
+    test_db.flush()
+
+    # STEP 1: Captain invites player
+    app.dependency_overrides[get_current_user_web] = lambda: captain
+    r_invite = client.post(
+        f"/teams/{team.id}/invite",
+        data={"invited_user_id": str(invited.id)},
+        follow_redirects=False,
+    )
+    assert r_invite.status_code == 303, (
+        f"Invite must return 303, got {r_invite.status_code}"
+    )
+
+    # DB: TeamInvite created with PENDING status
+    test_db.expire_all()
+    invite = test_db.query(TeamInvite).filter(
+        TeamInvite.team_id == team.id,
+        TeamInvite.invited_user_id == invited.id,
+    ).first()
+    assert invite is not None, "TeamInvite row must be created"
+    assert invite.status == TeamInviteStatus.PENDING.value
+
+    # STEP 2: Invited user accepts
+    app.dependency_overrides[get_current_user_web] = lambda: invited
+    r_accept = client.post(
+        f"/teams/invites/{invite.id}/accept",
+        follow_redirects=False,
+    )
+    assert r_accept.status_code == 303, (
+        f"Accept must return 303, got {r_accept.status_code}"
+    )
+
+    # 303 rule: GET /teams/invites (redirect target)
+    r_invites = client.get("/teams/invites")
+    assert r_invites.status_code == 200, (
+        f"Invites page must return 200, got {r_invites.status_code}"
+    )
+
+    # DB: TeamMember(PLAYER) created
+    test_db.expire_all()
+    member = test_db.query(TeamMember).filter(
+        TeamMember.team_id == team.id,
+        TeamMember.user_id == invited.id,
+    ).first()
+    assert member is not None, "TeamMember(PLAYER) must be created after accept"
+    assert member.role == "PLAYER", f"Expected role PLAYER, got {member.role}"
+
+    # UI: captain's team dashboard shows invited player's name
+    app.dependency_overrides[get_current_user_web] = lambda: captain
+    r_team = client.get(f"/teams/{team.id}")
+    assert r_team.status_code == 200
+    assert invited.name in r_team.text, (
+        f"Invited player '{invited.name}' must appear on team dashboard"
+    )
+
+
+def test_specialization_switch_updates_active_spec(test_db: Session, client: TestClient):
+    """F-04 — Student switches active specialization → User.specialization updated.
+
+    POST /specialization/switch (Form: specialization=LFA_COACH) → 303
+    303 rule: GET /dashboard → 200
+    DB: user.specialization == SpecializationType.LFA_COACH
+    UI: GET /profile → 'ACTIVE: LFA Coach' visible
+    """
+    student = _make_user(test_db)
+
+    # Grant both specialization licenses
+    lic_player = UserLicense(
+        user_id=student.id, specialization_type="LFA_FOOTBALL_PLAYER",
+        is_active=True, started_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+    lic_coach = UserLicense(
+        user_id=student.id, specialization_type="LFA_COACH",
+        is_active=True, started_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+    test_db.add_all([lic_player, lic_coach])
+    student.specialization = SpecializationType.LFA_FOOTBALL_PLAYER
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # HTTP: POST → 303
+    r_switch = client.post(
+        "/specialization/switch",
+        data={"specialization": "LFA_COACH"},
+        follow_redirects=False,
+    )
+    assert r_switch.status_code == 303, (
+        f"Spec switch must return 303, got {r_switch.status_code}"
+    )
+
+    # 303 rule: GET redirect target (dashboard)
+    r_dash = client.get(r_switch.headers["location"])
+    assert r_dash.status_code == 200, (
+        f"Dashboard must return 200 after spec switch, got {r_dash.status_code}"
+    )
+
+    # DB: user.specialization updated to LFA_COACH
+    test_db.expire_all()
+    test_db.refresh(student)
+    assert student.specialization == SpecializationType.LFA_COACH, (
+        f"user.specialization must be LFA_COACH, got {student.specialization}"
+    )
+
+    # UI: profile page shows "ACTIVE: LFA Coach" for switched specialization
+    r_profile = client.get("/profile")
+    assert r_profile.status_code == 200
+    assert "LFA Coach" in r_profile.text, (
+        f"Profile must show 'LFA Coach' as active specialization. "
+        f"Snippet: {r_profile.text[:500]}"
+    )
+
+
+def test_quiz_attempt_review_renders_score(test_db: Session, client: TestClient):
+    """F-12 — Completed quiz attempt review page renders quiz title and score.
+
+    GET /quizzes/attempts/{id}/review → 200
+    UI: quiz title visible in HTML
+    DB: attempt.completed_at IS NOT NULL, attempt.passed == True
+    """
+    uid = _uid()
+    student = _make_user(test_db)
+    quiz_title = f"E2E Quiz {uid}"
+
+    # Create quiz → question → answer option
+    quiz = Quiz(
+        title=quiz_title,
+        category=QuizCategory.GENERAL,
+        difficulty=QuizDifficulty.EASY,
+    )
+    test_db.add(quiz)
+    test_db.flush()
+
+    question = QuizQuestion(
+        quiz_id=quiz.id,
+        question_text="What is 2 + 2?",
+        question_type=QuestionType.MULTIPLE_CHOICE,
+        order_index=0,
+    )
+    test_db.add(question)
+    test_db.flush()
+
+    opt_correct = QuizAnswerOption(
+        question_id=question.id,
+        option_text="4",
+        is_correct=True,
+        order_index=0,
+    )
+    test_db.add(opt_correct)
+    test_db.flush()
+
+    # Completed attempt: 100% score, passed
+    attempt = QuizAttempt(
+        quiz_id=quiz.id,
+        user_id=student.id,
+        started_at=datetime.utcnow() - timedelta(minutes=5),
+        completed_at=datetime.utcnow(),
+        total_questions=1,
+        correct_answers=1,
+        score=100.0,
+        passed=True,
+        xp_awarded=50,
+    )
+    test_db.add(attempt)
+    test_db.flush()
+
+    test_db.add(QuizUserAnswer(
+        attempt_id=attempt.id,
+        question_id=question.id,
+        selected_option_id=opt_correct.id,
+        is_correct=True,
+    ))
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # HTTP: GET → 200
+    r = client.get(f"/quizzes/attempts/{attempt.id}/review")
+    assert r.status_code == 200, (
+        f"Quiz review page must return 200, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: quiz title visible
+    assert quiz_title in r.text, (
+        f"Quiz title '{quiz_title}' must appear on review page"
+    )
+
+    # DB: attempt is completed and passed
+    test_db.expire_all()
+    test_db.refresh(attempt)
+    assert attempt.completed_at is not None, "attempt.completed_at must be set"
+    assert attempt.passed is True, "attempt.passed must be True"
+
+
+def test_admin_booking_confirm_updates_status(test_db: Session, client: TestClient):
+    """F-35 — Admin confirms booking → Booking.status = CONFIRMED.
+
+    POST /admin/bookings/{id}/confirm → 200 JSON {"success": true}
+    UI: "Booking confirmed" in response body
+    DB: booking.status == BookingStatus.CONFIRMED
+    """
+    uid = _uid()
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db)
+    instructor = _make_user(test_db, role=UserRole.INSTRUCTOR)
+
+    sem = Semester(
+        code=f"BKC-{uid}", name=f"Booking Confirm {uid}",
+        start_date=date(2025, 1, 1), end_date=date(2025, 12, 31),
+        status=SemesterStatus.ONGOING, semester_category=SemesterCategory.TOURNAMENT,
+    )
+    test_db.add(sem)
+    test_db.flush()
+
+    sess = SessionModel(
+        title=f"Session BKC {uid}",
+        session_type=SessionType.on_site,
+        date_start=datetime(2026, 12, 31, 10, 0),
+        date_end=datetime(2026, 12, 31, 12, 0),
+        semester_id=sem.id,
+        instructor_id=instructor.id,
+    )
+    test_db.add(sess)
+    test_db.flush()
+
+    booking = Booking(
+        user_id=student.id,
+        session_id=sess.id,
+        status=BookingStatus.PENDING,
+    )
+    test_db.add(booking)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+
+    # HTTP: POST → 200 (JSON endpoint, not redirect)
+    r = client.post(f"/admin/bookings/{booking.id}/confirm")
+    assert r.status_code == 200, (
+        f"Admin booking confirm must return 200, got {r.status_code}"
+    )
+
+    # UI: JSON response contains confirmation message
+    assert "Booking confirmed" in r.text, (
+        f"Response must contain 'Booking confirmed'. Got: {r.text[:300]}"
+    )
+
+    # DB: booking status updated to CONFIRMED
+    test_db.expire_all()
+    test_db.refresh(booking)
+    assert booking.status == BookingStatus.CONFIRMED, (
+        f"booking.status must be CONFIRMED, got {booking.status}"
+    )
+
+
+def test_profile_edit_updates_name(test_db: Session, client: TestClient):
+    """F-05 — Student edits profile → User.name updated, new name visible on profile.
+
+    POST /profile/edit (Form: name, date_of_birth) → 303
+    303 rule: GET /profile → 200, new name visible
+    DB: user.name == new_name
+    """
+    student = _make_user(test_db)
+    new_name = f"Updated Name {_uid()}"
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # HTTP: POST → 303
+    r_edit = client.post(
+        "/profile/edit",
+        data={
+            "name": new_name,
+            "date_of_birth": "2000-06-15",  # valid age (25 years)
+        },
+        follow_redirects=False,
+    )
+    assert r_edit.status_code == 303, (
+        f"Profile edit must return 303, got {r_edit.status_code}"
+    )
+
+    # 303 rule: GET /profile
+    r_profile = client.get("/profile")
+    assert r_profile.status_code == 200, (
+        f"Profile page must return 200, got {r_profile.status_code}"
+    )
+
+    # UI: new name visible on profile page (proves business state)
+    assert new_name in r_profile.text, (
+        f"New name '{new_name}' must appear on profile page. "
+        f"Snippet: {r_profile.text[:500]}"
+    )
+
+    # DB: user.name updated
+    test_db.expire_all()
+    test_db.refresh(student)
+    assert student.name == new_name, (
+        f"User.name must be '{new_name}', got '{student.name}'"
+    )
+
+
+def test_public_player_card_renders(test_db: Session, client: TestClient):
+    """F-38 — Public player card (no auth) → 200, player name visible.
+
+    GET /players/{id}/card → 200 (public, no auth required)
+    UI: student.name visible on card
+    DB: UserLicense(LFA_FOOTBALL_PLAYER, is_active=True) confirmed in DB
+    """
+    student = _make_user(test_db)
+    lic = UserLicense(
+        user_id=student.id,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        is_active=True,
+        onboarding_completed=True,
+        started_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        football_skills={"ball_control": 70.0, "passing": 65.0, "shooting": 60.0},
+    )
+    test_db.add(lic)
+    test_db.flush()
+
+    # DB: confirm license exists and is active
+    test_db.refresh(lic)
+    assert lic.is_active is True
+
+    # No auth override — this is a public endpoint
+    # HTTP: GET → 200
+    r = client.get(f"/players/{student.id}/card")
+    assert r.status_code == 200, (
+        f"Public player card must return 200, got {r.status_code}. Body: {r.text[:300]}"
+    )
+
+    # UI: player name visible on public card
+    assert student.name in r.text, (
+        f"Player name '{student.name}' must appear on public card"
+    )
+
+
+def test_admin_grant_license_creates_user_license(test_db: Session, client: TestClient):
+    """F-32 — Admin grants license → UserLicense(is_active=True) + LicenseProgression audit.
+
+    POST /admin/users/{id}/grant-license (Form: specialization_type, reason) → 303
+    303 rule: GET /admin/users/{id}/edit → 200, 'LFA_FOOTBALL_PLAYER' visible
+    DB: UserLicense.is_active==True, LicenseProgression.requirements_met=='INITIAL_GRANT'
+    """
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    target = _make_user(test_db)  # no pre-existing licenses
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+
+    # HTTP: POST → 303
+    r_grant = client.post(
+        f"/admin/users/{target.id}/grant-license",
+        data={
+            "specialization_type": "LFA_FOOTBALL_PLAYER",
+            "reason": "E2E Sprint-2 F-32 license grant test",
+            "expires_at": "",  # perpetual (no expiry)
+        },
+        follow_redirects=False,
+    )
+    assert r_grant.status_code == 303, (
+        f"Grant license must return 303, got {r_grant.status_code}"
+    )
+
+    # 303 rule: GET /admin/users/{id}/edit (strip anchor #licenses)
+    redirect_url = r_grant.headers["location"]
+    r_edit = client.get(redirect_url.split("#")[0])
+    assert r_edit.status_code == 200, (
+        f"Admin user edit page must return 200, got {r_edit.status_code}"
+    )
+
+    # UI: specialization label visible on admin edit page
+    assert "LFA_FOOTBALL_PLAYER" in r_edit.text, (
+        f"'LFA_FOOTBALL_PLAYER' must appear on admin edit page after grant. "
+        f"Snippet: {r_edit.text[:600]}"
+    )
+
+    # DB: UserLicense created and active
+    test_db.expire_all()
+    lic = test_db.query(UserLicense).filter(
+        UserLicense.user_id == target.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    assert lic is not None, "UserLicense(LFA_FOOTBALL_PLAYER, is_active=True) must be created"
+
+    # DB: LicenseProgression audit record created
+    prog = test_db.query(LicenseProgression).filter(
+        LicenseProgression.user_license_id == lic.id,
+    ).first()
+    assert prog is not None, "LicenseProgression audit record must be created"
+    assert prog.requirements_met == "INITIAL_GRANT", (
+        f"LicenseProgression.requirements_met must be 'INITIAL_GRANT', got '{prog.requirements_met}'"
     )

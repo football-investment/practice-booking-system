@@ -1,5 +1,5 @@
 # E2E Coverage Baseline — Practice Booking System
-**Last updated: 2026-04-15 | Branch: fix/e2e-ops-seed-1024**
+**Last updated: 2026-04-16 | Branch: fix/e2e-ops-seed-1024**
 
 ---
 
@@ -15,9 +15,11 @@ A flow is COVERED only when ALL 3 layers are proven:
 | Metric | Value |
 |--------|-------|
 | Total defined flows | **42** |
-| Covered (all 3 layers) | **27** |
-| Not Covered | **15** |
-| **Coverage KPI** | **64.3%** |
+| Covered (all 3 layers) | **40** |
+| Not Covered | **2** |
+| **Coverage KPI** | **95.2%** |
+| Sprint 1 additions | +5 flows (F-03, F-14, F-15, F-16, F-29) |
+| Sprint 2 additions | +8 flows (F-04, F-05, F-12, F-24, F-25, F-32, F-35, F-38) |
 
 ---
 
@@ -25,14 +27,14 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Workflow | Last result | SHA |
 |----------|-------------|-----|
-| Test Baseline Check | ✅ | 2e1fb5f |
-| E2E Lifecycle Visibility | ✅ | 2e1fb5f |
-| Dark Mode CSS Validation | ✅ | 2e1fb5f |
-| E2E Multi-Campus Venue + Instructor | ✅ | 2e1fb5f |
-| E2E Invitation Code Seed Validation | ✅ | 2e1fb5f |
-| E2E Virtual Tournament | ✅ | 2e1fb5f |
-| E2E Tournament Session Types | ✅ | 2e1fb5f |
-| Cypress Web E2E Tests | ✅ | 2e1fb5f |
+| Test Baseline Check | ✅ | b4de470 |
+| E2E Lifecycle Visibility | ✅ | b4de470 |
+| Dark Mode CSS Validation | ✅ | b4de470 |
+| E2E Multi-Campus Venue + Instructor | ✅ | b4de470 |
+| E2E Invitation Code Seed Validation | ✅ | b4de470 |
+| E2E Virtual Tournament | ✅ | b4de470 |
+| E2E Tournament Session Types | ✅ | b4de470 |
+| Cypress Web E2E Tests | ✅ | b4de470 |
 
 ---
 
@@ -40,10 +42,10 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Suite | Count |
 |-------|-------|
-| `tests/integration/web_flows/` | **552** (41 files) |
+| `tests/integration/web_flows/` | **564** (41 files) |
 | `tests/integration/api_smoke/` | **1,741** |
 | Cypress (`cypress/e2e/`) | **13** (4 files) |
-| **Total** | **2,306** |
+| **Total** | **2,318** |
 
 ---
 
@@ -60,20 +62,20 @@ A flow is COVERED only when ALL 3 layers are proven:
 |-----|------|------|-----|-----|--------|------|
 | F-01 | Login (POST /login → 303 → /dashboard) | ✅ | ✅ | ✅ | **COVERED** | test_login_success_redirects_to_dashboard |
 | F-02 | Register with invitation code → credit_balance set | ✅ | ✅ | ✅ | **COVERED** | ICR |
-| F-03 | LFA player onboarding → UserLicense.onboarding_completed=True | ❌ | ❌ | ❌ | NOT COVERED | — |
-| F-04 | Specialization switch → UserLicense.specialization_type changed | ❌ | ❌ | ❌ | NOT COVERED | — |
-| F-05 | Profile edit → User.first_name updated | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-03 | LFA player onboarding → UserLicense.onboarding_completed=True | ✅ | ✅ | ✅ | **COVERED** | test_lfa_player_onboarding_creates_license |
+| F-04 | Specialization switch → UserLicense.specialization_type changed | ✅ | ✅ | ✅ | **COVERED** | test_specialization_switch_updates_active_spec |
+| F-05 | Profile edit → User.first_name updated | ✅ | ✅ | ✅ | **COVERED** | test_profile_edit_updates_name |
 | F-06 | Quiz fail → retry → pass → QuizAttempt.passed=True (best score) | ✅ | ✅ | ✅ | **COVERED** | QRB |
 | F-07 | Quiz no booking → 403 enrollment gate | ✅ | ✅ | ✅ | **COVERED** | QEG |
 | F-08 | Quiz max attempts → "No More Attempts" UI state | ✅ | ✅ | ✅ | **COVERED** | QAL |
 | F-09 | Quiz interrupted → same attempt_id resumed | ✅ | ✅ | ✅ | **COVERED** | QIS |
 | F-10 | Quiz UI state machine: no attempt→Start / fail→Retry / pass→PASSED | ✅ | N/A | ✅ | **COVERED** | QPG |
 | F-11 | Quiz pass → XP awarded → UserStats.total_xp updated | ✅ | ✅ | ✅ | **COVERED** | GAP-06 |
-| F-12 | Quiz attempt review page renders attempt data | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-12 | Quiz attempt review page renders attempt data | ✅ | ✅ | ✅ | **COVERED** | test_quiz_attempt_review_renders_score |
 | F-13 | Session capacity=1 + 1 existing booking → POST /api/v1/bookings/ → WAITLISTED | ✅ | ✅ | ✅ | **COVERED** | GAP-07 |
-| F-14 | Instructor: POST /start → Session.actual_start_time IS NOT NULL | ❌ | ❌ | ❌ | NOT COVERED | — |
-| F-15 | Instructor: POST /stop → Session.actual_end_time IS NOT NULL | ❌ | ❌ | ❌ | NOT COVERED | — |
-| F-16 | Attendance mark → Attendance(status=present) row created | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-14 | Instructor: POST /start → Session.actual_start_time IS NOT NULL | ✅ | ✅ | ✅ | **COVERED** | test_instructor_session_start_stop |
+| F-15 | Instructor: POST /stop → Session.actual_end_time IS NOT NULL | ✅ | ✅ | ✅ | **COVERED** | test_instructor_session_start_stop |
+| F-16 | Attendance mark → Attendance(status=present) row created | ✅ | ✅ | ✅ | **COVERED** | test_attendance_mark_creates_record |
 | F-17 | Credit history visible after transaction ("Credit balance: X") | ✅ | ✅ | ✅ | **COVERED** | CDE, GAP-02, GAP-04 |
 | F-18 | Browse filter: ?status=open → only ENROLLMENT_OPEN cards | ✅ | N/A | ✅ | **COVERED** | BF-CY-01..04 |
 | F-19 | Tournament IND enroll → credit_balance -= cost → CreditTransaction | ✅ | ✅ | ✅ | **COVERED** | CDE |
@@ -81,21 +83,21 @@ A flow is COVERED only when ALL 3 layers are proven:
 | F-21 | Tournament cancel → 100% refund → CreditTransaction(REFUND, amount=full) | ✅ | ✅ | ✅ | **COVERED** | GAP-01 |
 | F-22 | Tournament enroll → admin rejection → credit_balance unchanged | ✅ | ✅ | ✅ | **COVERED** | GAP-03 |
 | F-23 | TEAM tournament enroll → captain UserLicense.credit_balance -= cost | ✅ | ✅ | ✅ | **COVERED** | GAP-02 |
-| F-24 | Team create (captain) → Team + TeamMember(CAPTAIN) rows | ❌ | ❌ | ❌ | NOT COVERED | — |
-| F-25 | Team invite → accept → TeamMember added | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-24 | Team create (captain) → Team + TeamMember(CAPTAIN) rows | ✅ | ✅ | ✅ | **COVERED** | test_team_create_by_captain |
+| F-25 | Team invite → accept → TeamMember added | ✅ | ✅ | ✅ | **COVERED** | test_team_invite_accept_adds_member |
 | F-26 | Camp enroll → auto-APPROVED → CreditTransaction(−cost) | ✅ | ✅ | ✅ | **COVERED** | CEE |
 | F-27 | Camp unenroll → 50% refund → SemesterEnrollment.is_active=False | ✅ | ✅ | ✅ | **COVERED** | CEE |
 | F-28 | Admin grant credit → User.credit_balance += amount + CreditTransaction | ✅ | ✅ | ✅ | **COVERED** | GAP-04 |
-| F-29 | Admin deduct credit → User.credit_balance -= amount + CreditTransaction | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-29 | Admin deduct credit → User.credit_balance -= amount + CreditTransaction | ✅ | ✅ | ✅ | **COVERED** | test_admin_deduct_credit |
 | F-30 | Admin license renewal → UserLicense.expires_at updated + LicenseProgression | ✅ | ✅ | ✅ | **COVERED** | GAP-05 |
 | F-31 | Admin license revoke → UserLicense.is_active=False + cascade SemesterEnrollment | ✅ | ✅ | ✅ | **COVERED** | LRC |
-| F-32 | Admin grant license → new UserLicense(is_active=True) created | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-32 | Admin grant license → new UserLicense(is_active=True) created | ✅ | ✅ | ✅ | **COVERED** | test_admin_grant_license_creates_user_license |
 | F-33 | Admin password reset → User.password_hash changed → new password valid | ✅ | ✅ | ✅ | **COVERED** | APR |
 | F-34 | Admin invitation code create → InvitationCode row + visible in /admin/invitation-codes | ✅ | ✅ | ✅ | **COVERED** | GAP-10 |
-| F-35 | Admin booking confirm → Booking.status=CONFIRMED | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-35 | Admin booking confirm → Booking.status=CONFIRMED | ✅ | ✅ | ✅ | **COVERED** | test_admin_booking_confirm_updates_status |
 | F-36 | Public event group standings → "GD" column in HTML | ✅ | N/A | ✅ | **COVERED** | GAP-08 |
 | F-37 | Public event knockout bracket section rendered | ✅ | N/A | ✅ | **COVERED** | GAP-09 |
-| F-38 | Public player card (GET /players/{id}/card) → 200 + player data | ❌ | N/A | ❌ | NOT COVERED | — |
+| F-38 | Public player card (GET /players/{id}/card) → 200 + player data | ✅ | ✅ | ✅ | **COVERED** | test_public_player_card_renders |
 | F-39 | Skill delta: tournament → TournamentParticipation.skill_rating_delta → GET /skills | ✅ | ✅ | ✅ | **COVERED** | SDE |
 | F-40 | Student full journey: browse → enroll → admin approve → "Enrolled" badge | ✅ | ✅ | ✅ | **COVERED** | SFJ |
 | F-41 | Tournament live monitor page renders (GET /admin/tournaments/{id}/live) | ❌ | N/A | ❌ | NOT COVERED | — |
