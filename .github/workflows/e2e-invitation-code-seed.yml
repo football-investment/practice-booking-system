@@ -13,14 +13,7 @@ name: E2E Invitation Code Seed Validation
 
 on:
   push:
-    branches: [main, develop, "feature/*", "fix/*"]
-    paths:
-      - 'scripts/bootstrap_clean.py'
-      - 'scripts/seed_comprehensive_demo.py'
-      - 'app/models/invitation_code.py'
-      - 'app/models/credit_transaction.py'
-      - 'alembic/versions/**'
-      - '.github/workflows/e2e-invitation-code-seed.yml'
+    branches: ["**"]  # no path filter — runs on every push to any branch
   pull_request:
     branches: [main]  # no path filter — runs on every PR to main
   workflow_dispatch:

@@ -10,18 +10,7 @@ name: E2E Virtual Tournament (Phase 1 — session_type_config=virtual)
 
 on:
   push:
-    branches: [main, develop, "feature/*", "fix/*"]
-    paths:
-      - 'app/services/tournament/session_generation/**'
-      - 'app/models/tournament_configuration.py'
-      - 'app/models/session.py'
-      - 'app/api/api_v1/endpoints/sessions/results.py'
-      - 'app/api/api_v1/endpoints/tournaments/lifecycle_updates.py'
-      - 'app/api/web_routes/public_tournament.py'
-      - 'alembic/versions/**'
-      - 'scripts/seed_virtual_demo.py'
-      - 'tests/integration/web_flows/test_virtual_tournament.py'
-      - '.github/workflows/e2e-virtual-tournament.yml'
+    branches: ["**"]  # no path filter — runs on every push to any branch
   pull_request:
     branches: [main]  # no path filter — runs on every PR to main
   workflow_dispatch:

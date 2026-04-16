@@ -1980,3 +1980,294 @@ def test_admin_create_invitation_code(test_db: Session, client: TestClient):
     assert code_str in r_list.text, (
         f"New invitation code {code_str} must appear in admin list. Snippet: {r_list.text[:600]}"
     )
+
+
+# ── Sprint 1: HIGH priority gaps (F-03, F-14/F-15, F-16, F-29) ────────────────
+
+
+def test_lfa_player_onboarding_creates_license(test_db: Session, client: TestClient):
+    """F-03 — LFA player onboarding web flow.
+
+    POST /specialization/lfa-player/onboarding-web (JSON) → 200 {"success": true}
+    DB: UserLicense.onboarding_completed = True, football_skills populated
+    UI (303 rule): GET /specialization/lfa-player/onboarding → 303 (page redirects
+         when already completed — proves business state)
+    """
+    from app.skills_config import get_all_skill_keys
+
+    student = _make_user(test_db)
+    # License with onboarding_completed=False (not yet done)
+    lic = UserLicense(
+        user_id=student.id,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        is_active=True,
+        onboarding_completed=False,
+        started_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        football_skills={},
+    )
+    test_db.add(lic)
+    test_db.flush()
+
+    all_skills = {k: 60 for k in get_all_skill_keys()}
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # HTTP: POST returns JSON 200 {"success": true}
+    r_submit = client.post(
+        "/specialization/lfa-player/onboarding-web",
+        json={
+            "position": "MIDFIELDER",
+            "goals": "improve",
+            "motivation": "E2E test",
+            "skills": all_skills,
+        },
+    )
+    assert r_submit.status_code == 200, (
+        f"Onboarding submit must return 200, got {r_submit.status_code}. Body: {r_submit.text[:300]}"
+    )
+    assert r_submit.json().get("success") is True, (
+        f"Response must contain success=true. Got: {r_submit.json()}"
+    )
+
+    # DB: onboarding_completed set, football_skills populated
+    test_db.expire_all()
+    test_db.refresh(lic)
+    assert lic.onboarding_completed is True, "UserLicense.onboarding_completed must be True after submit"
+    assert lic.football_skills, "UserLicense.football_skills must be non-empty after submit"
+    assert "ball_control" in lic.football_skills, (
+        "football_skills must contain 'ball_control' skill key"
+    )
+
+    # UI (303 rule): onboarding page now redirects to dashboard (proves completed state)
+    r_page = client.get("/specialization/lfa-player/onboarding", follow_redirects=False)
+    assert r_page.status_code == 303, (
+        f"Onboarding page must redirect (303) when already completed, got {r_page.status_code}. "
+        f"This proves onboarding_completed=True is enforced in the route guard."
+    )
+    assert "/dashboard" in r_page.headers.get("location", ""), (
+        f"Redirect target must be /dashboard, got: {r_page.headers.get('location')}"
+    )
+
+
+def test_instructor_session_start_stop(test_db: Session, client: TestClient):
+    """F-14 + F-15 — Instructor starts and stops a session.
+
+    POST /sessions/{id}/start → 303 → GET /sessions/{id}?success=session_started
+    DB: Session.actual_start_time IS NOT NULL, session_status = 'in_progress'
+    POST /sessions/{id}/stop  → 303 → GET /sessions/{id}?success=session_stopped
+    DB: Session.actual_end_time IS NOT NULL, session_status = 'completed'
+    UI: session detail page returns 200 with session title (proves page renders after start/stop)
+    """
+    from datetime import date as date_type
+    instructor = _make_user(test_db, role=UserRole.INSTRUCTOR)
+    uid = _uid()
+    sem = Semester(
+        code=f"INS-{uid}",
+        name=f"Instructor Session {uid}",
+        start_date=date_type.today(),
+        end_date=date_type.today() + timedelta(days=30),
+        status=SemesterStatus.ONGOING,
+    )
+    test_db.add(sem)
+    test_db.flush()
+    sess = SessionModel(
+        title=f"E2E OnSite {uid}",
+        session_type=SessionType.on_site,
+        date_start=datetime(2026, 12, 31, 10, 0),
+        date_end=datetime(2026, 12, 31, 12, 0),
+        semester_id=sem.id,
+        instructor_id=instructor.id,
+    )
+    test_db.add(sess)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: instructor
+
+    # ── START ──
+    # HTTP: POST → 303
+    r_start = client.post(f"/sessions/{sess.id}/start", follow_redirects=False)
+    assert r_start.status_code == 303, (
+        f"POST /sessions/{sess.id}/start must return 303, got {r_start.status_code}"
+    )
+    # 303 rule: GET redirect target
+    r_detail = client.get(r_start.headers["location"])
+    assert r_detail.status_code == 200, (
+        f"Session detail after start must return 200, got {r_detail.status_code}"
+    )
+    assert sess.title in r_detail.text, (
+        f"Session detail must contain session title '{sess.title}' after start"
+    )
+
+    # DB: actual_start_time set, status = in_progress
+    test_db.expire_all()
+    test_db.refresh(sess)
+    assert sess.actual_start_time is not None, "Session.actual_start_time must be set after start"
+    assert sess.session_status == "in_progress", (
+        f"Session.session_status must be 'in_progress', got '{sess.session_status}'"
+    )
+
+    # ── STOP ──
+    # HTTP: POST → 303
+    r_stop = client.post(f"/sessions/{sess.id}/stop", follow_redirects=False)
+    assert r_stop.status_code == 303, (
+        f"POST /sessions/{sess.id}/stop must return 303, got {r_stop.status_code}"
+    )
+    # 303 rule: GET redirect target
+    r_detail2 = client.get(r_stop.headers["location"])
+    assert r_detail2.status_code == 200, (
+        f"Session detail after stop must return 200, got {r_detail2.status_code}"
+    )
+    assert sess.title in r_detail2.text, (
+        f"Session detail must contain session title '{sess.title}' after stop"
+    )
+
+    # DB: actual_end_time set, status = completed
+    test_db.expire_all()
+    test_db.refresh(sess)
+    assert sess.actual_end_time is not None, "Session.actual_end_time must be set after stop"
+    assert sess.session_status == "completed", (
+        f"Session.session_status must be 'completed', got '{sess.session_status}'"
+    )
+
+
+def test_attendance_mark_creates_record(test_db: Session, client: TestClient):
+    """F-16 — Instructor marks attendance → Attendance row created.
+
+    POST /sessions/{id}/attendance/mark (Form: student_id, status=present) → 303
+    303 rule: GET /sessions/{id}?success=attendance_marked → 200
+    DB: Attendance(session_id, user_id=student.id, status=AttendanceStatus.present) exists
+    UI: session detail page returns 200 with session title (proves page renders after mark)
+
+    Note: date_start set 1h in past, date_end set 3h in future to satisfy
+    the 15-minute-before-start window guard in the attendance route.
+    """
+    from datetime import date as date_type
+    from app.models.attendance import Attendance, AttendanceStatus
+
+    instructor = _make_user(test_db, role=UserRole.INSTRUCTOR)
+    student = _make_user(test_db)
+    uid = _uid()
+    sem = Semester(
+        code=f"ATT-{uid}",
+        name=f"Attendance Semester {uid}",
+        start_date=date_type.today(),
+        end_date=date_type.today() + timedelta(days=30),
+        status=SemesterStatus.ONGOING,
+    )
+    test_db.add(sem)
+    test_db.flush()
+
+    # date_start in past, date_end in future → attendance window is open
+    now_naive = datetime.utcnow()
+    sess = SessionModel(
+        title=f"E2E Attendance {uid}",
+        session_type=SessionType.on_site,
+        date_start=now_naive - timedelta(hours=1),
+        date_end=now_naive + timedelta(hours=3),
+        semester_id=sem.id,
+        instructor_id=instructor.id,
+    )
+    test_db.add(sess)
+    test_db.flush()
+
+    booking = Booking(
+        user_id=student.id,
+        session_id=sess.id,
+        status=BookingStatus.CONFIRMED,
+    )
+    test_db.add(booking)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: instructor
+
+    # HTTP: POST → 303
+    r_mark = client.post(
+        f"/sessions/{sess.id}/attendance/mark",
+        data={"student_id": str(student.id), "status": "present", "notes": "E2E GAP-13"},
+        follow_redirects=False,
+    )
+    assert r_mark.status_code == 303, (
+        f"Attendance mark must return 303, got {r_mark.status_code}. "
+        f"Location: {r_mark.headers.get('location')}"
+    )
+
+    # 303 rule: GET redirect target
+    r_detail = client.get(r_mark.headers["location"])
+    assert r_detail.status_code == 200, (
+        f"Session detail after attendance mark must return 200, got {r_detail.status_code}"
+    )
+    assert sess.title in r_detail.text, (
+        f"Session detail must contain session title '{sess.title}' after attendance mark"
+    )
+
+    # DB: Attendance row created with status=present
+    test_db.expire_all()
+    att = test_db.query(Attendance).filter(
+        Attendance.session_id == sess.id,
+        Attendance.user_id == student.id,
+    ).first()
+    assert att is not None, (
+        f"Attendance row must exist for session={sess.id}, student={student.id}"
+    )
+    assert att.status == AttendanceStatus.present, (
+        f"Attendance.status must be 'present', got '{att.status}'"
+    )
+
+
+def test_admin_deduct_credit(test_db: Session, client: TestClient):
+    """F-29 — Admin deducts credit → User.credit_balance reduced + CreditTransaction.
+
+    POST /admin/users/{id}/deduct-credit (Form: amount=200, reason) → 303
+    303 rule: GET /admin/users/{id}/edit → 200, "300" visible (balance after deduction)
+    DB: User.credit_balance == 300, CreditTransaction(amount=-200, user_id=student.id)
+    """
+    INITIAL = 500
+    DEDUCT = 200
+    EXPECTED = INITIAL - DEDUCT  # 300
+
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db, credit_balance=INITIAL)
+
+    app.dependency_overrides[get_current_user_web] = lambda: admin
+
+    # HTTP: POST → 303
+    r_deduct = client.post(
+        f"/admin/users/{student.id}/deduct-credit",
+        data={"amount": str(DEDUCT), "reason": "E2E GAP-15 deduct test"},
+        follow_redirects=False,
+    )
+    assert r_deduct.status_code == 303, (
+        f"Admin deduct credit must return 303, got {r_deduct.status_code}"
+    )
+
+    # 303 rule: GET redirect target (admin edit page)
+    redirect_url = r_deduct.headers["location"]
+    r_edit = client.get(redirect_url.split("#")[0])  # strip anchor
+    assert r_edit.status_code == 200, (
+        f"Admin user edit page must return 200, got {r_edit.status_code}"
+    )
+
+    # UI: new balance "300" visible on admin edit page
+    assert str(EXPECTED) in r_edit.text, (
+        f"Admin edit page must show new balance '{EXPECTED}' after deduction. "
+        f"Snippet: {r_edit.text[:800]}"
+    )
+
+    # DB: credit_balance reduced
+    test_db.expire_all()
+    test_db.refresh(student)
+    assert student.credit_balance == EXPECTED, (
+        f"User.credit_balance must be {EXPECTED} after deduction, got {student.credit_balance}"
+    )
+
+    # DB: CreditTransaction with negative amount
+    tx = test_db.query(CreditTransaction).filter(
+        CreditTransaction.user_id == student.id,
+        CreditTransaction.amount == -DEDUCT,
+    ).first()
+    assert tx is not None, (
+        f"CreditTransaction(user_id={student.id}, amount={-DEDUCT}) must exist"
+    )
+    assert "ADMIN" in tx.transaction_type.upper(), (
+        f"CreditTransaction.transaction_type must contain 'ADMIN', got '{tx.transaction_type}'"
+    )

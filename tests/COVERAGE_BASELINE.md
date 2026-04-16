@@ -1,27 +1,42 @@
 # E2E Coverage Baseline — Practice Booking System
 **Last updated: 2026-04-15 | Branch: fix/e2e-ops-seed-1024**
 
-This document is the reference baseline for end-to-end test coverage.
-Every future feature **must** add a corresponding E2E test and keep CI green.
+---
+
+## KPI — COVERED FLOWS / TOTAL FLOWS
+
+**Measurement model:** Business flows, NOT route percentage.
+A flow = one end-to-end user action with a verifiable outcome.
+A flow is COVERED only when ALL 3 layers are proven:
+- **HTTP**: correct status code asserted
+- **DB**: business-state field queried and asserted
+- **UI**: specific label/balance/status string asserted in HTML response
+
+| Metric | Value |
+|--------|-------|
+| Total defined flows | **42** |
+| Covered (all 3 layers) | **27** |
+| Not Covered | **15** |
+| **Coverage KPI** | **64.3%** |
 
 ---
 
-## CI Status (frozen state)
+## CI Status
 
-| Workflow | Result |
-|----------|--------|
-| Test Baseline Check (Unit + Web Flows + E2E Matrix) | ✅ |
-| E2E Lifecycle Visibility | ✅ |
-| Dark Mode CSS Validation | ✅ |
-| E2E Multi-Campus Venue + Instructor | ✅ |
-| E2E Invitation Code Seed Validation | ✅ |
-| E2E Virtual Tournament | ✅ |
-| E2E Tournament Session Types (virtual + hybrid) | ✅ |
-| Cypress Web E2E Tests | ✅ |
+| Workflow | Last result | SHA |
+|----------|-------------|-----|
+| Test Baseline Check | ✅ | 2e1fb5f |
+| E2E Lifecycle Visibility | ✅ | 2e1fb5f |
+| Dark Mode CSS Validation | ✅ | 2e1fb5f |
+| E2E Multi-Campus Venue + Instructor | ✅ | 2e1fb5f |
+| E2E Invitation Code Seed Validation | ✅ | 2e1fb5f |
+| E2E Virtual Tournament | ✅ | 2e1fb5f |
+| E2E Tournament Session Types | ✅ | 2e1fb5f |
+| Cypress Web E2E Tests | ✅ | 2e1fb5f |
 
 ---
 
-## Test Suite Size (baseline)
+## Test Suite Size
 
 | Suite | Count |
 |-------|-------|
@@ -32,152 +47,133 @@ Every future feature **must** add a corresponding E2E test and keep CI green.
 
 ---
 
-## Section 1: COVERED — Proven E2E chains
+## Section 0 — FLOW COVERAGE TABLE
 
-Each entry has: at least 1 HTTP assertion + DB assertion + UI assertion.
+**Rules:**
+- HTTP ✅ = specific status code asserted in test
+- DB ✅ = SQLAlchemy query verifies changed field
+- UI ✅ = specific label/balance/state string asserted in `response.text`
+- N/A = layer not applicable (read-only endpoints have no DB mutation)
+- ❌ = layer not proven by any test
 
-### Quiz domain
-| Test | Chain |
-|------|-------|
-| QRB — Quiz Retry Best Score | GET /take → fail submit → GET /take (new attempt) → pass submit → QuizAttempt.passed=True |
-| QEG — Quiz Enrollment Gate | POST submit without Booking → 403; add Booking → 200 |
-| QAL — Quiz Attempt Limit | fail × max_attempts → GET /sessions/{id} → "No More Attempts" |
-| QIS — Quiz Interrupted Resume | GET /take → GET /take again → same attempt_id, count=1 → complete |
-| QPG — Quiz State Progression | /sessions/{id}: no attempt → "Start Exam"; fail → "Retry"; pass → "PASSED" |
-
-### Tournament domain
-| Test | Chain |
-|------|-------|
-| SFJ — Student Full Journey | GET /events/tournaments → POST /enroll → enrolled badge visible |
-| CDE — Credit Deduction | POST /enroll (paid) → credit_balance−200 → CreditTransaction → history page |
-| TCR — Tournament Credit Refund | POST /enroll → POST /unenroll → 50% refund → CreditTransaction(REFUND) |
-| GAP-01 — Tournament Cancellation Refund | POST /enroll (web) → POST /cancel (api) → CreditTransaction(REFUND, 100) → lic.credit_balance restored → CANCELLED in admin UI |
-| GAP-02 — Team Enrollment Deduction | POST /tournaments/{id}/teams/{id}/enroll → TournamentTeamEnrollment.is_active=True, CreditTransaction(ENROLLMENT, −150), lic.credit_balance=350 → /credits |
-| GAP-03 — Enrollment Rejection | SemesterEnrollment(PENDING) → POST /reject → request_status=REJECTED, credit_balance unchanged → browse page |
-| GAP-08 — Public Event Group Standings GD | group_knockout tournament + GROUP_STAGE session with game_results → GET /events/{id} → "GD" in HTML |
-| GAP-09 — Public Event Knockout Bracket | knockout tournament + KNOCKOUT session with participant_team_ids → GET /events/{id} → bracket section |
-| TOUR-S-01..05 (Cypress) | UI: balance=1000 → enroll → 900 → unenroll → 950 |
-
-### Camp domain
-| Test | Chain |
-|------|-------|
-| CEE — Camp Enrollment E2E | POST /events/camps/{id}/enroll → auto-APPROVED, credit−200 → POST /unenroll → +100 refund, WITHDRAWN |
-
-### Admin domain
-| Test | Chain |
-|------|-------|
-| ISC — Instructor Slot Conflict | POST instructor slot → POST same instructor again → 409 → DB count=1 |
-| APR — Admin Password Reset | POST /reset-password → verify_password(new)=True → old login 200 → new login 303 |
-| LRC — License Revoke Cascade | POST /revoke-license → SemesterEnrollment.is_active=False → /admin/users/{id}/edit |
-| GAP-04 — Admin Grant Credit | POST /admin/users/{id}/grant-credit → CreditTransaction(ADMIN_ADJUSTMENT, +200) → User.credit_balance=500 → /admin/users/{id}/edit |
-| GAP-05 — License Renewal | POST /renew-license/{lid} → LicenseProgression('RENEWED') → expires_at updated → admin edit page |
-| GAP-10 — Invitation Code Creation | POST /api/v1/admin/invitation-codes → InvitationCode row + visible in /admin/invitation-codes |
-| test_admin_smoke (157 tests) | Page loads, CRUD operations, capacity, ban, license revoke |
-
-### Credit / Registration domain
-| Test | Chain |
-|------|-------|
-| ICR — Invitation Code Registration | Create InvitationCode → POST /register → User.credit_balance=500, code.is_used=True |
-
-### Session domain
-| Test | Chain |
-|------|-------|
-| test_booking_cancellation (6 tests) | Cancel within deadline → Booking deleted; after deadline → redirect error |
-| test_session_virtual_bugs (10 tests) | Virtual/hybrid session visibility, quiz gate, is_enrolled |
-| test_tournament_session_types (10 tests) | session_type_config lifecycle, meeting_link, hybrid enrollment |
-| GAP-07 — Session Capacity Waitlist | Session(capacity=1) + existing CONFIRMED booking → POST /api/v1/bookings/ → Booking.status=WAITLISTED → admin bookings page |
-
-### Skill / Profile domain
-| Test | Chain |
-|------|-------|
-| SDE — Skill Delta E2E | TournamentFactory → TournamentParticipation.skill_rating_delta → GET /skills |
-| GAP-06 — Quiz Pass XP Award | Pass quiz (virtual session) → QuizAttempt.xp_awarded=10, UserStats.total_xp≥10 → /progress |
-
-### Browse / Filter domain
-| Test | Chain |
-|------|-------|
-| BF-CY-01..04 (Cypress) | ?status=open → 2 cards; ?delivery=virtual → 1 card; combined → 1 card |
-
-### Other domains
-| Domain | Coverage |
-|--------|----------|
-| Multi-campus venue | 8 MCV tests: venue in schedule, cross-campus, phase split |
-| Dark mode | 17 HTTP + 11 static: CSS token audit, no hardcoded colors |
-| Invitation code seed | CI seed validation: 52 used / 5 unused, 44k credits |
-| Virtual tournament | 5 VT tests: session_type=virtual, XP, gate (VT-01/02 = UNIT; VT-03/04/05 = E2E) |
-| Lifecycle/state machine | 40 tournament_lifecycle + 22 reward_matrix |
+| FID | Flow | HTTP | DB | UI | Status | Test |
+|-----|------|------|-----|-----|--------|------|
+| F-01 | Login (POST /login → 303 → /dashboard) | ✅ | ✅ | ✅ | **COVERED** | test_login_success_redirects_to_dashboard |
+| F-02 | Register with invitation code → credit_balance set | ✅ | ✅ | ✅ | **COVERED** | ICR |
+| F-03 | LFA player onboarding → UserLicense.onboarding_completed=True | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-04 | Specialization switch → UserLicense.specialization_type changed | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-05 | Profile edit → User.first_name updated | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-06 | Quiz fail → retry → pass → QuizAttempt.passed=True (best score) | ✅ | ✅ | ✅ | **COVERED** | QRB |
+| F-07 | Quiz no booking → 403 enrollment gate | ✅ | ✅ | ✅ | **COVERED** | QEG |
+| F-08 | Quiz max attempts → "No More Attempts" UI state | ✅ | ✅ | ✅ | **COVERED** | QAL |
+| F-09 | Quiz interrupted → same attempt_id resumed | ✅ | ✅ | ✅ | **COVERED** | QIS |
+| F-10 | Quiz UI state machine: no attempt→Start / fail→Retry / pass→PASSED | ✅ | N/A | ✅ | **COVERED** | QPG |
+| F-11 | Quiz pass → XP awarded → UserStats.total_xp updated | ✅ | ✅ | ✅ | **COVERED** | GAP-06 |
+| F-12 | Quiz attempt review page renders attempt data | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-13 | Session capacity=1 + 1 existing booking → POST /api/v1/bookings/ → WAITLISTED | ✅ | ✅ | ✅ | **COVERED** | GAP-07 |
+| F-14 | Instructor: POST /start → Session.actual_start_time IS NOT NULL | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-15 | Instructor: POST /stop → Session.actual_end_time IS NOT NULL | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-16 | Attendance mark → Attendance(status=present) row created | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-17 | Credit history visible after transaction ("Credit balance: X") | ✅ | ✅ | ✅ | **COVERED** | CDE, GAP-02, GAP-04 |
+| F-18 | Browse filter: ?status=open → only ENROLLMENT_OPEN cards | ✅ | N/A | ✅ | **COVERED** | BF-CY-01..04 |
+| F-19 | Tournament IND enroll → credit_balance -= cost → CreditTransaction | ✅ | ✅ | ✅ | **COVERED** | CDE |
+| F-20 | Tournament unenroll → 50% refund → CreditTransaction(REFUND) | ✅ | ✅ | ✅ | **COVERED** | TCR |
+| F-21 | Tournament cancel → 100% refund → CreditTransaction(REFUND, amount=full) | ✅ | ✅ | ✅ | **COVERED** | GAP-01 |
+| F-22 | Tournament enroll → admin rejection → credit_balance unchanged | ✅ | ✅ | ✅ | **COVERED** | GAP-03 |
+| F-23 | TEAM tournament enroll → captain UserLicense.credit_balance -= cost | ✅ | ✅ | ✅ | **COVERED** | GAP-02 |
+| F-24 | Team create (captain) → Team + TeamMember(CAPTAIN) rows | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-25 | Team invite → accept → TeamMember added | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-26 | Camp enroll → auto-APPROVED → CreditTransaction(−cost) | ✅ | ✅ | ✅ | **COVERED** | CEE |
+| F-27 | Camp unenroll → 50% refund → SemesterEnrollment.is_active=False | ✅ | ✅ | ✅ | **COVERED** | CEE |
+| F-28 | Admin grant credit → User.credit_balance += amount + CreditTransaction | ✅ | ✅ | ✅ | **COVERED** | GAP-04 |
+| F-29 | Admin deduct credit → User.credit_balance -= amount + CreditTransaction | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-30 | Admin license renewal → UserLicense.expires_at updated + LicenseProgression | ✅ | ✅ | ✅ | **COVERED** | GAP-05 |
+| F-31 | Admin license revoke → UserLicense.is_active=False + cascade SemesterEnrollment | ✅ | ✅ | ✅ | **COVERED** | LRC |
+| F-32 | Admin grant license → new UserLicense(is_active=True) created | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-33 | Admin password reset → User.password_hash changed → new password valid | ✅ | ✅ | ✅ | **COVERED** | APR |
+| F-34 | Admin invitation code create → InvitationCode row + visible in /admin/invitation-codes | ✅ | ✅ | ✅ | **COVERED** | GAP-10 |
+| F-35 | Admin booking confirm → Booking.status=CONFIRMED | ❌ | ❌ | ❌ | NOT COVERED | — |
+| F-36 | Public event group standings → "GD" column in HTML | ✅ | N/A | ✅ | **COVERED** | GAP-08 |
+| F-37 | Public event knockout bracket section rendered | ✅ | N/A | ✅ | **COVERED** | GAP-09 |
+| F-38 | Public player card (GET /players/{id}/card) → 200 + player data | ❌ | N/A | ❌ | NOT COVERED | — |
+| F-39 | Skill delta: tournament → TournamentParticipation.skill_rating_delta → GET /skills | ✅ | ✅ | ✅ | **COVERED** | SDE |
+| F-40 | Student full journey: browse → enroll → admin approve → "Enrolled" badge | ✅ | ✅ | ✅ | **COVERED** | SFJ |
+| F-41 | Tournament live monitor page renders (GET /admin/tournaments/{id}/live) | ❌ | N/A | ❌ | NOT COVERED | — |
+| F-42 | Sport director team remove → TournamentTeamEnrollment.is_active=False | ❌ | ❌ | ❌ | NOT COVERED | — |
 
 ---
 
-## Section 2: NOT IMPLEMENTED — No test needed
+## Section 1 — ASSERTION RULES (enforced)
 
-These flows have no test because the feature does not exist in the application.
+### Rule 1 — UI assertions must prove business state
+```
+❌ INVALID: assert "LFA" in response.text
+✅ VALID:   assert "Credit balance: 300" in response.text
+✅ VALID:   assert "Status: ENROLLED" in response.text
+✅ VALID:   assert "No More Attempts" in response.text
+```
+
+### Rule 2 — 303 flow rule (mandatory for every POST → redirect)
+```python
+r = client.post(url, data={...}, follow_redirects=False)
+assert r.status_code == 303
+redirect_url = r.headers["location"]
+r_page = client.get(redirect_url)
+assert r_page.status_code == 200
+assert "<specific business state>" in r_page.text
+```
+If `POST → 303 → GET` is missing → test is INVALID.
+
+### Rule 3 — Layer completeness (CI enforced)
+Every test in `test_critical_e2e.py` must have:
+- HTTP assertion (`assert resp.status_code == ...`)
+- DB assertion (`db.query(...).filter(...).first()`)
+- UI assertion (`assert "..." in r.text`)
+
+Violation → `scripts/verify_coverage_layers.py` fails → CI fails.
+
+---
+
+## Section 2 — NOT IMPLEMENTED (no test needed)
 
 | Flow | Reason |
 |------|--------|
-| Student self-service password reset (forgot password) | No `/forgot-password` endpoint. Only admin can reset passwords via `POST /admin/users/{id}/reset-password`. |
-| Email verification / token-based auth | No SMTP integration. No email is sent anywhere in the codebase. |
-| Session booking credit cost refund | `POST /sessions/cancel/{id}` deletes the Booking row with no credit deduction (sessions are free to book). No credit to refund. |
-| Concurrent credit prevention (negative balance from race) | See Section 3. |
+| Student self-service password reset | No `/forgot-password` endpoint. Only admin can reset. |
+| Email verification | No SMTP integration. No email sent anywhere. |
+| Session booking credit refund | Sessions are free to book. No credit deduction = no refund. |
+| Concurrent credit double-spend | 3-layer guard: app check + atomic SQL + DB constraint. See RISK-01 below. |
 
 ---
 
-## Section 3: KNOWN ACCEPTED RISKS
-
-Risks that are understood, deliberately accepted, and not tested at integration level.
+## Section 3 — KNOWN ACCEPTED RISKS
 
 ### RISK-01: Concurrent credit deduction race condition
-**Risk:** Two requests could theoretically both read `credit_balance=800` and both deduct 200, resulting in `credit_balance=400` (double spend) instead of one succeeding and one failing.
-
-**Verified: 3-layer production guard exists (NOT a hidden bug)**
+**Status:** ✅ Adequately protected at production level.
 
 | Layer | Guard | Location |
 |-------|-------|----------|
-| **Layer 1 — App check** | `if user.credit_balance < cost: return error` | `tournaments.py:170` |
-| **Layer 2 — Atomic SQL** | `UPDATE users SET credit_balance = credit_balance - :cost WHERE id = :id AND credit_balance >= :cost` — rowcount=0 if race lost | `tournaments.py:203` |
-| **Layer 3 — DB constraint** | `CONSTRAINT chk_credit_balance_non_negative CHECK ((credit_balance >= 0))` | `alembic/versions/2026_02_21_..._squashed_baseline_schema.py:2699` |
+| App check | `if credit_balance < cost: return error` | `tournaments.py:170` |
+| Atomic SQL | `UPDATE users SET credit_balance -= cost WHERE id=:id AND credit_balance >= cost` → rowcount=0 if race lost | `tournaments.py:203` |
+| DB constraint | `CHECK (credit_balance >= 0)` | squashed baseline migration |
 
-Layer 2 is the key: the conditional atomic UPDATE (`WHERE credit_balance >= cost`) means only one of two concurrent requests can win — the loser gets `rowcount=0` and is immediately rolled back with an "Insufficient credits (concurrent update)" error. Layer 3 is the final backstop regardless of application logic.
-
-**Why not integration-tested:**
-Integration tests run in a single OS process. Simulating concurrent HTTP requests within a test process tests the test harness, not the application. The correct verification is: (a) the atomic UPDATE pattern exists in code (verified above), and (b) the DB CHECK constraint is in the schema migration (verified above).
-
-**Existing partial coverage:**
-`test_concurrency.py` (7 tests) covers double-booking the same session (returns 409) and insufficient-credit rejection flow.
-
-**Status:** ✅ Adequately protected at production level. No additional test needed.
-**Verified by:** Engineering team, 2026-04-13
-
----
-
-### RISK-02 (resolved): License revoke did not cascade to SemesterEnrollment
-~~**Risk:** `admin_revoke_license()` and `bulk_check_expirations()` set `UserLicense.is_active=False` but left `SemesterEnrollment.is_active=True`, creating orphaned active enrollments for inactive licenses.~~
-
-**Fixed 2026-04-13.** Both paths now cascade:
-- `admin.py::admin_revoke_license` — explicit bulk UPDATE after `license.is_active = False`
-- `license_renewal_service.py::bulk_check_expirations` — tracks `expired_license_ids`, batch UPDATE after loop
-
-**E2E test:** `test_critical_e2e.py::test_license_revoke_cascades_to_enrollments` (LRC) — admin revoke → enrollment.is_active=False asserted.
+**Why not E2E tested:** Single-process test harness cannot simulate true concurrent HTTP requests. The guard is verified at code level (atomic UPDATE pattern exists) and schema level (CHECK constraint in migration). See `test_concurrency.py` (7 tests) for partial coverage.
 
 ---
 
 ### DESIGN-01 (known debt): No session cancellation endpoint
-**Gap:** `DELETE /sessions/{id}` blocks deletion when bookings exist — correct guard, but there is no `POST /sessions/{id}/cancel` endpoint. Contrast: tournaments have a full `/cancel` endpoint with refund logic.
-
-**Business impact:** Admin has no clean way to mark a session cancelled while preserving booking records. Workaround: manually update session status via DB or admin panel if available.
-
-**Financial impact:** LOW — on-site/virtual session bookings do not deduct credits, so no refund logic is needed. The absence of a cancel endpoint is a UX/data-integrity issue, not a financial one.
-
-**When to address:** When a future feature requires session-level cancellation with student notification or attendance record cleanup.
+`DELETE /sessions/{id}` blocks when bookings exist. No `POST /sessions/{id}/cancel`.
+**Financial impact:** LOW (sessions are free to book, no refund needed).
+**When to address:** When admin needs to cancel sessions while preserving booking records.
 
 ---
 
-## Section 4: BASELINE RULES
+## Section 4 — BASELINE RULES (enforced from 2026-04-15)
 
-From 2026-04-13 forward:
-
-1. **Every new route must have at least 1 E2E test** before merge to main.
-2. **CI must remain 8/8 green** at all times on `main`.
-3. **New business logic must have a DB assertion** (not just HTTP 200).
-4. **No new "unit-only" coverage** for flows that touch credit balance, enrollment status, or user state.
-5. **This file is updated** when a new feature is added that changes the coverage picture.
+1. **KPI is COVERED FLOWS / TOTAL FLOWS** — not route percentage.
+2. **Every new feature = new flow in this table** before merge to main.
+3. **All 3 layers required** (HTTP + DB + UI) — missing any layer = NOT COVERED.
+4. **303 flow rule** — every POST → redirect must follow the 2-step pattern.
+5. **UI assertions must prove business state** — generic render checks are INVALID.
+6. **CI 8/8 green on same SHA** — required before any PR merge.
+7. **`scripts/verify_coverage_layers.py` must pass** — runs in CI as part of Test Baseline Check.
+8. **No path-filter gaps** — all 8 E2E workflows trigger on every push (no path filters) and every PR to main.

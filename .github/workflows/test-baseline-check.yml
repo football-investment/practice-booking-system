@@ -2249,10 +2249,28 @@ jobs:
         echo "The application stack did not start cleanly or a core endpoint returned"
         echo "an unexpected status code.  Check the 'Collect application logs' step above."
 
+  coverage-layers-check:
+    name: "Coverage Layer Completeness (HTTP + DB + UI)"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Verify all E2E tests have 3 assertion layers
+      run: |
+        python scripts/verify_coverage_layers.py
+      # Fails if any test in test_critical_e2e.py is missing HTTP, DB, or UI assertion.
+      # This prevents "false green" tests that assert only status codes.
+
   baseline-report:
     name: Generate Baseline Report
     runs-on: ubuntu-latest
-    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, credit-audit, security-gate, migration-integrity, migration-volume-test, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate, auth-lifecycle-gate, enrollment-workflow-gate, user-account-gate, instructor-assignment-lifecycle-gate, operational-smoke-test]
+    needs: [unit-tests, smoke-tests, api-module-integrity, hardcoded-id-guard, credit-audit, security-gate, migration-integrity, migration-volume-test, payment-workflow-gate, core-access-gate, student-lifecycle-gate, instructor-lifecycle-gate, refund-workflow-gate, multi-campus-gate, session-management-gate, skill-assessment-lifecycle-gate, booking-lifecycle-gate, auth-lifecycle-gate, enrollment-workflow-gate, user-account-gate, instructor-assignment-lifecycle-gate, operational-smoke-test, coverage-layers-check]
     if: always()
 
     steps:
