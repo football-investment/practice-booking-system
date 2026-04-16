@@ -250,6 +250,53 @@ def _wait_for_sessions(
     return sessions
 
 
+def _wait_for_generation_done(
+    api_url: str,
+    token: str,
+    tid: int,
+    task_id: str | None,
+    max_wait: int = 300,
+    interval: float = 3.0,
+) -> None:
+    """
+    Wait for async background session-generation to complete by polling
+    GET /api/v1/tournaments/{tid}/generation-status/{task_id}.
+
+    Falls through immediately when:
+    - task_id is None (generation did not start)
+    - task_id == "sync-done" (synchronous generation already completed)
+
+    Raises AssertionError if:
+    - generation reports "error" status
+    - max_wait seconds elapse without "done" status
+    """
+    if not task_id or task_id == "sync-done":
+        return
+
+    deadline = time.time() + max_wait
+    while time.time() < deadline:
+        resp = requests.get(
+            f"{api_url}/api/v1/tournaments/{tid}/generation-status/{task_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            body = resp.json()
+            gen_status = body.get("status", "")
+            if gen_status == "done":
+                return
+            if gen_status == "error":
+                raise AssertionError(
+                    f"tid={tid}: background generation failed — "
+                    f"{body.get('message', 'no message')}"
+                )
+        time.sleep(interval)
+
+    raise AssertionError(
+        f"tid={tid}: generation not done after {max_wait}s (task_id={task_id})"
+    )
+
+
 def _get_summary(api_url: str, token: str, tid: int) -> dict:
     resp = requests.get(
         f"{api_url}/api/v1/tournaments/{tid}/summary",
@@ -490,9 +537,12 @@ class TestKnockoutFullBVA:
             timeout=300,
         )
         tid = data["tournament_id"]
+        task_id = data.get("task_id")
         expected = player_count  # N sessions for power-of-two knockout
-        # Large-scale generation is async — poll until sessions appear.
-        sessions = _wait_for_sessions(api_url, token, tid, min_count=expected, retries=30)
+        # Large-scale generation is async — wait for generation-status=done,
+        # then assert sessions. max_wait=240s covers 256p and 512p on slow CI runners.
+        _wait_for_generation_done(api_url, token, tid, task_id, max_wait=240)
+        sessions = _wait_for_sessions(api_url, token, tid, min_count=expected, retries=10)
         assert len(sessions) == expected, (
             f"knockout {player_count}p: expected {expected} sessions, got {len(sessions)}"
         )
@@ -509,9 +559,11 @@ class TestKnockoutFullBVA:
             timeout=600,
         )
         tid = data["tournament_id"]
-        # Large-scale generation is async — poll until all 1024 sessions appear.
-        # retries=150 × 2s = 300s budget; 512p passes in ~60s so 1024p needs ~120-180s.
-        sessions = _wait_for_sessions(api_url, token, tid, min_count=1024, retries=150)
+        task_id = data.get("task_id")
+        # Large-scale generation is async — wait for generation-status=done first,
+        # then assert sessions. max_wait=480s covers 1024p on slow CI runners.
+        _wait_for_generation_done(api_url, token, tid, task_id, max_wait=480)
+        sessions = _wait_for_sessions(api_url, token, tid, min_count=1024, retries=20)
         assert len(sessions) == 1024, (
             f"knockout 1024p: expected 1024 sessions (1023 bracket + 1 playoff), "
             f"got {len(sessions)}"
