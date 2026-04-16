@@ -2753,7 +2753,7 @@ class TestConcurrencyScaleInvariants:
 
         Contract:
           - db.rollback() called once (ranking failure)
-          - db.commit() called exactly 2× (tournament creation + enrollment; ranking commit skipped)
+          - db.commit() called exactly 3× (tournament creation + enrollment + campus sync; ranking commit skipped)
           - _finalize_tournament_with_rewards WAS called (finalize attempted)
           - result.task_id == "sync-done"
         """
@@ -2803,9 +2803,9 @@ class TestConcurrencyScaleInvariants:
                 db=db, current_user=_admin()
             )
 
-        # Ranking failed → rollback; tournament+enrollment commits still happened (2×)
+        # Ranking failed → rollback; tournament+enrollment+campus commits still happened (3×)
         assert db.rollback.call_count >= 1
-        assert db.commit.call_count == 2
+        assert db.commit.call_count == 3
         # Finalize was still attempted despite ranking failure
         mock_fin.assert_called_once()
         assert result.task_id == "sync-done"
@@ -3019,8 +3019,10 @@ class TestTransactionBoundaries:
     The ops_scenario pipeline has four distinct commit points:
       1. Tournament creation  → db.commit() at line 1360
       2. Enrollment batch     → db.commit() at line 1403
-      3. Ranking persistence  → db.commit() at line 1605
-      4. (Finalize has its own internal transaction — never commits in wrapper)
+      3. Campus sync          → db.commit() at line ~1450 (was flush; now commit so background
+                                threads see campus_id before reading the tournament row)
+      4. Ranking persistence  → db.commit() at line 1605
+      (Finalize has its own internal transaction — never commits in wrapper)
 
     Each test exercises failure at one boundary and asserts that earlier
     commits are preserved while later work is rolled back or never started.
@@ -3121,7 +3123,7 @@ class TestTransactionBoundaries:
 
         Contract:
           - result.task_id == "sync-done"
-          - db.commit called exactly 2× (tournament + enrollment; no ranking)
+          - db.commit called exactly 3× (tournament + enrollment + campus sync; no ranking)
           - db.rollback NOT called (simulation failure is non-fatal, no TX to roll back)
         """
         import contextlib
@@ -3155,8 +3157,8 @@ class TestTransactionBoundaries:
             )
 
         assert result.task_id == "sync-done"
-        # Only tournament + enrollment commits; ranking never reached
-        assert db.commit.call_count == 2
+        # Tournament + enrollment + campus sync commits; ranking never reached
+        assert db.commit.call_count == 3
         # Simulation failure does not trigger any rollback
         db.rollback.assert_not_called()
 
@@ -3165,13 +3167,13 @@ class TestTransactionBoundaries:
     # -----------------------------------------------------------------------
 
     def test_full_pipeline_success_three_commits_zero_rollbacks(self):
-        """Full success path: tournament + enrollment + ranking = exactly 3 commits.
+        """Full success path: tournament + enrollment + campus sync + ranking = exactly 4 commits.
 
         Verifies the expected commit count for the complete happy path so that
         any future code change adding or removing a commit is immediately visible.
 
         Contract:
-          - db.commit called exactly 3× (tournament, enrollment, ranking)
+          - db.commit called exactly 4× (tournament, enrollment, campus sync, ranking)
           - db.rollback NOT called
           - result.task_id == "sync-done"
         """
@@ -3216,8 +3218,8 @@ class TestTransactionBoundaries:
             )
 
         assert result.task_id == "sync-done"
-        assert db.commit.call_count == 3, (
-            f"Expected 3 commits (tournament+enrollment+ranking), got {db.commit.call_count}"
+        assert db.commit.call_count == 4, (
+            f"Expected 4 commits (tournament+enrollment+campus_sync+ranking), got {db.commit.call_count}"
         )
         db.rollback.assert_not_called()
 
@@ -3234,7 +3236,7 @@ class TestTransactionBoundaries:
 
         Contract:
           - db.rollback called exactly 2× (once per failed stage)
-          - db.commit called exactly 2× (tournament + enrollment; ranking skips its commit)
+          - db.commit called exactly 3× (tournament + enrollment + campus sync; ranking skips its commit)
           - result.task_id == "sync-done"
         """
         import contextlib
@@ -3287,8 +3289,8 @@ class TestTransactionBoundaries:
         assert db.rollback.call_count == 2, (
             f"Expected 2 rollbacks (ranking + finalize), got {db.rollback.call_count}"
         )
-        # Tournament + enrollment committed; ranking commit was never reached
-        assert db.commit.call_count == 2
+        # Tournament + enrollment + campus sync committed; ranking commit was never reached
+        assert db.commit.call_count == 3
 
     # -----------------------------------------------------------------------
     # 5. Campus validation boundary
