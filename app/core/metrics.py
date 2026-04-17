@@ -105,6 +105,11 @@ _COUNTER_HELP: Dict[str, str] = {
     "waitlist_promotions_total": (
         "Waitlist promotions triggered by semester withdraw."
     ),
+    "invariant_violations_total": (
+        "Runtime invariant violations detected post-commit: "
+        "credit_balance < 0 (GUARD-01) or confirmed_count > capacity (GUARD-02). "
+        "Non-zero value indicates a data consistency bug requiring immediate investigation."
+    ),
 }
 
 

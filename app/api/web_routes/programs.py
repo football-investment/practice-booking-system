@@ -32,6 +32,7 @@ from ...models.semester import Semester, SemesterCategory, SemesterStatus
 from ...models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from ...models.session import Session as SessionModel
 from ...models.user import User, UserRole
+from ...services.runtime_guards import guard_post_enroll, guard_post_withdraw
 from ...services.semester_service import (
     create_enrollment_with_bookings,
     withdraw_enrollment_bookings,
@@ -240,6 +241,8 @@ async def semester_request_enrollment(
         metrics.increment("bookings_created", by=n_confirmed)
     if n_waitlisted:
         metrics.increment("bookings_waitlisted", by=n_waitlisted)
+    # Runtime invariant guards (non-blocking, CRITICAL log on violation)
+    guard_post_enroll(db, user_id=user.id, enrollment_id=enrollment_id)
 
     return RedirectResponse(
         url=f"/semesters/enroll?success=enrolled&semester={semester.name}",
@@ -322,5 +325,7 @@ async def semester_withdraw_enrollment(
     metrics.increment("semester_withdrawals_total")
     if promoted_count:
         metrics.increment("waitlist_promotions_total", by=promoted_count)
+    # Runtime invariant guards (non-blocking, CRITICAL log on violation)
+    guard_post_withdraw(db, user_id=user.id)
 
     return RedirectResponse(url="/semesters/enroll?success=withdrawn", status_code=303)
