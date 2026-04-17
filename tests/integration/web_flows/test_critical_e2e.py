@@ -4549,3 +4549,89 @@ def test_semester_schedule_generate_via_web(test_db: Session, client: TestClient
         .count()
     )
     assert count == 4, f"Expected 4 sessions (4 Mondays in 4-week window starting 2026-07-07), got {count}"
+
+
+# ── Phase 2 Release Gate: delete-with-attendance → 409 (SCHED_G1-04) ─────────
+
+def test_delete_sessions_blocked_by_attendance(test_db: Session, client: TestClient):
+    """SCHED_G1-04 (release gate): DELETE sessions returns 409 when attendance exists.
+
+    Flow:
+      1. Generate sessions for a MINI_SEASON semester (12 weeks)
+      2. Create one Attendance row for the first generated session
+      3. DELETE /api/v1/semesters/{id}/sessions → expect 409
+      4. Verify all 12 sessions still exist in DB (rollback-safe)
+      5. Verify config.sessions_generated still True
+    """
+    semester, campus, pitch = _make_mini_season_with_config(
+        test_db, start_date=date(2026, 8, 4), weeks=12, day_of_week=1  # Tuesdays
+    )
+    from app.dependencies import get_current_admin_user as _get_admin
+    admin = _make_user(test_db, role=UserRole.ADMIN)
+    student = _make_user(test_db, role=UserRole.STUDENT)
+    app.dependency_overrides[_get_admin] = lambda: admin
+
+    # 1. Generate 12 sessions
+    r_gen = client.post(
+        f"/api/v1/semesters/{semester.id}/generate-sessions",
+        json={
+            "day_of_week": 1,
+            "start_time": "18:00",
+            "duration_minutes": 90,
+            "sessions_per_week": 1,
+            "skip_conflicts": False,
+        },
+    )
+    assert r_gen.status_code == 200, f"Generate failed: {r_gen.text[:300]}"
+    assert r_gen.json()["sessions_created"] == 12
+
+    # 2. Fetch first generated session
+    test_db.expire_all()
+    first_session = (
+        test_db.query(SessionModel)
+        .filter(
+            SessionModel.semester_id == semester.id,
+            SessionModel.auto_generated == True,
+        )
+        .order_by(SessionModel.date_start.asc())
+        .first()
+    )
+    assert first_session is not None
+
+    # 3. Insert an Attendance record (booking_id=None → tournament-style attendance)
+    from app.models.attendance import Attendance, AttendanceStatus
+    att = Attendance(
+        user_id=student.id,
+        session_id=first_session.id,
+        booking_id=None,
+        status=AttendanceStatus.present,
+    )
+    test_db.add(att)
+    test_db.commit()
+
+    # 4. Attempt DELETE → expect 409
+    r_del = client.delete(f"/api/v1/semesters/{semester.id}/sessions")
+    assert r_del.status_code == 409, (
+        f"Expected 409 (attendance guard), got {r_del.status_code}. Body: {r_del.text[:300]}"
+    )
+    body_text = r_del.text
+    assert "attendance" in body_text.lower() or "Cannot delete" in body_text, (
+        f"Expected attendance-guard message in body, got: {body_text[:300]}"
+    )
+
+    # 5. Verify sessions still present (nothing deleted)
+    test_db.expire_all()
+    remaining = (
+        test_db.query(SessionModel)
+        .filter(
+            SessionModel.semester_id == semester.id,
+            SessionModel.auto_generated == True,
+        )
+        .count()
+    )
+    assert remaining == 12, f"Expected 12 sessions still present, got {remaining}"
+
+    # 6. Config state unchanged
+    from app.models.semester_schedule_config import SemesterScheduleConfig
+    cfg = test_db.query(SemesterScheduleConfig).filter_by(semester_id=semester.id).first()
+    assert cfg.sessions_generated == True, "Config should still be sessions_generated=True"

@@ -15,10 +15,10 @@ A flow is COVERED only when ALL 3 layers are proven:
 | Metric | Value |
 |--------|-------|
 | Total defined flows | **65** |
-| Covered (all 3 layers) | **69** |
+| Covered (all 3 layers) | **70** |
 | Not Implemented on main | **0** |
 | Not Covered | **0** |
-| **Coverage KPI** | **100%** (69/69 implemented flows) |
+| **Coverage KPI** | **100%** (70/70 implemented flows) |
 | Sprint 1 additions | +5 flows (F-03, F-14, F-15, F-16, F-29) |
 | Sprint 2 additions | +8 flows (F-04, F-05, F-12, F-24, F-25, F-32, F-35, F-38) |
 | Sprint 3 additions | +2 flows (F-41, F-42) |
@@ -28,6 +28,7 @@ A flow is COVERED only when ALL 3 layers are proven:
 | Sprint 7 additions | +8 flows (F-57..F-64) — Admin Lifecycle + Evaluation + Tournament Ops |
 | Phase 2 Step 1 additions | +3 flows (F-65, F-66, F-67) — MINI_SEASON / ACADEMY_SEASON Scheduling API |
 | Phase 2 Step 2 additions | +2 flows (F-68, F-69) — Scheduling Admin UI (web routes + template) |
+| Phase 2 Release Gate | +1 flow (F-70) — DELETE sessions 409 when attendance exists |
 
 ---
 
@@ -50,7 +51,7 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Suite | Count |
 |-------|-------|
-| `tests/integration/web_flows/` | **590** (41 files, +2 SCHED_G2) |
+| `tests/integration/web_flows/` | **591** (41 files, +3 SCHED_G1-04/G2-01/G2-02) |
 | `tests/integration/api_smoke/` | **1,741** |
 | Cypress (`cypress/e2e/`) | **18** (5 files, +SCHED-01..05) |
 | **Total** | **2,341** |
@@ -137,6 +138,7 @@ A flow is COVERED only when ALL 3 layers are proven:
 | F-67 | MINI_SEASON generate-sessions skip_conflicts=True → 200, sessions_created=11, sessions_skipped=1 | ✅ | ✅ | ✅ | **COVERED** | SCHED_G1-03 (test_skip_conflict_partial_generation) |
 | F-68 | GET /admin/semesters/{id}/schedule → 200, generate form visible, semester name in page | ✅ | ✅ | ✅ | **COVERED** | SCHED_G2-01 (test_semester_schedule_page_renders) |
 | F-69 | POST /admin/semesters/{id}/schedule/generate → 303 redirect + sessions in DB | ✅ | ✅ | ✅ | **COVERED** | SCHED_G2-02 (test_semester_schedule_generate_via_web) |
+| F-70 | DELETE /api/v1/semesters/{id}/sessions with attendance → 409, 0 sessions deleted, config unchanged | ✅ | ✅ | ✅ | **COVERED** | SCHED_G1-04 (test_delete_sessions_blocked_by_attendance) |
 
 ---
 
