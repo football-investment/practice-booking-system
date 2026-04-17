@@ -1,5 +1,5 @@
 # E2E Coverage Baseline — Practice Booking System
-**Last updated: 2026-04-17 | Branch: main | RBAC role-based boundary audit (Phase 5.5 exit criteria)**
+**Last updated: 2026-04-17 | Branch: main | Phase 6.1 attack surface + concurrent enrollment race**
 
 ---
 
@@ -14,11 +14,11 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Metric | Value |
 |--------|-------|
-| Total defined flows | **96** |
-| Covered (all 3 layers) | **96** |
+| Total defined flows | **103** |
+| Covered (all 3 layers) | **103** |
 | Not Implemented on main | **0** |
 | Not Covered | **0** |
-| **Coverage KPI** | **Full role-based E2E business flow coverage achieved** (96/96) |
+| **Coverage KPI** | **Full role-based E2E business flow coverage achieved** (103/103) |
 | Sprint 1 additions | +5 flows (F-03, F-14, F-15, F-16, F-29) |
 | Sprint 2 additions | +8 flows (F-04, F-05, F-12, F-24, F-25, F-32, F-35, F-38) |
 | Sprint 3 additions | +2 flows (F-41, F-42) |
@@ -38,6 +38,7 @@ A flow is COVERED only when ALL 3 layers are proven:
 | RBAC audit | +3 flows (F-89..F-91) — Role-based boundary: student→admin forbidden / admin→enroll forbidden / SD→student cross-role |
 | RBAC symmetry | +2 flows (F-92..F-93) — instructor→admin forbidden / SD→enroll forbidden (guard uniformity) |
 | Security validation | +3 flows (F-94..F-96) — SQL injection / XSS escaping / CSRF enforcement validation |
+| Phase 6.1 attack surface | +7 flows (F-97..F-103) — IDOR ownership bypass / vertical privilege escalation / rate limit algorithm / JWT decode stub finding / concurrent enrollment dedup |
 
 ---
 
@@ -61,10 +62,10 @@ A flow is COVERED only when ALL 3 layers are proven:
 
 | Suite | Count |
 |-------|-------|
-| `tests/integration/web_flows/` | **617** (43 files, +18 SCHED_G3-01..15 + SCHED_INV-01..03 + 5 RBAC-01..05 + 3 SEC-01..03) |
+| `tests/integration/web_flows/` | **624** (44 files, +18 SCHED_G3-01..15 + SCHED_INV-01..03 + 5 RBAC-01..05 + 3 SEC-01..03 + 7 ATK-01..07) |
 | `tests/integration/api_smoke/` | **1,741** |
 | Cypress (`cypress/e2e/`) | **18** (5 files, +SCHED-01..05) |
-| **Total** | **2,376** |
+| **Total** | **2,383** |
 
 ---
 
@@ -175,6 +176,13 @@ A flow is COVERED only when ALL 3 layers are proven:
 | F-94 | SQL injection payloads in admin search → 200 (no DB crash); users table intact after all payloads | ✅ | ✅ | N/A | **COVERED** | SEC-01 (test_sec_01_sql_injection_probe_in_admin_search) |
 | F-95 | XSS payload in tournament name → HTML-escaped (&lt;script&gt;) in public event page; raw script tag absent | ✅ | N/A | ✅ | **COVERED** | SEC-02 (test_sec_02_xss_payload_escaped_in_public_event_page) |
 | F-96 | Form POST without CSRF token or Bearer header → 403 (CSRF middleware blocks before route handler runs) | ✅ | N/A | N/A | **COVERED** | SEC-03 (test_sec_03_csrf_middleware_blocks_unprotected_post) |
+| F-97 | IDOR-01: User B POSTs withdraw with User A's enrollment_id → 303 + Enrollment+not+found; A's enrollment still is_active=True | ✅ | ✅ | N/A | **COVERED** | ATK-01 (test_idor_01_cannot_withdraw_other_users_enrollment) |
+| F-98 | IDOR-02: User B POSTs cancel on User A's session booking → 303 + booking_not_found; A's booking still CONFIRMED | ✅ | ✅ | N/A | **COVERED** | ATK-02 (test_idor_02_cannot_cancel_other_users_session_booking) |
+| F-99 | PRIVESC-01: STUDENT probes 6 /admin/* routes (4 GET + 2 POST with valid body) → all 403 (_admin_guard comprehensive) | ✅ | N/A | N/A | **COVERED** | ATK-03 (test_privesc_01_student_probes_admin_routes_all_403) |
+| F-100 | PRIVESC-02: get_current_sport_director_user_web raises HTTPException(403) for STUDENT role (unit test, no HTTP layer) | N/A | N/A | N/A | **COVERED** | ATK-04 (test_privesc_02_sd_dependency_rejects_student_role) |
+| F-101 | RATELIMIT-01: RateLimitMiddleware sliding window algorithm — first N requests pass; N+1 and beyond blocked (unit test) | N/A | N/A | N/A | **COVERED** | ATK-05 (test_ratelimit_01_sliding_window_blocks_at_limit) |
+| F-102 | RATELIMIT-02: _get_user_id() returns None for Bearer token (JWT decode TODO stub) → per-user 200/min limit never fires (documented finding) | N/A | N/A | N/A | **COVERED** | ATK-06 (test_ratelimit_02_jwt_decode_stub_leaves_per_user_limit_inactive) |
+| F-103 | RACE-01: 5 concurrent enrollment POSTs → exactly 1 APPROVED enrollment; credit deducted once; 4 others error with Already+enrolled or Insufficient+credits | ✅ | ✅ | N/A | **COVERED** | ATK-07 (test_race_01_concurrent_enrollment_single_success) |
 
 ---
 
@@ -216,7 +224,7 @@ Violation → `scripts/verify_coverage_layers.py` fails → CI fails.
 | Student self-service password reset | No `/forgot-password` endpoint. Only admin can reset. |
 | Email verification | No SMTP integration. No email sent anywhere. |
 | Session booking credit refund | Sessions are free to book. No credit deduction = no refund. |
-| Concurrent credit double-spend | 3-layer guard: app check + atomic SQL + DB constraint. See RISK-01 below. |
+| Concurrent credit double-spend | Covered by RACE-01 (F-103) via ThreadPoolExecutor + real DB. See RISK-01 below for layer analysis. |
 
 ---
 
@@ -239,6 +247,20 @@ Violation → `scripts/verify_coverage_layers.py` fails → CI fails.
 `DELETE /sessions/{id}` blocks when bookings exist. No `POST /sessions/{id}/cancel`.
 **Financial impact:** LOW (sessions are free to book, no refund needed).
 **When to address:** When admin needs to cancel sessions while preserving booking records.
+
+---
+
+### FINDING-01 (Phase 6.1): Per-user rate limit non-functional
+**Status:** ⚠️ Documented finding — IP limit functional, per-user limit dead code.
+
+| Layer | Status | Location |
+|-------|--------|----------|
+| IP rate limit (100 req/60s) | ✅ Functional | `security.py:RateLimitMiddleware._check_rate_limit()` |
+| Per-user rate limit (200 req/60s) | ❌ Never fires | `security.py:_get_user_id()` — JWT decode is `# TODO` stub, always returns None |
+
+**Proven by:** ATK-06 (F-102) — `_get_user_id()` returns None for Bearer token.
+**Mitigation:** Implement JWT decode in `security.py:129-131` (extract `sub` claim from Bearer token).
+**Risk:** Authenticated users can burst at the same 100 req/60s IP limit as anonymous users. Low-risk in current deployment (single IP per user typical); medium-risk with shared NAT / proxy egress.
 
 ---
 
