@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from .....database import get_db
 from .....dependencies import get_current_admin_user
 from .....models.user import User
-from .....models.semester import Semester, SemesterStatus
+from .....models.semester import Semester, SemesterStatus, SemesterCategory
 from .....models.location import Location, LocationType
 from .....models.specialization import SpecializationType
 from .....schemas.semester import Semester as SemesterSchema
@@ -176,14 +176,15 @@ def generate_academy_season(
     new_semester = Semester(
         code=semester_code,
         name=semester_name,
+        semester_category=SemesterCategory.ACADEMY_SEASON,
         specialization_type=request.specialization_type.value,
         start_date=start_date,
         end_date=end_date,
         location_id=request.location_id,
         campus_id=request.campus_id,
         master_instructor_id=request.master_instructor_id,
-        status=SemesterStatus.DRAFT if not request.master_instructor_id else SemesterStatus.SEEKING_INSTRUCTOR,
-            )
+        status=SemesterStatus.SEEKING_INSTRUCTOR if not request.master_instructor_id else SemesterStatus.DRAFT,
+    )
 
     db.add(new_semester)
     db.commit()
