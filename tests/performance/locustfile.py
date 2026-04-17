@@ -11,12 +11,16 @@ Phase 6.2 (BrowseAndEnrollUser):
   Target: GET /events/{id} (public), POST /semesters/request-enrollment,
           POST /semesters/withdraw-enrollment
 
+Phase 6.3 (SoakBurstUser + Phase63LoadShape):
+  Scenario: 5-stage soak + burst with 100-account multi-user pool
+  Stages: warmup → soak (5 min) → burst → spike → recovery  (~10 min total)
+  Default peak: 1000 VUs (local) / 50 VUs (CI via LOAD_PEAK_VUS=50)
+  Metrics: p95/p99 per endpoint, 429/5xx/network split, DB pool saturation
+  Validity gates: see tests/performance/LOAD_BASELINE.md §GATE-1..5
+
 Usage — Phase 5 baseline:
   locust -f tests/performance/locustfile.py --host=http://localhost:8000 \\
          --users=1 --spawn-rate=1 --run-time=10s --headless
-
-  locust -f tests/performance/locustfile.py --host=http://localhost:8000 \\
-         --users=10 --spawn-rate=2 --run-time=60s --headless
 
 Usage — Phase 6.2 (requires running uvicorn + seed data):
   # Start server first:
@@ -37,6 +41,19 @@ Usage — Phase 6.2 (requires running uvicorn + seed data):
          --users=100 --spawn-rate=10 --run-time=180s --headless \\
          --class-picker
 
+Usage — Phase 6.3 (soak + burst, requires seed + uvicorn):
+  # Seed 100 load-test accounts first:
+  #   python scripts/seed_load_test_users.py
+
+  # Full local run (1000 VUs, 10 min, 4 uvicorn workers):
+  #   bash scripts/run_phase63_load.sh
+
+  # Manual / custom:
+  LOAD_PEAK_VUS=200 \\
+  locust -f tests/performance/locustfile.py SoakBurstUser \\
+    --host=http://localhost:8000 --headless --run-time=10m \\
+    --csv=tests/performance/results/run
+
 Phase 6.2 environment variables:
   LOAD_STUDENT_EMAIL     Student email with active LFA_FOOTBALL_PLAYER license
                          and sufficient credits (default: perf-student@lfa.com)
@@ -46,15 +63,30 @@ Phase 6.2 environment variables:
   LOAD_EVENT_IDS         Comma-separated public tournament IDs for browse
                          (default: none — browse tasks use /events/1 fallback)
 
+Phase 6.3 environment variables:
+  LOAD_PEAK_VUS          Peak VU count for Phase63LoadShape (default: 1000)
+                         CI sets this to 50 automatically
+  LOAD_USERS_COUNT       Number of seeded user accounts to rotate (default: 100)
+  LOAD_SEMESTER_IDS      Same as Phase 6.2 — comma-separated semester IDs
+  LOAD_EVENT_IDS         Same as Phase 6.2 — comma-separated event IDs
+
 Phase 5 environment variables:
   ADMIN_EMAIL:    Admin user email (default: admin@lfa.com)
   ADMIN_PASSWORD: Admin user password (default: admin123)
 """
 
+import itertools
 import os
 import random
 import re
-from locust import HttpUser, task, between, events
+import threading
+
+try:
+    import requests as _stdlib_requests  # for DB metrics probe (not locust client)
+except ImportError:
+    _stdlib_requests = None
+
+from locust import HttpUser, LoadTestShape, between, events, task
 
 
 # ============================================================================
@@ -64,7 +96,7 @@ from locust import HttpUser, task, between, events
 ADMIN_EMAIL    = os.getenv("ADMIN_EMAIL", "admin@lfa.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
-# Phase 6.2 — student credentials
+# Phase 6.2 — single-account student credentials
 LOAD_STUDENT_EMAIL    = os.getenv("LOAD_STUDENT_EMAIL", "perf-student@lfa.com")
 LOAD_STUDENT_PASSWORD = os.getenv("LOAD_STUDENT_PASSWORD", "Test1234!")
 
@@ -78,6 +110,25 @@ LOAD_EVENT_IDS = [int(x) for x in _raw_evt.split(",") if x.strip()] if _raw_evt 
 
 # Campus IDs for tournament session generation (Phase 5 baseline)
 CAMPUS_IDS = [9]
+
+# Phase 6.3 — multi-user pool configuration
+_LOAD_PEAK_VUS    = int(os.getenv("LOAD_PEAK_VUS", "1000"))
+_LOAD_USERS_COUNT = int(os.getenv("LOAD_USERS_COUNT", "100"))
+
+# Round-robin pool of 100 seeded student accounts
+_LOAD_USERS = [
+    (f"load-user-{i:04d}@lfa.com", "LoadTest1234!")
+    for i in range(1, _LOAD_USERS_COUNT + 1)
+]
+_USER_CYCLE = itertools.cycle(_LOAD_USERS)
+_USER_LOCK  = threading.Lock()
+
+# Phase 6.3 error counters — 429 / 5xx / network split (GATE-2b)
+_P63_COUNTERS: dict = {"rate_limited": 0, "server_errors": 0, "network_errors": 0}
+_P63_LOCK = threading.Lock()
+
+# Phase 6.3 DB metrics baseline (captured at test_start)
+_P63_METRICS_START: dict = {}
 
 
 # ============================================================================
@@ -311,15 +362,234 @@ class BrowseAndEnrollUser(HttpUser):
 
 
 # ============================================================================
-# PERFORMANCE BASELINE METRICS (Expected Values)
+# PHASE 6.3 SCENARIO: Soak + Burst (100-account pool, 5-stage shape)
+# ============================================================================
+
+class SoakBurstUser(HttpUser):
+    """
+    Phase 6.3 — soak + burst load test with 100-account multi-user pool.
+
+    Each VU gets a unique account (round-robin from _LOAD_USERS pool) so that
+    concurrent write operations (enroll/withdraw) hit different DB rows,
+    avoiding artificial single-row serialization.
+
+    Prerequisites:
+      - Run: python scripts/seed_load_test_users.py
+      - Set: LOAD_SEMESTER_IDS, LOAD_EVENT_IDS (or use run_phase63_load.sh)
+
+    Task weights (70/20/10 = read-heavy, matches production profile):
+      70 %  browse_event    GET  /events/{id}
+      20 %  enroll          POST /semesters/request-enrollment
+      10 %  withdraw        POST /semesters/withdraw-enrollment
+
+    Use with Phase63LoadShape for full 5-stage soak + burst cycle.
+    """
+
+    wait_time = between(0.3, 1.0)  # tighter think-time for higher throughput
+
+    _email: str = ""
+    _password: str = ""
+    _logged_in: bool = False
+    _enrolled_semester_id: int = 0
+
+    def on_start(self) -> None:
+        """Assign a pooled account to this VU and log in."""
+        with _USER_LOCK:
+            self._email, self._password = next(_USER_CYCLE)
+
+        with self.client.post(
+            "/login",
+            data={"email": self._email, "password": self._password},
+            allow_redirects=False,
+            name="[P63] Login",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code in (302, 303):
+                self._logged_in = True
+            else:
+                resp.failure(
+                    f"[P63] Login failed: {resp.status_code} ({self._email}) — "
+                    f"run scripts/seed_load_test_users.py first"
+                )
+
+    # ── Tasks ────────────────────────────────────────────────────────────────
+
+    @task(7)
+    def browse_event(self) -> None:
+        """GET /events/{id} — public page, no auth required."""
+        event_id = random.choice(LOAD_EVENT_IDS)
+        self.client.get(f"/events/{event_id}", name="[P63] Browse event")
+
+    @task(2)
+    def enroll(self) -> None:
+        """POST /semesters/request-enrollment.
+
+        Already-enrolled (303 + error in location) = guard works = success.
+        429 = rate limit as expected = success.
+        5xx = real failure.
+        """
+        if not LOAD_SEMESTER_IDS or not self._logged_in:
+            return
+
+        sem_id = random.choice(LOAD_SEMESTER_IDS)
+        with self.client.post(
+            "/semesters/request-enrollment",
+            data={"semester_id": str(sem_id)},
+            allow_redirects=False,
+            name="[P63] Enroll",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 303:
+                loc = resp.headers.get("location", "")
+                if "error" not in loc:
+                    self._enrolled_semester_id = sem_id
+                resp.success()
+            elif resp.status_code == 429:
+                resp.success()  # expected under load
+            else:
+                resp.failure(f"[P63] Enroll unexpected: {resp.status_code}")
+
+    @task(1)
+    def withdraw(self) -> None:
+        """POST /semesters/withdraw-enrollment.
+
+        Skipped if this VU has no known active enrollment.
+        """
+        if not self._logged_in or not self._enrolled_semester_id:
+            return
+
+        list_resp = self.client.get(
+            "/semesters/enroll",
+            name="[P63] Fetch enrollments (pre-withdraw)",
+        )
+        match = re.search(
+            r'name=["\']enrollment_id["\']\s+value=["\'](\d+)["\']',
+            list_resp.text,
+        )
+        if not match:
+            return
+
+        enrollment_id = match.group(1)
+        with self.client.post(
+            "/semesters/withdraw-enrollment",
+            data={"enrollment_id": enrollment_id},
+            allow_redirects=False,
+            name="[P63] Withdraw",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 303:
+                self._enrolled_semester_id = 0
+                resp.success()
+            elif resp.status_code == 429:
+                resp.success()
+            else:
+                resp.failure(f"[P63] Withdraw unexpected: {resp.status_code}")
+
+
+# ============================================================================
+# PHASE 6.3 LOAD SHAPE: 5-stage soak + burst profile
+# ============================================================================
+
+class Phase63LoadShape(LoadTestShape):
+    """
+    5-stage soak + burst load profile (total ~10 min).
+
+    Controlled by LOAD_PEAK_VUS env var (default 1000 local, 50 in CI).
+    CI sets LOAD_PEAK_VUS=50 — same 5 stages run, just at scaled VU counts.
+
+    Stages (cumulative end times, VU counts proportional to peak):
+      Stage 1 — Warmup:   0   → peak//10,  end at t=30s
+      Stage 2 — Soak:     peak//10 (hold), end at t=330s (5 min steady state)
+      Stage 3 — Burst:    peak//10 → peak,  end at t=420s (90s ramp)
+      Stage 4 — Spike:    peak (hold),      end at t=540s (2 min max stress)
+      Stage 5 — Recovery: peak → peak//5,   end at t=600s (60s cooldown)
+
+    Usage without explicit -u / -r flags (shape controls them):
+      locust -f locustfile.py SoakBurstUser --headless --run-time 10m \\
+             --host http://localhost:8001 --csv results/phase63
+    """
+
+    def _stages(self):
+        peak = max(2, _LOAD_PEAK_VUS)
+        warmup  = max(2, peak // 10)
+        recover = max(1, peak // 5)
+        return [
+            # (end_time_s, target_users, spawn_rate)
+            (30,   warmup,   max(1, warmup  // 10)),   # Warmup ramp
+            (330,  warmup,   1),                         # Soak hold
+            (420,  peak,     max(1, peak    // 9)),     # Burst ramp
+            (540,  peak,     1),                         # Spike hold
+            (600,  recover,  max(1, peak    // 20)),    # Recovery ramp-down
+        ]
+
+    def tick(self):
+        run_time = self.get_run_time()
+        for end_t, users, spawn_rate in self._stages():
+            if run_time < end_t:
+                return (users, spawn_rate)
+        return None  # all stages complete → stop
+
+
+# ============================================================================
+# PHASE 6.3 ERROR TRACKING LISTENER (429 / 5xx / network split — GATE-2b)
+# ============================================================================
+
+@events.request.add_listener
+def _track_p63_errors(
+    request_type, name, response_time, response_length,
+    response, exception, context, **kwargs
+):
+    """Separate Phase 6.3 errors into 429 / 5xx / network buckets."""
+    if not name.startswith("[P63]"):
+        return  # only track SoakBurstUser requests
+    code = getattr(response, "status_code", 0)
+    with _P63_LOCK:
+        if code == 429:
+            _P63_COUNTERS["rate_limited"] += 1
+        elif code >= 500:
+            _P63_COUNTERS["server_errors"] += 1
+        elif code == 0 and exception:
+            _P63_COUNTERS["network_errors"] += 1
+
+
+# ============================================================================
+# PHASE 6.3 DB METRICS PROBE (GATE-4)
+# ============================================================================
+
+@events.test_start.add_listener
+def _capture_metrics_baseline(environment, **kwargs):
+    """Capture Prometheus counters at test start for delta computation."""
+    if _stdlib_requests is None:
+        return
+    try:
+        host = environment.host or "http://localhost:8000"
+        resp = _stdlib_requests.get(
+            f"{host}/metrics?format=prometheus", timeout=5
+        )
+        if resp.status_code == 200:
+            for line in resp.text.splitlines():
+                if line.startswith("#") or not line.strip():
+                    continue
+                parts = line.rsplit(" ", 1)
+                if len(parts) == 2:
+                    try:
+                        _P63_METRICS_START[parts[0].strip()] = float(parts[1])
+                    except ValueError:
+                        pass
+    except Exception:
+        pass  # server may not be fully up yet; skip silently
+
+
+# ============================================================================
+# EVENT LISTENERS — INIT + STOP
 # ============================================================================
 
 @events.init.add_listener
 def on_locust_init(environment, **kwargs):
-    """Print baseline performance expectations for both Phase 5 and Phase 6.2."""
-    print("=" * 70)
+    """Print baseline performance expectations for Phase 5, 6.2, and 6.3."""
+    print("=" * 72)
     print("PERFORMANCE BASELINE EXPECTATIONS")
-    print("=" * 70)
+    print("=" * 72)
     print()
     print("── Phase 5 (TournamentCreationUser) ─────────────────────────────────")
     print("  Endpoint: POST /api/v1/tournaments/ops/run-scenario")
@@ -334,29 +604,62 @@ def on_locust_init(environment, **kwargs):
     print("  Rate limit (429): EXPECTED at > 100 concurrent users (IP limit = 100/60s)")
     print("  DB pool: 50 connections/worker × 4 workers = 200 total")
     print("  503 responses = pool exhaustion (increase pool_size or reduce workers)")
-    print("=" * 70)
+    print()
+    peak = _LOAD_PEAK_VUS
+    is_ci = bool(os.getenv("CI"))
+    print("── Phase 6.3 (SoakBurstUser + Phase63LoadShape) ─────────────────────")
+    print(f"  Peak VUs: {peak}  ({'CI-scaled' if is_ci else 'local full load'})")
+    print(f"  User pool: {_LOAD_USERS_COUNT} accounts (load-user-0001..{_LOAD_USERS_COUNT:04d}@lfa.com)")
+    print("  5-stage profile: warmup→soak(5m)→burst→spike(2m)→recovery  ~10 min")
+    print()
+    if is_ci:
+        print("  CI KPI thresholds (scaled 50 VUs):")
+        print("    Browse  [P63] p95 ≤ 500ms   5xx ≤ 2%")
+        print("    Enroll  [P63] p95 ≤ 1000ms  5xx ≤ 2%")
+        print("    Withdraw [P63] p95 ≤ 1000ms  5xx ≤ 2%")
+    else:
+        print("  Local KPI thresholds (1000 VUs):")
+        print("    Browse  [P63] p95 ≤ 200ms   5xx ≤ 1%")
+        print("    Enroll  [P63] p95 ≤ 800ms   5xx ≤ 1%")
+        print("    Withdraw [P63] p95 ≤ 800ms   5xx ≤ 1%")
+    print()
+    print("  GATE-2: p95/p99 + 429/5xx/network split + breaking point VU")
+    print("  GATE-4: slow_queries_total Δ + invariant_violations_total = 0")
+    print("=" * 72)
     print()
 
 
 @events.test_stop.add_listener
 def on_test_stop(environment, **kwargs):
-    """Print performance summary and Phase 6.2 bottleneck analysis."""
+    """Print performance summary, Phase 6.2 + Phase 6.3 bottleneck analysis."""
     stats = environment.runner.stats if environment.runner else None
     print()
-    print("=" * 70)
+    print("=" * 72)
     print("PERFORMANCE TEST COMPLETE")
-    print("=" * 70)
+    print("=" * 72)
 
     if stats:
         _print_phase62_analysis(stats)
+
+    # Phase 6.3 report fires only if SoakBurstUser data is present
+    has_p63 = any(
+        name.startswith("[P63]")
+        for name, _ in (stats.entries.keys() if stats else [])
+    )
+    if has_p63 and stats:
+        _print_phase63_report(environment)
 
     print()
     print("Phase 5 next steps:")
     print("  1. Review Locust report (latency percentiles, RPS, error rate)")
     print("  2. Compare actual vs baseline expectations above")
     print("  3. If degradation > 20%: Investigate performance regression")
-    print("=" * 70)
+    print("=" * 72)
 
+
+# ============================================================================
+# PHASE 6.2 HELPERS
+# ============================================================================
 
 def _print_phase62_analysis(stats):
     """Phase 6.2 bottleneck analysis — failure modes + mitigation suggestions."""
@@ -371,7 +674,7 @@ def _print_phase62_analysis(stats):
     }
 
     for name, (label, p95_target_ms, err_target_pct) in endpoints.items():
-        entry = stats.get(name, "POST") or stats.get(name, "GET")
+        entry = stats.entries.get((name, "POST")) or stats.entries.get((name, "GET"))
         if entry is None:
             continue
 
@@ -426,3 +729,178 @@ def _print_mitigation(name: str, p95_actual: float, p95_target: float, err_pct: 
     }
     hint = mitigations.get(name, "No specific mitigation mapped for this endpoint.")
     print(f"       Bottleneck hint: {hint}")
+
+
+# ============================================================================
+# PHASE 6.3 REPORT (GATE-2 + GATE-4 compliant)
+# ============================================================================
+
+def _print_phase63_report(environment) -> dict:
+    """
+    Structured Phase 6.3 bottleneck report — satisfies GATE-2 and GATE-4.
+
+    Returns a dict with all metrics for use by analyze_load_results.py
+    when called programmatically after the test.
+    """
+    stats = environment.runner.stats
+    is_ci = bool(os.getenv("CI"))
+
+    # KPI thresholds: CI-tier (50 VUs) vs local (1000 VUs)
+    thresholds = {
+        "[P63] Browse event":             500  if is_ci else 200,
+        "[P63] Enroll":                  1000  if is_ci else 800,
+        "[P63] Withdraw":                1000  if is_ci else 800,
+    }
+
+    print()
+    print("=" * 72)
+    print("PHASE 6.3 — BOTTLENECK REPORT  (GATE-2 / GATE-4)")
+    print("=" * 72)
+    print(f"VU peak: {_LOAD_PEAK_VUS}  |  user pool: {_LOAD_USERS_COUNT} accounts  "
+          f"|  env: {'CI' if is_ci else 'local'}")
+    print()
+
+    # ── GATE-2a: p95 / p99 per endpoint ─────────────────────────────────────
+    print("── p95 / p99 per Endpoint ──────────────────────────────────────────")
+    results = {}
+    for name, threshold in thresholds.items():
+        for method in ("GET", "POST"):
+            entry = stats.entries.get((name, method))
+            if entry:
+                break
+        if not entry:
+            print(f"  (no data)  {name}")
+            results[name] = {"ok": False, "p95": -1, "p99": -1, "threshold": threshold}
+            continue
+        p95 = entry.get_response_time_percentile(0.95) or 0
+        p99 = entry.get_response_time_percentile(0.99) or 0
+        ok  = p95 <= threshold
+        icon = "✅" if ok else "❌"
+        print(f"  {icon} {name}")
+        print(f"       p95={p95:.0f}ms  p99={p99:.0f}ms  threshold≤{threshold}ms")
+        results[name] = {"ok": ok, "p95": p95, "p99": p99, "threshold": threshold}
+
+    # ── GATE-2b: Error split ─────────────────────────────────────────────────
+    print()
+    print("── Error Split (429 / 5xx / network) ──────────────────────────────")
+    total_req = sum(e.num_requests for e in stats.entries.values())
+    rl  = _P63_COUNTERS["rate_limited"]
+    srv = _P63_COUNTERS["server_errors"]
+    net = _P63_COUNTERS["network_errors"]
+    rl_pct  = rl  / max(total_req, 1) * 100
+    srv_pct = srv / max(total_req, 1) * 100
+    net_pct = net / max(total_req, 1) * 100
+
+    print(f"  429 rate limited : {rl:>7}  ({rl_pct:.2f}%)  ← expected under load")
+    print(f"  5xx server error : {srv:>7}  ({srv_pct:.2f}%)  ← target ≤ 2% (CI) / 1% (local)")
+    print(f"  network error    : {net:>7}  ({net_pct:.2f}%)")
+    print(f"  total [P63] reqs : {total_req:>7}")
+
+    srv_threshold = 2.0 if is_ci else 1.0
+    server_error_ok = srv_pct <= srv_threshold
+    print(f"  {'✅' if server_error_ok else '❌'} 5xx: {srv_pct:.2f}% vs threshold {srv_threshold}%")
+
+    # ── GATE-2c: Breaking point estimate ────────────────────────────────────
+    print()
+    print("── Breaking Point Estimate ─────────────────────────────────────────")
+    if srv_pct > srv_threshold or any(not r["ok"] for r in results.values()):
+        print(f"  ⚠️  Breaking point likely ≤ {_LOAD_PEAK_VUS} VUs")
+        print(f"       Precise value: run analyze_load_results.py against _stats_history.csv")
+    else:
+        print(f"  ✅ No breaking point detected at {_LOAD_PEAK_VUS} VUs")
+        print(f"       All KPIs within threshold across full 5-stage cycle")
+
+    # ── GATE-4: DB metrics delta ─────────────────────────────────────────────
+    print()
+    print("── DB Metrics (GATE-4) ─────────────────────────────────────────────")
+    db_ok = True
+    if _stdlib_requests is None:
+        print("  (requests library not available — DB probe skipped)")
+    else:
+        try:
+            host = environment.host or "http://localhost:8000"
+            resp = _stdlib_requests.get(
+                f"{host}/metrics?format=prometheus", timeout=5
+            )
+            if resp.status_code == 200:
+                current: dict = {}
+                for line in resp.text.splitlines():
+                    if line.startswith("#") or not line.strip():
+                        continue
+                    parts = line.rsplit(" ", 1)
+                    if len(parts) == 2:
+                        try:
+                            current[parts[0].strip()] = float(parts[1])
+                        except ValueError:
+                            pass
+                for key, warn_threshold, label in [
+                    ("slow_queries_total",        50, "slow queries (>200ms)"),
+                    ("invariant_violations_total",  0, "invariant violations"),
+                ]:
+                    start_v = _P63_METRICS_START.get(key, 0.0)
+                    end_v   = current.get(key, start_v)
+                    delta   = end_v - start_v
+                    if key == "invariant_violations_total":
+                        ok = delta == 0
+                        icon = "✅" if ok else "❌ CRITICAL"
+                        if not ok:
+                            db_ok = False
+                    else:
+                        ok = delta <= warn_threshold
+                        icon = "✅" if ok else "⚠️  CONTENTION"
+                    print(f"  {icon} {label}: Δ{delta:.0f}  "
+                          f"(start={start_v:.0f} → end={end_v:.0f})")
+            else:
+                print(f"  (metrics endpoint: {resp.status_code})")
+        except Exception as exc:
+            print(f"  (DB probe error: {exc})")
+
+    # ── Summary verdict ──────────────────────────────────────────────────────
+    print()
+    print("── Verdict ─────────────────────────────────────────────────────────")
+    all_ok = all(r["ok"] for r in results.values()) and server_error_ok and db_ok
+    if all_ok:
+        print("  ✅ ALL KPIs WITHIN THRESHOLD — Phase 6.3 VALID")
+    else:
+        print("  ❌ KPI VIOLATIONS — Phase 6.3 NOT COMPLETE:")
+        if not server_error_ok:
+            print(f"     [CRITICAL] 5xx rate {srv_pct:.2f}% > {srv_threshold}%")
+            print("               → DB pool exhaustion or unhandled exception in route")
+        for name, r in results.items():
+            if not r["ok"]:
+                bottleneck = _p63_bottleneck_hint(name)
+                print(f"     [PERF] {name}: p95={r['p95']:.0f}ms > {r['threshold']}ms")
+                print(f"            → {bottleneck}")
+        if not db_ok:
+            print("     [CRITICAL] invariant_violations_total > 0 — data integrity risk")
+
+    print()
+    print("Mitigation reference: tests/performance/LOAD_BASELINE.md")
+    print("=" * 72)
+
+    return {
+        "results": results,
+        "server_error_ok": server_error_ok,
+        "db_ok": db_ok,
+        "counters": dict(_P63_COUNTERS),
+        "total_req": total_req,
+        "all_ok": all_ok,
+    }
+
+
+def _p63_bottleneck_hint(endpoint_name: str) -> str:
+    hints = {
+        "[P63] Browse event": (
+            "N+1 in tournaments.py:110-117 (1+3N queries). "
+            "Fix: joinedload(Semester.enrollments, master_instructor)"
+        ),
+        "[P63] Enroll": (
+            "Capacity check loop (N ROW LOCKs) or credit deduction hot-spot. "
+            "Fix: single GROUP BY query for capacity; index sessions(auto_generated)"
+        ),
+        "[P63] Withdraw": (
+            "Booking batch-delete or credit refund contention. "
+            "Fix: composite index booking(enrollment_id, user_id)"
+        ),
+    }
+    return hints.get(endpoint_name, "Review slow_queries_total delta in DB metrics section")

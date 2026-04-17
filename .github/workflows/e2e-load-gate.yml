@@ -1,0 +1,219 @@
+name: E2E Load Gate (Phase 6.3 — 50 VUs / 10 min)
+
+# ── Purpose ────────────────────────────────────────────────────────────────────
+# Runs the full Phase 6.3 soak+burst load shape at CI-scaled VUs (50, not 1000)
+# for the full 10-minute duration (same shape, proportionally scaled VU counts).
+#
+# MANDATORY merge gate: blocks merge if any KPI threshold is violated:
+#   browse p95  > 500 ms
+#   enroll p95  > 1000 ms
+#   5xx rate    > 2%
+#
+# GATE definitions (from Phase 6.3 plan):
+#   GATE-1  Full 10-min cycle (5 stages: warmup→soak→burst→spike→recovery)
+#   GATE-2  p95/p99 per endpoint + 429/5xx/network error split + breaking point
+#   GATE-3  analyze_load_results.py exits 0
+#   GATE-4  DB metrics: slow_queries_total + invariant_violations_total = 0
+#   GATE-5  LOAD_REPORT_{YYYYMMDD}.md artifact uploaded
+#
+# Required branch protection (GitHub → Settings → Branches → main):
+#   - Require status checks: load-smoke ✅
+#   - Require branches to be up to date: ✅
+# ──────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      peak_vus:
+        description: 'Peak VU count override (default: 50 for CI)'
+        required: false
+        default: '50'
+
+jobs:
+  load-smoke:
+    name: Load Gate — Phase 6.3 (50 VUs, 10 min)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25        # 10 min load + 5 min setup + 10 min buffer
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY=ci-load-gate-key-not-for-production
+          ENVIRONMENT=test
+          TESTING=true
+          DEBUG=false
+          ENABLE_RATE_LIMITING=false
+          EOF
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies (app + test)
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-load-gate-key-not-for-production
+        run: alembic upgrade head
+
+      - name: Seed load-test users (10 accounts for CI)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-load-gate-key-not-for-production
+          LOAD_USERS_COUNT: '10'
+        run: |
+          python3 scripts/seed_load_test_users.py | tee /tmp/seed_output.txt
+          # Export parsed IDs for later steps
+          SEMESTER_IDS=$(grep "^LOAD_SEMESTER_IDS=" /tmp/seed_output.txt | tail -1 | cut -d= -f2 || echo "")
+          EVENT_IDS=$(grep    "^LOAD_EVENT_IDS="    /tmp/seed_output.txt | tail -1 | cut -d= -f2 || echo "1")
+          echo "LOAD_SEMESTER_IDS=${SEMESTER_IDS}" >> "$GITHUB_ENV"
+          echo "LOAD_EVENT_IDS=${EVENT_IDS}"       >> "$GITHUB_ENV"
+          echo "[CI] Seed complete — SEMESTER_IDS=${SEMESTER_IDS}, EVENT_IDS=${EVENT_IDS}"
+
+      - name: Start uvicorn (1 worker — CI resources)
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          SECRET_KEY: ci-load-gate-key-not-for-production
+          ENABLE_RATE_LIMITING: 'false'
+        run: |
+          uvicorn app.main:app \
+            --host 127.0.0.1 \
+            --port 8001 \
+            --workers 1 \
+            --log-level warning &
+          echo "UVICORN_PID=$!" >> "$GITHUB_ENV"
+
+          # Wait up to 20s for health endpoint
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:8001/health >/dev/null 2>&1; then
+              echo "[CI] uvicorn ready ✅"
+              break
+            fi
+            echo -n "."
+            sleep 0.5
+            if [[ $i -eq 40 ]]; then
+              echo ""
+              echo "[CI] ❌ uvicorn failed to start in 20s"
+              exit 2
+            fi
+          done
+
+      - name: Capture DB metrics baseline
+        run: |
+          curl -sf "http://127.0.0.1:8001/metrics?format=prometheus" \
+            -o /tmp/metrics_baseline.txt 2>/dev/null || echo "Metrics endpoint unavailable (non-fatal)"
+          grep -E "^(slow_queries_total|invariant_violations_total)" /tmp/metrics_baseline.txt \
+            || echo "No matching metrics found (endpoint may return 0)"
+
+      - name: Run Locust Phase 6.3 — 50 VUs, 10 min (full 5-stage shape)
+        env:
+          LOAD_PEAK_VUS: ${{ github.event.inputs.peak_vus || '50' }}
+          LOAD_SEMESTER_IDS: ${{ env.LOAD_SEMESTER_IDS }}
+          LOAD_EVENT_IDS: ${{ env.LOAD_EVENT_IDS }}
+          CI: 'true'
+        run: |
+          mkdir -p tests/performance/results
+          TIMESTAMP=$(date +%Y%m%d_%H%M)
+          CSV_PREFIX="tests/performance/results/ci_${TIMESTAMP}"
+
+          locust \
+            -f tests/performance/locustfile.py \
+            SoakBurstUser \
+            --headless \
+            --host "http://127.0.0.1:8001" \
+            --run-time 10m \
+            --csv "${CSV_PREFIX}" \
+            --html "tests/performance/results/ci_${TIMESTAMP}.html" \
+            --logfile "tests/performance/results/ci_${TIMESTAMP}.log" \
+            2>&1 | tee "tests/performance/results/ci_${TIMESTAMP}_stdout.txt"
+
+          echo "CSV_PREFIX=${CSV_PREFIX}" >> "$GITHUB_ENV"
+          echo "TIMESTAMP=${TIMESTAMP}"   >> "$GITHUB_ENV"
+
+      - name: Capture DB metrics final + delta
+        run: |
+          curl -sf "http://127.0.0.1:8001/metrics?format=prometheus" \
+            -o /tmp/metrics_final.txt 2>/dev/null || echo "Metrics endpoint unavailable"
+          echo "=== DB Metrics Delta ==="
+          echo "--- baseline ---"
+          grep -E "^(slow_queries_total|invariant_violations_total)" /tmp/metrics_baseline.txt 2>/dev/null || echo "(none)"
+          echo "--- final ---"
+          grep -E "^(slow_queries_total|invariant_violations_total)" /tmp/metrics_final.txt 2>/dev/null || echo "(none)"
+
+      - name: Analyze results — GATE-2/3/4 evaluation
+        env:
+          LOAD_PEAK_VUS: ${{ github.event.inputs.peak_vus || '50' }}
+          CI: 'true'
+        run: |
+          python3 tests/performance/analyze_load_results.py \
+            "${CSV_PREFIX}_stats.csv" \
+            "${CSV_PREFIX}_failures.csv" \
+            "${CSV_PREFIX}_stats_history.csv" \
+            --peak-vus "${LOAD_PEAK_VUS}" \
+            --output "tests/performance/LOAD_REPORT_$(date +%Y%m%d).md"
+
+      - name: Stop uvicorn
+        if: always()
+        run: |
+          kill "${UVICORN_PID}" 2>/dev/null || true
+          wait "${UVICORN_PID}" 2>/dev/null || true
+
+      - name: Upload LOAD_REPORT (GATE-5 artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-report-${{ env.TIMESTAMP }}
+          path: |
+            tests/performance/LOAD_REPORT_*.md
+            tests/performance/results/ci_${{ env.TIMESTAMP }}.html
+            tests/performance/results/ci_${{ env.TIMESTAMP }}_stdout.txt
+          retention-days: 30
+
+      - name: Load Gate Summary
+        if: always()
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo " Phase 6.3 Load Gate — CI Summary"
+          echo "═══════════════════════════════════════════════════════"
+          echo " Peak VUs : ${{ github.event.inputs.peak_vus || '50' }}"
+          echo " Duration : 10 min (full 5-stage shape)"
+          echo " KPI tier : CI (browse p95≤500ms, enroll≤1000ms, 5xx≤2%)"
+          echo ""
+          if [ -f "tests/performance/LOAD_REPORT_$(date +%Y%m%d).md" ]; then
+            echo "--- LOAD_REPORT excerpt ---"
+            head -60 "tests/performance/LOAD_REPORT_$(date +%Y%m%d).md"
+          fi
+          echo "═══════════════════════════════════════════════════════"
+          echo " MANDATORY: this gate must be green before merge."
+          echo " Failures block merge — no exceptions."
+          echo "═══════════════════════════════════════════════════════"

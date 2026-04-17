@@ -49,6 +49,9 @@ tests/performance/baseline_results*.csv
 tests/performance/baseline_report*.html
 tests/performance/*.csv
 tests/performance/*.html
+tests/performance/*.log
+# Phase 6.3 raw results (CSVs, HTMLs, logs — not committed; LOAD_REPORT_*.md IS committed)
+tests/performance/results/
 
 # IDE Files
 .vscode/
