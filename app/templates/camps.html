@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Camps - LFA Education Center{% endblock %}
+
+{% block content %}
+<style>
+.camp-card {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    background: white;
+    border-left: 5px solid #f39c12;
+    transition: box-shadow 0.2s ease;
+}
+.camp-card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+.camp-card.enrolled {
+    border-left-color: #3498db;
+}
+.camp-header {
+    padding: 1.2rem 1.5rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.camp-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+}
+.status-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.status-enrollment-open { background: #d5f5e3; color: #1a7a4a; }
+.camp-body {
+    padding: 0 1.5rem 1.2rem;
+}
+.meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+.meta-item {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+}
+.meta-item strong { display: block; font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.2rem; }
+.enrolled-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #d6eaf8;
+    color: #1a5276;
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+.action-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+</style>
+
+<div class="welcome-section">
+    <h1>⛺ Camps</h1>
+    <p>Browse open camps and manage your participation</p>
+</div>
+
+{% if flash %}
+<div class="alert alert-{{ flash_type if flash_type else 'info' }}" style="padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;
+    {% if flash_type == 'success' %}background:#d5f5e3; color:#1a7a4a; border-left:4px solid #27ae60;
+    {% elif flash_type == 'error' %}background:#fadbd8; color:#7b241c; border-left:4px solid #e74c3c;
+    {% else %}background:#d6eaf8; color:#1a5276; border-left:4px solid #3498db;{% endif %}">
+    {{ flash | replace('+', ' ') | replace('%2C', ',') }}
+</div>
+{% endif %}
+
+{% if not camps %}
+<div class="card text-center" style="padding: 3rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">⛺</div>
+    <h3>No Open Camps</h3>
+    <p style="color: #7f8c8d;">There are no camps open for enrollment right now. Check back later!</p>
+</div>
+{% else %}
+
+{% for item in camps %}
+{% set c = item.camp %}
+
+<div class="camp-card {% if item.is_enrolled %}enrolled{% endif %}"
+     data-testid="camp-card" data-camp-id="{{ c.id }}">
+
+    <div class="camp-header">
+        <div>
+            <p class="camp-title">⛺ {{ c.name }}</p>
+            <p style="color: #7f8c8d; font-size: 0.85rem; margin: 0.25rem 0 0;">{{ c.code }}</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <span class="status-badge status-enrollment-open">🟢 Enrollment Open</span>
+            {% if c.age_group %}
+            <span class="status-badge" style="background:#eaf2ff; color:#1a5276;">{{ c.age_group }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="camp-body">
+
+        {% if item.is_enrolled %}
+        <div class="enrolled-badge" data-testid="enrolled-badge">
+            ✅ You are enrolled
+        </div>
+        {% endif %}
+
+        <div class="meta-grid">
+            <div class="meta-item">
+                <strong>📅 Start Date</strong>
+                {{ c.start_date.strftime('%b %d, %Y') if c.start_date else '—' }}
+            </div>
+            <div class="meta-item">
+                <strong>⏰ End Date</strong>
+                {{ c.end_date.strftime('%b %d, %Y') if c.end_date else '—' }}
+            </div>
+            <div class="meta-item">
+                <strong>💳 Entry Fee</strong>
+                {{ c.enrollment_cost if c.enrollment_cost is not none else 500 }} credits
+            </div>
+            <div class="meta-item">
+                <strong>👥 Enrolled</strong>
+                {{ item.enrollment_count }} players
+            </div>
+        </div>
+
+        {% if c.focus_description %}
+        <p style="color: #555; margin-bottom: 1rem; font-size: 0.95rem;">{{ c.focus_description }}</p>
+        {% endif %}
+
+        <div class="action-row">
+            {% if item.is_enrolled %}
+                <form method="POST" action="/camps/{{ c.id }}/unenroll" style="margin: 0;">
+                    <button type="submit" class="btn btn-secondary"
+                            style="background: #e74c3c; border-color: #c0392b; color: white;"
+                            data-testid="unenroll-btn"
+                            onclick="return confirm('Are you sure you want to withdraw? You will receive a 50% refund.')">
+                        ↩ Withdraw (50% refund)
+                    </button>
+                </form>
+            {% else %}
+                <form method="POST" action="/camps/{{ c.id }}/enroll" style="margin: 0;">
+                    <button type="submit" class="btn btn-primary" data-testid="enroll-btn">
+                        ⛺ Enroll ({{ c.enrollment_cost if c.enrollment_cost is not none else 500 }} credits)
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endif %}
+
+{% endblock %}
