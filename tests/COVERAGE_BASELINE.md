@@ -15,10 +15,10 @@ A flow is COVERED only when ALL 3 layers are proven:
 | Metric | Value |
 |--------|-------|
 | Total defined flows | **62** |
-| Covered (all 3 layers) | **62** |
-| Not Implemented on main | **2** (F-26, F-27 — camp enrollment routes absent) |
+| Covered (all 3 layers) | **64** |
+| Not Implemented on main | **0** |
 | Not Covered | **0** |
-| **Coverage KPI** | **100%** (62/62 implemented flows) |
+| **Coverage KPI** | **100%** (64/64 implemented flows) |
 | Sprint 1 additions | +5 flows (F-03, F-14, F-15, F-16, F-29) |
 | Sprint 2 additions | +8 flows (F-04, F-05, F-12, F-24, F-25, F-32, F-35, F-38) |
 | Sprint 3 additions | +2 flows (F-41, F-42) |
@@ -91,8 +91,8 @@ A flow is COVERED only when ALL 3 layers are proven:
 | F-23 | TEAM tournament enroll → captain UserLicense.credit_balance -= cost | ✅ | ✅ | ✅ | **COVERED** | GAP-02 |
 | F-24 | Team create (captain) → Team + TeamMember(CAPTAIN) rows | ✅ | ✅ | ✅ | **COVERED** | test_team_create_by_captain |
 | F-25 | Team invite → accept → TeamMember added | ✅ | ✅ | ✅ | **COVERED** | test_team_invite_accept_adds_member |
-| F-26 | Camp enroll → auto-APPROVED → CreditTransaction(−cost) | N/A | N/A | N/A | **NOT IMPLEMENTED** on main (`/events/camps/{id}/enroll` absent) | — |
-| F-27 | Camp unenroll → 50% refund → SemesterEnrollment.is_active=False | N/A | N/A | N/A | **NOT IMPLEMENTED** on main (`/events/camps/{id}/unenroll` absent) | — |
+| F-26 | Camp enroll → auto-APPROVED → CreditTransaction(−cost) | ✅ | ✅ | ✅ | **COVERED** | CEE-01 (test_camp_enroll) |
+| F-27 | Camp unenroll → 50% refund → SemesterEnrollment.is_active=False | ✅ | ✅ | ✅ | **COVERED** | CEE-02 (test_camp_unenroll_refund) |
 | F-28 | Admin grant credit → User.credit_balance += amount + CreditTransaction | ✅ | ✅ | ✅ | **COVERED** | GAP-04 |
 | F-29 | Admin deduct credit → User.credit_balance -= amount + CreditTransaction | ✅ | ✅ | ✅ | **COVERED** | test_admin_deduct_credit |
 | F-30 | Admin license renewal → UserLicense.expires_at updated + LicenseProgression | ✅ | ✅ | ✅ | **COVERED** | GAP-05 |

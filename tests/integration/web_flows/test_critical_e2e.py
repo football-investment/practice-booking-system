@@ -1146,9 +1146,124 @@ def test_license_revoke_cascades_to_enrollments(test_db: Session, client: TestCl
     )
 
 
-# ── Test 14: CEE — Camp Enrollment (NOT IMPLEMENTED on main) ─────────────────
-# F-26/F-27: Student camp enrollment routes (/events/camps/{id}/enroll|unenroll)
-# are not present on the main branch. Marked as NOT IMPLEMENTED in COVERAGE_BASELINE.md.
+# ── Test 14: CEE-01 — Camp Enrollment (F-26) ──────────────────────────────────
+
+def test_camp_enroll(test_db: Session, client: TestClient):
+    """CEE-01 / F-26: Student enrolls in a CAMP semester.
+
+    Chain:
+      GET  /camps              → 200, camp name visible
+      POST /camps/{id}/enroll  → 303, credit deducted, SemesterEnrollment APPROVED
+      DB:  CreditTransaction(CAMP_ENROLLMENT, amount=-200)
+    """
+    student = _make_user(test_db, credit_balance=1000)
+    lic = _make_license(test_db, student)
+    camp = _make_camp(test_db, enrollment_cost=200)
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # Step 1: Browse — camp is visible
+    r_browse = client.get("/camps")
+    assert r_browse.status_code == 200, f"GET /camps failed: {r_browse.status_code}"
+    assert camp.name in r_browse.text, "Camp name must appear in browse list"
+
+    # Step 2: Enroll
+    r_enroll = client.post(f"/camps/{camp.id}/enroll", follow_redirects=False)
+    assert r_enroll.status_code == 303, f"Expected 303, got {r_enroll.status_code}: {r_enroll.text[:300]}"
+    assert "/camps" in r_enroll.headers.get("location", ""), (
+        f"Redirect must point to /camps, got: {r_enroll.headers.get('location')}"
+    )
+
+    # Step 3: DB — SemesterEnrollment created and approved
+    test_db.expire_all()
+    enrollment = test_db.query(SemesterEnrollment).filter(
+        SemesterEnrollment.user_id == student.id,
+        SemesterEnrollment.semester_id == camp.id,
+    ).first()
+    assert enrollment is not None, "SemesterEnrollment must exist after enroll"
+    assert enrollment.is_active is True, "SemesterEnrollment.is_active must be True"
+    assert enrollment.request_status == EnrollmentStatus.APPROVED, (
+        f"Expected APPROVED, got {enrollment.request_status}"
+    )
+
+    # Step 4: DB — credit balance deducted
+    refreshed_student = test_db.query(User).filter(User.id == student.id).first()
+    assert refreshed_student.credit_balance == 800, (
+        f"Expected 800 (1000-200), got {refreshed_student.credit_balance}"
+    )
+
+    # Step 5: DB — CreditTransaction recorded
+    tx = test_db.query(CreditTransaction).filter(
+        CreditTransaction.user_license_id == lic.id,
+        CreditTransaction.semester_id == camp.id,
+    ).first()
+    assert tx is not None, "CreditTransaction must exist after camp enrollment"
+    assert tx.amount == -200, f"Expected amount=-200, got {tx.amount}"
+    assert tx.balance_after == 800, f"Expected balance_after=800, got {tx.balance_after}"
+
+
+# ── Test 14b: CEE-02 — Camp Unenroll / 50% Refund (F-27) ──────────────────────
+
+def test_camp_unenroll_refund(test_db: Session, client: TestClient):
+    """CEE-02 / F-27: Student unenrolls from a CAMP semester and receives 50% refund.
+
+    Chain:
+      (precondition: enrollment created inline)
+      POST /camps/{id}/unenroll → 303
+      DB:  SemesterEnrollment.is_active=False, request_status=WITHDRAWN
+      DB:  CreditTransaction(CAMP_UNENROLL_REFUND, amount=+100)
+      DB:  student.credit_balance == 900 (800 + 100 refund of 200 cost)
+    """
+    student = _make_user(test_db, credit_balance=800)
+    lic = _make_license(test_db, student)
+    camp = _make_camp(test_db, enrollment_cost=200)
+
+    # Precondition: create enrollment directly (self-contained, no route dependency)
+    enrollment = SemesterEnrollment(
+        user_id=student.id,
+        semester_id=camp.id,
+        user_license_id=lic.id,
+        request_status=EnrollmentStatus.APPROVED,
+        is_active=True,
+        payment_verified=True,
+        enrolled_at=datetime.now(timezone.utc),
+        requested_at=datetime.now(timezone.utc),
+        age_category="AMATEUR",
+    )
+    test_db.add(enrollment)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+
+    # Step 1: Unenroll
+    r_unenroll = client.post(f"/camps/{camp.id}/unenroll", follow_redirects=False)
+    assert r_unenroll.status_code == 303, f"Expected 303, got {r_unenroll.status_code}: {r_unenroll.text[:300]}"
+    assert "/camps" in r_unenroll.headers.get("location", ""), (
+        f"Redirect must point to /camps, got: {r_unenroll.headers.get('location')}"
+    )
+
+    # Step 2: DB — enrollment deactivated
+    test_db.expire_all()
+    test_db.refresh(enrollment)
+    assert enrollment.is_active is False, "SemesterEnrollment.is_active must be False after unenroll"
+    assert enrollment.request_status == EnrollmentStatus.WITHDRAWN, (
+        f"Expected WITHDRAWN, got {enrollment.request_status}"
+    )
+
+    # Step 3: DB — credit balance refunded (50% of 200 = 100)
+    refreshed_student = test_db.query(User).filter(User.id == student.id).first()
+    assert refreshed_student.credit_balance == 900, (
+        f"Expected 900 (800 + 100 refund), got {refreshed_student.credit_balance}"
+    )
+
+    # Step 4: DB — CreditTransaction refund recorded
+    tx = test_db.query(CreditTransaction).filter(
+        CreditTransaction.user_license_id == lic.id,
+        CreditTransaction.semester_id == camp.id,
+    ).first()
+    assert tx is not None, "CreditTransaction must exist after camp unenroll"
+    assert tx.amount == 100, f"Expected amount=100 (50% refund), got {tx.amount}"
+    assert tx.balance_after == 900, f"Expected balance_after=900, got {tx.balance_after}"
 
 
 
