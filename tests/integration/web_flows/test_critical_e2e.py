@@ -5466,3 +5466,224 @@ def test_post_withdraw_capacity_invariant(test_db: Session, client: TestClient):
     assert total == 2, (
         f"INV-03: total bookings for session must be 2 (1 confirmed + 1 waitlisted), got {total}"
     )
+
+
+# ── Phase 5.5: Guard Negative Path Tests (SCHED_G3-11..15) ──────────────────
+#
+# SCHED_G3-11  role guard          — non-student (INSTRUCTOR) blocked
+# SCHED_G3-12  license guard       — no matching active license → blocked
+# SCHED_G3-13  duplicate guard     — already actively enrolled → blocked
+# SCHED_G3-14  credit guard        — insufficient credits → blocked, balance unchanged
+# SCHED_G3-15  ownership guard     — wrong user cannot withdraw another's enrollment
+#
+# These tests cover the critical early-return validation branches in programs.py
+# that protect financial integrity and access control. All 5 guards must survive
+# regression — failure in any would expose a business-logic breach.
+# ------------------------------------------------------------------------------
+
+
+@pytest.mark.sched
+def test_enrollment_blocked_for_non_student(test_db: Session, client: TestClient):
+    """SCHED_G3-11: Enrollment blocked when requester is not a STUDENT.
+
+    Asserts:
+      POST /semesters/request-enrollment as INSTRUCTOR → 303 + 'Student+role+required'
+    """
+    semester, _, _ = _make_mini_season_with_config(
+        test_db, start_date=date(2027, 6, 1), weeks=4, day_of_week=0
+    )
+    instructor = _make_user(test_db, role=UserRole.INSTRUCTOR)
+    instructor.specialization = SpecializationType.LFA_FOOTBALL_PLAYER
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: instructor
+    r = client.post(
+        "/semesters/request-enrollment",
+        data={"semester_id": str(semester.id)},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, f"G3-11: expected 303, got {r.status_code}"
+    assert "Student+role+required" in r.headers["location"], (
+        f"G3-11: expected 'Student+role+required' in location, got {r.headers['location']}"
+    )
+
+
+@pytest.mark.sched
+def test_enrollment_blocked_no_license(test_db: Session, client: TestClient):
+    """SCHED_G3-12: Enrollment blocked when student has no active license for the specialization.
+
+    Asserts:
+      POST with no license → 303 + 'No+active+license+for+this+specialization'
+    """
+    semester, _, _ = _make_mini_season_with_config(
+        test_db, start_date=date(2027, 7, 1), weeks=4, day_of_week=1
+    )
+    student = _make_user(test_db, role=UserRole.STUDENT)
+    student.specialization = SpecializationType.LFA_FOOTBALL_PLAYER
+    # Deliberately NO license created
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+    r = client.post(
+        "/semesters/request-enrollment",
+        data={"semester_id": str(semester.id)},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, f"G3-12: expected 303, got {r.status_code}"
+    assert "No+active+license+for+this+specialization" in r.headers["location"], (
+        f"G3-12: expected license error in location, got {r.headers['location']}"
+    )
+
+
+@pytest.mark.sched
+def test_enrollment_blocked_when_already_enrolled(test_db: Session, client: TestClient):
+    """SCHED_G3-13: Enrollment blocked when student already has an active enrollment.
+
+    Asserts:
+      Pre-existing active enrollment → 303 + 'Already+enrolled'
+      No second enrollment row created in DB
+    """
+    semester, _, _ = _make_mini_season_with_config(
+        test_db, start_date=date(2027, 8, 1), weeks=4, day_of_week=2
+    )
+    semester.enrollment_cost = 0
+    student = _make_user(test_db, role=UserRole.STUDENT)
+    student.specialization = SpecializationType.LFA_FOOTBALL_PLAYER
+    lic = _make_license(test_db, student)
+    existing = SemesterEnrollment(
+        user_id=student.id,
+        semester_id=semester.id,
+        user_license_id=lic.id,
+        request_status=EnrollmentStatus.APPROVED,
+        is_active=True,
+    )
+    test_db.add(existing)
+    test_db.flush()
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+    r = client.post(
+        "/semesters/request-enrollment",
+        data={"semester_id": str(semester.id)},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, f"G3-13: expected 303, got {r.status_code}"
+    assert "Already+enrolled" in r.headers["location"], (
+        f"G3-13: expected 'Already+enrolled' in location, got {r.headers['location']}"
+    )
+
+    test_db.expire_all()
+    count = (
+        test_db.query(SemesterEnrollment)
+        .filter_by(user_id=student.id, semester_id=semester.id)
+        .count()
+    )
+    assert count == 1, f"G3-13: must have exactly 1 enrollment (no duplicate created), got {count}"
+
+
+@pytest.mark.sched
+def test_enrollment_blocked_insufficient_credits(test_db: Session, client: TestClient):
+    """SCHED_G3-14: Enrollment blocked when student has insufficient credits.
+
+    Asserts:
+      credit_balance (100) < enrollment_cost (500) → 303 + 'Insufficient+credits'
+      DB: user.credit_balance unchanged (100)
+      DB: no SemesterEnrollment created
+    """
+    COST = 500
+    INITIAL = 100
+
+    semester, _, _ = _make_mini_season_with_config(
+        test_db, start_date=date(2027, 9, 1), weeks=4, day_of_week=3
+    )
+    semester.enrollment_cost = COST
+    student = _make_user(test_db, role=UserRole.STUDENT, credit_balance=INITIAL)
+    student.specialization = SpecializationType.LFA_FOOTBALL_PLAYER
+    _make_license(test_db, student)
+    test_db.flush()
+
+    student_id = student.id
+
+    app.dependency_overrides[get_current_user_web] = lambda: student
+    r = client.post(
+        "/semesters/request-enrollment",
+        data={"semester_id": str(semester.id)},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, f"G3-14: expected 303, got {r.status_code}"
+    assert "Insufficient+credits" in r.headers["location"], (
+        f"G3-14: expected 'Insufficient+credits' in location, got {r.headers['location']}"
+    )
+
+    test_db.expire_all()
+    reloaded = test_db.query(User).filter_by(id=student_id).first()
+    assert reloaded.credit_balance == INITIAL, (
+        f"G3-14: credit_balance must be unchanged ({INITIAL}), got {reloaded.credit_balance}"
+    )
+    enrollment_count = (
+        test_db.query(SemesterEnrollment)
+        .filter_by(user_id=student_id, semester_id=semester.id)
+        .count()
+    )
+    assert enrollment_count == 0, (
+        f"G3-14: no enrollment must exist after credit failure, got {enrollment_count}"
+    )
+
+
+@pytest.mark.sched
+def test_withdraw_blocked_for_wrong_user(test_db: Session, client: TestClient):
+    """SCHED_G3-15: Withdrawal blocked when a different user attempts to withdraw another's enrollment.
+
+    Asserts:
+      student_b POST withdraw with enrollment_id belonging to student_a →
+        303 + 'Enrollment+not+found+or+already+withdrawn'
+      DB: enrollment_a.is_active remains True (enrollment untouched)
+    """
+    semester, _, _ = _make_mini_season_with_config(
+        test_db, start_date=date(2027, 10, 1), weeks=2, day_of_week=4
+    )
+    semester.enrollment_cost = 0
+    test_db.flush()
+
+    # student_a enrolls
+    student_a, _ = _make_inv_student(test_db)
+    student_a_id = student_a.id
+    app.dependency_overrides[get_current_user_web] = lambda: student_a
+    r_enroll = client.post(
+        "/semesters/request-enrollment",
+        data={"semester_id": str(semester.id)},
+        follow_redirects=False,
+    )
+    assert r_enroll.status_code == 303, f"G3-15: student_a enroll failed: {r_enroll.status_code}"
+    test_db.expire_all()
+
+    enrollment_a = (
+        test_db.query(SemesterEnrollment)
+        .filter_by(user_id=student_a_id, semester_id=semester.id, is_active=True)
+        .first()
+    )
+    assert enrollment_a is not None, "G3-15: student_a must have an active enrollment"
+    enrollment_a_id = enrollment_a.id
+
+    # student_b attempts to withdraw student_a's enrollment
+    student_b, _ = _make_inv_student(test_db)
+    app.dependency_overrides[get_current_user_web] = lambda: student_b
+    r_withdraw = client.post(
+        "/semesters/withdraw-enrollment",
+        data={"enrollment_id": str(enrollment_a_id)},
+        follow_redirects=False,
+    )
+    assert r_withdraw.status_code == 303, (
+        f"G3-15: expected 303, got {r_withdraw.status_code}"
+    )
+    assert "Enrollment+not+found+or+already+withdrawn" in r_withdraw.headers["location"], (
+        f"G3-15: expected ownership error in location, got {r_withdraw.headers['location']}"
+    )
+
+    # enrollment_a must be untouched
+    test_db.expire_all()
+    enrollment_a_reloaded = (
+        test_db.query(SemesterEnrollment).filter_by(id=enrollment_a_id).first()
+    )
+    assert enrollment_a_reloaded.is_active is True, (
+        "G3-15: enrollment_a.is_active must remain True after wrong-user withdraw attempt"
+    )
