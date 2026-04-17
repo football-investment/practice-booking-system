@@ -96,6 +96,15 @@ _COUNTER_HELP: Dict[str, str] = {
     "slow_queries_total": (
         "Total SQL queries that exceeded the slow-query threshold (200 ms)."
     ),
+    "semester_enrollments_total": (
+        "Successful semester enrollments via programs route."
+    ),
+    "semester_withdrawals_total": (
+        "Semester unenrollments via programs route."
+    ),
+    "waitlist_promotions_total": (
+        "Waitlist promotions triggered by semester withdraw."
+    ),
 }
 
 

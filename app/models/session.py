@@ -56,7 +56,7 @@ class Session(Base):
     semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False, index=True,
                          comment="Indexed — all sessions in a semester is the most common query pattern")
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)  # FIXED: Made nullable to allow sessions without groups
-    instructor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    instructor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     campus_id = Column(Integer, ForeignKey("campuses.id"), nullable=True, comment="Campus/venue for multi-campus tournaments")
     pitch_id = Column(Integer, ForeignKey("pitches.id"), nullable=True, index=True, comment="Specific pitch/field within the campus")
 
