@@ -1,6 +1,6 @@
 # Phase 6.3 — Stepped Ramp Capacity Report
 
-**Generated:** 2026-04-18 14:25 local
+**Generated:** 2026-04-18 14:56 local
 **Protocol:** 5 levels × 300s hold, 15s cooldown
 **Workers:** 4 uvicorn, 1 PostgreSQL 14, rate-limiting OFF
 **Breaking point thresholds:** Browse p95>1000ms OR Enroll/Withdraw p95>2000ms OR error>5.0% OR Login 5xx>2.0%
@@ -11,22 +11,23 @@
 
 | VUs | Requests | RPS | Error% | Browse p95 | Enroll p95 | Withdraw p95 | Login p95 | slow_q Δ | Status |
 |-----|----------|-----|--------|-----------|-----------|-------------|----------|---------|--------|
-|  50 |    20048 |  67.1 |   0.0% |        34ms |        27ms |        140ms |     2100ms |        8 | ✅ Stable |
-| 100 |    40210 | 134.2 |   0.0% |        32ms |        27ms |         49ms |     1900ms |        0 | ✅ Stable |
-| 200 |    79280 | 264.7 |   0.1% |        54ms |        44ms |         46ms |     2400ms |        7 | ❌ BROKEN |
-| 300 |    98798 | 329.5 |   1.2% |       450ms |       500ms |        270ms |     2500ms |       28 | ❌ BROKEN |
-| 500 |    94954 | 316.6 |  22.0% |      1400ms |      1500ms |          0ms |     2500ms |       51 | ❌ BROKEN |
+|  50 |    20077 |  67.0 |   0.0% |        29ms |        23ms |          0ms |     1600ms |        0 | ✅ Stable |
+| 100 |    40147 | 134.0 |   0.0% |        29ms |        23ms |          0ms |     1900ms |        2 | ✅ Stable |
+| 200 |    78292 | 261.3 |   0.0% |        74ms |        67ms |          0ms |     2100ms |        6 | ✅ Stable |
+| 300 |    95010 | 317.9 |   0.0% |       550ms |       610ms |          0ms |     2300ms |       41 | ✅ Stable |
+| 500 |    85546 | 286.0 |   0.9% |      1700ms |      1900ms |          0ms |     6600ms |      111 | ❌ BROKEN |
 
 ---
 
 ## Breaking Point
 
-**Breaking point: 200 VUs**
-**Last stable level: 100 VUs**
+**Breaking point: 500 VUs**
+**Last stable level: 300 VUs**
 **Bottleneck:** DB connection pool exhaustion (Login 5xx spike)
 
 Threshold violations at breaking point:
-- Login 5xx=26.0% > 2.0% (DB pool)
+- Browse p95=1700ms > 1000ms
+- Login 5xx=147.8% > 2.0% (DB pool)
 
 ---
 
@@ -36,11 +37,11 @@ Threshold violations at breaking point:
 
 | VUs | Browse p95 | Δ from prev |
 |-----|-----------|------------|
-|  50 |        34ms | — |
-| 100 |        32ms | +-2ms |
-| 200 |        54ms | +22ms |
-| 300 |       450ms | +396ms |
-| 500 |      1400ms | +950ms |
+|  50 |        29ms | — |
+| 100 |        29ms | +0ms |
+| 200 |        74ms | +45ms |
+| 300 |       550ms | +476ms |
+| 500 |      1700ms | +1150ms |
 
 ### DB Pool Signal (Login 5xx rate)
 
@@ -48,9 +49,9 @@ Threshold violations at breaking point:
 |-----|-----------|------------|-----------|------|
 |  50 |        50 |          0 |         0 | 0.0% |
 | 100 |       100 |          0 |         0 | 0.0% |
-| 200 |       200 |          0 |        52 | 26.0% |
-| 300 |       300 |         18 |       999 | 333.0% |
-| 500 |       500 |         81 |     17607 | 3521.4% |
+| 200 |       200 |          0 |         0 | 0.0% |
+| 300 |       300 |          0 |         0 | 0.0% |
+| 500 |       500 |          0 |       739 | 147.8% |
 
 ---
 
@@ -58,9 +59,9 @@ Threshold violations at breaking point:
 
 | Decision | Recommendation | Priority |
 |----------|---------------|----------|
-| DB pool_size / max_overflow | pool_size=50, max_overflow=100 — current default (~5–20) exhausted below 200 VUs | CRITICAL |
-| PgBouncer | YES — mandatory before production; transaction pooling mode | CRITICAL |
-| Breaking point to report | 200 VUs (last stable: 100 VUs) | — |
+| DB pool_size / max_overflow | pool_size=50, max_overflow=100 — increase to target 500+ VU capacity | MEDIUM |
+| PgBouncer | RECOMMENDED — needed to exceed current PostgreSQL max_connections | MEDIUM |
+| Breaking point to report | 500 VUs (last stable: 300 VUs) | — |
 
 ### Next Steps
 
