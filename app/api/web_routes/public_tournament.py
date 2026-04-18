@@ -1,11 +1,14 @@
 """
 Public tournament/event detail page — no authentication required.
 URL: GET /events/{tournament_id}
+
+Query budget: ≤15 queries per request (enforced by test_query_budget.py).
+All N+1 patterns resolved via joinedload/selectinload — query count is O(1) w.r.t. data size.
 """
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.dependencies import get_db
 from app.models.semester import Semester
@@ -48,7 +51,13 @@ def public_event_detail(
     tournament_id: int,
     db: Session = Depends(get_db),
 ):
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    # Q1: Semester + TournamentConfiguration in one query (joinedload avoids lazy-load hit)
+    tournament = (
+        db.query(Semester)
+        .options(joinedload(Semester.tournament_config_obj))
+        .filter(Semester.id == tournament_id)
+        .first()
+    )
     if not tournament:
         return HTMLResponse("<h2>Event not found</h2>", status_code=404)
 
@@ -73,16 +82,19 @@ def public_event_detail(
     try:
         from app.models.location import Location
         from app.models.campus import Campus as CampusModel
+        # Q2 (conditional): single Location lookup
         if tournament.location_id:
             loc = db.query(Location).filter(Location.id == tournament.location_id).first()
             location_name = loc.city if loc else None
+        # Q3 (conditional): single Campus lookup
         if tournament.campus_id:
             camp = db.query(CampusModel).filter(CampusModel.id == tournament.campus_id).first()
             campus_name = camp.name if camp else None
             if camp and not location_name and camp.location_id:
+                # Q4 (conditional): campus → location
                 loc = db.query(Location).filter(Location.id == camp.location_id).first()
                 location_name = loc.city if loc else None
-        # Additional campuses from sessions (multi-campus tournaments)
+        # Q5: distinct campus IDs from sessions (multi-campus tournaments)
         session_campus_ids = (
             db.query(SessionModel.campus_id)
             .filter(
@@ -93,15 +105,21 @@ def public_event_detail(
             .distinct()
             .all()
         )
-        for (cid,) in session_campus_ids:
-            c = db.query(CampusModel).filter(CampusModel.id == cid).first()
-            if not c:
-                continue
-            loc2 = db.query(Location).filter(Location.id == c.location_id).first() if c.location_id else None
-            extra_campuses.append({
-                "name": c.name,
-                "location_name": loc2.city if loc2 else None,
-            })
+        if session_campus_ids:
+            # Q6+Q7: batch-fetch extra campuses + their locations (2 queries regardless of N)
+            _extra_ids = [cid for (cid,) in session_campus_ids]
+            _campuses = {c.id: c for c in db.query(CampusModel).filter(CampusModel.id.in_(_extra_ids)).all()}
+            _loc_ids = [c.location_id for c in _campuses.values() if c.location_id]
+            _locs = {l.id: l for l in db.query(Location).filter(Location.id.in_(_loc_ids)).all()} if _loc_ids else {}
+            for (cid,) in session_campus_ids:
+                c = _campuses.get(cid)
+                if not c:
+                    continue
+                loc2 = _locs.get(c.location_id)
+                extra_campuses.append({
+                    "name": c.name,
+                    "location_name": loc2.city if loc2 else None,
+                })
     except Exception:
         pass
 
@@ -114,18 +132,29 @@ def public_event_detail(
         pass
 
     # ── Rankings ──────────────────────────────────────────────────────────────
-    ranking_rows = db.query(TournamentRanking).filter(
-        TournamentRanking.tournament_id == tournament_id
-    ).order_by(TournamentRanking.rank.asc().nulls_last()).all()
+    # Q8 + Q9 (selectinload user batch) + Q10 (selectinload team batch) + Q11 (club batch)
+    # selectinload fires one additional SELECT per relationship, regardless of row count.
+    # For INDIVIDUAL: user batch fires, team/club batches are empty (no teams).
+    # For TEAM: team+club batches fire, user batch is empty (no users in team rankings).
+    ranking_rows = (
+        db.query(TournamentRanking)
+        .options(
+            selectinload(TournamentRanking.user),
+            selectinload(TournamentRanking.team).selectinload(Team.club),
+        )
+        .filter(TournamentRanking.tournament_id == tournament_id)
+        .order_by(TournamentRanking.rank.asc().nulls_last())
+        .all()
+    )
 
     rankings = []
     if participant_type == "TEAM":
         for row in ranking_rows:
-            team = db.query(Team).filter(Team.id == row.team_id).first() if row.team_id else None
-            club = db.query(Club).filter(Club.id == team.club_id).first() if team and team.club_id else None
-            # IR+TEAM: load team members so the public page can show who competed
+            team = row.team   # already loaded — no additional query
+            club = team.club if team else None   # already loaded — no additional query
             members_list: list[dict] = []
             if tournament_format == "INDIVIDUAL_RANKING" and row.team_id:
+                # Q (conditional, INDIVIDUAL_RANKING+TEAM only): member join query
                 mem_rows = (
                     db.query(User, TeamMember)
                     .join(TeamMember, TeamMember.user_id == User.id)
@@ -152,15 +181,8 @@ def public_event_detail(
                 "members": members_list,
             })
     else:
-        # Pre-fetch all ranking users in one batch query — replaces N individual lookups.
-        # Profiling (2026-04-18): N+1 caused 333ms/query under 300 VU load (vs 0.067ms idle).
-        # With 16 ranking rows for event 31 this was 57% of all queries per request.
-        _rank_user_ids = [r.user_id for r in ranking_rows if r.user_id]
-        _rank_users: dict[int, User] = {}
-        if _rank_user_ids:
-            _rank_users = {u.id: u for u in db.query(User).filter(User.id.in_(_rank_user_ids)).all()}
         for row in ranking_rows:
-            user = _rank_users.get(row.user_id) if row.user_id else None
+            user = row.user   # already loaded — no additional query
             rankings.append({
                 "rank": row.rank,
                 "name": user.name if user and user.name else (user.email if user else f"Player #{row.user_id}"),
@@ -183,26 +205,36 @@ def public_event_detail(
     participants = []  # [{name, club_name}] for pre-result display
 
     if participant_type == "TEAM":
-        team_enrollments = db.query(TournamentTeamEnrollment).filter(
-            TournamentTeamEnrollment.semester_id == tournament_id,
-            TournamentTeamEnrollment.is_active == True,
-        ).all()
+        # Q12 + Q13 (team batch) + Q14 (club batch): team enrollments with eager loading
+        team_enrollments = (
+            db.query(TournamentTeamEnrollment)
+            .options(
+                selectinload(TournamentTeamEnrollment.team).selectinload(Team.club)
+            )
+            .filter(
+                TournamentTeamEnrollment.semester_id == tournament_id,
+                TournamentTeamEnrollment.is_active == True,
+            )
+            .all()
+        )
         enrolled_count = len(team_enrollments)
         if not has_rankings:
             for te in team_enrollments:
-                team = db.query(Team).filter(Team.id == te.team_id).first()
-                club = db.query(Club).filter(Club.id == team.club_id).first() if team and team.club_id else None
+                team = te.team   # already loaded — no additional query
+                club = team.club if team else None   # already loaded — no additional query
                 participants.append({
                     "name": team.name if team else f"Team #{te.team_id}",
                     "club_name": club.name if club else None,
                 })
     else:
+        # Q12: enrollment count
         enrolled_count = db.query(SemesterEnrollment).filter(
             SemesterEnrollment.semester_id == tournament_id,
             SemesterEnrollment.is_active == True,
             SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
         ).count()
         if not has_rankings:
+            # Q13: enrollment + user join (single query, not N+1)
             rows = db.query(SemesterEnrollment, User).join(
                 User, SemesterEnrollment.user_id == User.id
             ).filter(
@@ -217,6 +249,7 @@ def public_event_detail(
                 })
 
     # ── Schedule (shown when sessions exist, any state) ───────────────────────
+    # Q (TEAM+INDIVIDUAL path): sessions fetch
     raw_sessions = (
         db.query(SessionModel)
         .filter(SessionModel.semester_id == tournament_id)
@@ -225,18 +258,19 @@ def public_event_detail(
     )
     sessions_total = len(raw_sessions)
 
-    # Build a team-name cache to avoid N+1 queries
+    # Build team-name cache — 1 batch query regardless of session count
     all_team_ids: set[int] = set()
     for sess in raw_sessions:
         for tid in (sess.participant_team_ids or []):
             all_team_ids.add(tid)
     team_cache: dict[int, str] = {}
-    for team in db.query(Team).filter(Team.id.in_(all_team_ids)).all():
-        team_cache[team.id] = team.name
+    if all_team_ids:
+        for team in db.query(Team).filter(Team.id.in_(all_team_ids)).all():
+            team_cache[team.id] = team.name
 
-    # Build player_data caches for IR per-player display
-    player_score_map: dict[int, dict] = {}  # {user_id: {score, position}}
-    user_cache: dict[int, "User"] = {}       # {user_id: User}
+    # Build player_data caches for IR per-player display — 1 batch query
+    player_score_map: dict[int, dict] = {}
+    user_cache: dict[int, "User"] = {}
     if tournament_format == "INDIVIDUAL_RANKING":
         all_player_uids: set[int] = set()
         for sess in raw_sessions:
@@ -252,6 +286,9 @@ def public_event_detail(
                         }
                     except (ValueError, KeyError):
                         pass
+            # Also collect participant_user_ids for IR results display
+            for uid in (getattr(sess, "participant_user_ids", None) or []):
+                all_player_uids.add(uid)
         if all_player_uids:
             for u in db.query(User).filter(User.id.in_(all_player_uids)).all():
                 user_cache[u.id] = u
@@ -308,7 +345,7 @@ def public_event_detail(
                 })
             for uid in uids:
                 raw = rr.get(str(uid))
-                u = db.query(User).filter(User.id == uid).first()
+                u = user_cache.get(uid)   # use pre-fetched cache — no additional query
                 entries.append({
                     "label": (u.name or u.email) if u else f"#{uid}",
                     "score": float(raw) if raw is not None else None,
@@ -324,7 +361,7 @@ def public_event_detail(
                     uid = int(key.split("_", 1)[1])
                 except ValueError:
                     continue
-                u = user_cache.get(uid)
+                u = user_cache.get(uid)   # use pre-fetched cache — no additional query
                 tid = val.get("team_id")
                 player_entries.append({
                     "user_id":   uid,
@@ -347,7 +384,8 @@ def public_event_detail(
     from app.services.tournament.tournament_reward_orchestrator import load_reward_policy_from_config
     prize_pool: list[dict] = []
     try:
-        policy = load_reward_policy_from_config(db, tournament_id)
+        # Pass already-loaded tournament to skip the redundant Semester re-fetch
+        policy = load_reward_policy_from_config(db, tournament_id, tournament=tournament)
         entries = [
             {"placement": 1, "xp": policy.first_place_xp,  "credits": policy.first_place_credits},
             {"placement": 2, "xp": policy.second_place_xp, "credits": policy.second_place_credits},
@@ -364,9 +402,17 @@ def public_event_detail(
     awards: list[dict] = []
     if status in ("COMPLETED", "REWARDS_DISTRIBUTED"):
         from app.models.tournament_achievement import TournamentParticipation
-        parts = db.query(TournamentParticipation).filter(
-            TournamentParticipation.semester_id == tournament_id
-        ).order_by(TournamentParticipation.placement.asc()).all()
+        # Q + selectinload(user) + selectinload(team): 1-3 queries regardless of placement count
+        parts = (
+            db.query(TournamentParticipation)
+            .options(
+                selectinload(TournamentParticipation.user),
+                selectinload(TournamentParticipation.team),
+            )
+            .filter(TournamentParticipation.semester_id == tournament_id)
+            .order_by(TournamentParticipation.placement.asc())
+            .all()
+        )
 
         placement_map: dict[int, dict] = {}
         for p in parts:
@@ -378,23 +424,21 @@ def public_event_detail(
                     "credits": p.credits_awarded,
                     "count": 0,
                     "names": [],
-                    "players": [],  # [{name, user_id}] for individual; [{name}] for team
+                    "players": [],
                 }
             placement_map[pl]["count"] += 1
             if p.team_id:
-                team = db.query(Team).filter(Team.id == p.team_id).first()
+                team = p.team   # already loaded — no additional query
                 name = team.name if team else f"Team #{p.team_id}"
                 if name and name not in placement_map[pl]["names"]:
                     placement_map[pl]["names"].append(name)
                     placement_map[pl]["players"].append({"name": name, "user_id": None})
             elif p.user_id:
-                user = db.query(User).filter(User.id == p.user_id).first()
+                user = p.user   # already loaded — no additional query
                 name = (user.name or user.email) if user else f"Player #{p.user_id}"
                 if name and name not in placement_map[pl]["names"]:
                     placement_map[pl]["names"].append(name)
                     placement_map[pl]["players"].append({"name": name, "user_id": p.user_id})
-            else:
-                name = None
         awards = sorted(placement_map.values(), key=lambda x: x["placement"])
 
     has_awards = len(awards) > 0

@@ -65,6 +65,7 @@ class TournamentParticipation(Base):
     # Relationships
     user = relationship("User", back_populates="tournament_participations")
     tournament = relationship("Semester", back_populates="participations")
+    team = relationship("Team", foreign_keys=[team_id])
 
     __table_args__ = (
         UniqueConstraint('user_id', 'semester_id', name='uq_user_semester_participation'),

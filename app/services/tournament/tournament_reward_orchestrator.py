@@ -95,7 +95,8 @@ def _extract_tier(config: dict, *keys) -> dict:
 
 def load_reward_policy_from_config(
     db: Session,
-    tournament_id: int
+    tournament_id: int,
+    tournament=None,
 ) -> RewardPolicy:
     """
     Load reward policy from tournament's reward_config JSONB field.
@@ -106,8 +107,12 @@ def load_reward_policy_from_config(
       - Legacy schema:     {"first_place": {"xp_multiplier": 1.5, "credits": 500}}
 
     Falls back to DEFAULT_REWARD_POLICY if no config found or parsing fails.
+
+    Pass `tournament` to skip the Semester re-fetch (avoids a redundant query when the
+    caller already holds the loaded Semester object).
     """
-    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if tournament is None:
+        tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
 
     if not tournament or not tournament.reward_config:
         logger.info(f"No reward config found for tournament {tournament_id}, using default policy")
