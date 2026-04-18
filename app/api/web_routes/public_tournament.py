@@ -152,8 +152,15 @@ def public_event_detail(
                 "members": members_list,
             })
     else:
+        # Pre-fetch all ranking users in one batch query — replaces N individual lookups.
+        # Profiling (2026-04-18): N+1 caused 333ms/query under 300 VU load (vs 0.067ms idle).
+        # With 16 ranking rows for event 31 this was 57% of all queries per request.
+        _rank_user_ids = [r.user_id for r in ranking_rows if r.user_id]
+        _rank_users: dict[int, User] = {}
+        if _rank_user_ids:
+            _rank_users = {u.id: u for u in db.query(User).filter(User.id.in_(_rank_user_ids)).all()}
         for row in ranking_rows:
-            user = db.query(User).filter(User.id == row.user_id).first() if row.user_id else None
+            user = _rank_users.get(row.user_id) if row.user_id else None
             rankings.append({
                 "rank": row.rank,
                 "name": user.name if user and user.name else (user.email if user else f"Player #{row.user_id}"),
