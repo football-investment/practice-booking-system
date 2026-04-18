@@ -394,37 +394,59 @@ class SoakBurstUser(HttpUser):
     _csrf_token: str = ""
 
     def _get_csrf_token(self) -> str:
-        """Return the CSRF token from the session cookie jar (refresh if missing)."""
+        """Return the CSRF token from the session cookie jar.
+
+        Refreshes via a public event page if the token is missing — avoids
+        any auth dependency when acquiring the CSRF cookie.
+        """
         token = self.client.cookies.get("csrf_token", "")
         if not token:
-            # Trigger a GET to receive the CSRF cookie from the middleware
-            self.client.get("/semesters/enroll", name="[P63] Refresh CSRF")
+            event_id = random.choice(LOAD_EVENT_IDS)
+            with self.client.get(
+                f"/events/{event_id}",
+                name="[P63] Refresh CSRF",
+                catch_response=True,
+            ) as r:
+                r.success()  # any status is fine; we just need the cookie
             token = self.client.cookies.get("csrf_token", "")
         return token
 
     def on_start(self) -> None:
-        """Assign a pooled account to this VU, log in, and capture CSRF token."""
+        """Assign a pooled account to this VU, log in, and capture CSRF token.
+
+        Uses allow_redirects=True so requests.Session follows the post-login
+        redirect chain (303 → /dashboard) and merges all Set-Cookie headers
+        from every hop into self.client.cookies.  The access_token cookie is
+        then reliably present for subsequent authenticated requests.
+        """
         with _USER_LOCK:
             self._email, self._password = next(_USER_CYCLE)
 
         with self.client.post(
             "/login",
             data={"email": self._email, "password": self._password},
-            allow_redirects=False,
+            allow_redirects=True,   # follow 303 → /dashboard; merges cookies from all hops
             name="[P63] Login",
             catch_response=True,
         ) as resp:
-            if resp.status_code in (302, 303):
+            if self.client.cookies.get("access_token"):
                 self._logged_in = True
+                resp.success()
             else:
                 resp.failure(
-                    f"[P63] Login failed: {resp.status_code} ({self._email}) — "
+                    f"[P63] Login failed: no access_token cookie ({self._email}) — "
                     f"run scripts/seed_load_test_users.py first"
                 )
 
-        # Fetch CSRF token: one GET to receive the csrf_token cookie
+        # Fetch CSRF token via a public endpoint — no auth dependency
         if self._logged_in:
-            self.client.get("/semesters/enroll", name="[P63] Init CSRF")
+            event_id = random.choice(LOAD_EVENT_IDS)
+            with self.client.get(
+                f"/events/{event_id}",
+                name="[P63] Init CSRF",
+                catch_response=True,
+            ) as r:
+                r.success()  # accept any status; CSRF cookie is set by middleware
             self._csrf_token = self.client.cookies.get("csrf_token", "")
 
     # ── Tasks ────────────────────────────────────────────────────────────────

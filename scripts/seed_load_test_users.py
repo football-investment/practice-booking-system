@@ -69,6 +69,7 @@ def _ensure_user(db, i: int) -> User:
         credit_balance = CREDIT_BALANCE,
         is_active      = True,
         specialization = "LFA_FOOTBALL_PLAYER",
+        date_of_birth  = date(2000, 1, 1),  # skip age-verification on login
     )
     db.add(user)
     db.flush()
