@@ -414,10 +414,17 @@ class SoakBurstUser(HttpUser):
     def on_start(self) -> None:
         """Assign a pooled account to this VU, log in, and capture CSRF token.
 
-        Uses allow_redirects=True so requests.Session follows the post-login
-        redirect chain (303 → /dashboard) and merges all Set-Cookie headers
-        from every hop into self.client.cookies.  The access_token cookie is
-        then reliably present for subsequent authenticated requests.
+        MUST use allow_redirects=False on the login POST.
+        With allow_redirects=True, requests.Session follows 303 → /dashboard;
+        the access_token cookie from the intermediate 303 response is merged
+        only into the prepared_request cookie jar (for the redirect GET), NOT
+        into session.cookies.  Only the *final* response's (GET /dashboard 200)
+        cookies land in session.cookies — which does NOT include access_token.
+        Every subsequent authenticated request therefore gets 401.
+
+        With allow_redirects=False the 303 IS the final response; its
+        Set-Cookie goes through the normal cookie-extraction path and
+        access_token lands in session.cookies reliably.
         """
         with _USER_LOCK:
             self._email, self._password = next(_USER_CYCLE)
@@ -425,16 +432,16 @@ class SoakBurstUser(HttpUser):
         with self.client.post(
             "/login",
             data={"email": self._email, "password": self._password},
-            allow_redirects=True,   # follow 303 → /dashboard; merges cookies from all hops
+            allow_redirects=False,  # capture Set-Cookie from 303 into session.cookies
             name="[P63] Login",
             catch_response=True,
         ) as resp:
-            if self.client.cookies.get("access_token"):
+            if resp.status_code in (302, 303):
                 self._logged_in = True
                 resp.success()
             else:
                 resp.failure(
-                    f"[P63] Login failed: no access_token cookie ({self._email}) — "
+                    f"[P63] Login failed: {resp.status_code} ({self._email}) — "
                     f"run scripts/seed_load_test_users.py first"
                 )
 
