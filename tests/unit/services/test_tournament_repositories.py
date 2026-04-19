@@ -32,7 +32,6 @@ def _session(
     s.tournament_phase = phase
     s.tournament_round = round_num
     s.title = title
-    s.is_tournament_game = is_tournament_game
     s.event_category = EventCategory.MATCH if is_tournament_game else EventCategory.TRAINING
     s.game_results = game_results
     return s

@@ -65,7 +65,6 @@ def _session(
 ):
     s = MagicMock()
     s.id = session_id
-    s.is_tournament_game = is_tournament_game
     s.event_category = EventCategory.MATCH if is_tournament_game else EventCategory.TRAINING
     s.game_type = "HEAD_TO_HEAD"
     s.game_results = game_results
