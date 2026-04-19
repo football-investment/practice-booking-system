@@ -11,7 +11,7 @@ from .....database import get_db
 from .....dependencies import get_current_user, get_current_admin_or_instructor_user
 from .....models.user import User, UserRole
 from .....models.semester import Semester
-from .....models.session import Session as SessionTypel
+from .....models.session import Session as SessionTypel, EventCategory
 from .....models.booking import Booking, BookingStatus
 from .....models.attendance import Attendance
 from .....models.feedback import Feedback
@@ -85,7 +85,13 @@ def create_session(
                 detail=f"Session end date ({session_end_date}) cannot be after semester end date ({semester.end_date})"
             )
 
-    session = SessionTypel(**session_data.model_dump())
+    # Translate is_tournament_game → event_category at the API boundary.
+    # The Pydantic field is kept for external callers; the DB column was dropped in M-10.
+    # The hybrid_property currently handles this, but will be removed in a later phase.
+    session_dict = session_data.model_dump()
+    itg = session_dict.pop("is_tournament_game")
+    session_dict["event_category"] = EventCategory.MATCH if itg else EventCategory.TRAINING
+    session = SessionTypel(**session_dict)
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -195,6 +201,11 @@ def update_session(
                     status_code=400,
                     detail=f"Session end date ({new_end_date}) cannot be after semester end date ({semester.end_date})"
                 )
+
+    # Translate is_tournament_game → event_category at the API boundary (same as POST).
+    if "is_tournament_game" in update_data:
+        itg = update_data.pop("is_tournament_game")
+        update_data["event_category"] = EventCategory.MATCH if itg else EventCategory.TRAINING
 
     for field, value in update_data.items():
         setattr(session, field, value)
