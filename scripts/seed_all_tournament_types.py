@@ -254,7 +254,6 @@ def _create_tournament(
             date_end=datetime(d.year, d.month, d.day, 18, 0),
             semester_id=sem.id,
             event_category=EventCategory.MATCH,
-            is_tournament_game=True,
         ))
         db.flush()
 
