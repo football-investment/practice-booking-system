@@ -89,7 +89,7 @@ def create_session(
     # The Pydantic field is kept for external callers; the DB column was dropped in M-10.
     # The hybrid_property currently handles this, but will be removed in a later phase.
     session_dict = session_data.model_dump()
-    itg = session_dict.pop("is_tournament_game")
+    itg = session_dict.pop("is_tournament_game", False)
     session_dict["event_category"] = EventCategory.MATCH if itg else EventCategory.TRAINING
     session = SessionTypel(**session_dict)
     db.add(session)
