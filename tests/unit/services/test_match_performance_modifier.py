@@ -54,7 +54,6 @@ def _sess(user_id, result, score_self=0, score_opp=0, tournament_id=1, other_use
     ]
     return SimpleNamespace(
         semester_id=tournament_id,
-        is_tournament_game=True,
         participant_user_ids=[user_id, other_user_id],
         game_results=json.dumps({"participants": participants}),
     )
@@ -206,7 +205,6 @@ def test_malformed_game_results_skipped():
     """game_results with null participants → gracefully skipped, return 0.0."""
     bad_sess = SimpleNamespace(
         semester_id=1,
-        is_tournament_game=True,
         participant_user_ids=[1, 2],
         game_results=json.dumps({"participants": None}),
     )

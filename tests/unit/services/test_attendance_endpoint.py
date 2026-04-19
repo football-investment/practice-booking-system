@@ -145,7 +145,6 @@ def _attendance_data(
 def _session(is_tournament=False):
     s = MagicMock()
     s.id = 1
-    s.is_tournament_game = is_tournament
     s.event_category = EventCategory.MATCH if is_tournament else EventCategory.TRAINING
     return s
 

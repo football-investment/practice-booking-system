@@ -289,7 +289,7 @@ def tournament_session_with_bookings(
         instructor_id=tournament_semester_with_instructor.master_instructor_id,
         semester_id=tournament_semester_with_instructor.id,
         credit_cost=1,
-        is_tournament_game=True,
+        event_category=EventCategory.MATCH,
         game_type="Final",
     )
     test_db.add(session)
