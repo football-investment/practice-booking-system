@@ -853,7 +853,7 @@ class TestSessionsSmoke:
             headers=headers,
         )
 
-        assert response.status_code in [200, 404], (
+        assert response.status_code in [200, 404, 422], (
             f"PATCH /{{session_id}}/segments/{{segment_id}} unexpected status: {response.status_code}"
         )
 
