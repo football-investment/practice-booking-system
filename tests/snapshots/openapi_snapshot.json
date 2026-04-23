@@ -22795,6 +22795,165 @@
         ]
       }
     },
+    "/adaptive-learning/session/start": {
+      "post": {
+        "description": "Start a new adaptive learning session, or return the existing active one.",
+        "operationId": "al_session_start_adaptive_learning_session_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Al Session Start",
+        "tags": [
+          "web",
+          "adaptive-learning"
+        ]
+      }
+    },
+    "/adaptive-learning/session/{session_id}/answer": {
+      "post": {
+        "description": "Record an answer and return correctness + XP earned this turn.",
+        "operationId": "al_session_answer_adaptive_learning_session__session_id__answer_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Session Answer",
+        "tags": [
+          "web",
+          "adaptive-learning"
+        ]
+      }
+    },
+    "/adaptive-learning/session/{session_id}/complete": {
+      "post": {
+        "description": "Finalise the session and return the summary.",
+        "operationId": "al_session_complete_adaptive_learning_session__session_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Session Complete",
+        "tags": [
+          "web",
+          "adaptive-learning"
+        ]
+      }
+    },
+    "/adaptive-learning/session/{session_id}/next-question": {
+      "get": {
+        "description": "Return the next adaptive question for this session.",
+        "operationId": "al_session_next_question_adaptive_learning_session__session_id__next_question_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Comma-separated question IDs already shown this session (client-tracked)",
+            "in": "query",
+            "name": "exclude_ids",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Comma-separated question IDs already shown this session (client-tracked)",
+              "title": "Exclude Ids",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Session Next Question",
+        "tags": [
+          "web",
+          "adaptive-learning"
+        ]
+      }
+    },
     "/admin/analytics": {
       "get": {
         "description": "Admin-only: Analytics and reports page",
