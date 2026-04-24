@@ -1,4 +1,5 @@
 """Adaptive Learning web routes — entry page, session page, session lifecycle (AL-3)."""
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -158,7 +159,9 @@ async def al_session_start(
             status_code=422,
         )
 
-    # Return existing active session rather than creating a duplicate
+    # Return existing active session rather than creating a duplicate.
+    # If the existing session is already server-side expired, retire it first so
+    # the user gets a fresh session rather than an immediately-terminal resume.
     existing = (
         db.query(AdaptiveLearningSession)
         .filter(
@@ -169,15 +172,28 @@ async def al_session_start(
         .first()
     )
     if existing:
-        current_score = (existing.questions_correct or 0) * 2 - (existing.questions_presented or 0)
-        return JSONResponse({
-            "session_id": existing.id,
-            "question_count": 10,
-            "started_at": existing.session_start_time.isoformat() if existing.session_start_time else None,
-            "resumed": True,
-            "time_limit_seconds": time_limit,
-            "current_score": current_score,
-        })
+        elapsed = 0.0
+        if existing.session_start_time and existing.session_time_limit_seconds:
+            elapsed = (datetime.now(timezone.utc) - existing.session_start_time).total_seconds()
+
+        if existing.session_time_limit_seconds and elapsed >= existing.session_time_limit_seconds:
+            # Stale expired session — retire it and fall through to create a new one
+            existing.ended_at = datetime.now(timezone.utc)
+            db.commit()
+        else:
+            # Valid unexpired session — update time limit to match user's current choice
+            existing.session_time_limit_seconds = time_limit
+            db.commit()
+            current_score = (existing.questions_correct or 0) * 2 - (existing.questions_presented or 0)
+            return JSONResponse({
+                "session_id": existing.id,
+                "question_count": 10,
+                "started_at": existing.session_start_time.isoformat() if existing.session_start_time else None,
+                "resumed": True,
+                "time_limit_seconds": time_limit,
+                "current_score": current_score,
+                "questions_presented": existing.questions_presented or 0,
+            })
 
     service = AdaptiveLearningService(db)
     session = service.start_adaptive_session(

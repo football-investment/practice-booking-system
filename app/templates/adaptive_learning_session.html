@@ -707,6 +707,10 @@
     /* ── Session timeout ───────────────────────────────────────────────────── */
     window.alsTimeout = function () {
         stopTimer();
+        // Guard: only fire completion logic when a question is actively being shown.
+        // Prevents spurious alsComplete() calls during picker/loading/between-question states.
+        if (state.phase !== 'question') return;
+
         if (state.currentQuestionId !== null && !state.answerSubmitted) {
             state.answerSubmitted = true;
             document.querySelectorAll('.als-option').forEach(function (b) { b.disabled = true; });
@@ -723,7 +727,9 @@
                 alsComplete();
             }).catch(function () { alsComplete(); });
         } else if (!state.answerSubmitted) {
-            alsComplete();
+            // Phase is 'question' but currentQuestionId is null — between questions.
+            // Do not complete; let alsNext() finish loading the next question.
+            // Timer has already stopped; session will proceed to natural end.
         }
     };
 

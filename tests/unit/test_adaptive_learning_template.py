@@ -151,3 +151,53 @@ class TestCategoryPickerRendering:
         html = _render_session_page(categories=[])
         assert "als-start-btn" in html
         assert "alsStartFromPicker()" in html
+
+
+class TestTimeLimitPickerRendering:
+    """Verify the time-limit picker renders all three options with correct data-seconds values."""
+
+    def test_1_minute_option_has_data_seconds_60(self):
+        html = _render_session_page()
+        assert 'data-seconds="60"' in html
+
+    def test_3_minute_option_has_data_seconds_180(self):
+        html = _render_session_page()
+        assert 'data-seconds="180"' in html
+
+    def test_5_minute_option_has_data_seconds_300(self):
+        html = _render_session_page()
+        assert 'data-seconds="300"' in html
+
+    def test_3_minute_is_default_selected(self):
+        """3 min button must carry the 'selected' class by default."""
+        html = _render_session_page()
+        assert 'data-seconds="180"' in html
+        # The 180-second button must appear with the selected class
+        import re
+        pattern = r'als-time-btn[^"]*selected[^"]*"[^>]*data-seconds="180"|data-seconds="180"[^>]*als-time-btn[^"]*selected'
+        # Simpler: just check the rendered HTML contains both "selected" and "180" on the same button line
+        lines = html.split('\n')
+        found = any('data-seconds="180"' in line and 'selected' in line for line in lines)
+        assert found, "3-minute button (data-seconds=180) must have 'selected' class by default"
+
+    def test_als_time_select_function_defined(self):
+        html = _render_session_page()
+        assert "window.alsTimeSelect" in html
+
+    def test_time_limit_sent_in_init_url(self):
+        """alsInit must include time_limit in the /start query string."""
+        html = _render_session_page()
+        assert "time_limit=" in html
+        assert "state.timeLimitSeconds" in html
+
+
+class TestTimeoutPhaseGuard:
+    """alsTimeout must not call alsComplete unless phase is 'question'."""
+
+    def test_phase_guard_present_in_script(self):
+        html = _render_session_page()
+        assert "state.phase !== 'question'" in html
+
+    def test_timeout_function_defined(self):
+        html = _render_session_page()
+        assert "window.alsTimeout" in html
