@@ -141,16 +141,10 @@ class AdaptiveLearningService:
             return {}
             
         session.ended_at = datetime.now(timezone.utc)
-        
+
         # Calculate session statistics
         success_rate = (session.questions_correct / session.questions_presented) if session.questions_presented > 0 else 0
-        
-        # Update user gamification stats
-        from .gamification import GamificationService
-        gamification_service = GamificationService(self.db)
-        user_stats = gamification_service.get_or_create_user_stats(session.user_id)
-        user_stats.total_xp += (session.xp_earned or 0)
-        
+
         self.db.commit()
         
         return {
@@ -249,23 +243,32 @@ class AdaptiveLearningService:
     
     def _get_candidate_questions(self, category: QuizCategory, target_difficulty: float) -> List[QuizQuestion]:
         """Jelölt kérdések kiválasztása kategória és nehézség alapján"""
-        difficulty_range = 0.2  # ±0.2 range around target
-        
-        # First try to find questions within difficulty range
-        questions = self.db.query(QuizQuestion).join(Quiz).join(QuestionMetadata).filter(
-            and_(
+        difficulty_range = 0.2
+
+        # Try difficulty-filtered query using available metadata (LEFT JOIN — metadata optional)
+        questions = (
+            self.db.query(QuizQuestion)
+            .join(Quiz)
+            .outerjoin(QuestionMetadata, QuestionMetadata.question_id == QuizQuestion.id)
+            .filter(
                 Quiz.category == category,
-                QuestionMetadata.estimated_difficulty >= target_difficulty - difficulty_range,
-                QuestionMetadata.estimated_difficulty <= target_difficulty + difficulty_range
+                and_(
+                    QuestionMetadata.estimated_difficulty >= target_difficulty - difficulty_range,
+                    QuestionMetadata.estimated_difficulty <= target_difficulty + difficulty_range,
+                ),
             )
-        ).all()
-        
-        # If no questions found in range, fall back to any questions in the category
+            .all()
+        )
+
+        # Fall back to all questions in the category (no metadata required)
         if not questions:
-            questions = self.db.query(QuizQuestion).join(Quiz).join(QuestionMetadata).filter(
-                Quiz.category == category
-            ).all()
-        
+            questions = (
+                self.db.query(QuizQuestion)
+                .join(Quiz)
+                .filter(Quiz.category == category)
+                .all()
+            )
+
         return questions
     
     def _select_adaptive_question(self, candidate_questions: List[QuizQuestion], 
