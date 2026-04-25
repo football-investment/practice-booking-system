@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ...database import get_db
 from ...dependencies import get_current_user_web
-from ...models.quiz import AdaptiveLearningSession, Quiz, QuizAnswerOption, QuizCategory, QuizQuestion
+from ...models.quiz import AdaptiveLearningSession, Quiz, QuizAnswerOption, QuizCategory, QuizQuestion, QuestionMetadata
 from ...models.user import User
 from ...models.xp_transaction import XPTransaction
 from ...services.adaptive_learning import AdaptiveLearningService
@@ -85,10 +85,15 @@ async def adaptive_learning_session_page(
     if guard:
         return guard
 
+    MIN_QUESTIONS_PER_CATEGORY = 10
+
     available_categories = (
         db.query(Quiz.category)
+        .join(QuizQuestion, QuizQuestion.quiz_id == Quiz.id)
+        .join(QuestionMetadata, QuestionMetadata.question_id == QuizQuestion.id)
         .filter(Quiz.is_active == True)
-        .distinct()
+        .group_by(Quiz.category)
+        .having(func.count(QuizQuestion.id) >= MIN_QUESTIONS_PER_CATEGORY)
         .all()
     )
     category_values = [row[0] for row in available_categories]
