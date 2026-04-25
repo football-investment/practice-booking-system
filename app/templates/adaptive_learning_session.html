@@ -331,6 +331,32 @@
     }
     .als-start-btn:hover { background: #4338ca; }
 
+    /* ── Module picker ───────────────────────────────────────────────────────── */
+    .als-module-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        margin-bottom: 1.25rem;
+    }
+    .als-module-btn {
+        display: flex;
+        align-items: center;
+        background: var(--app-card);
+        border: 1.5px solid var(--app-border, #e2e8f0);
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: var(--app-text);
+        transition: border-color 0.15s, background 0.15s;
+    }
+    .als-module-btn:hover { border-color: #667eea; background: #f0f4ff; }
+    .als-module-btn.selected { border-color: #4f46e5; background: #eef2ff; color: #3730a3; font-weight: 700; }
+    .als-module-btn-all { font-style: italic; }
+
     /* ── Loading / error ─────────────────────────────────────────────────────── */
     .als-loading {
         text-align: center;
@@ -408,6 +434,14 @@
                     </p>
                 {% endif %}
             </div>
+            {# ── Module picker — populated by JS after category selection ─────── #}
+            <div id="als-module-section" style="display:none;" data-testid="als-module-section">
+                <p class="als-picker-sub" style="margin-top:1rem; margin-bottom:0.5rem;">📚 Choose a topic</p>
+                <div class="als-module-grid" id="als-module-grid">
+                    {# alsUpdateModulePicker() fills this on category change #}
+                </div>
+            </div>
+
             <p class="als-picker-sub" style="margin-top:1rem; margin-bottom:0.5rem;">⏱ Session duration</p>
             <div class="als-time-picker" id="als-time-picker">
                 <button class="als-time-btn" data-seconds="60" onclick="alsTimeSelect(this)">1 min</button>
@@ -501,10 +535,13 @@
        (1-hour window). This list gives explicit per-session dedup without requiring
        a server-side question log table. Not a permanent API contract.
     ─────────────────────────────────────────────────────────────────────────── */
+    // Available modules per category — injected server-side.
+    // Shape: {LESSON: [{module, quiz_ids, question_count}, ...], ...}
+    var availableModules = {{ (available_modules | default({})) | tojson | safe }};
+
     var state = {
         sessionId:          null,
         questionNum:        0,
-
         recentIds:          [],
         score:              0,
         correctCount:       0,
@@ -514,7 +551,8 @@
         timerSecondsLeft:   180,
         timerHandle:        null,
         currentQuestionId:  null,
-        answerSubmitted:    false
+        answerSubmitted:    false,
+        quizIds:            ''   // "" = full category; "849,850,..." = module scope
     };
 
     /* ── Phase management ──────────────────────────────────────────────────── */
@@ -524,10 +562,13 @@
             if (el) el.classList.toggle('active', p === name);
         });
         state.phase = name;
-        // Language switcher is ONLY allowed in the category picker phase.
-        // This is the authoritative lock — it fires on every phase transition.
+        // Language switcher and module section are ONLY allowed in the category
+        // picker phase. This is the authoritative lock for both.
+        var inCategory = (name === 'category');
         var langSwitcher = document.getElementById('als-lang-switcher');
-        if (langSwitcher) langSwitcher.style.display = (name === 'category') ? '' : 'none';
+        if (langSwitcher) langSwitcher.style.display = inCategory ? '' : 'none';
+        var moduleSection = document.getElementById('als-module-section');
+        if (moduleSection && !inCategory) moduleSection.style.display = 'none';
     };
 
     function showError(msg) {
@@ -815,6 +856,54 @@
         showPhase('result');
     }
 
+    /* ── Module picker helpers ─────────────────────────────────────────────── */
+    window.alsUpdateModulePicker = function (cat) {
+        var section = document.getElementById('als-module-section');
+        var grid    = document.getElementById('als-module-grid');
+        if (!section || !grid) return;
+
+        var modules = availableModules[cat] || [];
+
+        // 0 or 1 module — no picker needed, reset scope to full category
+        if (modules.length <= 1) {
+            section.style.display = 'none';
+            state.quizIds = '';
+            return;
+        }
+
+        // Build buttons dynamically
+        grid.innerHTML = '';
+
+        var allBtn = document.createElement('button');
+        allBtn.className = 'als-module-btn als-module-btn-all selected';
+        allBtn.dataset.quizIds = '';
+        allBtn.setAttribute('data-testid', 'als-module-all');
+        allBtn.textContent = '🗂 All topics';
+        allBtn.onclick = function () { alsModuleSelect(this); };
+        grid.appendChild(allBtn);
+
+        modules.forEach(function (m) {
+            var btn = document.createElement('button');
+            btn.className = 'als-module-btn';
+            btn.dataset.quizIds = m.quiz_ids.join(',');
+            btn.setAttribute('data-testid', 'als-module-' + m.module.toLowerCase().replace(/[\s/]+/g, '-'));
+            btn.textContent = '📖 ' + m.module + ' (' + m.question_count + ')';
+            btn.onclick = function () { alsModuleSelect(this); };
+            grid.appendChild(btn);
+        });
+
+        state.quizIds = '';  // default: All topics
+        section.style.display = '';
+    };
+
+    window.alsModuleSelect = function (btn) {
+        document.querySelectorAll('.als-module-btn').forEach(function (b) {
+            b.classList.remove('selected');
+        });
+        btn.classList.add('selected');
+        state.quizIds = btn.dataset.quizIds || '';
+    };
+
     /* ── Category / time picker helpers ───────────────────────────────────── */
     window.alsCatSelect = function (btn) {
         document.querySelectorAll('.als-cat-btn').forEach(function (b) {
@@ -822,6 +911,7 @@
         });
         btn.classList.add('selected');
         state.category = btn.dataset.cat;
+        alsUpdateModulePicker(state.category);
     };
 
     window.alsTimeSelect = function (btn) {
@@ -837,10 +927,15 @@
         if (selectedCat) state.category = selectedCat.dataset.cat;
         var selectedTime = document.querySelector('.als-time-btn.selected');
         if (selectedTime) state.timeLimitSeconds = parseInt(selectedTime.dataset.seconds, 10) || 180;
-        // Defense-in-depth: hide the language switcher immediately on Start click,
+        // Capture module selection (defense-in-depth alongside state.quizIds)
+        var selectedModule = document.querySelector('.als-module-btn.selected');
+        state.quizIds = selectedModule ? (selectedModule.dataset.quizIds || '') : '';
+        // Defense-in-depth: hide language switcher and module section immediately,
         // before showPhase('loading') fires, to prevent any race-condition interaction.
         var langSwitcher = document.getElementById('als-lang-switcher');
         if (langSwitcher) langSwitcher.style.display = 'none';
+        var moduleSection = document.getElementById('als-module-section');
+        if (moduleSection) moduleSection.style.display = 'none';
         showPhase('loading');
         alsInit(state.category);
     };
@@ -855,7 +950,9 @@
         state.correctCount      = 0;
         state.currentQuestionId = null;
         state.answerSubmitted   = false;
+        state.quizIds           = '';
         document.getElementById('als-resume-notice').style.display = 'none';
+        alsUpdateModulePicker(state.category);
         showPhase('category');
     };
 
@@ -865,6 +962,9 @@
         var url = '/adaptive-learning/session/start?category=' + encodeURIComponent(cat) +
                   '&time_limit=' + state.timeLimitSeconds +
                   '&language={{ session_language | default("en") }}';
+        if (state.quizIds) {
+            url += '&quiz_ids=' + encodeURIComponent(state.quizIds);
+        }
         post(url)
             .then(function (res) {
                 if (!res) return;
@@ -886,6 +986,9 @@
                 showError('Could not connect to the server. Please check your connection.');
             });
     };
+
+    // Initialise module picker for the default category on page load
+    alsUpdateModulePicker(state.category);
 })();
 </script>
 {% endblock %}

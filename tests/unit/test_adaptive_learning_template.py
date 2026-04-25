@@ -50,7 +50,7 @@ def _fake_user():
     return _Request(), _User()
 
 
-def _render_session_page(categories=None, session_language="en"):
+def _render_session_page(categories=None, session_language="en", available_modules=None):
     from app.models.quiz import QuizCategory
 
     if categories is None:
@@ -66,6 +66,7 @@ def _render_session_page(categories=None, session_language="en"):
         spec_dashboard_icon="⚽",
         available_categories=categories,
         session_language=session_language,
+        available_modules=available_modules or {},
     )
 
 
@@ -470,3 +471,181 @@ class TestLanguageSwitcherJsGuard:
         assert '&language=en' in html or "session_language" in html, (
             "alsInit URL must embed the session language"
         )
+
+
+# ── Module picker template + JS tests ─────────────────────────────────────────
+
+_TWO_MODULE_DATA = {
+    "LESSON": [
+        {"module": "Introduction", "quiz_ids": [839, 840], "question_count": 29},
+        {"module": "Fundamentals of Training Theory", "quiz_ids": [841, 842, 843, 844, 845, 846], "question_count": 88},
+    ]
+}
+
+_ONE_MODULE_DATA = {
+    "LESSON": [
+        {"module": "Introduction", "quiz_ids": [839, 840], "question_count": 29},
+    ]
+}
+
+
+class TestModulePickerRendering:
+    """Module section DOM element is always present; JS populates it on category select."""
+
+    def test_module_section_present_in_dom(self):
+        """als-module-section container always rendered (JS shows/hides it)."""
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        assert 'id="als-module-section"' in html
+
+    def test_module_section_hidden_by_default(self):
+        """Module section has display:none on page load (JS reveals it)."""
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        idx = html.index('id="als-module-section"')
+        surrounding = html[max(0, idx - 80):idx + 120]
+        assert 'display:none' in surrounding or 'display: none' in surrounding
+
+    def test_module_section_testid(self):
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        assert 'data-testid="als-module-section"' in html
+
+    def test_module_grid_container_present(self):
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        assert 'id="als-module-grid"' in html
+
+    def test_available_modules_embedded_as_js_variable(self):
+        """available_modules dict is serialised into the page as a JS variable."""
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        assert 'availableModules' in html
+
+    def test_available_modules_contains_lesson_key(self):
+        """The serialised JS object contains the LESSON key."""
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        assert '"LESSON"' in html
+
+    def test_available_modules_contains_module_name(self):
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        assert "Introduction" in html
+
+    def test_available_modules_contains_quiz_ids(self):
+        """quiz_ids are present in the serialised JS — needed for URL construction."""
+        html = _render_session_page(available_modules=_TWO_MODULE_DATA)
+        assert "839" in html and "840" in html
+
+    def test_empty_available_modules_renders_without_error(self):
+        html = _render_session_page(available_modules={})
+        assert 'id="als-module-section"' in html
+
+    def test_no_available_modules_param_renders_without_error(self):
+        """Template must not crash when available_modules is omitted."""
+        html = _render_session_page()
+        assert 'id="als-module-section"' in html
+
+
+class TestModulePickerJsWiring:
+    """JS functions for module picker: alsUpdateModulePicker, alsModuleSelect, URL building."""
+
+    def test_als_update_module_picker_defined(self):
+        html = _render_session_page()
+        assert 'window.alsUpdateModulePicker' in html
+
+    def test_als_module_select_defined(self):
+        html = _render_session_page()
+        assert 'window.alsModuleSelect' in html
+
+    def test_als_cat_select_calls_update_module_picker(self):
+        """alsCatSelect must call alsUpdateModulePicker after setting state.category."""
+        html = _render_session_page()
+        cat_start = html.index('window.alsCatSelect')
+        cat_end = html.index('};', cat_start) + 2
+        cat_body = html[cat_start:cat_end]
+        assert 'alsUpdateModulePicker' in cat_body
+
+    def test_state_quiz_ids_initialised(self):
+        """state object must include quizIds initialised to empty string."""
+        html = _render_session_page()
+        assert "quizIds" in html and '""' in html or "quizIds" in html and "''" in html
+
+    def test_alsInit_includes_quiz_ids_in_url(self):
+        """alsInit must append quiz_ids to the start URL when state.quizIds is set."""
+        html = _render_session_page()
+        init_start = html.index('window.alsInit')
+        init_end = html.index('};', init_start) + 2
+        init_body = html[init_start:init_end]
+        assert 'quiz_ids' in init_body
+        assert 'state.quizIds' in init_body
+
+    def test_alsInit_quiz_ids_only_when_truthy(self):
+        """quiz_ids param must NOT be appended when state.quizIds is empty."""
+        html = _render_session_page()
+        init_start = html.index('window.alsInit')
+        init_end = html.index('};', init_start) + 2
+        init_body = html[init_start:init_end]
+        # Must be conditional — not unconditional append
+        assert 'if' in init_body and 'quizIds' in init_body
+
+    def test_start_from_picker_reads_module_selection(self):
+        """alsStartFromPicker must read the selected module button for quiz_ids."""
+        html = _render_session_page()
+        start = html.index('window.alsStartFromPicker')
+        end = html.index('};', start) + 2
+        body = html[start:end]
+        assert 'als-module-btn' in body or 'quizIds' in body
+
+    def test_start_from_picker_hides_module_section(self):
+        """alsStartFromPicker must hide als-module-section as defense-in-depth."""
+        html = _render_session_page()
+        start = html.index('window.alsStartFromPicker')
+        end = html.index('};', start) + 2
+        body = html[start:end]
+        assert 'als-module-section' in body
+
+    def test_showphase_hides_module_section_in_loading(self):
+        """showPhase must hide als-module-section for non-category phases."""
+        html = _render_session_page()
+        sp_start = html.index('window.showPhase')
+        sp_end = html.index('};', sp_start) + 2
+        sp_body = html[sp_start:sp_end]
+        assert 'als-module-section' in sp_body
+
+    def test_alsRestart_resets_quiz_ids(self):
+        """alsRestart must reset state.quizIds to '' so next session has no stale scope."""
+        html = _render_session_page()
+        restart_start = html.index('window.alsRestart')
+        restart_end = html.index('};', restart_start) + 2
+        restart_body = html[restart_start:restart_end]
+        assert 'quizIds' in restart_body
+
+    def test_alsRestart_calls_update_module_picker(self):
+        """alsRestart must call alsUpdateModulePicker to refresh the picker UI."""
+        html = _render_session_page()
+        restart_start = html.index('window.alsRestart')
+        restart_end = html.index('};', restart_start) + 2
+        restart_body = html[restart_start:restart_end]
+        assert 'alsUpdateModulePicker' in restart_body
+
+    def test_page_load_initialises_module_picker(self):
+        """alsUpdateModulePicker must be called at page load for the default category."""
+        html = _render_session_page()
+        # The init call must appear after the function definitions (in the IIFE tail)
+        last_update_call = html.rfind('alsUpdateModulePicker(')
+        last_fn_def = html.rfind('window.alsUpdateModulePicker')
+        assert last_update_call > last_fn_def, (
+            "alsUpdateModulePicker() page-load call must appear after function definition"
+        )
+
+    def test_all_topics_button_has_empty_quiz_ids(self):
+        """The 'All topics' button must use data-quiz-ids='' (no module scope)."""
+        html = _render_session_page()
+        update_fn_start = html.index('window.alsUpdateModulePicker')
+        update_fn_end = html.index('};', update_fn_start) + 2
+        fn_body = html[update_fn_start:update_fn_end]
+        assert 'All topics' in fn_body
+        assert "quizIds = ''" in fn_body or 'quizIds = ""' in fn_body or "dataset.quizIds = ''" in fn_body or 'data-quiz-ids' in fn_body or "allBtn.dataset.quizIds = ''" in fn_body
+
+    def test_module_section_hidden_when_single_module(self):
+        """alsUpdateModulePicker hides section when <= 1 module."""
+        html = _render_session_page()
+        update_fn_start = html.index('window.alsUpdateModulePicker')
+        update_fn_end = html.index('};', update_fn_start) + 2
+        fn_body = html[update_fn_start:update_fn_end]
+        assert '<= 1' in fn_body or '=== 0' in fn_body or 'length <= 1' in fn_body
