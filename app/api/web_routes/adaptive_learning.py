@@ -23,6 +23,8 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter(tags=["adaptive-learning"])
 
+MIN_QUESTIONS_PER_CATEGORY = 10
+
 
 @router.get("/adaptive-learning", response_class=HTMLResponse)
 async def adaptive_learning_page(
@@ -85,7 +87,6 @@ async def adaptive_learning_session_page(
     if guard:
         return guard
 
-    MIN_QUESTIONS_PER_CATEGORY = 10
     SESSION_LANGUAGE = "hu"
 
     available_categories = (
@@ -164,6 +165,29 @@ async def al_session_start(
     if time_limit not in _VALID_TIME_LIMITS:
         return JSONResponse(
             {"error": f"time_limit must be one of {sorted(_VALID_TIME_LIMITS)}"},
+            status_code=422,
+        )
+
+    # Reject categories that have fewer than the minimum number of active questions
+    # for the requested language. This prevents sessions that immediately complete 0/0.
+    question_count = (
+        db.query(func.count(QuizQuestion.id))
+        .join(Quiz, Quiz.id == QuizQuestion.quiz_id)
+        .filter(
+            Quiz.category == quiz_category,
+            Quiz.language == language,
+            Quiz.is_active == True,
+        )
+        .scalar()
+    ) or 0
+    if question_count < MIN_QUESTIONS_PER_CATEGORY:
+        return JSONResponse(
+            {
+                "error": (
+                    f"category {category!r} has insufficient questions for language {language!r} "
+                    f"({question_count} available, {MIN_QUESTIONS_PER_CATEGORY} required)"
+                )
+            },
             status_code=422,
         )
 
@@ -257,7 +281,8 @@ async def al_session_next_question(
     result = service.get_next_question(user.id, session_id)
 
     if result is None:
-        return JSONResponse({"error": "session not found"}, status_code=404)
+        # Bare None should not happen (service returns structured dict), but guard defensively.
+        return JSONResponse({"session_complete": True, "reason": "no_questions"})
 
     if result.get("session_complete"):
         return JSONResponse(result)

@@ -58,8 +58,8 @@ class AdaptiveLearningService:
         )
         
         if not candidate_questions:
-            return None
-            
+            return {"session_complete": True, "reason": "no_questions"}
+
         available_questions = candidate_questions
             
         # Apply adaptive selection algorithm

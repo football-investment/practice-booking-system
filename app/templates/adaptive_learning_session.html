@@ -353,18 +353,24 @@
                     'ECONOMICS':        ('📈', 'Economics',         'Football business and finance'),
                     'INFORMATICS':      ('💻', 'Informatics',       'Data and technology in football')
                 } %}
-                {% for cat in available_categories %}
-                    {% set icon, label, desc = cat_meta.get(cat.value, ('🎓', cat.value.replace('_',' ').title(), '')) %}
-                    <button class="als-cat-btn{% if cat.value == 'LESSON' %} selected{% endif %}"
-                            data-cat="{{ cat.value }}"
-                            onclick="alsCatSelect(this)">
-                        <span class="als-cat-icon">{{ icon }}</span>
-                        <span>
-                            <span class="als-cat-label">{{ label }}</span><br>
-                            <span class="als-cat-desc">{{ desc }}</span>
-                        </span>
-                    </button>
-                {% endfor %}
+                {% if available_categories %}
+                    {% for cat in available_categories %}
+                        {% set icon, label, desc = cat_meta.get(cat.value, ('🎓', cat.value.replace('_',' ').title(), '')) %}
+                        <button class="als-cat-btn{% if cat.value == 'LESSON' %} selected{% endif %}"
+                                data-cat="{{ cat.value }}"
+                                onclick="alsCatSelect(this)">
+                            <span class="als-cat-icon">{{ icon }}</span>
+                            <span>
+                                <span class="als-cat-label">{{ label }}</span><br>
+                                <span class="als-cat-desc">{{ desc }}</span>
+                            </span>
+                        </button>
+                    {% endfor %}
+                {% else %}
+                    <p style="color: var(--text-muted, #888); font-size: 0.9rem; text-align: center; padding: 1rem 0; grid-column: 1 / -1;">
+                        No question categories are available yet. Please check back later.
+                    </p>
+                {% endif %}
             </div>
             <p class="als-picker-sub" style="margin-top:1rem; margin-bottom:0.5rem;">⏱ Session duration</p>
             <div class="als-time-picker" id="als-time-picker">
@@ -372,7 +378,8 @@
                 <button class="als-time-btn selected" data-seconds="180" onclick="alsTimeSelect(this)">3 min</button>
                 <button class="als-time-btn" data-seconds="300" onclick="alsTimeSelect(this)">5 min</button>
             </div>
-            <button class="als-start-btn" id="als-start-btn" onclick="alsStartFromPicker()">🚀 Start Session</button>
+            <button class="als-start-btn" id="als-start-btn" onclick="alsStartFromPicker()"
+                    {% if not available_categories %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>🚀 Start Session</button>
         </div>
     </div>
 
@@ -677,7 +684,16 @@
             .then(function (res) {
                 if (!res) return;
                 var d = res.data;
-                if (d.session_complete || !d.id) {
+                if (d.session_complete) {
+                    if (d.reason === 'no_questions') {
+                        showError('No questions are available for this category yet. Please choose a different category.');
+                        showPhase('category');
+                        return;
+                    }
+                    alsComplete();
+                    return;
+                }
+                if (!d.id) {
                     alsComplete();
                     return;
                 }

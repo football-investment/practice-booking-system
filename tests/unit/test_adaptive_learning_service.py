@@ -233,12 +233,18 @@ def _make_user(uid=99):
     return u
 
 
-def _make_db_no_existing():
-    """DB mock that returns no active session (existing=None)."""
+def _make_db_no_existing(question_count: int = 15):
+    """DB mock that returns no active session (existing=None).
+
+    question_count controls what the MIN_QUESTIONS_PER_CATEGORY guard sees via .scalar().
+    Default 15 (above threshold) so existing tests continue to pass.
+    """
     db = MagicMock()
     q = MagicMock()
     q.filter.return_value = q
+    q.join.return_value = q
     q.order_by.return_value = q
+    q.scalar.return_value = question_count
     q.first.return_value = None
     db.query.return_value = q
     return db
@@ -406,11 +412,13 @@ def _make_existing_session(
     return s
 
 
-def _make_db_with_existing(existing_session):
+def _make_db_with_existing(existing_session, question_count: int = 15):
     db = MagicMock()
     q = MagicMock()
     q.filter.return_value = q
+    q.join.return_value = q
     q.order_by.return_value = q
+    q.scalar.return_value = question_count
     q.first.return_value = existing_session
     db.query.return_value = q
     return db
@@ -551,3 +559,114 @@ class TestAlStartTimeLimitOptions:
     def test_invalid_time_limit_returns_422(self):
         response, _ = _call_start_full(time_limit=120)
         assert response.status_code == 422
+
+
+# ── AL-START: question count guard ───────────────────────────────────────────
+
+def _call_start_with_count(question_count: int, category: str = "LESSON", time_limit: int = 180):
+    import asyncio
+    from app.api.web_routes.adaptive_learning import al_session_start
+
+    db = _make_db_no_existing(question_count=question_count)
+    user = _make_user()
+    req = MagicMock()
+
+    with patch(f"{_START_BASE}.require_student_onboarding", return_value=None), \
+         patch(f"{_START_BASE}.AdaptiveLearningService") as MockSvc:
+
+        mock_session = MagicMock()
+        mock_session.id = 77
+        mock_session.session_start_time = datetime.now(timezone.utc)
+        MockSvc.return_value.start_adaptive_session.return_value = mock_session
+
+        response = asyncio.run(al_session_start(
+            request=req,
+            category=category,
+            time_limit=time_limit,
+            language="hu",
+            db=db,
+            user=user,
+        ))
+        return response, MockSvc
+
+
+class TestAlStartQuestionCountGuard:
+    """Category question-count guard must reject under-threshold categories."""
+
+    def test_zero_questions_returns_422(self):
+        response, MockSvc = _call_start_with_count(0)
+        assert response.status_code == 422
+        MockSvc.return_value.start_adaptive_session.assert_not_called()
+
+    def test_zero_questions_error_body_mentions_insufficient(self):
+        response, _ = _call_start_with_count(0)
+        data = _response_json(response)
+        assert "insufficient" in data["error"].lower()
+
+    def test_nine_questions_returns_422(self):
+        """One below threshold must still be rejected."""
+        response, MockSvc = _call_start_with_count(9)
+        assert response.status_code == 422
+        MockSvc.return_value.start_adaptive_session.assert_not_called()
+
+    def test_ten_questions_returns_200(self):
+        """Exactly at threshold must be accepted."""
+        response, MockSvc = _call_start_with_count(10)
+        assert response.status_code == 200
+        MockSvc.return_value.start_adaptive_session.assert_called_once()
+
+    def test_above_threshold_returns_200(self):
+        response, MockSvc = _call_start_with_count(15)
+        assert response.status_code == 200
+        MockSvc.return_value.start_adaptive_session.assert_called_once()
+
+    def test_error_body_includes_count_and_required(self):
+        response, _ = _call_start_with_count(9)
+        data = _response_json(response)
+        assert "9" in data["error"]
+        assert "10" in data["error"]
+
+
+# ── Service: get_next_question with empty pool ────────────────────────────────
+
+class TestGetNextQuestionEmptyPool:
+    """get_next_question must return session_complete+reason when no candidates."""
+
+    def _make_db_empty_pool(self):
+        """DB mock: session lookup returns a valid session; all question queries return []."""
+        service, db = _make_service()
+        session = _mock_session(
+            session_start_time=datetime.now(timezone.utc),
+            session_time_limit_seconds=600,
+        )
+
+        def query_side(*args):
+            q = MagicMock()
+            q.join.return_value = q
+            q.outerjoin.return_value = q
+            q.filter.return_value = q
+            q.all.return_value = []
+            if AdaptiveLearningSession in args:
+                q.first.return_value = session
+            else:
+                q.first.return_value = None
+            return q
+
+        db.query.side_effect = query_side
+        return service, db
+
+    def test_empty_pool_returns_session_complete_dict(self):
+        service, db = self._make_db_empty_pool()
+
+        result = service.get_next_question(user_id=99, session_id=1)
+
+        assert result is not None, "must not return bare None"
+        assert result.get("session_complete") is True
+        assert result.get("reason") == "no_questions"
+
+    def test_empty_pool_does_not_return_bare_none(self):
+        service, db = self._make_db_empty_pool()
+
+        result = service.get_next_question(user_id=99, session_id=1)
+
+        assert result is not None
