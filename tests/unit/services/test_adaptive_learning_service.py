@@ -570,36 +570,23 @@ class TestGetNextQuestion:
             result = svc.get_next_question(user_id=42, session_id=1)
         assert result is None
 
-    def test_all_recently_answered_uses_all_candidates(self):
-        """All candidates were recently answered → available_questions = candidate_questions."""
+    def test_all_candidates_available_without_blackout(self):
+        """All candidate questions are passed to adaptive selection — no 1-hour blackout applied."""
         svc, db = _svc()
         session = MagicMock()
         question = MagicMock()
         question.id = 7
-
-        # recent_questions query returns a performance record for question.id
-        q_session = MagicMock()
-        q_session.filter.return_value = q_session
-        q_session.first.return_value = session
-
-        q_recent = MagicMock()
-        q_recent.filter.return_value = q_recent
-        recent_perf = MagicMock()
-        recent_perf.question_id = 7   # matches question.id
-        q_recent.all.return_value = [recent_perf]
-
-        calls = [0]
-        def _side(*args):
-            idx = calls[0]; calls[0] += 1
-            return [q_session, q_recent][idx] if idx < 2 else MagicMock()
-        db.query.side_effect = _side
-
+        _q(db, first=session)
         with patch.object(svc, "_is_session_time_expired", return_value=False), \
              patch.object(svc, "_get_user_performance_data", return_value={}), \
              patch.object(svc, "_get_candidate_questions", return_value=[question]), \
-             patch.object(svc, "_select_adaptive_question", return_value=question), \
+             patch.object(svc, "_select_adaptive_question", return_value=question) as mock_select, \
              patch.object(svc, "_get_session_time_remaining", return_value=120):
             result = svc.get_next_question(user_id=42, session_id=1)
+        # The full candidate list must reach _select_adaptive_question
+        mock_select.assert_called_once()
+        candidates_passed = mock_select.call_args[0][0]
+        assert question in candidates_passed
         assert result["id"] == 7
 
     def test_no_selected_question_returns_no_questions_dict(self):
@@ -824,3 +811,110 @@ class TestUpdateQuestionMetadataDifficultyBranches:
         metadata = self._run_update(initial_success=0.2, is_correct=False)
         # global_success_rate = 0.2*0.95 + 0.0*0.05 = 0.19 < 0.4
         assert metadata.estimated_difficulty > 0.5   # increased
+
+
+# ===========================================================================
+# Repetition fix — no 1-hour blackout
+# ===========================================================================
+
+@pytest.mark.unit
+class TestNoBlackoutRepetition:
+    """
+    Verifies that get_next_question no longer applies a 1-hour
+    last_attempted_at exclusion window. Questions answered previously
+    (wrong, correct, or timed-out) must remain eligible for re-selection
+    without exhausting the candidate pool.
+    """
+
+    def _call_next(self, svc, db, candidates, selected):
+        session = MagicMock()
+        _q(db, first=session)
+        with patch.object(svc, "_is_session_time_expired", return_value=False), \
+             patch.object(svc, "_get_user_performance_data", return_value={}), \
+             patch.object(svc, "_get_candidate_questions", return_value=candidates), \
+             patch.object(svc, "_select_adaptive_question", return_value=selected) as mock_sel, \
+             patch.object(svc, "_get_session_time_remaining", return_value=120):
+            result = svc.get_next_question(user_id=1, session_id=1)
+        return result, mock_sel
+
+    def test_wrong_answer_question_remains_in_pool(self):
+        """A question answered incorrectly must still be passed to adaptive selection."""
+        svc, db = _svc()
+        q = MagicMock(); q.id = 10
+        result, mock_sel = self._call_next(svc, db, [q], q)
+        candidates = mock_sel.call_args[0][0]
+        assert q in candidates
+
+    def test_correct_answer_question_not_permanently_excluded(self):
+        """A correctly answered question must still be in the candidate pool."""
+        svc, db = _svc()
+        q = MagicMock(); q.id = 20
+        result, mock_sel = self._call_next(svc, db, [q], q)
+        candidates = mock_sel.call_args[0][0]
+        assert q in candidates
+
+    def test_timeout_question_not_permanently_excluded(self):
+        """A timed-out question (treated as wrong) must remain eligible."""
+        svc, db = _svc()
+        q = MagicMock(); q.id = 30
+        result, mock_sel = self._call_next(svc, db, [q], q)
+        candidates = mock_sel.call_args[0][0]
+        assert q in candidates
+
+    def test_small_pool_does_not_dead_end(self):
+        """With a 1-question pool all calls must get a result, never None from exhaustion."""
+        svc, db = _svc()
+        q = MagicMock(); q.id = 5
+        for _ in range(5):
+            result, _ = self._call_next(svc, db, [q], q)
+            assert result is not None
+            assert result["id"] == 5
+
+    def test_full_candidate_list_reaches_selector(self):
+        """All candidates must reach _select_adaptive_question — no filtering applied."""
+        svc, db = _svc()
+        questions = [MagicMock(id=i) for i in range(1, 6)]
+        result, mock_sel = self._call_next(svc, db, questions, questions[0])
+        candidates = mock_sel.call_args[0][0]
+        assert len(candidates) == 5
+        assert all(q in candidates for q in questions)
+
+    def test_repeated_question_score_updates_correctly(self):
+        """record_answer must correctly decrement score on repeated wrong answer."""
+        svc, db = _svc()
+        session = MagicMock()
+        session.id = 1
+        session.questions_presented = 3
+        session.questions_correct = 1
+        session.target_difficulty = 0.5
+        session.performance_trend = 0.0
+        _q(db, first=session)
+        with patch.object(svc, "_update_user_question_performance"), \
+             patch.object(svc, "_update_question_metadata"), \
+             patch.object(svc, "_adjust_target_difficulty", return_value=0.5), \
+             patch.object(svc, "_calculate_performance_trend", return_value=0.0):
+            result = svc.record_answer(
+                user_id=1, session_id=1, question_id=99,
+                is_correct=False, time_spent_seconds=10.0
+            )
+        assert result["score_delta"] == -1
+
+    def test_no_userquestionperformance_query_for_blackout(self):
+        """get_next_question must NOT issue a cross-session recency query for blackout."""
+        from app.models.quiz import UserQuestionPerformance
+        svc, db = _svc()
+        session = MagicMock()
+        q = MagicMock(); q.id = 1
+        _q(db, first=session)
+        with patch.object(svc, "_is_session_time_expired", return_value=False), \
+             patch.object(svc, "_get_user_performance_data", return_value={}), \
+             patch.object(svc, "_get_candidate_questions", return_value=[q]), \
+             patch.object(svc, "_select_adaptive_question", return_value=q), \
+             patch.object(svc, "_get_session_time_remaining", return_value=120):
+            svc.get_next_question(user_id=1, session_id=1)
+        # Verify db.query was NOT called with UserQuestionPerformance as the sole arg
+        blackout_calls = [
+            call for call in db.query.call_args_list
+            if call == ((UserQuestionPerformance,), {})
+        ]
+        assert blackout_calls == [], "1-hour blackout query must not be issued"

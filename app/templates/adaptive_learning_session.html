@@ -478,7 +478,7 @@
         sessionId:          null,
         questionNum:        0,
         totalTarget:        10,
-        seenIds:            [],
+        recentIds:          [],
         score:              0,
         correctCount:       0,
         phase:              'category',
@@ -584,7 +584,7 @@
     /* ── Render question ───────────────────────────────────────────────────── */
     function renderQuestion(data) {
         state.questionNum += 1;
-        state.seenIds.push(data.id);
+        state.recentIds = [data.id, state.recentIds[0]].filter(Boolean);
         state.currentQuestionId = data.id;
         state.answerSubmitted = false;
 
@@ -689,7 +689,7 @@
 
     /* ── Next question ─────────────────────────────────────────────────────── */
     window.alsNext = function () {
-        var excludeParam = state.seenIds.join(',');
+        var excludeParam = state.recentIds.join(',');
         get('/adaptive-learning/session/' + state.sessionId + '/next-question?exclude_ids=' + excludeParam)
             .then(function (res) {
                 if (!res) return;
@@ -807,7 +807,7 @@
         stopTimer();
         state.sessionId         = null;
         state.questionNum       = 0;
-        state.seenIds           = [];
+        state.recentIds         = [];
         state.score             = 0;
         state.correctCount      = 0;
         state.currentQuestionId = null;

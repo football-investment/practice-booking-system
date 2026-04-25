@@ -52,18 +52,7 @@ class AdaptiveLearningService:
         if not candidate_questions:
             return None
             
-        # Filter out questions already answered recently by this user
-        recent_questions = self.db.query(UserQuestionPerformance).filter(
-            UserQuestionPerformance.user_id == user_id,
-            UserQuestionPerformance.last_attempted_at > datetime.now(timezone.utc) - timedelta(hours=1)
-        ).all()
-        
-        recent_question_ids = {perf.question_id for perf in recent_questions}
-        available_questions = [q for q in candidate_questions if q.id not in recent_question_ids]
-        
-        # If all questions were recently answered, use all candidates anyway
-        if not available_questions:
-            available_questions = candidate_questions
+        available_questions = candidate_questions
             
         # Apply adaptive selection algorithm
         selected_question = self._select_adaptive_question(

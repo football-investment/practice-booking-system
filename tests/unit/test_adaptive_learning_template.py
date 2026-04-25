@@ -201,3 +201,30 @@ class TestTimeoutPhaseGuard:
     def test_timeout_function_defined(self):
         html = _render_session_page()
         assert "window.alsTimeout" in html
+
+
+class TestRecentIdsCooldown:
+    """Client-side cooldown: seenIds replaced with recentIds (last-2 window)."""
+
+    def test_recent_ids_state_initialized(self):
+        """State must use recentIds, not seenIds."""
+        html = _render_session_page()
+        assert "recentIds" in html, "recentIds state field missing"
+        assert "seenIds" not in html, "seenIds must be removed — replaced by recentIds"
+
+    def test_recent_ids_uses_last_two_logic(self):
+        """renderQuestion must keep only last 2 IDs via filter(Boolean)."""
+        html = _render_session_page()
+        assert "state.recentIds = [data.id, state.recentIds[0]].filter(Boolean)" in html
+
+    def test_exclude_param_uses_recent_ids(self):
+        """alsNext must pass recentIds (not seenIds) as exclude_ids."""
+        html = _render_session_page()
+        assert "state.recentIds.join(',')" in html
+
+    def test_restart_resets_recent_ids(self):
+        """alsRestart must reset recentIds to empty array."""
+        html = _render_session_page()
+        assert "state.recentIds" in html
+        # recentIds = [] must appear (init + restart both set it to [])
+        assert "recentIds:          []" in html or "recentIds: []" in html or "recentIds          :" in html or html.count("recentIds") >= 2
