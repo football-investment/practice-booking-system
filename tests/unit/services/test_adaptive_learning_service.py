@@ -560,7 +560,7 @@ class TestGetNextQuestion:
             result = svc.get_next_question(user_id=42, session_id=1)
         assert result == {"session_complete": True, "reason": "time_expired"}
 
-    def test_no_candidate_questions_returns_none(self):
+    def test_no_candidate_questions_returns_session_complete(self):
         svc, db = _svc()
         session = MagicMock()
         _q(db, first=session)
@@ -568,7 +568,9 @@ class TestGetNextQuestion:
              patch.object(svc, "_get_user_performance_data", return_value={}), \
              patch.object(svc, "_get_candidate_questions", return_value=[]):
             result = svc.get_next_question(user_id=42, session_id=1)
-        assert result is None
+        assert result is not None
+        assert result.get("session_complete") is True
+        assert result.get("reason") == "no_questions"
 
     def test_all_candidates_available_without_blackout(self):
         """All candidate questions are passed to adaptive selection — no 1-hour blackout applied."""

@@ -23,6 +23,8 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter(tags=["adaptive-learning"])
 
+MIN_QUESTIONS_PER_CATEGORY = 10
+
 
 @router.get("/adaptive-learning", response_class=HTMLResponse)
 async def adaptive_learning_page(
@@ -77,6 +79,7 @@ async def adaptive_learning_page(
 @router.get("/adaptive-learning/session", response_class=HTMLResponse)
 async def adaptive_learning_session_page(
     request: Request,
+    language: str = Query("en", description="Session language ('en' or 'hu')"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
@@ -85,14 +88,14 @@ async def adaptive_learning_session_page(
     if guard:
         return guard
 
-    MIN_QUESTIONS_PER_CATEGORY = 10
-    SESSION_LANGUAGE = "hu"
+    if language not in _VALID_LANGUAGES:
+        language = "en"
 
     available_categories = (
         db.query(Quiz.category)
         .join(QuizQuestion, QuizQuestion.quiz_id == Quiz.id)
         .join(QuestionMetadata, QuestionMetadata.question_id == QuizQuestion.id)
-        .filter(Quiz.is_active == True, Quiz.language == SESSION_LANGUAGE)
+        .filter(Quiz.is_active == True, Quiz.language == language)
         .group_by(Quiz.category)
         .having(func.count(QuizQuestion.id) >= MIN_QUESTIONS_PER_CATEGORY)
         .all()
@@ -106,7 +109,7 @@ async def adaptive_learning_session_page(
             "user": user,
             **_spec_ctx(user, db),
             "available_categories": category_values,
-            "session_language": SESSION_LANGUAGE,
+            "session_language": language,
         },
     )
 
@@ -136,6 +139,7 @@ def _session_guard(db: Session, session_id: int, user_id: int):
 
 
 _VALID_TIME_LIMITS = {60, 180, 300}
+_VALID_LANGUAGES = {"en", "hu"}
 
 
 @router.post("/adaptive-learning/session/start")
@@ -143,7 +147,7 @@ async def al_session_start(
     request: Request,
     category: str = Query("LESSON", description="QuizCategory value for this session"),
     time_limit: int = Query(180, description="Session time limit in seconds (60, 180, or 300)"),
-    language: str = Query("hu", description="Session language ('hu' or 'en')"),
+    language: str = Query("en", description="Session language ('en' or 'hu')"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
@@ -164,6 +168,35 @@ async def al_session_start(
     if time_limit not in _VALID_TIME_LIMITS:
         return JSONResponse(
             {"error": f"time_limit must be one of {sorted(_VALID_TIME_LIMITS)}"},
+            status_code=422,
+        )
+
+    if language not in _VALID_LANGUAGES:
+        return JSONResponse(
+            {"error": f"language {language!r} is not supported. Valid values: {sorted(_VALID_LANGUAGES)}"},
+            status_code=422,
+        )
+
+    # Reject categories that have fewer than the minimum number of active questions
+    # for the requested language. This prevents sessions that immediately complete 0/0.
+    question_count = (
+        db.query(func.count(QuizQuestion.id))
+        .join(Quiz, Quiz.id == QuizQuestion.quiz_id)
+        .filter(
+            Quiz.category == quiz_category,
+            Quiz.language == language,
+            Quiz.is_active == True,
+        )
+        .scalar()
+    ) or 0
+    if question_count < MIN_QUESTIONS_PER_CATEGORY:
+        return JSONResponse(
+            {
+                "error": (
+                    f"category {category!r} has insufficient questions for language {language!r} "
+                    f"({question_count} available, {MIN_QUESTIONS_PER_CATEGORY} required)"
+                )
+            },
             status_code=422,
         )
 
@@ -257,7 +290,8 @@ async def al_session_next_question(
     result = service.get_next_question(user.id, session_id)
 
     if result is None:
-        return JSONResponse({"error": "session not found"}, status_code=404)
+        # Bare None should not happen (service returns structured dict), but guard defensively.
+        return JSONResponse({"session_complete": True, "reason": "no_questions"})
 
     if result.get("session_complete"):
         return JSONResponse(result)
