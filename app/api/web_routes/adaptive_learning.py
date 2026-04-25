@@ -102,6 +102,40 @@ async def adaptive_learning_session_page(
     )
     category_values = [row[0] for row in available_categories]
 
+    # Build topic map: {category_value: [{module, topic, quiz_id, question_count}, ...]}
+    # 1 topic = 1 quiz = 1 selectable unit in the picker.
+    # module is the chapter-level visual grouper only — never a selection unit.
+    # Only topics with >= MIN_QUESTIONS_PER_CATEGORY metadata-backed questions are exposed.
+    topic_rows = (
+        db.query(
+            Quiz.category,
+            Quiz.module,
+            Quiz.topic,
+            Quiz.id.label("quiz_id"),
+            func.count(QuizQuestion.id).label("question_count"),
+        )
+        .join(QuizQuestion, QuizQuestion.quiz_id == Quiz.id)
+        .join(QuestionMetadata, QuestionMetadata.question_id == QuizQuestion.id)
+        .filter(
+            Quiz.is_active == True,
+            Quiz.language == language,
+            Quiz.topic.isnot(None),
+        )
+        .group_by(Quiz.category, Quiz.module, Quiz.topic, Quiz.id)
+        .having(func.count(QuizQuestion.id) >= MIN_QUESTIONS_PER_CATEGORY)
+        .order_by(Quiz.id)
+        .all()
+    )
+    available_topics: dict[str, list] = {}
+    for row in topic_rows:
+        cat_key = row.category.value
+        available_topics.setdefault(cat_key, []).append({
+            "module": row.module,
+            "topic": row.topic,
+            "quiz_id": row.quiz_id,
+            "question_count": row.question_count,
+        })
+
     return templates.TemplateResponse(
         "adaptive_learning_session.html",
         {
@@ -109,6 +143,7 @@ async def adaptive_learning_session_page(
             "user": user,
             **_spec_ctx(user, db),
             "available_categories": category_values,
+            "available_topics": available_topics,
             "session_language": language,
         },
     )
@@ -148,6 +183,13 @@ async def al_session_start(
     category: str = Query("LESSON", description="QuizCategory value for this session"),
     time_limit: int = Query(180, description="Session time limit in seconds (60, 180, or 300)"),
     language: str = Query("en", description="Session language ('en' or 'hu')"),
+    quiz_ids: str = Query(
+        "",
+        description=(
+            "Comma-separated quiz IDs scoping this session to a specific module. "
+            "Empty string means all quizzes in the selected category+language."
+        ),
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
@@ -177,23 +219,67 @@ async def al_session_start(
             status_code=422,
         )
 
-    # Reject categories that have fewer than the minimum number of active questions
-    # for the requested language. This prevents sessions that immediately complete 0/0.
+    # Parse and validate quiz_ids (module scope).
+    parsed_quiz_ids: list[int] = []
+    source_quiz_ids_str: str | None = None
+    if quiz_ids.strip():
+        try:
+            parsed_quiz_ids = [int(x) for x in quiz_ids.split(",") if x.strip()]
+        except ValueError:
+            return JSONResponse(
+                {"error": "quiz_ids must be comma-separated integers"},
+                status_code=422,
+            )
+        if not parsed_quiz_ids:
+            return JSONResponse({"error": "quiz_ids is empty after parsing"}, status_code=422)
+
+        # Every ID must be an active quiz in the requested category + language.
+        valid_ids = {
+            row[0]
+            for row in db.query(Quiz.id)
+            .filter(
+                Quiz.id.in_(parsed_quiz_ids),
+                Quiz.category == quiz_category,
+                Quiz.language == language,
+                Quiz.is_active == True,
+            )
+            .all()
+        }
+        invalid = set(parsed_quiz_ids) - valid_ids
+        if invalid:
+            return JSONResponse(
+                {
+                    "error": (
+                        f"quiz_ids contain IDs that are not active quizzes in "
+                        f"category={category!r} language={language!r}: {sorted(invalid)}"
+                    )
+                },
+                status_code=422,
+            )
+        source_quiz_ids_str = ",".join(str(i) for i in sorted(parsed_quiz_ids))
+
+    # Reject if the selected scope (module or full category) has insufficient questions.
+    # This prevents sessions that immediately complete 0/0.
+    scope_filters = [
+        Quiz.category == quiz_category,
+        Quiz.language == language,
+        Quiz.is_active == True,
+    ]
+    if parsed_quiz_ids:
+        scope_filters.append(Quiz.id.in_(parsed_quiz_ids))
+
     question_count = (
         db.query(func.count(QuizQuestion.id))
         .join(Quiz, Quiz.id == QuizQuestion.quiz_id)
-        .filter(
-            Quiz.category == quiz_category,
-            Quiz.language == language,
-            Quiz.is_active == True,
-        )
+        .filter(*scope_filters)
         .scalar()
     ) or 0
     if question_count < MIN_QUESTIONS_PER_CATEGORY:
+        scope_desc = f"module quiz_ids={sorted(parsed_quiz_ids)}" if parsed_quiz_ids else f"category {category!r}"
         return JSONResponse(
             {
                 "error": (
-                    f"category {category!r} has insufficient questions for language {language!r} "
+                    f"{scope_desc} has insufficient questions for language {language!r} "
                     f"({question_count} available, {MIN_QUESTIONS_PER_CATEGORY} required)"
                 )
             },
@@ -234,11 +320,15 @@ async def al_session_start(
                 "time_limit_seconds": time_limit,
                 "current_score": current_score,
                 "questions_presented": existing.questions_presented or 0,
+                "source_quiz_ids": existing.source_quiz_ids,
             })
 
     service = AdaptiveLearningService(db)
     session = service.start_adaptive_session(
-        user.id, quiz_category, session_duration_seconds=time_limit, language=language
+        user.id, quiz_category,
+        session_duration_seconds=time_limit,
+        language=language,
+        source_quiz_ids=source_quiz_ids_str,
     )
     return JSONResponse({
         "session_id": session.id,
@@ -247,6 +337,7 @@ async def al_session_start(
         "resumed": False,
         "time_limit_seconds": time_limit,
         "current_score": 0,
+        "source_quiz_ids": session.source_quiz_ids,
     })
 
 

@@ -50,7 +50,7 @@ def _fake_user():
     return _Request(), _User()
 
 
-def _render_session_page(categories=None, session_language="en"):
+def _render_session_page(categories=None, session_language="en", available_topics=None):
     from app.models.quiz import QuizCategory
 
     if categories is None:
@@ -66,6 +66,7 @@ def _render_session_page(categories=None, session_language="en"):
         spec_dashboard_icon="⚽",
         available_categories=categories,
         session_language=session_language,
+        available_topics=available_topics or {},
     )
 
 
@@ -445,13 +446,15 @@ class TestLanguageSwitcherJsGuard:
             "showPhase() must control als-lang-switcher visibility"
         )
 
-    def test_als_start_from_picker_hides_switcher_immediately(self):
+    def test_als_start_from_picker_calls_show_phase_loading(self):
+        """alsStartFromPicker must call showPhase('loading'), which is the
+        authoritative lock that hides lang-switcher and topic phase."""
         html = _render_session_page()
         start_fn_start = html.index("window.alsStartFromPicker")
         start_fn_end = html.index("};", start_fn_start) + 2
         start_fn_body = html[start_fn_start:start_fn_end]
-        assert "als-lang-switcher" in start_fn_body, (
-            "alsStartFromPicker() must hide als-lang-switcher as defense-in-depth"
+        assert "showPhase('loading')" in start_fn_body, (
+            "alsStartFromPicker() must call showPhase('loading')"
         )
 
     def test_switcher_hidden_in_non_category_phases_via_showphase(self):
@@ -470,3 +473,216 @@ class TestLanguageSwitcherJsGuard:
         assert '&language=en' in html or "session_language" in html, (
             "alsInit URL must embed the session language"
         )
+
+
+# ── Topic picker template + JS tests ──────────────────────────────────────────
+
+_TWO_TOPIC_DATA = {
+    "LESSON": [
+        {"module": "Introduction", "topic": "Football Basics", "quiz_id": 839, "question_count": 14},
+        {"module": "Introduction", "topic": "History of Football", "quiz_id": 840, "question_count": 15},
+        {"module": "Fundamentals of Training Theory", "topic": "Warm-Up Principles", "quiz_id": 841, "question_count": 14},
+        {"module": "Fundamentals of Training Theory", "topic": "Recovery Methods", "quiz_id": 842, "question_count": 15},
+    ]
+}
+
+_ONE_TOPIC_DATA = {
+    "LESSON": [
+        {"module": "Introduction", "topic": "Football Basics", "quiz_id": 839, "question_count": 14},
+    ]
+}
+
+
+class TestTopicPhaseStructure:
+    """Phase 2 (topic picker) DOM structure — dedicated phase, not inline."""
+
+    def test_topic_phase_element_present(self):
+        """als-phase-topic must exist as a dedicated phase div."""
+        html = _render_session_page(available_topics=_TWO_TOPIC_DATA)
+        assert 'id="als-phase-topic"' in html
+
+    def test_topic_phase_hidden_by_default(self):
+        """Topic phase must not be active on page load."""
+        html = _render_session_page(available_topics=_TWO_TOPIC_DATA)
+        idx = html.index('id="als-phase-topic"')
+        surrounding = html[max(0, idx - 10):idx + 80]
+        assert 'active' not in surrounding
+
+    def test_topic_phase_testid(self):
+        html = _render_session_page(available_topics=_TWO_TOPIC_DATA)
+        assert 'data-testid="als-phase-topic"' in html
+
+    def test_back_button_present_in_topic_phase(self):
+        """Topic phase must have a back button navigating to category phase."""
+        html = _render_session_page()
+        assert 'data-testid="als-back-btn"' in html
+        assert "showPhase('category')" in html
+
+    def test_module_cards_container_present(self):
+        """Module cards container must exist in topic phase."""
+        html = _render_session_page()
+        assert 'id="als-module-cards"' in html
+        assert 'data-testid="als-module-cards"' in html
+
+    def test_all_topics_button_in_topic_phase(self):
+        """All topics button must be present in topic phase (secondary element)."""
+        html = _render_session_page()
+        assert 'id="als-all-topics-btn"' in html
+        assert 'data-testid="als-topic-all"' in html
+
+    def test_all_topics_button_has_empty_quiz_id(self):
+        """All topics button must have data-quiz-id='' (no scope)."""
+        html = _render_session_page()
+        assert 'data-quiz-id=""' in html or "dataset.quizId = ''" in html or "dataset.quizId=''" in html
+
+    def test_time_picker_in_topic_phase_not_category_phase(self):
+        """Time picker (id=als-time-picker) must be inside als-phase-topic."""
+        html = _render_session_page()
+        topic_start = html.index('id="als-phase-topic"')
+        loading_start = html.index('id="als-phase-loading"')
+        time_picker_idx = html.index('id="als-time-picker"')
+        assert topic_start < time_picker_idx < loading_start, \
+            "Time picker must be in topic phase, not category phase"
+
+    def test_start_button_in_topic_phase_not_category_phase(self):
+        """Start button (id=als-start-btn) must be inside als-phase-topic."""
+        html = _render_session_page()
+        topic_start = html.index('id="als-phase-topic"')
+        loading_start = html.index('id="als-phase-loading"')
+        start_btn_idx = html.index('id="als-start-btn"')
+        assert topic_start < start_btn_idx < loading_start, \
+            "Start button must be in topic phase, not category phase"
+
+    def test_category_phase_has_no_time_picker(self):
+        """Category phase HTML must not contain time picker or start button."""
+        html = _render_session_page()
+        cat_start = html.index('id="als-phase-category"')
+        topic_start = html.index('id="als-phase-topic"')
+        cat_phase_html = html[cat_start:topic_start]
+        assert 'id="als-time-picker"' not in cat_phase_html
+        assert 'id="als-start-btn"' not in cat_phase_html
+
+    def test_category_phase_has_no_topic_list(self):
+        """Category phase HTML must not contain topic picker elements."""
+        html = _render_session_page()
+        cat_start = html.index('id="als-phase-category"')
+        topic_start = html.index('id="als-phase-topic"')
+        cat_phase_html = html[cat_start:topic_start]
+        assert 'als-module-cards' not in cat_phase_html
+        assert 'als-topic-card' not in cat_phase_html
+
+    def test_available_topics_embedded_as_js_variable(self):
+        html = _render_session_page(available_topics=_TWO_TOPIC_DATA)
+        assert 'availableTopics' in html
+
+    def test_available_topics_contains_lesson_key(self):
+        html = _render_session_page(available_topics=_TWO_TOPIC_DATA)
+        assert '"LESSON"' in html
+
+    def test_available_topics_contains_chapter_and_topic_names(self):
+        html = _render_session_page(available_topics=_TWO_TOPIC_DATA)
+        assert "Introduction" in html
+        assert "Football Basics" in html
+
+    def test_available_topics_contains_single_quiz_ids(self):
+        html = _render_session_page(available_topics=_TWO_TOPIC_DATA)
+        assert "839" in html and "841" in html
+
+    def test_empty_available_topics_renders_without_error(self):
+        html = _render_session_page(available_topics={})
+        assert 'id="als-phase-topic"' in html
+
+    def test_no_available_topics_param_renders_without_error(self):
+        html = _render_session_page()
+        assert 'id="als-phase-topic"' in html
+
+
+class TestTopicPickerJsWiring:
+    """JS: alsRenderTopicPhase, alsTopicSelect, alsCatSelect, URL building."""
+
+    def test_als_render_topic_phase_defined(self):
+        html = _render_session_page()
+        assert 'window.alsRenderTopicPhase' in html
+
+    def test_als_topic_select_defined(self):
+        html = _render_session_page()
+        assert 'window.alsTopicSelect' in html
+
+    def test_als_cat_select_calls_render_topic_phase(self):
+        """alsCatSelect must call alsRenderTopicPhase and showPhase('topic')."""
+        html = _render_session_page()
+        assert 'alsRenderTopicPhase' in html
+        assert "showPhase('topic')" in html
+
+    def test_showphase_includes_topic_in_phase_list(self):
+        """showPhase must iterate over 'topic' phase alongside others."""
+        html = _render_session_page()
+        sp_start = html.index('window.showPhase')
+        sp_end = html.index('};', sp_start) + 2
+        sp_body = html[sp_start:sp_end]
+        assert "'topic'" in sp_body
+
+    def test_state_quiz_ids_initialised(self):
+        html = _render_session_page()
+        assert "quizIds" in html and ("''" in html or '""' in html)
+
+    def test_alsInit_includes_quiz_ids_in_url(self):
+        html = _render_session_page()
+        init_start = html.index('window.alsInit')
+        init_end = html.index('};', init_start) + 2
+        init_body = html[init_start:init_end]
+        assert 'quiz_ids' in init_body
+        assert 'state.quizIds' in init_body
+
+    def test_alsInit_quiz_ids_only_when_truthy(self):
+        html = _render_session_page()
+        init_start = html.index('window.alsInit')
+        init_end = html.index('};', init_start) + 2
+        init_body = html[init_start:init_end]
+        assert 'if' in init_body and 'quizIds' in init_body
+
+    def test_start_from_picker_reads_topic_selection(self):
+        """alsStartFromPicker must read selected topic or all-topics button."""
+        html = _render_session_page()
+        assert 'als-topic-card' in html and 'quizIds' in html
+
+    def test_alsRestart_goes_to_category_phase(self):
+        """alsRestart must show category phase (not topic phase)."""
+        html = _render_session_page()
+        restart_start = html.index('window.alsRestart')
+        restart_end = html.index('};', restart_start) + 2
+        restart_body = html[restart_start:restart_end]
+        assert "showPhase('category')" in restart_body
+
+    def test_alsRestart_resets_quiz_ids(self):
+        html = _render_session_page()
+        restart_start = html.index('window.alsRestart')
+        restart_end = html.index('};', restart_start) + 2
+        restart_body = html[restart_start:restart_end]
+        assert 'quizIds' in restart_body
+
+    def test_chapter_headers_are_non_clickable_divs(self):
+        """Chapter title must use div elements, not buttons."""
+        html = _render_session_page()
+        assert 'als-chapter-title' in html
+        assert "createElement('div')" in html or 'createElement("div")' in html
+
+    def test_topic_buttons_use_single_quiz_id(self):
+        """Topic buttons must use dataset.quizId (singular), not dataset.quizIds."""
+        html = _render_session_page()
+        assert 'dataset.quizId' in html
+        assert 'dataset.quizIds' not in html
+
+    def test_module_cards_grouped_by_chapter(self):
+        """alsRenderTopicPhase must group topics by chapter (Map-based grouping)."""
+        html = _render_session_page()
+        assert 'als-chapter-group' in html
+        assert 'chapters' in html or 'chName' in html
+
+    def test_lang_switcher_hidden_in_topic_phase(self):
+        """showPhase must hide lang switcher when entering topic phase."""
+        html = _render_session_page()
+        sp_start = html.index('window.showPhase')
+        sp_end = html.index('};', sp_start) + 2
+        sp_body = html[sp_start:sp_end]
+        assert 'als-lang-switcher' in sp_body

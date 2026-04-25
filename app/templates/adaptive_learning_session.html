@@ -21,7 +21,6 @@
     .als-phase { display: none; }
     .als-phase.active { display: block; }
 
-
     .als-progress-label {
         font-size: 0.8rem;
         color: var(--app-text-muted);
@@ -41,7 +40,7 @@
     .als-question-num {
         font-size: 0.78rem;
         font-weight: 700;
-        color: #667eea;
+        color: #818cf8;   /* indigo-400 — readable on both light and dark cards */
         text-transform: uppercase;
         letter-spacing: 0.06em;
         margin-bottom: 0.6rem;
@@ -62,7 +61,7 @@
         align-items: flex-start;
         gap: 0.75rem;
         background: var(--app-card);
-        border: 2px solid var(--app-border, #e2e8f0);
+        border: 2px solid var(--app-border);
         border-radius: 10px;
         padding: 0.85rem 1rem;
         cursor: pointer;
@@ -73,10 +72,14 @@
         color: var(--app-text);
     }
     .als-option:hover:not(:disabled) {
-        border-color: #667eea;
-        background: #f0f4ff;
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg);
     }
-    .als-option.selected  { border-color: #667eea; background: #eef2ff; }
+    .als-option.selected {
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+    }
     .als-option.correct   { border-color: #27ae60; background: #d5f5e3; color: #1a5e35; }
     .als-option.incorrect { border-color: #e74c3c; background: #fdecea; color: #7b241c; }
     .als-option:disabled  { cursor: default; }
@@ -86,17 +89,18 @@
         width: 26px;
         height: 26px;
         border-radius: 50%;
-        background: #f3f4f6;
+        background: var(--app-card-raised);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.78rem;
         font-weight: 700;
-        color: #374151;
+        color: var(--app-text-muted);
     }
     .als-option.correct   .als-option-letter { background: #27ae60; color: white; }
     .als-option.incorrect .als-option-letter { background: #e74c3c; color: white; }
-    .als-option.selected  .als-option-letter { background: #667eea; color: white; }
+    .als-option.selected  .als-option-letter { background: var(--app-interactive-border-active); color: white; }
+    .als-option:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Feedback overlay ────────────────────────────────────────────────────── */
     .als-feedback {
@@ -112,7 +116,7 @@
 
     .als-feedback-xp {
         display: inline-block;
-        background: #6c3483;
+        background: #7c3aed;
         color: white;
         border-radius: 20px;
         padding: 0.2rem 0.7rem;
@@ -135,42 +139,43 @@
         margin-top: 0.5rem;
     }
     .als-next-btn:hover { background: #5a67d8; }
+    .als-next-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Score strip ─────────────────────────────────────────────────────────── */
     .als-score-strip {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #f0f4ff;
-        border: 1px solid #c7d2fe;
+        background: var(--app-score-bg);
+        border: 1px solid var(--app-score-border);
         border-radius: 8px;
         padding: 0.5rem 1rem;
         font-size: 0.85rem;
         font-weight: 600;
-        color: #3730a3;
+        color: var(--app-score-text);
         margin-bottom: 1.25rem;
     }
     .als-score-val { font-size: 1rem; }
     .als-score-val.positive { color: #15803d; }
-    .als-score-val.negative { color: #b91c1c; }
+    .als-score-val.negative { color: #dc2626; }
 
     /* ── Countdown timer ────────────────────────────────────────────────────── */
     .als-timer {
         font-size: 0.85rem;
         font-weight: 700;
-        color: #3730a3;
+        color: var(--app-score-text);
     }
-    .als-timer.warning { color: #b45309; }
-    .als-timer.critical { color: #b91c1c; }
+    .als-timer.warning  { color: #d97706; }
+    .als-timer.critical { color: #dc2626; }
 
     /* ── Resume notice ───────────────────────────────────────────────────────── */
     .als-resume-notice {
-        background: #fff7ed;
+        background: var(--app-card-raised);
         border-left: 4px solid #f59e0b;
         border-radius: 8px;
         padding: 0.75rem 1rem;
         font-size: 0.88rem;
-        color: #92400e;
+        color: var(--app-text);
         margin-bottom: 1.25rem;
     }
 
@@ -203,7 +208,7 @@
     @media (max-width: 480px) { .als-result-stats { grid-template-columns: repeat(2, 1fr); } }
 
     .als-result-stat {
-        background: #f8f9fa;
+        background: var(--app-card-raised);
         border-radius: 10px;
         padding: 1rem;
     }
@@ -221,9 +226,11 @@
         border: none;
     }
     .als-btn-primary   { background: #667eea; color: white; }
-    .als-btn-secondary { background: #f3f4f6; color: #374151; }
+    .als-btn-secondary { background: var(--app-card-raised); color: var(--app-text); border: 1px solid var(--app-border); }
     .als-btn-primary:hover   { background: #5a67d8; }
-    .als-btn-secondary:hover { background: #e5e7eb; }
+    .als-btn-secondary:hover { background: var(--app-interactive-bg); }
+    .als-btn-primary:focus-visible,
+    .als-btn-secondary:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Time limit picker ───────────────────────────────────────────────────── */
     .als-time-picker {
@@ -234,50 +241,34 @@
     .als-time-btn {
         flex: 1;
         padding: 0.6rem 0.5rem;
-        border: 2px solid var(--app-border, #e2e8f0);
+        border: 2px solid var(--app-border);
         border-radius: 8px;
         background: var(--app-card);
         font-size: 0.88rem;
         font-weight: 600;
         color: var(--app-text);
         cursor: pointer;
-        transition: border-color 0.15s, background 0.15s;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
         text-align: center;
     }
-    .als-time-btn:hover { border-color: #667eea; background: #f0f4ff; }
-    .als-time-btn.selected { border-color: #4f46e5; background: #eef2ff; color: #3730a3; }
+    .als-time-btn:hover {
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg);
+    }
+    .als-time-btn.selected {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+        font-weight: 700;
+    }
+    .als-time-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
-    /* ── Category picker ─────────────────────────────────────────────────────── */
+    /* ── Picker card (shared) ────────────────────────────────────────────────── */
     .als-picker-card {
         background: var(--app-card);
         border-radius: 14px;
         padding: 1.75rem 2rem;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    /* ── Language switcher (category phase only) ───────────────────────────── */
-    .als-lang-switcher {
-        display: flex;
-        gap: 0.4rem;
-        justify-content: flex-end;
-        margin-bottom: 1rem;
-    }
-    .als-lang-btn {
-        display: inline-block;
-        padding: 0.25rem 0.7rem;
-        border-radius: 6px;
-        border: 1.5px solid var(--app-border, #e2e8f0);
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        color: var(--app-text-muted);
-        text-decoration: none;
-        transition: border-color 0.15s, color 0.15s, background 0.15s;
-    }
-    .als-lang-btn:hover { border-color: #667eea; color: #4f46e5; }
-    .als-lang-btn.active {
-        border-color: #4f46e5;
-        background: #eef2ff;
-        color: #3730a3;
     }
     .als-picker-title {
         font-size: 1.15rem;
@@ -290,33 +281,6 @@
         color: var(--app-text-muted);
         margin: 0 0 1.25rem;
     }
-    .als-cat-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-        margin-bottom: 1.25rem;
-    }
-    .als-cat-btn {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        background: var(--app-card);
-        border: 2px solid var(--app-border, #e2e8f0);
-        border-radius: 10px;
-        padding: 0.85rem 1rem;
-        cursor: pointer;
-        text-align: left;
-        width: 100%;
-        font-size: 0.97rem;
-        font-weight: 600;
-        color: var(--app-text);
-        transition: border-color 0.15s, background 0.15s;
-    }
-    .als-cat-btn:hover { border-color: #667eea; background: #f0f4ff; }
-    .als-cat-btn.selected { border-color: #4f46e5; background: #eef2ff; color: #3730a3; }
-    .als-cat-icon { font-size: 1.4rem; flex-shrink: 0; }
-    .als-cat-label { font-weight: 700; }
-    .als-cat-desc  { font-size: 0.8rem; font-weight: 400; color: var(--app-text-muted); margin-top: 0.1rem; }
     .als-start-btn {
         background: #4f46e5;
         color: white;
@@ -330,6 +294,218 @@
         transition: background 0.15s;
     }
     .als-start-btn:hover { background: #4338ca; }
+    .als-start-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
+
+    /* ── Language switcher ───────────────────────────────────────────────────── */
+    .als-lang-switcher {
+        display: flex;
+        gap: 0.4rem;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+    }
+    .als-lang-btn {
+        display: inline-block;
+        padding: 0.25rem 0.7rem;
+        border-radius: 6px;
+        border: 1.5px solid var(--app-border);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: var(--app-text-muted);
+        text-decoration: none;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .als-lang-btn:hover {
+        border-color: var(--app-interactive-border);
+        color: var(--app-interactive-text-active);
+        background: var(--app-interactive-bg);
+    }
+    .als-lang-btn.active {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+    }
+    .als-lang-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
+
+    /* ── Category grid ───────────────────────────────────────────────────────── */
+    .als-cat-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-bottom: 0;
+    }
+    .als-cat-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--app-card);
+        border: 2px solid var(--app-border);
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+        font-size: 0.97rem;
+        font-weight: 600;
+        color: var(--app-text);
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .als-cat-btn:hover {
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg);
+    }
+    .als-cat-btn.selected {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+    }
+    .als-cat-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
+    .als-cat-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .als-cat-label { font-weight: 700; }
+    .als-cat-desc  { font-size: 0.8rem; font-weight: 400; color: var(--app-text-muted); margin-top: 0.1rem; }
+    .als-cat-btn.selected .als-cat-desc { color: var(--app-interactive-text-active); opacity: 0.8; }
+
+    /* ── Topic phase header ──────────────────────────────────────────────────── */
+    .als-topic-phase-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+    .als-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: none;
+        border: 1.5px solid var(--app-border);
+        border-radius: 7px;
+        padding: 0.35rem 0.8rem;
+        font-size: 0.83rem;
+        font-weight: 600;
+        color: var(--app-text-muted);
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+        flex-shrink: 0;
+    }
+    .als-back-btn:hover {
+        border-color: var(--app-interactive-border);
+        color: var(--app-interactive-text-active);
+        background: var(--app-interactive-bg);
+    }
+    .als-back-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
+    .als-topic-phase-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--app-text);
+        margin: 0;
+    }
+
+    /* ── Topic card system ───────────────────────────────────────────────────── */
+    .als-chapters-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .als-chapter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+    .als-chapter-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--app-text-muted);
+        padding: 0 0.25rem;
+    }
+    .als-topic-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.65rem;
+    }
+    @media (max-width: 480px) { .als-topic-card-grid { grid-template-columns: 1fr; } }
+
+    .als-topic-card {
+        position: relative;
+        background: var(--app-card);
+        border: 2px solid var(--app-border);
+        border-radius: 12px;
+        padding: 1rem 3rem 1rem 1.1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+        transition: box-shadow 0.18s, border-color 0.15s, transform 0.15s, background 0.15s;
+    }
+    .als-topic-card:hover {
+        border-color: var(--app-interactive-border);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+        transform: translateY(-1px);
+    }
+    .als-topic-card.selected {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        box-shadow: 0 4px 16px rgba(79,70,229,0.15);
+    }
+    .als-topic-card:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
+    .als-topic-card-title {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--app-text);
+        line-height: 1.4;
+    }
+    .als-topic-card.selected .als-topic-card-title { color: var(--app-interactive-text-active); }
+    .als-topic-card-count {
+        position: absolute;
+        top: 0.65rem;
+        right: 0.75rem;
+        background: var(--app-card-raised);
+        color: var(--app-text-muted);
+        border-radius: 12px;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .als-topic-card.selected .als-topic-card-count {
+        background: var(--app-interactive-border-active);
+        color: white;
+    }
+
+    /* ── All topics link ─────────────────────────────────────────────────────── */
+    .als-all-topics-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.25rem;
+    }
+    .als-all-topics-btn {
+        background: none;
+        border: 1.5px solid var(--app-border);
+        border-radius: 8px;
+        padding: 0.45rem 1.1rem;
+        font-size: 0.85rem;
+        font-style: italic;
+        color: var(--app-text-muted);
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .als-all-topics-btn:hover {
+        border-color: var(--app-interactive-border);
+        color: var(--app-interactive-text-active);
+        background: var(--app-interactive-bg);
+    }
+    .als-all-topics-btn.selected {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+        font-weight: 600;
+        font-style: normal;
+    }
+    .als-all-topics-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Loading / error ─────────────────────────────────────────────────────── */
     .als-loading {
@@ -356,16 +532,17 @@
         font-weight: 600;
         cursor: pointer;
     }
+    .als-error-retry:focus-visible { outline: 2px solid #fca5a5; outline-offset: 2px; }
 </style>
 {% endblock %}
 
 {% block student_content %}
 <div class="als-container">
 
-    {# ── Category picker phase ─────────────────────────────────────────────── #}
+    {# ── Phase 1: Category picker ──────────────────────────────────────────── #}
     <div id="als-phase-category" class="als-phase active">
         <div class="als-picker-card">
-            {# ── Language switcher — visible ONLY in category phase (JS enforced) ── #}
+            {# Language switcher — category phase only, JS-enforced lock #}
             <div class="als-lang-switcher" id="als-lang-switcher" data-testid="als-lang-switcher">
                 <a href="?language=en"
                    class="als-lang-btn{% if session_language == 'en' %} active{% endif %}"
@@ -377,11 +554,17 @@
                    data-testid="als-lang-hu">HU</a>
             </div>
             <p class="als-picker-title">🧠 Choose a category</p>
-            <p class="als-picker-sub">Select a topic for your adaptive session.</p>
+            <p class="als-picker-sub">Select a subject for your adaptive session.</p>
             <div class="als-cat-grid" id="als-cat-grid">
-
+                {% if session_language == 'hu' %}
+                    {% set _lesson_label = 'Tananyag' %}
+                    {% set _lesson_desc  = 'Edzéselmélet, taktika, szabályok, sporttudomány' %}
+                {% else %}
+                    {% set _lesson_label = 'LFA Curriculum' %}
+                    {% set _lesson_desc  = 'Training theory, tactics, rules, and sport science' %}
+                {% endif %}
                 {% set cat_meta = {
-                    'LESSON':           ('📖', 'Football Lessons',  'Rules, tactics, and game understanding'),
+                    'LESSON':           ('📖', _lesson_label,       _lesson_desc),
                     'SPORTS_PHYSIOLOGY':('💪', 'Sports Physiology', 'Conditioning, fitness, and the athletic body'),
                     'GENERAL':          ('⚽', 'General Knowledge', 'Broad football topics'),
                     'NUTRITION':        ('🥗', 'Nutrition',         'Diet and fuelling for performance'),
@@ -392,8 +575,9 @@
                 {% if available_categories %}
                     {% for cat in available_categories %}
                         {% set icon, label, desc = cat_meta.get(cat.value, ('🎓', cat.value.replace('_',' ').title(), '')) %}
-                        <button class="als-cat-btn{% if cat.value == 'LESSON' %} selected{% endif %}"
+                        <button class="als-cat-btn"
                                 data-cat="{{ cat.value }}"
+                                data-label="{{ label }}"
                                 onclick="alsCatSelect(this)">
                             <span class="als-cat-icon">{{ icon }}</span>
                             <span>
@@ -403,19 +587,43 @@
                         </button>
                     {% endfor %}
                 {% else %}
-                    <p style="color: var(--text-muted, #888); font-size: 0.9rem; text-align: center; padding: 1rem 0; grid-column: 1 / -1;">
+                    <p style="color: var(--text-muted, #888); font-size: 0.9rem; text-align: center; padding: 1rem 0;">
                         No question categories are available yet. Please check back later.
                     </p>
                 {% endif %}
             </div>
-            <p class="als-picker-sub" style="margin-top:1rem; margin-bottom:0.5rem;">⏱ Session duration</p>
+        </div>
+    </div>
+
+    {# ── Phase 2: Topic picker ──────────────────────────────────────────────── #}
+    <div id="als-phase-topic" class="als-phase" data-testid="als-phase-topic">
+        <div class="als-picker-card">
+            <div class="als-topic-phase-header">
+                <button class="als-back-btn" onclick="showPhase('category')" data-testid="als-back-btn">← Back</button>
+                <p class="als-topic-phase-title" id="als-topic-phase-title"></p>
+            </div>
+
+            {# Module cards — JS builds this container #}
+            <div id="als-module-cards" class="als-chapters-container" data-testid="als-module-cards">
+                {# alsRenderTopicPhase() fills this on category select #}
+            </div>
+
+            {# All topics — secondary, below module cards #}
+            <div class="als-all-topics-row">
+                <button id="als-all-topics-btn"
+                        class="als-all-topics-btn selected"
+                        data-quiz-id=""
+                        data-testid="als-topic-all"
+                        onclick="alsTopicSelect(this)">🗂 All topics</button>
+            </div>
+
+            <p class="als-picker-sub" style="margin-bottom:0.5rem;">⏱ Session duration</p>
             <div class="als-time-picker" id="als-time-picker">
                 <button class="als-time-btn" data-seconds="60" onclick="alsTimeSelect(this)">1 min</button>
                 <button class="als-time-btn selected" data-seconds="180" onclick="alsTimeSelect(this)">3 min</button>
                 <button class="als-time-btn" data-seconds="300" onclick="alsTimeSelect(this)">5 min</button>
             </div>
-            <button class="als-start-btn" id="als-start-btn" onclick="alsStartFromPicker()"
-                    {% if not available_categories %}disabled style="opacity:0.5;cursor:not-allowed;"{% endif %}>🚀 Start Session</button>
+            <button class="als-start-btn" id="als-start-btn" onclick="alsStartFromPicker()">🚀 Start Session</button>
         </div>
     </div>
 
@@ -501,10 +709,13 @@
        (1-hour window). This list gives explicit per-session dedup without requiring
        a server-side question log table. Not a permanent API contract.
     ─────────────────────────────────────────────────────────────────────────── */
+    // Available modules per category — injected server-side.
+    // Shape: {LESSON: [{module, topic, quiz_id, question_count}, ...], ...}
+    var availableTopics = {{ (available_topics | default({})) | tojson | safe }};
+
     var state = {
         sessionId:          null,
         questionNum:        0,
-
         recentIds:          [],
         score:              0,
         correctCount:       0,
@@ -514,18 +725,18 @@
         timerSecondsLeft:   180,
         timerHandle:        null,
         currentQuestionId:  null,
-        answerSubmitted:    false
+        answerSubmitted:    false,
+        quizIds:            ''   // "" = full category; "849" = single topic quiz_id
     };
 
     /* ── Phase management ──────────────────────────────────────────────────── */
     window.showPhase = function (name) {
-        ['category','loading','error','question','result'].forEach(function (p) {
+        ['category','topic','loading','error','question','result'].forEach(function (p) {
             var el = document.getElementById('als-phase-' + p);
             if (el) el.classList.toggle('active', p === name);
         });
         state.phase = name;
-        // Language switcher is ONLY allowed in the category picker phase.
-        // This is the authoritative lock — it fires on every phase transition.
+        // Language switcher is ONLY visible in the category phase (authoritative lock).
         var langSwitcher = document.getElementById('als-lang-switcher');
         if (langSwitcher) langSwitcher.style.display = (name === 'category') ? '' : 'none';
     };
@@ -815,13 +1026,95 @@
         showPhase('result');
     }
 
-    /* ── Category / time picker helpers ───────────────────────────────────── */
-    window.alsCatSelect = function (btn) {
-        document.querySelectorAll('.als-cat-btn').forEach(function (b) {
+    /* ── Topic phase: render chapter groups + topic cards ─────────────────── */
+    window.alsRenderTopicPhase = function (cat) {
+        var container = document.getElementById('als-module-cards');
+        if (!container) return;
+
+        var topics = availableTopics[cat] || [];
+        container.innerHTML = '';
+
+        // Group by chapter (module) preserving insertion order
+        var chapters = new Map();
+        topics.forEach(function (t) {
+            var ch = t.module || '';
+            if (!chapters.has(ch)) chapters.set(ch, []);
+            chapters.get(ch).push(t);
+        });
+
+        chapters.forEach(function (chTopics, chName) {
+            var group = document.createElement('div');
+            group.className = 'als-chapter-group';
+            group.setAttribute('data-testid', 'als-module-card-' + chName.toLowerCase().replace(/[\s/]+/g, '-'));
+
+            if (chName) {
+                var titleEl = document.createElement('div');
+                titleEl.className = 'als-chapter-title';
+                titleEl.setAttribute('data-testid', 'als-chapter-' + chName.toLowerCase().replace(/[\s/]+/g, '-'));
+                titleEl.textContent = chName;
+                group.appendChild(titleEl);
+            }
+
+            var grid = document.createElement('div');
+            grid.className = 'als-topic-card-grid';
+
+            chTopics.forEach(function (t) {
+                var card = document.createElement('button');
+                card.className = 'als-topic-card';
+                card.dataset.quizId = String(t.quiz_id);
+                card.setAttribute('data-testid', 'als-topic-' + t.quiz_id);
+
+                var titleSpan = document.createElement('span');
+                titleSpan.className = 'als-topic-card-title';
+                titleSpan.textContent = t.topic;
+
+                var countSpan = document.createElement('span');
+                countSpan.className = 'als-topic-card-count';
+                countSpan.textContent = t.question_count + ' Q';
+
+                card.appendChild(titleSpan);
+                card.appendChild(countSpan);
+                card.onclick = function () { alsTopicSelect(this); };
+                grid.appendChild(card);
+            });
+
+            group.appendChild(grid);
+            container.appendChild(group);
+        });
+    };
+
+    window.alsTopicSelect = function (btn) {
+        // Deselect all topic cards + the all-topics button
+        document.querySelectorAll('.als-topic-card').forEach(function (b) {
             b.classList.remove('selected');
         });
+        var allBtn = document.getElementById('als-all-topics-btn');
+        if (allBtn) allBtn.classList.remove('selected');
+
         btn.classList.add('selected');
+        state.quizIds = btn.dataset.quizId || '';
+    };
+
+    /* ── Category picker helper ────────────────────────────────────────────── */
+    window.alsCatSelect = function (btn) {
         state.category = btn.dataset.cat;
+
+        // Update topic phase title
+        var titleEl = document.getElementById('als-topic-phase-title');
+        if (titleEl) titleEl.textContent = btn.dataset.label || btn.dataset.cat;
+
+        // Reset topic selection to "All topics"
+        state.quizIds = '';
+        document.querySelectorAll('.als-topic-card').forEach(function (b) {
+            b.classList.remove('selected');
+        });
+        var allBtn = document.getElementById('als-all-topics-btn');
+        if (allBtn) { allBtn.classList.add('selected'); }
+
+        // Render module cards for this category
+        alsRenderTopicPhase(state.category);
+
+        showPhase('topic');
     };
 
     window.alsTimeSelect = function (btn) {
@@ -833,14 +1126,16 @@
     };
 
     window.alsStartFromPicker = function () {
-        var selectedCat = document.querySelector('.als-cat-btn.selected');
-        if (selectedCat) state.category = selectedCat.dataset.cat;
         var selectedTime = document.querySelector('.als-time-btn.selected');
         if (selectedTime) state.timeLimitSeconds = parseInt(selectedTime.dataset.seconds, 10) || 180;
-        // Defense-in-depth: hide the language switcher immediately on Start click,
-        // before showPhase('loading') fires, to prevent any race-condition interaction.
-        var langSwitcher = document.getElementById('als-lang-switcher');
-        if (langSwitcher) langSwitcher.style.display = 'none';
+        // Defense-in-depth: read selected topic from DOM (alongside state.quizIds)
+        var selectedTopic = document.querySelector('.als-topic-card.selected');
+        var allBtn = document.getElementById('als-all-topics-btn');
+        if (selectedTopic) {
+            state.quizIds = selectedTopic.dataset.quizId || '';
+        } else if (allBtn && allBtn.classList.contains('selected')) {
+            state.quizIds = '';
+        }
         showPhase('loading');
         alsInit(state.category);
     };
@@ -855,6 +1150,7 @@
         state.correctCount      = 0;
         state.currentQuestionId = null;
         state.answerSubmitted   = false;
+        state.quizIds           = '';
         document.getElementById('als-resume-notice').style.display = 'none';
         showPhase('category');
     };
@@ -865,6 +1161,9 @@
         var url = '/adaptive-learning/session/start?category=' + encodeURIComponent(cat) +
                   '&time_limit=' + state.timeLimitSeconds +
                   '&language={{ session_language | default("en") }}';
+        if (state.quizIds) {
+            url += '&quiz_ids=' + encodeURIComponent(state.quizIds);
+        }
         post(url)
             .then(function (res) {
                 if (!res) return;
@@ -886,6 +1185,8 @@
                 showError('Could not connect to the server. Please check your connection.');
             });
     };
+
+    // No page-load init needed: topic phase renders on first alsCatSelect() call
 })();
 </script>
 {% endblock %}

@@ -36,6 +36,27 @@ body {
     --s-md:  1rem;
     --s-lg:  1.5rem;
     --s-xl:  2rem;
+
+    /* ── Surface tokens (light mode) ──────────────────────────────────────── */
+    --app-card:        #ffffff;
+    --app-card-raised: #f1f5f9;   /* module card headers, stat cells */
+    --app-border:      #e2e8f0;
+    --app-border-focus:#4f46e5;
+    --app-text:        #1e293b;
+    --app-text-muted:  #64748b;
+    --app-sidebar:     #f1f5f9;
+
+    /* ── Interactive palette (light mode) ─────────────────────────────────── */
+    --app-interactive-bg:           #f0f4ff;   /* hover background */
+    --app-interactive-bg-active:    #eef2ff;   /* selected background */
+    --app-interactive-border:       #667eea;   /* hover border */
+    --app-interactive-border-active:#4f46e5;   /* selected border */
+    --app-interactive-text-active:  #3730a3;   /* selected text */
+
+    /* ── Semantic surface tokens (light mode) ─────────────────────────────── */
+    --app-score-bg:     #f0f4ff;
+    --app-score-border: #c7d2fe;
+    --app-score-text:   #3730a3;
 }
 
 /* ── Per-Spec Header Gradient Presets ────────────────────────────────────── */
@@ -767,27 +788,48 @@ body {
 
 /* ── Dark Mode ────────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
-    body { background: #1a202c; color: #e2e8f0; }
+    body { background: #0f172a; color: #e2e8f0; }
+
+    /* ── Surface tokens — dark overrides ──────────────────────────────────── */
+    :root {
+        --app-card:        #1e293b;
+        --app-card-raised: #263348;
+        --app-border:      #334155;
+        --app-border-focus:#818cf8;
+        --app-text:        #e2e8f0;
+        --app-text-muted:  #94a3b8;
+        --app-sidebar:     #263348;
+
+        --app-interactive-bg:           #1e2d4a;
+        --app-interactive-bg-active:    #1e3558;
+        --app-interactive-border:       #818cf8;
+        --app-interactive-border-active:#818cf8;
+        --app-interactive-text-active:  #c7d2fe;
+
+        --app-score-bg:     #1e2d4a;
+        --app-score-border: #4338ca;
+        --app-score-text:   #c7d2fe;
+    }
 
     /* Cards & containers */
     .section-block,
     .s-kpi-card,
     .spec-card,
-    .event-card { background: #2d3748; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+    .event-card { background: #1e293b; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 
     /* Typography */
-    .page-title  { color: #f7fafc; }
-    .s-kpi-lbl   { color: #a0aec0; }
+    .page-title  { color: #f1f5f9; }
+    .s-kpi-lbl   { color: #94a3b8; }
     .s-kpi-val   { color: #e2e8f0; }
-    .s-snap-label { color: #a0aec0; }
+    .s-snap-label { color: #94a3b8; }
     .section-link { color: var(--spec-hdr-accent, #90cdf4); }
-    .page-subtitle { color: #a0aec0; }
+    .page-subtitle { color: #94a3b8; }
 
     /* Snapshot bar track */
-    .s-snap-bar-wrap { background: #4a5568; }
+    .s-snap-bar-wrap { background: #334155; }
 
     /* Info banners */
-    .info-banner { background: #2d3748; border-color: #4a5568; }
+    .info-banner { background: #1e293b; border-color: #334155; }
     .info-banner p { color: #e2e8f0; }
 
     /* Header stays dark (already dark gradient — no change needed) */
