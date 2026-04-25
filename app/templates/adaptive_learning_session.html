@@ -21,7 +21,6 @@
     .als-phase { display: none; }
     .als-phase.active { display: block; }
 
-
     .als-progress-label {
         font-size: 0.8rem;
         color: var(--app-text-muted);
@@ -41,7 +40,7 @@
     .als-question-num {
         font-size: 0.78rem;
         font-weight: 700;
-        color: #667eea;
+        color: #818cf8;   /* indigo-400 — readable on both light and dark cards */
         text-transform: uppercase;
         letter-spacing: 0.06em;
         margin-bottom: 0.6rem;
@@ -62,7 +61,7 @@
         align-items: flex-start;
         gap: 0.75rem;
         background: var(--app-card);
-        border: 2px solid var(--app-border, #e2e8f0);
+        border: 2px solid var(--app-border);
         border-radius: 10px;
         padding: 0.85rem 1rem;
         cursor: pointer;
@@ -73,10 +72,14 @@
         color: var(--app-text);
     }
     .als-option:hover:not(:disabled) {
-        border-color: #667eea;
-        background: #f0f4ff;
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg);
     }
-    .als-option.selected  { border-color: #667eea; background: #eef2ff; }
+    .als-option.selected {
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+    }
     .als-option.correct   { border-color: #27ae60; background: #d5f5e3; color: #1a5e35; }
     .als-option.incorrect { border-color: #e74c3c; background: #fdecea; color: #7b241c; }
     .als-option:disabled  { cursor: default; }
@@ -86,17 +89,18 @@
         width: 26px;
         height: 26px;
         border-radius: 50%;
-        background: #f3f4f6;
+        background: var(--app-card-raised);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.78rem;
         font-weight: 700;
-        color: #374151;
+        color: var(--app-text-muted);
     }
     .als-option.correct   .als-option-letter { background: #27ae60; color: white; }
     .als-option.incorrect .als-option-letter { background: #e74c3c; color: white; }
-    .als-option.selected  .als-option-letter { background: #667eea; color: white; }
+    .als-option.selected  .als-option-letter { background: var(--app-interactive-border-active); color: white; }
+    .als-option:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Feedback overlay ────────────────────────────────────────────────────── */
     .als-feedback {
@@ -112,7 +116,7 @@
 
     .als-feedback-xp {
         display: inline-block;
-        background: #6c3483;
+        background: #7c3aed;
         color: white;
         border-radius: 20px;
         padding: 0.2rem 0.7rem;
@@ -135,42 +139,43 @@
         margin-top: 0.5rem;
     }
     .als-next-btn:hover { background: #5a67d8; }
+    .als-next-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Score strip ─────────────────────────────────────────────────────────── */
     .als-score-strip {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #f0f4ff;
-        border: 1px solid #c7d2fe;
+        background: var(--app-score-bg);
+        border: 1px solid var(--app-score-border);
         border-radius: 8px;
         padding: 0.5rem 1rem;
         font-size: 0.85rem;
         font-weight: 600;
-        color: #3730a3;
+        color: var(--app-score-text);
         margin-bottom: 1.25rem;
     }
     .als-score-val { font-size: 1rem; }
     .als-score-val.positive { color: #15803d; }
-    .als-score-val.negative { color: #b91c1c; }
+    .als-score-val.negative { color: #dc2626; }
 
     /* ── Countdown timer ────────────────────────────────────────────────────── */
     .als-timer {
         font-size: 0.85rem;
         font-weight: 700;
-        color: #3730a3;
+        color: var(--app-score-text);
     }
-    .als-timer.warning { color: #b45309; }
-    .als-timer.critical { color: #b91c1c; }
+    .als-timer.warning  { color: #d97706; }
+    .als-timer.critical { color: #dc2626; }
 
     /* ── Resume notice ───────────────────────────────────────────────────────── */
     .als-resume-notice {
-        background: #fff7ed;
+        background: var(--app-card-raised);
         border-left: 4px solid #f59e0b;
         border-radius: 8px;
         padding: 0.75rem 1rem;
         font-size: 0.88rem;
-        color: #92400e;
+        color: var(--app-text);
         margin-bottom: 1.25rem;
     }
 
@@ -203,7 +208,7 @@
     @media (max-width: 480px) { .als-result-stats { grid-template-columns: repeat(2, 1fr); } }
 
     .als-result-stat {
-        background: #f8f9fa;
+        background: var(--app-card-raised);
         border-radius: 10px;
         padding: 1rem;
     }
@@ -221,9 +226,11 @@
         border: none;
     }
     .als-btn-primary   { background: #667eea; color: white; }
-    .als-btn-secondary { background: #f3f4f6; color: #374151; }
+    .als-btn-secondary { background: var(--app-card-raised); color: var(--app-text); border: 1px solid var(--app-border); }
     .als-btn-primary:hover   { background: #5a67d8; }
-    .als-btn-secondary:hover { background: #e5e7eb; }
+    .als-btn-secondary:hover { background: var(--app-interactive-bg); }
+    .als-btn-primary:focus-visible,
+    .als-btn-secondary:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Time limit picker ───────────────────────────────────────────────────── */
     .als-time-picker {
@@ -234,18 +241,27 @@
     .als-time-btn {
         flex: 1;
         padding: 0.6rem 0.5rem;
-        border: 2px solid var(--app-border, #e2e8f0);
+        border: 2px solid var(--app-border);
         border-radius: 8px;
         background: var(--app-card);
         font-size: 0.88rem;
         font-weight: 600;
         color: var(--app-text);
         cursor: pointer;
-        transition: border-color 0.15s, background 0.15s;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
         text-align: center;
     }
-    .als-time-btn:hover { border-color: #667eea; background: #f0f4ff; }
-    .als-time-btn.selected { border-color: #4f46e5; background: #eef2ff; color: #3730a3; }
+    .als-time-btn:hover {
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg);
+    }
+    .als-time-btn.selected {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+        font-weight: 700;
+    }
+    .als-time-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Picker card (shared) ────────────────────────────────────────────────── */
     .als-picker-card {
@@ -278,8 +294,9 @@
         transition: background 0.15s;
     }
     .als-start-btn:hover { background: #4338ca; }
+    .als-start-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
-    /* ── Language switcher (category phase only) ───────────────────────────── */
+    /* ── Language switcher ───────────────────────────────────────────────────── */
     .als-lang-switcher {
         display: flex;
         gap: 0.4rem;
@@ -290,7 +307,7 @@
         display: inline-block;
         padding: 0.25rem 0.7rem;
         border-radius: 6px;
-        border: 1.5px solid var(--app-border, #e2e8f0);
+        border: 1.5px solid var(--app-border);
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.04em;
@@ -298,8 +315,17 @@
         text-decoration: none;
         transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
-    .als-lang-btn:hover { border-color: #667eea; color: #4f46e5; }
-    .als-lang-btn.active { border-color: #4f46e5; background: #eef2ff; color: #3730a3; }
+    .als-lang-btn:hover {
+        border-color: var(--app-interactive-border);
+        color: var(--app-interactive-text-active);
+        background: var(--app-interactive-bg);
+    }
+    .als-lang-btn.active {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+    }
+    .als-lang-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Category grid ───────────────────────────────────────────────────────── */
     .als-cat-grid {
@@ -313,7 +339,7 @@
         align-items: center;
         gap: 0.75rem;
         background: var(--app-card);
-        border: 2px solid var(--app-border, #e2e8f0);
+        border: 2px solid var(--app-border);
         border-radius: 10px;
         padding: 0.85rem 1rem;
         cursor: pointer;
@@ -322,14 +348,24 @@
         font-size: 0.97rem;
         font-weight: 600;
         color: var(--app-text);
-        transition: border-color 0.15s, background 0.15s;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
     }
-    .als-cat-btn:hover { border-color: #667eea; background: #f0f4ff; }
+    .als-cat-btn:hover {
+        border-color: var(--app-interactive-border);
+        background: var(--app-interactive-bg);
+    }
+    .als-cat-btn.selected {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+    }
+    .als-cat-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
     .als-cat-icon { font-size: 1.4rem; flex-shrink: 0; }
     .als-cat-label { font-weight: 700; }
     .als-cat-desc  { font-size: 0.8rem; font-weight: 400; color: var(--app-text-muted); margin-top: 0.1rem; }
+    .als-cat-btn.selected .als-cat-desc { color: var(--app-interactive-text-active); opacity: 0.8; }
 
-    /* ── Topic phase ─────────────────────────────────────────────────────────── */
+    /* ── Topic phase header ──────────────────────────────────────────────────── */
     .als-topic-phase-header {
         display: flex;
         align-items: center;
@@ -341,17 +377,22 @@
         align-items: center;
         gap: 0.3rem;
         background: none;
-        border: 1.5px solid var(--app-border, #e2e8f0);
+        border: 1.5px solid var(--app-border);
         border-radius: 7px;
         padding: 0.35rem 0.8rem;
         font-size: 0.83rem;
         font-weight: 600;
         color: var(--app-text-muted);
         cursor: pointer;
-        transition: border-color 0.15s, color 0.15s;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
         flex-shrink: 0;
     }
-    .als-back-btn:hover { border-color: #667eea; color: #4f46e5; }
+    .als-back-btn:hover {
+        border-color: var(--app-interactive-border);
+        color: var(--app-interactive-text-active);
+        background: var(--app-interactive-bg);
+    }
+    .als-back-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
     .als-topic-phase-title {
         font-size: 1.1rem;
         font-weight: 700;
@@ -367,19 +408,19 @@
         margin-bottom: 1rem;
     }
     .als-module-card {
-        border: 1.5px solid var(--app-border, #e2e8f0);
+        border: 1.5px solid var(--app-border);
         border-radius: 12px;
         overflow: hidden;
     }
     .als-module-card-header {
-        background: var(--app-sidebar, #f8fafc);
+        background: var(--app-card-raised);
         padding: 0.55rem 1rem;
         font-size: 0.75rem;
         font-weight: 700;
-        color: var(--app-text-muted, #64748b);
+        color: var(--app-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        border-bottom: 1px solid var(--app-border, #e2e8f0);
+        border-bottom: 1px solid var(--app-border);
     }
     .als-module-card-topics {
         display: flex;
@@ -391,7 +432,7 @@
         justify-content: space-between;
         background: var(--app-card);
         border: none;
-        border-bottom: 1px solid var(--app-border, #f1f5f9);
+        border-bottom: 1px solid var(--app-border);
         padding: 0.7rem 1rem;
         cursor: pointer;
         text-align: left;
@@ -399,19 +440,24 @@
         font-size: 0.9rem;
         font-weight: 500;
         color: var(--app-text);
-        transition: background 0.12s;
+        transition: background 0.12s, color 0.12s;
     }
     .als-topic-btn:last-child { border-bottom: none; }
-    .als-topic-btn:hover { background: #f0f4ff; }
-    .als-topic-btn.selected { background: #eef2ff; color: #3730a3; font-weight: 700; }
+    .als-topic-btn:hover { background: var(--app-interactive-bg); }
+    .als-topic-btn.selected {
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+        font-weight: 700;
+    }
+    .als-topic-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: -2px; }
     .als-topic-btn-count {
         font-size: 0.75rem;
-        color: var(--app-text-muted, #94a3b8);
+        color: var(--app-text-muted);
         font-weight: 400;
         flex-shrink: 0;
         margin-left: 0.5rem;
     }
-    .als-topic-btn.selected .als-topic-btn-count { color: #6366f1; }
+    .als-topic-btn.selected .als-topic-btn-count { color: var(--app-interactive-text-active); opacity: 0.75; }
 
     /* ── All topics link ─────────────────────────────────────────────────────── */
     .als-all-topics-row {
@@ -422,7 +468,7 @@
     }
     .als-all-topics-btn {
         background: none;
-        border: 1.5px solid var(--app-border, #e2e8f0);
+        border: 1.5px solid var(--app-border);
         border-radius: 8px;
         padding: 0.45rem 1.1rem;
         font-size: 0.85rem;
@@ -431,8 +477,19 @@
         cursor: pointer;
         transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
-    .als-all-topics-btn:hover { border-color: #667eea; color: #4f46e5; background: #f0f4ff; }
-    .als-all-topics-btn.selected { border-color: #4f46e5; background: #eef2ff; color: #3730a3; font-weight: 600; font-style: normal; }
+    .als-all-topics-btn:hover {
+        border-color: var(--app-interactive-border);
+        color: var(--app-interactive-text-active);
+        background: var(--app-interactive-bg);
+    }
+    .als-all-topics-btn.selected {
+        border-color: var(--app-interactive-border-active);
+        background: var(--app-interactive-bg-active);
+        color: var(--app-interactive-text-active);
+        font-weight: 600;
+        font-style: normal;
+    }
+    .als-all-topics-btn:focus-visible { outline: 2px solid var(--app-border-focus); outline-offset: 2px; }
 
     /* ── Loading / error ─────────────────────────────────────────────────────── */
     .als-loading {
@@ -459,6 +516,7 @@
         font-weight: 600;
         cursor: pointer;
     }
+    .als-error-retry:focus-visible { outline: 2px solid #fca5a5; outline-offset: 2px; }
 </style>
 {% endblock %}
 
