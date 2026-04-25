@@ -87,7 +87,8 @@ class TestEndSession:
 
     def test_returns_correct_summary_dict(self):
         service, db = _make_service()
-        session = _mock_session(questions_presented=5, questions_correct=4, xp_earned=80)
+        # score = 4*2 - 5 = 3; xp = max(0, 3) * 10 = 30
+        session = _mock_session(questions_presented=5, questions_correct=4)
         db.query.return_value.filter.return_value.first.return_value = session
 
         result = service.end_session(session_id=1)
@@ -95,7 +96,8 @@ class TestEndSession:
         assert result["questions_answered"] == 5
         assert result["correct_answers"] == 4
         assert abs(result["success_rate"] - 0.8) < 0.001
-        assert result["xp_earned"] == 80
+        assert result["xp_earned"] == 30
+        assert result["score"] == 3
 
     def test_no_gamification_service_import_or_call(self):
         """GamificationService must not be imported or called in end_session."""
@@ -264,6 +266,7 @@ class TestAl3SessionStart:
             response = asyncio.run(al_session_start(
                 request=req,
                 category=category_param,
+                time_limit=180,
                 db=db,
                 user=user,
             ))
@@ -378,3 +381,173 @@ class TestAl3SessionComplete:
 
         assert response.status_code == 200
         mock_award.assert_not_called()
+
+
+# ── AL-START: resume/retire logic + time_limit options ───────────────────────
+
+from datetime import timedelta
+
+
+def _make_existing_session(
+    session_id=10,
+    started_seconds_ago=10,
+    time_limit_seconds=180,
+    questions_presented=3,
+    questions_correct=2,
+):
+    """Build a mock existing (unfinished) AdaptiveLearningSession."""
+    s = MagicMock()
+    s.id = session_id
+    s.session_start_time = datetime.now(timezone.utc) - timedelta(seconds=started_seconds_ago)
+    s.session_time_limit_seconds = time_limit_seconds
+    s.questions_presented = questions_presented
+    s.questions_correct = questions_correct
+    s.ended_at = None
+    return s
+
+
+def _make_db_with_existing(existing_session):
+    db = MagicMock()
+    q = MagicMock()
+    q.filter.return_value = q
+    q.order_by.return_value = q
+    q.first.return_value = existing_session
+    db.query.return_value = q
+    return db
+
+
+def _response_json(response):
+    """Parse body of a FastAPI JSONResponse returned from a direct async call."""
+    import json
+    return json.loads(response.body)
+
+
+def _call_start_full(time_limit=180, db=None, user=None):
+    import asyncio
+    from app.api.web_routes.adaptive_learning import al_session_start
+
+    db = db or _make_db_no_existing()
+    user = user or _make_user()
+    req = MagicMock()
+
+    with patch(f"{_START_BASE}.require_student_onboarding", return_value=None), \
+         patch(f"{_START_BASE}.AdaptiveLearningService") as MockSvc:
+
+        mock_session = MagicMock()
+        mock_session.id = 99
+        mock_session.session_start_time = datetime.now(timezone.utc)
+        MockSvc.return_value.start_adaptive_session.return_value = mock_session
+
+        response = asyncio.run(al_session_start(
+            request=req,
+            category="LESSON",
+            time_limit=time_limit,
+            db=db,
+            user=user,
+        ))
+        return response, MockSvc
+
+
+class TestAlStartExpiredSessionRetired:
+    """Start route retires an expired unfinished session and creates a fresh one."""
+
+    def test_expired_session_is_ended_and_new_session_created(self):
+        """Existing session started 400s ago with 180s limit → expired.
+        Expect: ended_at set on old session, new session created, resumed=False."""
+        old = _make_existing_session(started_seconds_ago=400, time_limit_seconds=180)
+        db = _make_db_with_existing(old)
+
+        response, MockSvc = _call_start_full(time_limit=60, db=db)
+
+        # Old session must have ended_at set
+        assert old.ended_at is not None, "expired session must have ended_at set"
+        # A new session must have been created
+        MockSvc.return_value.start_adaptive_session.assert_called_once()
+        data = _response_json(response)
+        assert data["resumed"] is False
+        assert response.status_code == 200
+
+    def test_expired_session_result_shows_fresh_score(self):
+        old = _make_existing_session(started_seconds_ago=400, time_limit_seconds=180)
+        db = _make_db_with_existing(old)
+        response, _ = _call_start_full(time_limit=60, db=db)
+        data = _response_json(response)
+        assert data["current_score"] == 0  # fresh session, not the old score
+
+    def test_1min_option_retires_expired_3min_session(self):
+        """Exact scenario from the bug report: stale 3-minute session, user picks 1 minute."""
+        old = _make_existing_session(started_seconds_ago=300, time_limit_seconds=180)
+        db = _make_db_with_existing(old)
+        response, MockSvc = _call_start_full(time_limit=60, db=db)
+        assert old.ended_at is not None
+        MockSvc.return_value.start_adaptive_session.assert_called_once()
+        assert _response_json(response)["resumed"] is False
+
+
+class TestAlStartResumeValidSession:
+    """Start route resumes a valid unexpired session and updates its time limit."""
+
+    def test_unexpired_session_is_resumed(self):
+        """Existing session started 30s ago with 180s limit → still valid.
+        Expect: resumed=True, no new session created."""
+        active = _make_existing_session(started_seconds_ago=30, time_limit_seconds=180)
+        db = _make_db_with_existing(active)
+        response, MockSvc = _call_start_full(time_limit=60, db=db)
+
+        MockSvc.return_value.start_adaptive_session.assert_not_called()
+        data = _response_json(response)
+        assert data["resumed"] is True
+        assert data["session_id"] == active.id
+        assert response.status_code == 200
+
+    def test_resumed_session_time_limit_updated_in_db(self):
+        """session_time_limit_seconds must be updated to the chosen time_limit."""
+        active = _make_existing_session(started_seconds_ago=30, time_limit_seconds=180)
+        db = _make_db_with_existing(active)
+        _call_start_full(time_limit=60, db=db)
+        assert active.session_time_limit_seconds == 60
+
+    def test_resumed_session_returns_current_score(self):
+        """Resumed response must include the score derived from existing questions."""
+        # questions_correct=2, questions_presented=3 → score = 2*2 - 3 = 1
+        active = _make_existing_session(
+            started_seconds_ago=30, time_limit_seconds=180,
+            questions_presented=3, questions_correct=2,
+        )
+        db = _make_db_with_existing(active)
+        response, _ = _call_start_full(time_limit=60, db=db)
+        data = _response_json(response)
+        assert data["current_score"] == 1
+        assert data["questions_presented"] == 3
+
+    def test_resumed_session_db_commit_called(self):
+        active = _make_existing_session(started_seconds_ago=30, time_limit_seconds=180)
+        db = _make_db_with_existing(active)
+        _call_start_full(time_limit=60, db=db)
+        db.commit.assert_called()
+
+
+class TestAlStartTimeLimitOptions:
+    """Each supported time_limit value is accepted and passed through correctly."""
+
+    def test_1_minute_uses_60_seconds(self):
+        response, MockSvc = _call_start_full(time_limit=60)
+        assert response.status_code == 200
+        data = _response_json(response)
+        assert data["time_limit_seconds"] == 60
+        call_kwargs = MockSvc.return_value.start_adaptive_session.call_args[1]
+        assert call_kwargs["session_duration_seconds"] == 60
+
+    def test_3_minute_uses_180_seconds(self):
+        response, MockSvc = _call_start_full(time_limit=180)
+        assert response.status_code == 200
+        assert _response_json(response)["time_limit_seconds"] == 180
+
+    def test_5_minute_uses_300_seconds(self):
+        response, MockSvc = _call_start_full(time_limit=300)
+        assert response.status_code == 200
+        assert _response_json(response)["time_limit_seconds"] == 300
+
+    def test_invalid_time_limit_returns_422(self):
+        response, _ = _call_start_full(time_limit=120)
+        assert response.status_code == 422

@@ -52,18 +52,7 @@ class AdaptiveLearningService:
         if not candidate_questions:
             return None
             
-        # Filter out questions already answered recently by this user
-        recent_questions = self.db.query(UserQuestionPerformance).filter(
-            UserQuestionPerformance.user_id == user_id,
-            UserQuestionPerformance.last_attempted_at > datetime.now(timezone.utc) - timedelta(hours=1)
-        ).all()
-        
-        recent_question_ids = {perf.question_id for perf in recent_questions}
-        available_questions = [q for q in candidate_questions if q.id not in recent_question_ids]
-        
-        # If all questions were recently answered, use all candidates anyway
-        if not available_questions:
-            available_questions = candidate_questions
+        available_questions = candidate_questions
             
         # Apply adaptive selection algorithm
         selected_question = self._select_adaptive_question(
@@ -116,16 +105,16 @@ class AdaptiveLearningService:
         self._update_question_metadata(question_id, is_correct, time_spent_seconds)
         
         self.db.commit()
-        
-        # Calculate XP reward based on difficulty and performance
-        xp_reward = self._calculate_adaptive_xp(question_id, is_correct, time_spent_seconds)
-        
+
+        score_delta = 1 if is_correct else -1
         if session:
-            session.xp_earned = (session.xp_earned or 0) + xp_reward
-            self.db.commit()
-        
+            score = (session.questions_correct or 0) * 2 - (session.questions_presented or 0)
+        else:
+            score = 0
+
         return {
-            "xp_earned": xp_reward,
+            "score_delta": score_delta,
+            "score": score,
             "new_target_difficulty": session.target_difficulty if session else None,
             "performance_trend": session.performance_trend if session else None,
             "mastery_update": self._get_mastery_update(user_id, question_id)
@@ -142,16 +131,19 @@ class AdaptiveLearningService:
             
         session.ended_at = datetime.now(timezone.utc)
 
-        # Calculate session statistics
         success_rate = (session.questions_correct / session.questions_presented) if session.questions_presented > 0 else 0
+        score = (session.questions_correct or 0) * 2 - (session.questions_presented or 0)
+        xp = self._calculate_session_xp(score)
+        session.xp_earned = xp
 
         self.db.commit()
-        
+
         return {
             "questions_answered": session.questions_presented,
             "correct_answers": session.questions_correct,
             "success_rate": success_rate,
-            "xp_earned": session.xp_earned,
+            "xp_earned": xp,
+            "score": score,
             "performance_trend": session.performance_trend,
             "final_difficulty": session.target_difficulty
         }
@@ -393,6 +385,10 @@ class AdaptiveLearningService:
             
         metadata.last_analytics_update = datetime.now(timezone.utc)
     
+    def _calculate_session_xp(self, score: int) -> int:
+        XP_PER_POINT = 10
+        return max(0, score) * XP_PER_POINT
+
     def _calculate_adaptive_xp(self, question_id: int, is_correct: bool, time_spent: float) -> int:
         """Adaptív XP számítása"""
         if not is_correct:
