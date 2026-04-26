@@ -150,16 +150,28 @@ class TestTemplateSelection:
         fallback = os.path.join(templates_dir, self._FALLBACK)
         assert os.path.isfile(fallback), f"Fallback template missing: {fallback}"
 
-    def test_fifa_variant_template_does_not_exist_yet(self):
+    def test_fifa_variant_template_exists(self):
         templates_dir = os.path.join(
             os.path.dirname(__file__), "..", "..", "app", "templates"
         )
         v = get_variant("fifa")
         candidate = os.path.join(templates_dir, v.template)
-        # Variant templates are not yet created — route must fall back to player_card.html
-        assert not os.path.isfile(candidate), (
-            f"Variant template exists at {candidate} — update this test to validate routing"
+        assert os.path.isfile(candidate), (
+            f"FIFA variant template missing at {candidate} — must exist for explicit (non-fallback) render"
         )
+
+    def test_non_fifa_variant_templates_not_yet_implemented(self):
+        templates_dir = os.path.join(
+            os.path.dirname(__file__), "..", "..", "app", "templates"
+        )
+        for variant_id in ["compact", "showcase", "compact_bg", "showcase_bg"]:
+            v = get_variant(variant_id)
+            assert not v.available, f"{variant_id} must be available=False until template is implemented"
+            candidate = os.path.join(templates_dir, v.template)
+            assert not os.path.isfile(candidate), (
+                f"{variant_id} template exists at {candidate} but variant is still available=False — "
+                "set available=True and update this test when the layout is implemented"
+            )
 
 
 # ── CSS custom property values match service registry ────────────────────────

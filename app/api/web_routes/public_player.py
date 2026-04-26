@@ -2,9 +2,11 @@
 Public player card web routes — no authentication required.
 """
 from datetime import date
-
+import logging
 import os
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
@@ -163,11 +165,23 @@ def public_player_card(
         card_variant_id = preview
     variant = _get_variant(card_variant_id)  # falls back to "fifa" for unknown IDs
 
-    # Template selection: use variant.template if the file exists, else fallback
+    # Template selection: use variant.template if the file exists.
+    # If the selected variant has no template yet (not yet implemented), fall back
+    # to the explicit fifa template, then to the legacy fallback.
+    # Log a warning so missing templates are never silently hidden.
     template_path = _FALLBACK_TEMPLATE
     candidate = os.path.join(_TEMPLATES_DIR, variant.template)
     if os.path.isfile(candidate):
         template_path = variant.template
+    else:
+        if card_variant_id != "fifa":
+            logger.warning(
+                "card variant template missing — rendering fifa fallback",
+                extra={"card_variant_id": card_variant_id, "expected_template": variant.template},
+            )
+        fifa_candidate = os.path.join(_TEMPLATES_DIR, "public/player_card_fifa.html")
+        if os.path.isfile(fifa_candidate):
+            template_path = "public/player_card_fifa.html"
 
     return templates.TemplateResponse(request, template_path, {
         "player": player,

@@ -129,6 +129,20 @@ class TestUnlockThemeAutoApply:
 
 
 # ── Variant: unlock + auto-apply ───────────────────────────────────────────────
+# compact/showcase/compact_bg/showcase_bg are currently available=False (templates
+# not yet implemented).  Mechanism tests patch available=True to test the unlock
+# logic in isolation; a separate class tests the blocking behaviour.
+
+import dataclasses
+import app.services.card_variant_service as _cvsvc
+
+
+def _with_available(variant_id: str):
+    """Context manager: temporarily set VARIANTS[variant_id].available = True."""
+    orig = _cvsvc.VARIANTS[variant_id]
+    patched = dataclasses.replace(orig, available=True)
+    return patch.dict(_cvsvc.VARIANTS, {variant_id: patched})
+
 
 class TestUnlockVariantAutoApply:
 
@@ -138,10 +152,10 @@ class TestUnlockVariantAutoApply:
         user = _make_user(credits=2000)
         ul = _make_license()
 
-        with patch("app.services.card_variant_service.CreditService") as MockCS:
+        with _with_available("compact"), \
+             patch("app.services.card_variant_service.CreditService") as MockCS:
             MockCS.return_value.deduct.return_value = MagicMock()
-            from app.services.card_variant_service import unlock_variant
-            unlock_variant(db, user, ul, "compact")
+            _cvsvc.unlock_variant(db, user, ul, "compact")
 
         assert ul.card_variant == "compact", (
             f"card_variant must be 'compact' after unlock, got {ul.card_variant!r}. "
@@ -153,10 +167,10 @@ class TestUnlockVariantAutoApply:
         user = _make_user()
         ul = _make_license()
 
-        with patch("app.services.card_variant_service.CreditService") as MockCS:
+        with _with_available("showcase"), \
+             patch("app.services.card_variant_service.CreditService") as MockCS:
             MockCS.return_value.deduct.return_value = MagicMock()
-            from app.services.card_variant_service import unlock_variant
-            unlock_variant(db, user, ul, "showcase")
+            _cvsvc.unlock_variant(db, user, ul, "showcase")
 
         assert "showcase" in ul.unlocked_card_variants
 
@@ -174,10 +188,10 @@ class TestUnlockVariantAutoApply:
 
         db.commit.side_effect = check_at_commit
 
-        with patch("app.services.card_variant_service.CreditService") as MockCS:
+        with _with_available("compact"), \
+             patch("app.services.card_variant_service.CreditService") as MockCS:
             MockCS.return_value.deduct.return_value = MagicMock()
-            from app.services.card_variant_service import unlock_variant
-            unlock_variant(db, user, ul, "compact")
+            _cvsvc.unlock_variant(db, user, ul, "compact")
 
         assert captured["variant"] == "compact", "Split-brain: variant not active at commit."
         assert "compact" in captured["unlocked"]
@@ -189,8 +203,7 @@ class TestUnlockVariantAutoApply:
         ul = _make_license()
 
         with patch("app.services.card_variant_service.CreditService") as MockCS:
-            from app.services.card_variant_service import unlock_variant
-            unlock_variant(db, user, ul, "fifa")
+            _cvsvc.unlock_variant(db, user, ul, "fifa")
             MockCS.return_value.deduct.assert_not_called()
 
     def test_already_unlocked_is_idempotent(self):
@@ -198,18 +211,32 @@ class TestUnlockVariantAutoApply:
         user = _make_user()
         ul = _make_license(unlocked_variants=["compact"])
 
-        with patch("app.services.card_variant_service.CreditService") as MockCS:
-            from app.services.card_variant_service import unlock_variant
-            unlock_variant(db, user, ul, "compact")
+        with _with_available("compact"), \
+             patch("app.services.card_variant_service.CreditService") as MockCS:
+            _cvsvc.unlock_variant(db, user, ul, "compact")
             MockCS.return_value.deduct.assert_not_called()
 
         db.commit.assert_not_called()
 
     def test_unknown_variant_raises(self):
         db = _mock_db()
-        from app.services.card_variant_service import unlock_variant
         with pytest.raises(ValueError, match="Unknown variant"):
-            unlock_variant(db, _make_user(), _make_license(), "nonexistent")
+            _cvsvc.unlock_variant(db, _make_user(), _make_license(), "nonexistent")
+
+    def test_unavailable_variant_blocks_unlock(self):
+        """compact/showcase/compact_bg/showcase_bg are available=False — unlock must raise."""
+        db = _mock_db()
+        for vid in ["compact", "showcase", "compact_bg", "showcase_bg"]:
+            with pytest.raises(ValueError, match="not yet available"):
+                _cvsvc.unlock_variant(db, _make_user(), _make_license(), vid)
+
+    def test_unavailable_variant_blocks_apply(self):
+        """apply_variant must also reject unavailable variants."""
+        db = _mock_db()
+        ul = _make_license(unlocked_variants=["compact", "showcase", "compact_bg", "showcase_bg"])
+        for vid in ["compact", "showcase", "compact_bg", "showcase_bg"]:
+            with pytest.raises(ValueError, match="not yet available"):
+                _cvsvc.apply_variant(db, ul, vid)
 
 
 # ── apply_theme / apply_variant: standalone ────────────────────────────────────
@@ -241,14 +268,14 @@ class TestApplyStandalone:
     def test_apply_variant_when_unlocked(self):
         db = _mock_db()
         ul = _make_license(unlocked_variants=["showcase"])
-        from app.services.card_variant_service import apply_variant
-        apply_variant(db, ul, "showcase")
+        with _with_available("showcase"):
+            _cvsvc.apply_variant(db, ul, "showcase")
         assert ul.card_variant == "showcase"
         db.commit.assert_called_once()
 
     def test_apply_variant_locked_raises(self):
         db = _mock_db()
         ul = _make_license()
-        from app.services.card_variant_service import apply_variant
-        with pytest.raises(ValueError, match="locked"):
-            apply_variant(db, ul, "compact")
+        with _with_available("compact"):
+            with pytest.raises(ValueError, match="locked"):
+                _cvsvc.apply_variant(db, ul, "compact")
