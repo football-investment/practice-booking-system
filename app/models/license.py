@@ -179,6 +179,16 @@ class UserLicense(Base):
                                  comment="Background image for compact card variant")
     card_bg_showcase_url = Column(String(512), nullable=True,
                                   comment="Background image for showcase card variant")
+    card_compact_photo_position = Column(String(10), nullable=True, default="left",
+                                         comment="Photo side for compact variant: left or right")
+    card_compact_focus_x = Column(Integer, nullable=True, default=50,
+                                   comment="Horizontal focus point % for compact photo (0-100)")
+    card_compact_focus_y = Column(Integer, nullable=True, default=50,
+                                   comment="Vertical focus point % for compact photo (0-100)")
+    card_showcase_focus_x = Column(Integer, nullable=True, default=50,
+                                    comment="Horizontal focus point % for showcase banner (0-100)")
+    card_showcase_focus_y = Column(Integer, nullable=True, default=50,
+                                    comment="Vertical focus point % for showcase banner (0-100)")
 
     # 🎨 CARD CUSTOMISATION: active theme/variant + unlocked lists
     card_theme = Column(String(50), nullable=True, default="default",
