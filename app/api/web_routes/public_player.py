@@ -201,7 +201,7 @@ def public_player_card(
         "card_theme": theme.id,           # base template: <body class="theme-{{ card_theme }}">
         "card_variant_id": variant.id,
         # variant-specific context
-        "compact_bg_url": getattr(lfa_license, "card_bg_compact_url", None),
-        "showcase_bg_url": getattr(lfa_license, "card_bg_showcase_url", None),
-        "compact_photo_position": getattr(lfa_license, "card_compact_photo_position", "left"),
+        "compact_bg_url": lfa_license.card_bg_compact_url,
+        "showcase_bg_url": lfa_license.card_bg_showcase_url,
+        "compact_photo_position": lfa_license.card_compact_photo_position or "left",
     })

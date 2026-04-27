@@ -1,24 +1,29 @@
 """Add card customisation + multi-photo fields to user_licenses.
 
-Adds eight columns required by the card editor, card theme/variant
+Adds thirteen columns required by the card editor, card theme/variant
 services, and the public player card render route.  All columns are
 nullable so existing rows need no backfill.
 
 The upgrade() is idempotent: it inspects the live schema and only adds
 columns that are genuinely absent.  This is safe on production databases
 that may already have some columns from earlier local-only migrations
-(.pyc artefacts 2026_04_01 / 2026_04_06).
+(.pyc artefacts 2026_04_01 / 2026_04_06, 2026_04_25_1200 feature branch).
 
 Columns added
 -------------
-  card_theme               VARCHAR(50)  — active theme ID (default → "default")
-  card_variant             VARCHAR(50)  — active variant ID (default → "fifa")
-  unlocked_card_themes     JSON         — list of unlocked theme IDs
-  unlocked_card_variants   JSON         — list of unlocked variant IDs
-  card_photo_portrait_url  VARCHAR(512) — portrait-crop photo
-  card_photo_landscape_url VARCHAR(512) — landscape-crop photo
-  card_bg_compact_url      VARCHAR(512) — compact-variant background
-  card_bg_showcase_url     VARCHAR(512) — showcase-variant background
+  card_theme                    VARCHAR(50)  — active theme ID
+  card_variant                  VARCHAR(50)  — active variant ID
+  unlocked_card_themes          JSON         — list of unlocked theme IDs
+  unlocked_card_variants        JSON         — list of unlocked variant IDs
+  card_photo_portrait_url       VARCHAR(512) — portrait-crop photo
+  card_photo_landscape_url      VARCHAR(512) — landscape-crop photo
+  card_bg_compact_url           VARCHAR(512) — compact-variant background
+  card_bg_showcase_url          VARCHAR(512) — showcase-variant background
+  card_compact_photo_position   VARCHAR(10)  — photo side for compact (left/right)
+  card_compact_focus_x          INTEGER      — horizontal focus % for compact photo
+  card_compact_focus_y          INTEGER      — vertical focus % for compact photo
+  card_showcase_focus_x         INTEGER      — horizontal focus % for showcase banner
+  card_showcase_focus_y         INTEGER      — vertical focus % for showcase banner
 
 Revision ID: 2026_04_26_1000
 Revises: 2026_04_25_0900
@@ -35,14 +40,19 @@ depends_on = None
 _TABLE = "user_licenses"
 
 _NEW_COLUMNS = [
-    ("card_theme",               sa.Column("card_theme",               sa.String(50),  nullable=True)),
-    ("card_variant",             sa.Column("card_variant",             sa.String(50),  nullable=True)),
-    ("unlocked_card_themes",     sa.Column("unlocked_card_themes",     sa.JSON(),      nullable=True)),
-    ("unlocked_card_variants",   sa.Column("unlocked_card_variants",   sa.JSON(),      nullable=True)),
-    ("card_photo_portrait_url",  sa.Column("card_photo_portrait_url",  sa.String(512), nullable=True)),
-    ("card_photo_landscape_url", sa.Column("card_photo_landscape_url", sa.String(512), nullable=True)),
-    ("card_bg_compact_url",      sa.Column("card_bg_compact_url",      sa.String(512), nullable=True)),
-    ("card_bg_showcase_url",     sa.Column("card_bg_showcase_url",     sa.String(512), nullable=True)),
+    ("card_theme",                  sa.Column("card_theme",                  sa.String(50),  nullable=True)),
+    ("card_variant",                sa.Column("card_variant",                sa.String(50),  nullable=True)),
+    ("unlocked_card_themes",        sa.Column("unlocked_card_themes",        sa.JSON(),      nullable=True)),
+    ("unlocked_card_variants",      sa.Column("unlocked_card_variants",      sa.JSON(),      nullable=True)),
+    ("card_photo_portrait_url",     sa.Column("card_photo_portrait_url",     sa.String(512), nullable=True)),
+    ("card_photo_landscape_url",    sa.Column("card_photo_landscape_url",    sa.String(512), nullable=True)),
+    ("card_bg_compact_url",         sa.Column("card_bg_compact_url",         sa.String(512), nullable=True)),
+    ("card_bg_showcase_url",        sa.Column("card_bg_showcase_url",        sa.String(512), nullable=True)),
+    ("card_compact_photo_position", sa.Column("card_compact_photo_position", sa.String(10),  nullable=True)),
+    ("card_compact_focus_x",        sa.Column("card_compact_focus_x",        sa.Integer(),   nullable=True)),
+    ("card_compact_focus_y",        sa.Column("card_compact_focus_y",        sa.Integer(),   nullable=True)),
+    ("card_showcase_focus_x",       sa.Column("card_showcase_focus_x",       sa.Integer(),   nullable=True)),
+    ("card_showcase_focus_y",       sa.Column("card_showcase_focus_y",       sa.Integer(),   nullable=True)),
 ]
 
 

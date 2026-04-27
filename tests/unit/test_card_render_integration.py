@@ -264,3 +264,80 @@ class TestVariantRenderSmoke:
         except Exception as e:
             pytest.fail(f"compact render with theme={theme_id!r} raised {type(e).__name__}: {e}")
         assert f"theme-{theme_id}" in html, f"theme CSS class missing in rendered output for {theme_id!r}"
+
+
+# ── Combinatorial theme × variant: every combination must render ─────────────
+
+class TestThemeVariantCombinations:
+    """
+    Validates that applying a theme does not corrupt variant rendering and vice versa.
+    Every theme × variant combination must produce valid HTML with the correct
+    theme CSS class — verifying that apply_theme and apply_variant are orthogonal.
+    """
+
+    _BASE_EXTENDING_VARIANTS = ["compact", "showcase", "compact_bg", "showcase_bg"]
+    _ALL_THEMES = ["default", "midnight", "arctic", "gold", "emerald", "crimson"]
+
+    @pytest.fixture(scope="class")
+    def jinja_env(self):
+        return Environment(loader=FileSystemLoader(_TEMPLATES_DIR))
+
+    @pytest.mark.parametrize("theme_id,variant_id", [
+        (t, v)
+        for t in ["default", "midnight", "arctic", "gold", "emerald", "crimson"]
+        for v in ["compact", "showcase", "compact_bg", "showcase_bg"]
+    ])
+    def test_theme_variant_combination_renders(self, jinja_env, theme_id, variant_id):
+        """Each theme+variant combo must render without error and contain the theme CSS class."""
+        v = get_variant(variant_id)
+        ctx = {
+            **_RENDER_CONTEXT,
+            "theme": get_theme(theme_id),
+            "card_theme_id": theme_id,
+            "card_theme": theme_id,
+            "card_variant_id": variant_id,
+            "compact_photo_position": "left",
+            "compact_bg_url": None,
+            "showcase_bg_url": None,
+        }
+        try:
+            html = jinja_env.get_template(v.template).render(**ctx)
+        except Exception as e:
+            pytest.fail(
+                f"theme={theme_id!r} × variant={variant_id!r} raised {type(e).__name__}: {e}\n"
+                f"This means theme/variant are NOT orthogonal — one overwrites the other's render path."
+            )
+        assert f"theme-{theme_id}" in html, (
+            f"theme={theme_id!r} CSS class missing in variant={variant_id!r} render — "
+            f"base template inheritance broken."
+        )
+
+    @pytest.mark.parametrize("photo_position", ["left", "right"])
+    def test_compact_photo_position_both_sides(self, jinja_env, photo_position):
+        """compact_photo_position=left and right must both render without error."""
+        ctx = {**_RENDER_CONTEXT, "compact_photo_position": photo_position}
+        try:
+            html = jinja_env.get_template("public/player_card_compact.html").render(**ctx)
+        except Exception as e:
+            pytest.fail(f"compact with photo_position={photo_position!r} raised {type(e).__name__}: {e}")
+        assert f"photo-{photo_position}" in html, (
+            f"CSS class 'photo-{photo_position}' missing in compact render"
+        )
+
+    def test_compact_bg_with_url_renders(self, jinja_env):
+        """compact_bg variant with an actual bg URL must render without error."""
+        ctx = {**_RENDER_CONTEXT, "compact_bg_url": "https://example.com/bg.jpg", "compact_photo_position": "left"}
+        try:
+            html = jinja_env.get_template("public/player_card_compact_bg.html").render(**ctx)
+        except Exception as e:
+            pytest.fail(f"compact_bg with bg URL raised {type(e).__name__}: {e}")
+        assert "example.com/bg.jpg" in html
+
+    def test_showcase_bg_with_url_renders(self, jinja_env):
+        """showcase_bg variant with an actual bg URL must render without error."""
+        ctx = {**_RENDER_CONTEXT, "showcase_bg_url": "https://example.com/bg2.jpg"}
+        try:
+            html = jinja_env.get_template("public/player_card_showcase_bg.html").render(**ctx)
+        except Exception as e:
+            pytest.fail(f"showcase_bg with bg URL raised {type(e).__name__}: {e}")
+        assert "example.com/bg2.jpg" in html
