@@ -48,7 +48,6 @@ VARIANTS: dict[str, VariantDefinition] = {
         is_premium=True,
         credit_cost=300,
         template="public/player_card_compact.html",
-        available=False,
     ),
     "showcase": VariantDefinition(
         id="showcase",
@@ -57,7 +56,6 @@ VARIANTS: dict[str, VariantDefinition] = {
         is_premium=True,
         credit_cost=500,
         template="public/player_card_showcase.html",
-        available=False,
     ),
     "compact_bg": VariantDefinition(
         id="compact_bg",
@@ -66,7 +64,6 @@ VARIANTS: dict[str, VariantDefinition] = {
         is_premium=True,
         credit_cost=400,
         template="public/player_card_compact_bg.html",
-        available=False,
     ),
     "showcase_bg": VariantDefinition(
         id="showcase_bg",
@@ -75,7 +72,6 @@ VARIANTS: dict[str, VariantDefinition] = {
         is_premium=True,
         credit_cost=600,
         template="public/player_card_showcase_bg.html",
-        available=False,
     ),
 }
 
