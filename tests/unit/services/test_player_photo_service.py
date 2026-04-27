@@ -53,9 +53,9 @@ class TestURLUniqueness:
 
     def test_portrait_upload_twice_gives_different_urls(self, tmp_path):
         with _patch_photo_dir(tmp_path):
-            url1 = svc.save_portrait_photo(_png_bytes(), "image/png", user_id=1)
+            url1 = svc.save_portrait_photo(_png_bytes(), "image/png", user_id=11)
             time.sleep(1.1)  # ensure epoch differs
-            url2 = svc.save_portrait_photo(_png_bytes(), "image/png", user_id=1)
+            url2 = svc.save_portrait_photo(_png_bytes(), "image/png", user_id=11)
         assert url1 != url2, (
             f"portrait re-upload must produce a new URL — got same: {url1!r}"
         )
