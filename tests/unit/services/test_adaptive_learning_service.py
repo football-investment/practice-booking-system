@@ -959,7 +959,7 @@ class TestGetNextQuestionDedup:
                  "weak_concepts": [], "strong_concepts": [], "due_for_review": []
              }), \
              patch.object(svc, "_get_candidate_questions", return_value=[]):
-            result = svc.get_next_question(user_id=1, session_id=1)
+            result = svc.get_next_question(user_id=42, session_id=1)
         assert result is not None
         assert result.get("session_complete") is True
         assert result.get("reason") == "pool_exhausted"
@@ -975,7 +975,7 @@ class TestGetNextQuestionDedup:
              }), \
              patch.object(svc, "_get_candidate_questions", return_value=[q1, q2]), \
              patch.object(svc, "_select_adaptive_question") as mock_select:
-            result = svc.get_next_question(user_id=1, session_id=1, exclude_ids={1, 2})
+            result = svc.get_next_question(user_id=42, session_id=1, exclude_ids={1, 2})
         assert result is not None
         assert result.get("session_complete") is True
         assert result.get("reason") == "all_seen"
@@ -995,7 +995,7 @@ class TestGetNextQuestionDedup:
                  patch.object(svc, "_get_candidate_questions", return_value=[q1, q2, q3]), \
                  patch.object(svc, "_get_session_time_remaining", return_value=55), \
                  patch.object(svc, "_get_question_difficulty", return_value=0.5):
-                result = svc.get_next_question(user_id=1, session_id=1, exclude_ids={1})
+                result = svc.get_next_question(user_id=42, session_id=1, exclude_ids={1})
             assert result is not None
             assert not result.get("session_complete"), "Should have returned a question"
             assert result.get("id") != 1, f"Returned excluded Q1 in iteration"
@@ -1010,7 +1010,7 @@ class TestGetNextQuestionDedup:
                  "weak_concepts": [], "strong_concepts": [], "due_for_review": []
              }), \
              patch.object(svc, "_get_candidate_questions", return_value=[q1]):
-            result = svc.get_next_question(user_id=1, session_id=1, exclude_ids={1})
+            result = svc.get_next_question(user_id=42, session_id=1, exclude_ids={1})
         assert result["session_complete"] is True
         assert result["reason"] == "all_seen"
 
@@ -1035,7 +1035,7 @@ class TestGetNextQuestionDedup:
              patch.object(svc, "_get_session_time_remaining", return_value=55), \
              patch.object(svc, "_get_question_difficulty", return_value=0.5):
             # Q1 is weak but not in candidates (only Q5) → must fall back to random(candidates)
-            result = svc.get_next_question(user_id=1, session_id=1)
+            result = svc.get_next_question(user_id=42, session_id=1)
         assert result is not None
         assert not result.get("session_complete"), "Should return Q5 as fallback"
         assert result.get("id") == 5
