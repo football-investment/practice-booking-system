@@ -274,6 +274,7 @@ class TestAl3SessionStart:
                 category=category_param,
                 time_limit=180,
                 language="en",
+                force_new=False,
                 db=db,
                 user=user,
             ))
@@ -401,10 +402,12 @@ def _make_existing_session(
     time_limit_seconds=180,
     questions_presented=3,
     questions_correct=2,
+    category=None,
 ):
     """Build a mock existing (unfinished) AdaptiveLearningSession."""
     s = MagicMock()
     s.id = session_id
+    s.category = category if category is not None else QuizCategory.LESSON
     s.session_start_time = datetime.now(timezone.utc) - timedelta(seconds=started_seconds_ago)
     s.session_time_limit_seconds = time_limit_seconds
     s.questions_presented = questions_presented
@@ -452,6 +455,7 @@ def _call_start_full(time_limit=180, db=None, user=None):
             category="LESSON",
             time_limit=time_limit,
             language="en",
+            force_new=False,
             db=db,
             user=user,
         ))
@@ -586,6 +590,7 @@ def _call_start_with_count(question_count: int, category: str = "LESSON", time_l
             category=category,
             time_limit=time_limit,
             language="hu",
+            force_new=False,
             db=db,
             user=user,
         ))
@@ -756,6 +761,7 @@ def _call_start_with_language(language: str, db=None):
             category="LESSON",
             time_limit=180,
             language=language,
+            force_new=False,
             db=db,
             user=user,
         ))

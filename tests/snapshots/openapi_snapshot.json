@@ -22844,7 +22844,7 @@
     },
     "/adaptive-learning/session/start": {
       "post": {
-        "description": "Start a new adaptive learning session, or return the existing active one.",
+        "description": "Start a new adaptive learning session, resume same-category active session, or force-create a new one.\n\nDecision matrix:\n  - No active session                    \u2192 CREATE  (resumed=false)\n  - Active session, expired              \u2192 retire  \u2192 CREATE  (resumed=false)\n  - Active session, force_new=true       \u2192 retire  \u2192 CREATE  (resumed=false, previous_session_retired=true)\n  - Active session, category mismatch   \u2192 retire  \u2192 CREATE  (resumed=false, previous_session_retired=true)\n  - Active session, same category       \u2192 RESUME             (resumed=true)  \u2014 frontend must show prompt",
         "operationId": "al_session_start_adaptive_learning_session_start_post",
         "parameters": [
           {
@@ -22881,6 +22881,18 @@
               "description": "Session language ('en' or 'hu')",
               "title": "Language",
               "type": "string"
+            }
+          },
+          {
+            "description": "Retire any active session and create a fresh one",
+            "in": "query",
+            "name": "force_new",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Retire any active session and create a fresh one",
+              "title": "Force New",
+              "type": "boolean"
             }
           }
         ],

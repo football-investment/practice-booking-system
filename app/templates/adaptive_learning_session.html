@@ -163,16 +163,56 @@
     .als-timer.warning { color: #b45309; }
     .als-timer.critical { color: #b91c1c; }
 
-    /* ── Resume notice ───────────────────────────────────────────────────────── */
-    .als-resume-notice {
-        background: #fff7ed;
+    /* ── Resume prompt phase ─────────────────────────────────────────────────── */
+    .als-resume-card {
+        background: var(--app-card);
+        border-radius: 14px;
+        padding: 1.75rem 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         border-left: 4px solid #f59e0b;
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        font-size: 0.88rem;
-        color: #92400e;
-        margin-bottom: 1.25rem;
     }
+    .als-resume-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--app-text);
+        margin: 0 0 0.5rem;
+    }
+    .als-resume-meta {
+        font-size: 0.9rem;
+        color: var(--app-text-muted);
+        margin: 0 0 1.5rem;
+    }
+    .als-resume-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .als-resume-btn-continue {
+        flex: 1;
+        background: #4f46e5;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.97rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .als-resume-btn-continue:hover { background: #4338ca; }
+    .als-resume-btn-new {
+        flex: 1;
+        background: #f3f4f6;
+        color: #374151;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.97rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .als-resume-btn-new:hover { background: #e5e7eb; border-color: #d1d5db; }
 
     /* ── Result screen ───────────────────────────────────────────────────────── */
     .als-result-card {
@@ -433,11 +473,20 @@
         </div>
     </div>
 
+    {# ── Resume prompt phase ──────────────────────────────────────────────── #}
+    <div id="als-phase-resume" class="als-phase">
+        <div class="als-resume-card">
+            <p class="als-resume-title">⚠️ Active Session Found</p>
+            <p class="als-resume-meta" id="als-resume-meta">You have an unfinished session in progress.</p>
+            <div class="als-resume-actions">
+                <button class="als-resume-btn-continue" onclick="alsResumeContinue()">▶ Continue Session</button>
+                <button class="als-resume-btn-new" onclick="alsResumeNew()">🔄 Start New Session</button>
+            </div>
+        </div>
+    </div>
+
     {# ── Question phase ────────────────────────────────────────────────────── #}
     <div id="als-phase-question" class="als-phase">
-        <div id="als-resume-notice" class="als-resume-notice" style="display:none;">
-            ⚠️ Continuing your active session from earlier.
-        </div>
         <div id="als-score-strip" class="als-score-strip">
             <span>Score: <span id="als-score-val" class="als-score-val">0</span></span>
             <span id="als-timer" class="als-timer">⏱ 3:00</span>
@@ -519,13 +568,12 @@
 
     /* ── Phase management ──────────────────────────────────────────────────── */
     window.showPhase = function (name) {
-        ['category','loading','error','question','result'].forEach(function (p) {
+        ['category','loading','error','resume','question','result'].forEach(function (p) {
             var el = document.getElementById('als-phase-' + p);
             if (el) el.classList.toggle('active', p === name);
         });
         state.phase = name;
         // Language switcher is ONLY allowed in the category picker phase.
-        // This is the authoritative lock — it fires on every phase transition.
         var langSwitcher = document.getElementById('als-lang-switcher');
         if (langSwitcher) langSwitcher.style.display = (name === 'category') ? '' : 'none';
     };
@@ -725,8 +773,9 @@
                 if (!res) return;
                 var d = res.data;
                 if (d.session_complete) {
-                    if (d.reason === 'no_questions') {
-                        showError('No questions are available for this category yet. Please choose a different category.');
+                    // pool_exhausted / all_seen / no_questions → back to picker, not session complete
+                    if (d.reason === 'pool_exhausted' || d.reason === 'all_seen' || d.reason === 'no_questions') {
+                        showError('No questions are available for this category. Please choose a different one.');
                         showPhase('category');
                         return;
                     }
@@ -855,8 +904,35 @@
         state.correctCount      = 0;
         state.currentQuestionId = null;
         state.answerSubmitted   = false;
-        document.getElementById('als-resume-notice').style.display = 'none';
         showPhase('category');
+    };
+
+    /* ── Resume prompt handlers ────────────────────────────────────────────── */
+    window.alsResumeContinue = function () {
+        startTimer();
+        alsNext();
+    };
+
+    window.alsResumeNew = function () {
+        showPhase('loading');
+        var url = '/adaptive-learning/session/start?category=' + encodeURIComponent(state.category) +
+                  '&time_limit=' + state.timeLimitSeconds +
+                  '&language={{ session_language | default("en") }}' +
+                  '&force_new=true';
+        post(url).then(function (res) {
+            if (!res) return;
+            if (!res.ok) {
+                showError(res.data && res.data.error || 'Could not start session. Try again.');
+                return;
+            }
+            state.sessionId = res.data.session_id;
+            state.score = 0;
+            updateScoreStrip();
+            startTimer();
+            alsNext();
+        }).catch(function () {
+            showError('Could not connect to the server. Please check your connection.');
+        });
     };
 
     /* ── Init ──────────────────────────────────────────────────────────────── */
@@ -872,14 +948,27 @@
                     showError(res.data && res.data.error || 'Could not start session. Try again.');
                     return;
                 }
-                state.sessionId   = res.data.session_id;
+                state.sessionId = res.data.session_id;
 
                 if (res.data.resumed) {
+                    // Active session found in same category — show prompt, do NOT auto-start.
+                    // User must explicitly choose: Continue or Start New.
                     state.score = res.data.current_score || 0;
                     updateScoreStrip();
-                    document.getElementById('als-resume-notice').style.display = 'block';
+                    var meta = document.getElementById('als-resume-meta');
+                    if (meta) {
+                        var cat_label = (res.data.category || cat).replace(/_/g, ' ');
+                        var q = res.data.questions_presented || 0;
+                        var sc = res.data.current_score || 0;
+                        meta.textContent = cat_label + ' · ' + q + ' question' + (q !== 1 ? 's' : '') +
+                                           ' answered · Score: ' + (sc >= 0 ? '+' : '') + sc;
+                    }
+                    showPhase('resume');
+                    // ← NO startTimer(), NO alsNext()
+                    return;
                 }
 
+                // New session (or force_new / mismatch) — start immediately.
                 startTimer();
                 alsNext();
             }).catch(function () {

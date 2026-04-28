@@ -148,10 +148,19 @@ async def al_session_start(
     category: str = Query("LESSON", description="QuizCategory value for this session"),
     time_limit: int = Query(180, description="Session time limit in seconds (60, 180, or 300)"),
     language: str = Query("en", description="Session language ('en' or 'hu')"),
+    force_new: bool = Query(False, description="Retire any active session and create a fresh one"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Start a new adaptive learning session, or return the existing active one."""
+    """Start a new adaptive learning session, resume same-category active session, or force-create a new one.
+
+    Decision matrix:
+      - No active session                    → CREATE  (resumed=false)
+      - Active session, expired              → retire  → CREATE  (resumed=false)
+      - Active session, force_new=true       → retire  → CREATE  (resumed=false, previous_session_retired=true)
+      - Active session, category mismatch   → retire  → CREATE  (resumed=false, previous_session_retired=true)
+      - Active session, same category       → RESUME             (resumed=true)  — frontend must show prompt
+    """
     guard = require_student_onboarding(user)
     if guard:
         return JSONResponse({"error": "onboarding required"}, status_code=403)
@@ -200,9 +209,6 @@ async def al_session_start(
             status_code=422,
         )
 
-    # Return existing active session rather than creating a duplicate.
-    # If the existing session is already server-side expired, retire it first so
-    # the user gets a fresh session rather than an immediately-terminal resume.
     existing = (
         db.query(AdaptiveLearningSession)
         .filter(
@@ -212,19 +218,35 @@ async def al_session_start(
         .order_by(AdaptiveLearningSession.id.desc())
         .first()
     )
+
+    prior_retired = False
+
     if existing:
         elapsed = 0.0
         if existing.session_start_time and existing.session_time_limit_seconds:
             elapsed = (datetime.now(timezone.utc) - existing.session_start_time).total_seconds()
 
         if existing.session_time_limit_seconds and elapsed >= existing.session_time_limit_seconds:
-            # Stale expired session — retire it and fall through to create a new one
+            # Expired — retire silently, fall through to CREATE
             existing.ended_at = datetime.now(timezone.utc)
             db.commit()
+
+        elif force_new:
+            # Caller explicitly requested a fresh session — retire existing
+            existing.ended_at = datetime.now(timezone.utc)
+            db.commit()
+            prior_retired = True
+
+        elif existing.category != quiz_category:
+            # User chose a different category — auto-retire, no prompt needed
+            existing.ended_at = datetime.now(timezone.utc)
+            db.commit()
+            prior_retired = True
+
         else:
-            # Valid unexpired session — update time limit to match user's current choice.
-            # If elapsed time already exceeds the new (shorter) limit, reset the clock so
-            # the first next-question call doesn't immediately expire the session.
+            # Same category, still active — RESUME.
+            # Reset start_time if the new (shorter) limit is already elapsed
+            # so the first next-question call does not immediately expire.
             existing.session_time_limit_seconds = time_limit
             if elapsed >= time_limit:
                 existing.session_start_time = datetime.now(timezone.utc)
@@ -232,9 +254,11 @@ async def al_session_start(
             current_score = (existing.questions_correct or 0) * 2 - (existing.questions_presented or 0)
             return JSONResponse({
                 "session_id": existing.id,
-                "question_count": 10,
-                "started_at": existing.session_start_time.isoformat() if existing.session_start_time else None,
                 "resumed": True,
+                "force_new": False,
+                "previous_session_retired": False,
+                "category": existing.category.value,
+                "started_at": existing.session_start_time.isoformat() if existing.session_start_time else None,
                 "time_limit_seconds": time_limit,
                 "current_score": current_score,
                 "questions_presented": existing.questions_presented or 0,
@@ -246,11 +270,14 @@ async def al_session_start(
     )
     return JSONResponse({
         "session_id": session.id,
-        "question_count": 10,
-        "started_at": session.session_start_time.isoformat() if session.session_start_time else None,
         "resumed": False,
+        "force_new": force_new,
+        "previous_session_retired": prior_retired,
+        "category": quiz_category.value,
+        "started_at": session.session_start_time.isoformat() if session.session_start_time else None,
         "time_limit_seconds": time_limit,
         "current_score": 0,
+        "questions_presented": 0,
     })
 
 
