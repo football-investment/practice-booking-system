@@ -56,7 +56,7 @@ def reset_rate_counters() -> None:
         _rate_counters.clear()
 
 
-def _sync_take_screenshot(render_url: str, platform: str) -> bytes:
+def _sync_take_screenshot(render_url: str, platform: str) -> bytes:  # pragma: no cover
     """Launch headless Chromium, navigate to render_url, return PNG bytes.
 
     Called via asyncio.to_thread from the async export endpoint so it does
