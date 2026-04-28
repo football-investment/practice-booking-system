@@ -169,6 +169,40 @@
     .light .btn-photo-delete-student { background: rgba(220,53,69,0.15); color: rgba(220,53,69,0.9); }
     .light .btn-photo-delete-student:hover { background: rgba(220,53,69,0.25); }
 
+    /* ── Platform picker ─────────────────────────────────────────────────────── */
+    .platform-picker { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .platform-btn {
+        font-size: 0.68rem; font-weight: 700; padding: 4px 10px; border-radius: 99px;
+        cursor: pointer; border: 1.5px solid transparent; transition: all .15s;
+        background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.65); white-space: nowrap;
+    }
+    .platform-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.88); }
+    .platform-btn.active {
+        background: rgba(102,126,234,0.2); border-color: rgba(102,126,234,0.6); color: #a3b3f7;
+    }
+
+    /* ── Export / Download button ───────────────────────────────────────────── */
+    .btn-export-card {
+        font-size: 0.78rem; font-weight: 700; padding: 7px 18px; border-radius: 99px;
+        cursor: pointer; border: 1.5px solid rgba(102,126,234,0.5);
+        background: rgba(102,126,234,0.15); color: #a3b3f7; transition: all .15s;
+    }
+    .btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.3); color: #c7d0ff; }
+    .btn-export-card:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    @media (prefers-color-scheme: light) {
+        .platform-btn { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72); border-color: rgba(0,0,0,0.12); }
+        .platform-btn:hover { background: rgba(0,0,0,0.10); color: rgba(0,0,0,0.9); }
+        .platform-btn.active { background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5); color: #3730a3; }
+        .btn-export-card { border-color: rgba(102,126,234,0.4); background: rgba(102,126,234,0.1); color: #3730a3; }
+        .btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.2); }
+    }
+    .light .platform-btn { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72); border-color: rgba(0,0,0,0.12); }
+    .light .platform-btn:hover { background: rgba(0,0,0,0.10); color: rgba(0,0,0,0.9); }
+    .light .platform-btn.active { background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5); color: #3730a3; }
+    .light .btn-export-card { border-color: rgba(102,126,234,0.4); background: rgba(102,126,234,0.1); color: #3730a3; }
+    .light .btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.2); }
+
     @media (max-width: 768px) { .container { padding: 1rem; } }
 </style>
 {% endblock %}
@@ -221,10 +255,23 @@
                 {% endfor %}
             </div>
             {% endif %}
+            {# ── Platform picker ── #}
+            <div class="platform-picker" id="platform-picker">
+                <button class="platform-btn active" data-platform="default" onclick="setPlatform('default')" title="Native card proportions">Default</button>
+                <button class="platform-btn" data-platform="square"    onclick="setPlatform('square')"    title="Instagram post · 1080×1080">Square</button>
+                <button class="platform-btn" data-platform="story"     onclick="setPlatform('story')"     title="Instagram / TikTok story · 1080×1920">Story</button>
+                <button class="platform-btn" data-platform="landscape" onclick="setPlatform('landscape')" title="Twitter / YouTube · 1920×1080">Landscape</button>
+                <button class="platform-btn" data-platform="banner"    onclick="setPlatform('banner')"    title="Facebook cover · 1500×500">Banner</button>
+                <button class="platform-btn" data-platform="og"        onclick="setPlatform('og')"        title="Open Graph / LinkedIn · 1200×630">OG</button>
+            </div>
         </div>
         <div class="player-card-embed-wrap">
             <iframe id="player-card-iframe" src="/players/{{ user.id }}/card" height="920" scrolling="no"
                     title="My Player Card"></iframe>
+        </div>
+        <div style="margin-top: 0.75rem; display: flex; justify-content: flex-end;">
+            <button id="btn-export-card" class="btn-export-card" onclick="exportCard()" disabled
+                    title="Select a platform above to download PNG">⬇ Download PNG</button>
         </div>
     </section>
 
@@ -311,7 +358,8 @@ function _csrf() {
     return (document.cookie.split('; ').find(r => r.startsWith('csrf_token=')) || '').split('=')[1];
 }
 function _cardIframeSrc() {
-    return `/players/${_cardUserId}/card?_t=${Date.now()}`;
+    const p = _currentPlatform !== 'default' ? `&platform=${_currentPlatform}` : '';
+    return `/players/${_cardUserId}/card?_t=${Date.now()}${p}`;
 }
 
 async function unlockTheme(themeId, label, cost) {
@@ -365,10 +413,47 @@ async function unlockVariant(variantId, label, cost) {
 }
 
 const _cardUserId = {{ user.id }};
+let _currentPlatform = 'default';
+
+function setPlatform(platformId) {
+    _currentPlatform = platformId;
+    document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.platform-btn[data-platform="${platformId}"]`);
+    if (btn) btn.classList.add('active');
+    const iframe = document.getElementById('player-card-iframe');
+    if (iframe) { iframe.src = _cardIframeSrc(); }
+    const dlBtn = document.getElementById('btn-export-card');
+    if (dlBtn) dlBtn.disabled = platformId === 'default';
+}
+
+async function exportCard() {
+    const platform = _currentPlatform === 'default' ? 'square' : _currentPlatform;
+    const btn = document.getElementById('btn-export-card');
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating…';
+    try {
+        const r = await fetch(`/players/${_cardUserId}/card/export?platform=${platform}`);
+        if (r.status === 429) { alert('Too many exports — please wait a moment and try again.'); return; }
+        if (!r.ok) { alert('Export failed — please try again.'); return; }
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `lfa_card_${_cardUserId}_${platform}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch(e) {
+        alert('Export failed — please try again.');
+    } finally {
+        btn.textContent = origText;
+        btn.disabled = _currentPlatform === 'default';
+    }
+}
 
 function previewVariant(variantId) {
     const iframe = document.getElementById('player-card-iframe');
-    if (iframe) { iframe.src = `/players/${_cardUserId}/card?preview=${variantId}&_t=${Date.now()}`; }
+    const p = _currentPlatform !== 'default' ? `&platform=${_currentPlatform}` : '';
+    if (iframe) { iframe.src = `/players/${_cardUserId}/card?preview=${variantId}${p}&_t=${Date.now()}`; }
     document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('previewing'));
     const btn = document.querySelector(`.variant-btn[data-variant="${variantId}"]`);
     if (btn) btn.classList.add('previewing');
