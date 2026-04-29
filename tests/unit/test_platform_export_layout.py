@@ -25,6 +25,12 @@ Tests:
   EX-08  FIFA × instagram_portrait export HTML has no card-wrap
   EX-09  FIFA × instagram_portrait export HTML has .ex-skill-cats
   EX-10  FIFA × instagram_portrait export uses portrait_photo_url variable
+  EX-11  FIFA × instagram_story uses dedicated export template (ex-card present)
+  EX-12  FIFA × instagram_story export HTML has no tab-bar
+  EX-13  FIFA × instagram_story export HTML has no card-wrap
+  EX-14  FIFA × instagram_story export HTML has .ex-skill-cats
+  EX-15  FIFA × instagram_story export uses portrait_photo_url variable
+  EX-16  FIFA × tiktok uses the same story export template (ex-card present)
 """
 from __future__ import annotations
 
@@ -422,12 +428,12 @@ class TestPlaywrightP0ComponentSizing:
             browser.close()
             pw.stop()
 
-    @pytest.mark.parametrize("platform_id", ["instagram_square", "instagram_portrait"])
+    @pytest.mark.parametrize("platform_id", ["instagram_square", "instagram_portrait", "instagram_story"])
     def test_pl11_last_content_element_reaches_50pct_height(self, platform_id):
         """Last visible content element bottom >= 50% viewport height (P0 baseline).
 
-        Both instagram_square and instagram_portrait use dedicated export templates.
-        The 85% target (full canvas fill, no dead space) is a P1 gate.
+        instagram_square, instagram_portrait, and instagram_story all use dedicated
+        export templates. The 85% target (full canvas fill, no dead space) is P1.
         """
         page, browser, pw, _vw, vh = self._open_card(platform_id)
         try:
@@ -552,4 +558,71 @@ class TestExportRenderLayerStatic:
         assert html, "Export returned empty response for instagram_portrait"
         assert "portrait_photo_url" in html, (
             "portrait_photo_url not referenced in portrait export template"
+        )
+
+
+@pytest.mark.unit
+class TestFifaStoryExport:
+    """Static tests for FIFA Classic × Story/TikTok dedicated export template.
+
+    EX-11  FIFA × instagram_story uses dedicated export template (ex-card present)
+    EX-12  FIFA × instagram_story export HTML has no tab-bar
+    EX-13  FIFA × instagram_story export HTML has no card-wrap (editor chrome)
+    EX-14  FIFA × instagram_story export HTML has .ex-skill-cats (2×2 grid)
+    EX-15  FIFA × instagram_story export uses portrait_photo_url variable
+    EX-16  FIFA × tiktok uses the same story export template (ex-card present)
+    """
+
+    def _get_fifa_export_html(self, client, platform: str) -> str:
+        from app.main import app
+        from app.dependencies import get_db
+
+        db = _mock_db(user=_make_user(), license_=_make_license(card_variant="fifa"))
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            r = client.get(f"/players/7/card?platform={platform}&export=1")
+            return r.text if r.status_code == 200 else ""
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+    def test_ex11_fifa_story_uses_export_template(self, client):
+        """FIFA × IG Story export must render the dedicated export template."""
+        html = self._get_fifa_export_html(client, "instagram_story")
+        assert html, "Export returned empty response for instagram_story"
+        assert "ex-card" in html, (
+            "Dedicated story export template not used — expected .ex-card root element"
+        )
+
+    def test_ex12_no_tab_bar_in_story_export(self, client):
+        """Story export template must not contain a tab-bar."""
+        html = self._get_fifa_export_html(client, "instagram_story")
+        assert html, "Export returned empty response for instagram_story"
+        assert "tab-bar" not in html, "tab-bar found in story export template HTML"
+
+    def test_ex13_no_card_wrap_in_story_export(self, client):
+        """Story export template must not contain a card-wrap (editor chrome)."""
+        html = self._get_fifa_export_html(client, "instagram_story")
+        assert html, "Export returned empty response for instagram_story"
+        assert "card-wrap" not in html, "card-wrap found in story export template HTML"
+
+    def test_ex14_skill_cats_grid_present_in_story(self, client):
+        """Story export template must contain the 2×2 skill category grid."""
+        html = self._get_fifa_export_html(client, "instagram_story")
+        assert html, "Export returned empty response for instagram_story"
+        assert "ex-skill-cats" in html, ".ex-skill-cats not found in story export HTML"
+
+    def test_ex15_portrait_photo_url_used_in_story(self, client):
+        """Story export template must reference portrait_photo_url (portrait crop preferred)."""
+        html = self._get_fifa_export_html(client, "instagram_story")
+        assert html, "Export returned empty response for instagram_story"
+        assert "portrait_photo_url" in html, (
+            "portrait_photo_url not referenced in story export template"
+        )
+
+    def test_ex16_tiktok_uses_story_export_template(self, client):
+        """TikTok shares the story bucket — must render the same dedicated export template."""
+        html = self._get_fifa_export_html(client, "tiktok")
+        assert html, "Export returned empty response for tiktok"
+        assert "ex-card" in html, (
+            "Story export template not used for tiktok — expected .ex-card root element"
         )
