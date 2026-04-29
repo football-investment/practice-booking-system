@@ -17,22 +17,29 @@
  *   grid gap    12px  → 8px
  *   cell pad    16px  → 10px
  *   cat name    13/12/8px → 11/7/5px (font/margin/padding)
- *   rows        flex:1 stretch → flex:0 0 28px fixed + gap:2px
+ *   rows        fixed 28px → flex:1 proportional (UI/UX opt pass)
  *   row gap     8px   → 6px
- *   sname       170px/16px → 130px/12px
- *   bar height  8px   → 5px
- *   sval        44px/16px  → 34px/12px
+ *   sname       170px/16px → 145px/13px
+ *   bar height  8px   → 7px
+ *   sval        44px/16px  → 36px/13px
  *   trend       18px/14px  → 14px/11px
  *   slicing     [:4]  → none (all 29 skills rendered)
  *
- * Space budget for Outfield (11 skills, the critical constraint):
- *   skills zone  = 1080 − 260 = 820px
- *   inner height = 820 − 28 = 792px  (padding 14px t+b)
- *   title        = ~22px consumed → 770px grid area
- *   grid row     = (770 − 8) / 2 = 381px  (gap 8px, 2 rows)
- *   cell inner   = 381 − 20 = 361px  (padding 10px t+b)
- *   cat name     = ~25px consumed → 336px for skill rows
- *   Outfield     = 11×28 + 10×2 = 328px ≤ 336px  (8px spare) ✓
+ * UI/UX optimization (proportional grid):
+ *   grid-auto-flow: column → Outfield+Set Pieces col-1, Mental+Physical col-2
+ *   grid-template-rows: 11fr 7fr → row heights proportional to max skill count
+ *     col-1: row-1=Outfield(11), row-2=Set Pieces(3) → 11:3 unused space disappears
+ *     col-2: row-1=Mental(8),    row-2=Physical(7)   → 8:7  near-equal
+ *   flex:1 rows → each skill row stretches to fill available cell height equally
+ *
+ * Space math with proportional grid (skills zone 820px):
+ *   inner height = 820 − 28 = 792px; title ~22px → 770px grid area
+ *   row-1 height = 770 × 11/18 − 4 (gap) ≈ 466px; cell inner ≈ 421px; cat ~25px → 396px
+ *     Outfield  11 rows → 396/11 = 36.0px/row ✓ (comfortable at 13px font)
+ *     Mental     8 rows → 396/8  = 49.5px/row ✓ (spacious)
+ *   row-2 height = 770 × 7/18 − 4 (gap) ≈ 296px; cell inner ≈ 251px; cat ~25px → 226px
+ *     Physical   7 rows → 226/7  = 32.3px/row ✓
+ *     Set Pieces 3 rows → 226/3  = 75.3px/row ✓ (premium feel — intentional)
  */
 
 :root {
@@ -209,13 +216,8 @@ html, body {
 /* ── SKILLS ZONE ──────────────────────────────────────────────────────────────
    flex:1 → takes 1080 − 260 = 820px of remaining height.
    Internal: skills-title (flex-shrink:0) + 2×2 grid (flex:1).
-
-   Grid row budget:
-     inner height = 820 − 28 (pad 14t+b) − 22 (title) = 770px
-     each grid row = (770 − 8 gap) / 2 = 381px
-     cell inner    = 381 − 20 (pad 10t+b) = 361px
-     cat name      = ~25px → 336px for skill rows
-     Outfield 11   = 11×28 + 10×2 = 328px ≤ 336px ✓
+   Grid fills column-first: [Outfield, Set Pieces] | [Mental, Physical]
+   Row heights 11fr:7fr match the dominant-category skill counts per row.
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-skills {
     flex: 1;
@@ -236,12 +238,13 @@ html, body {
     margin-bottom: 8px;
 }
 
-/* 2×2 category grid */
+/* 2×2 category grid — column-first fill, proportional row heights */
 .ex-skill-cats {
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: 11fr 7fr;
+    grid-auto-flow: column;
     gap: 8px;
     overflow: hidden;
     min-height: 0;
@@ -272,9 +275,7 @@ html, body {
     text-overflow: ellipsis;
 }
 
-/* Skill rows container — fixed-height rows stack from top; no flex:1 stretching.
-   gap:2px between rows; overflow:hidden prevents Set Pieces (3 rows) from
-   leaving visible empty space issues. */
+/* Skill rows container — flex:1 stretches to fill proportional cell height. */
 .ex-skill-rows {
     flex: 1;
     display: flex;
@@ -284,20 +285,21 @@ html, body {
     overflow: hidden;
 }
 
-/* Individual skill row — fixed 28px height (replaces flex:1 equal-stretch).
-   Outfield (11 skills): 11×28 + 10×2 = 328px fits in 336px available. */
+/* Individual skill row — proportional stretch; each row gets equal share of
+   available cell height. Minimum height ~32px (Physical 7 rows in 226px). */
 .ex-row {
-    flex: 0 0 28px;
+    flex: 1;
+    min-height: 0;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-/* Fixed-width name column — 130px at 12px fits all 29 skill names without clip.
-   Longest: "Tactical Awareness" ~126px at 12px system font. */
+/* Fixed-width name column — 145px at 13px fits all 29 skill names without clip.
+   Longest: "Tactical Awareness" ~138px at 13px system font. */
 .ex-sname {
-    flex: 0 0 130px;
-    font-size: 12px;
+    flex: 0 0 145px;
+    font-size: 13px;
     font-weight: 500;
     color: rgba(255,255,255,0.72);
     white-space: nowrap;
@@ -306,11 +308,11 @@ html, body {
     line-height: 1;
 }
 
-/* Skill bar — fills remaining row width (~306px in a 522px wide cell) */
+/* Skill bar — fills remaining row width (~300px in a 522px wide cell) */
 .ex-bar-bg {
     flex: 1;
     min-width: 0;
-    height: 5px;
+    height: 7px;
     background: var(--ex-bar-bg);
     border-radius: 4px;
     overflow: hidden;
@@ -323,8 +325,8 @@ html, body {
 
 /* Value — right-aligned fixed width */
 .ex-sval {
-    flex: 0 0 34px;
-    font-size: 12px;
+    flex: 0 0 36px;
+    font-size: 13px;
     font-weight: 700;
     text-align: right;
     line-height: 1;
@@ -378,6 +380,18 @@ html, body {
                     <span class="ex-meta-label">Events</span>
                     <span class="ex-meta-value">{{ player.total_tournaments }}</span>
                 </div>
+                {% if xp_balance %}
+                <div class="ex-meta-item">
+                    <span class="ex-meta-label">XP</span>
+                    <span class="ex-meta-value">{{ xp_balance | int }}</span>
+                </div>
+                {% endif %}
+                {% if player_preferred_foot %}
+                <div class="ex-meta-item">
+                    <span class="ex-meta-label">Foot</span>
+                    <span class="ex-meta-value">{{ player_preferred_foot }}</span>
+                </div>
+                {% endif %}
             </div>
 
             {% if teams_info %}

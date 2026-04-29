@@ -45,7 +45,8 @@ Tests:
   EX-28  FIFA × banner_custom uses banner template, not landscape template (420px left panel)
   EX-29  FIFA × instagram_square export HTML contains all 11 Outfield skill names
   EX-30  square/fifa.html template source has no skill slicing (no cat.skills[:)
-  EX-31  FIFA × instagram_square export HTML contains fixed-row-height CSS (0 0 28px)
+  EX-31  FIFA × instagram_square export uses column grid-auto-flow (proportional rows)
+  EX-31b FIFA × instagram_square export CSS contains proportional row heights (11fr 7fr)
 """
 from __future__ import annotations
 
@@ -783,7 +784,8 @@ class TestFifaSquareAllSkills:
 
     EX-29  All 11 Outfield skill names present in rendered Square export HTML
     EX-30  square/fifa.html template source contains no skill slicing (cat.skills[:)
-    EX-31  Square export HTML contains fixed-row-height CSS (flex: 0 0 28px)
+    EX-31  Square export CSS uses column grid-auto-flow (proportional layout)
+    EX-31b Square export CSS contains proportional row heights (11fr 7fr)
     """
 
     def _get_fifa_export_html(self, client, platform: str = "instagram_square") -> str:
@@ -833,15 +835,28 @@ class TestFifaSquareAllSkills:
             "use `cat.skills` (no slice) so all 29 skills are rendered"
         )
 
-    def test_ex31_square_fixed_row_height(self, client):
-        """Square export CSS must use fixed 28px row height, not flex:1 equal-stretch.
+    def test_ex31_square_proportional_grid_flow(self, client):
+        """Square export CSS must use grid-auto-flow: column for column-first ordering.
 
-        The 28px fixed height is the calculated minimum to fit Outfield's 11 skills
-        (328px) within the available cell height (336px, 8px spare).
+        Column-first fill places Outfield+Set Pieces in col-1 and Mental+Physical
+        in col-2, matching the 11fr:7fr row proportions to actual skill counts.
         """
         html = self._get_fifa_export_html(client, "instagram_square")
         assert html, "Export returned empty response for instagram_square"
-        assert "0 0 28px" in html, (
-            "Fixed row height (flex: 0 0 28px) not found in Square export CSS — "
-            "rows may be using flex:1 stretch which prevents all 11 Outfield skills from fitting"
+        assert "column" in html, (
+            "grid-auto-flow: column not found in Square export CSS — "
+            "category ordering will not match proportional row heights"
+        )
+
+    def test_ex31b_square_proportional_row_heights(self, client):
+        """Square export CSS must contain 11fr 7fr grid-template-rows.
+
+        11fr:7fr mirrors the Outfield(11)/Physical(7) dominant skill counts,
+        eliminating empty space in Set Pieces and Mental cells.
+        """
+        html = self._get_fifa_export_html(client, "instagram_square")
+        assert html, "Export returned empty response for instagram_square"
+        assert "11fr 7fr" in html, (
+            "Proportional row heights (11fr 7fr) not found in Square export CSS — "
+            "grid rows may be equal (1fr 1fr) causing empty space in low-skill-count cells"
         )
