@@ -211,9 +211,11 @@ def public_player_card(
     _portrait_url  = lfa_license.card_photo_portrait_url or _orig_url
     _landscape_url = lfa_license.card_photo_landscape_url or _orig_url
 
-    # ── Platform preset resolution (stateless — never persisted) ─────────────
+    # ── Platform preset resolution ────────────────────────────────────────────
+    # Precedence: URL ?platform= param > saved public_card_platform > default
     from app.services.card_platform_service import get_preset as _get_preset
-    platform_preset = _get_preset(platform)
+    effective_platform = platform or (lfa_license.public_card_platform or None)
+    platform_preset = _get_preset(effective_platform)
 
     # ── Export render layer ──────────────────────────────────────────────────
     # Prefer a dedicated export template when one exists for this combination.

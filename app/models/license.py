@@ -199,6 +199,8 @@ class UserLicense(Base):
                                   comment="List of unlocked card theme IDs")
     unlocked_card_variants = Column(JSON, nullable=True, default=list,
                                     comment="List of unlocked card variant IDs")
+    public_card_platform = Column(String(50), nullable=True, default=None,
+                                   comment="Saved public card platform ID (NULL = default)")
 
     skills_last_updated_at = Column(DateTime, nullable=True,
                                     comment="When skills were last updated")

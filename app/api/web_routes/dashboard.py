@@ -419,6 +419,7 @@ async def lfa_player_card_editor(
             "active_card_theme": active_card_theme,
             "card_variants": card_variants,
             "active_card_variant": active_card_variant,
+            "active_card_platform": user_license.public_card_platform or "default",
             "show_variant_picker": True,  # page is LFA Football Player only
         },
     )
@@ -586,6 +587,7 @@ async def spec_dashboard(
             "spec_config": spec_config,
             "user_license": user_license,
             "current_license": user_license,  # For payment_verified check
+            "active_card_platform": (user_license.public_card_platform or "default") if spec_enum == "LFA_FOOTBALL_PLAYER" else "default",
             "has_active_enrollment": has_active_enrollment,
             "available_semesters": available_semesters,
             "current_semester": current_semester,
@@ -870,7 +872,10 @@ async def student_set_card_photo_focus(
 
 from ...services.card_theme_service import apply_theme as _apply_theme, unlock_theme as _unlock_theme  # noqa: E402
 from ...services.card_variant_service import apply_variant as _apply_variant, unlock_variant as _unlock_variant  # noqa: E402
+from ...services.card_platform_service import PLATFORM_PRESETS as _PLATFORM_PRESETS  # noqa: E402
 from pydantic import BaseModel as _BaseModel  # noqa: E402
+
+_VALID_PLATFORM_IDS: frozenset = frozenset(_PLATFORM_PRESETS.keys())
 
 
 class _CardThemeRequest(_BaseModel):
@@ -879,6 +884,10 @@ class _CardThemeRequest(_BaseModel):
 
 class _CardVariantRequest(_BaseModel):
     variant: str
+
+
+class _CardPlatformRequest(_BaseModel):
+    platform: str
 
 
 def _get_lfa_license(db, user_id: int):
@@ -958,3 +967,24 @@ async def student_unlock_variant(
                              "new_balance": user.credit_balance})
     except ValueError as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/dashboard/card-platform")
+async def student_set_card_platform(
+    payload: _CardPlatformRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Save the player's preferred public card platform."""
+    if payload.platform not in _VALID_PLATFORM_IDS:
+        return JSONResponse(
+            {"ok": False, "error": f"Unknown platform: {payload.platform!r}"},
+            status_code=422,
+        )
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+    # "default" is stored as NULL (backward-compatible; NULL == default everywhere)
+    lfa_license.public_card_platform = None if payload.platform == "default" else payload.platform
+    db.commit()
+    return JSONResponse({"ok": True, "platform": payload.platform})
