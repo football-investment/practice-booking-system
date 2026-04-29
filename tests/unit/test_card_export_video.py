@@ -19,8 +19,11 @@ Coverage:
   VX-14  unsupported format → 422
   VX-15  unsupported duration → 422
   VX-16  Content-Disposition filename + Cache-Control headers correct
-  VX-17  is_animated_capable() returns True only for registered pairs
-  VX-18  ANIMATED_EXPORT_CAPABLE registry contains exactly fifa+instagram_square
+  VX-17  is_animated_capable() returns True for all registered pairs (fifa + pulse)
+  VX-18  ANIMATED_EXPORT_CAPABLE registry contains exactly fifa+square AND pulse+square
+  VX-19  pulse + instagram_square → 200 video/webm (new animated-capable pair)
+  VX-20  pulse + instagram_portrait → 422 (pulse not capable on portrait)
+  VX-21  pulse + instagram_story → 422 (pulse not capable on story)
 
 Mock strategy:
   - get_current_user_web → MagicMock user (no DB, no cookie)
@@ -300,20 +303,25 @@ class TestVideoExportRateAndErrors:
 class TestAnimatedCapabilityRegistry:
 
     def test_vx17_is_animated_capable_true_only_for_registered_pairs(self):
-        """is_animated_capable must return True only for pairs in the registry."""
-        assert is_animated_capable("fifa", "instagram_square") is True
-        assert is_animated_capable("fifa", "instagram_portrait") is False
-        assert is_animated_capable("fifa", "instagram_story") is False
-        assert is_animated_capable("fifa", "tiktok") is False
-        assert is_animated_capable("compact", "instagram_square") is False
+        """is_animated_capable must return True for all registered pairs and False for others."""
+        assert is_animated_capable("fifa",  "instagram_square") is True
+        assert is_animated_capable("pulse", "instagram_square") is True
+        assert is_animated_capable("fifa",  "instagram_portrait") is False
+        assert is_animated_capable("fifa",  "instagram_story") is False
+        assert is_animated_capable("fifa",  "tiktok") is False
+        assert is_animated_capable("pulse", "instagram_portrait") is False
+        assert is_animated_capable("pulse", "instagram_story") is False
+        assert is_animated_capable("compact",  "instagram_square") is False
         assert is_animated_capable("showcase", "instagram_square") is False
-        assert is_animated_capable("atlas", "instagram_square") is False
-        assert is_animated_capable("pulse", "instagram_square") is False
+        assert is_animated_capable("atlas",    "instagram_square") is False
         assert is_animated_capable("", "") is False
 
-    def test_vx18_registry_contains_exactly_fifa_square(self):
-        """MVP registry must have exactly one entry: (fifa, instagram_square)."""
-        assert ANIMATED_EXPORT_CAPABLE == frozenset({("fifa", "instagram_square")})
+    def test_vx18_registry_contains_exactly_fifa_and_pulse_square(self):
+        """Registry must contain exactly two entries: fifa+square and pulse+square."""
+        assert ANIMATED_EXPORT_CAPABLE == frozenset({
+            ("fifa",  "instagram_square"),
+            ("pulse", "instagram_square"),
+        })
 
     def test_vx13_png_render_url_never_contains_animated_param(self):
         """The PNG export endpoint must never include animated=1 in render_url.
@@ -334,3 +342,31 @@ class TestAnimatedCapabilityRegistry:
         assert "animated=1" in video_src, (
             "Video export endpoint must include animated=1 in render_url"
         )
+
+
+# ── Tests: Pulse × Instagram Square animated export ──────────────────────────
+
+@pytest.mark.unit
+class TestPulseVideoExport:
+    """Video export tests for the Pulse × Instagram Square animated pair.
+
+    VX-19  pulse + instagram_square → 200 video/webm
+    VX-20  pulse + instagram_portrait → 422 (pulse not animated-capable on portrait)
+    VX-21  pulse + instagram_story → 422 (pulse not animated-capable on story)
+    """
+
+    def test_vx19_pulse_square_returns_200_webm(self, client):
+        """pulse + instagram_square is registered in ANIMATED_EXPORT_CAPABLE → 200."""
+        r = _video_export(client, platform="instagram_square", card_variant="pulse")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("video/webm")
+
+    def test_vx20_pulse_portrait_returns_422(self, client):
+        """pulse + instagram_portrait is not animated-capable → 422."""
+        r = _video_export(client, platform="instagram_portrait", card_variant="pulse")
+        assert r.status_code == 422
+
+    def test_vx21_pulse_story_returns_422(self, client):
+        """pulse + instagram_story is not animated-capable → 422."""
+        r = _video_export(client, platform="instagram_story", card_variant="pulse")
+        assert r.status_code == 422

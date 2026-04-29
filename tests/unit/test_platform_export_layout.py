@@ -51,6 +51,11 @@ Tests:
   EX-33  square/fifa.html rendered with animated_mode=True contains @keyframes
   EX-34  square/fifa.html rendered with animated_mode=False (default) contains NO @keyframes
   EX-35  animated_mode=False does not break PNG static layout (bar fill CSS present)
+  EX-36  square/pulse.html template source contains {% if animated_mode %} branch
+  EX-37  square/pulse.html rendered with animated_mode=True contains @keyframes
+  EX-38  square/pulse.html rendered with animated_mode=False (default) contains NO @keyframes
+  EX-39  animated_mode=False does not break Pulse static layout (pex-bar-fill CSS present)
+  EX-40  pulse × instagram_square export uses dedicated pex-card template (not editor chrome)
 """
 from __future__ import annotations
 
@@ -943,3 +948,97 @@ class TestFifaSquareAnimatedMode:
             ".ex-bar-fill CSS class not found in static render — "
             "static layout may have been broken by template changes"
         )
+
+
+@pytest.mark.unit
+class TestPulseSquareAnimatedMode:
+    """Animated video export template tests for Pulse × Instagram Square.
+
+    EX-36  square/pulse.html source contains {% if animated_mode %} branch
+    EX-37  rendered HTML with animated_mode=True contains @keyframes
+    EX-38  rendered HTML with animated_mode=False (default) contains NO @keyframes
+    EX-39  animated_mode=False does not break Pulse static layout (pex-bar-fill CSS present)
+    EX-40  pulse × instagram_square export uses dedicated pex-card template (not editor chrome)
+    """
+
+    def _render_pulse_square(self, client, animated: bool = False) -> str:
+        """Render the square/pulse.html export template with animated_mode on or off."""
+        from app.main import app
+        from app.dependencies import get_db
+
+        db = _mock_db(user=_make_user(), license_=_make_license(card_variant="pulse"))
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            params = "platform=instagram_square&export=1"
+            if animated:
+                params += "&animated=1"
+            r = client.get(f"/players/7/card?{params}")
+            return r.text if r.status_code == 200 else ""
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+    def test_ex36_template_source_has_animated_mode_branch(self):
+        """square/pulse.html source must contain the animated_mode Jinja2 conditional."""
+        import os
+        import app as _app_pkg
+
+        tpl_path = os.path.join(
+            os.path.dirname(_app_pkg.__file__),
+            "templates/public/export/square/pulse.html",
+        )
+        with open(tpl_path, encoding="utf-8") as f:
+            source = f.read()
+
+        assert "animated_mode" in source, (
+            "{% if animated_mode %} branch not found in square/pulse.html — "
+            "animation CSS block missing from template source"
+        )
+
+    def test_ex37_animated_mode_true_renders_keyframes(self, client):
+        """When animated_mode=True, the rendered Pulse HTML must contain @keyframes."""
+        html = self._render_pulse_square(client, animated=True)
+        assert html, "Export returned empty response for animated=True render"
+        assert "@keyframes" in html, (
+            "@keyframes not found in animated Pulse render — "
+            "animation CSS block may not be activating when animated=1 is passed"
+        )
+
+    def test_ex38_animated_mode_false_no_keyframes(self, client):
+        """Default render (no animated param) must NOT contain @keyframes in Pulse template.
+
+        Critical static-export isolation invariant: PNG renders must never include
+        animation CSS, regardless of template changes.
+        """
+        html = self._render_pulse_square(client, animated=False)
+        assert html, "Export returned empty response for animated=False render"
+        assert "@keyframes" not in html, (
+            "@keyframes found in static (non-animated) Pulse export render — "
+            "animation CSS must be inside {% if animated_mode %} block only"
+        )
+
+    def test_ex39_static_layout_not_broken_by_animation_block(self, client):
+        """Static Pulse render must still contain the skill bar fill CSS.
+
+        Verifies that the animation block addition did not accidentally remove
+        or displace the static layout CSS.
+        """
+        html = self._render_pulse_square(client, animated=False)
+        assert html, "Export returned empty response"
+        assert "pex-bar-fill" in html, (
+            ".pex-bar-fill CSS class not found in static Pulse render — "
+            "static layout may have been broken by template changes"
+        )
+
+    def test_ex40_pulse_square_uses_dedicated_export_template(self, client):
+        """Pulse × IG Square export must render the dedicated pex-card template.
+
+        Verifies template routing: public/export/square/pulse.html is selected
+        (not the editor template which has card-wrap / tab-bar chrome).
+        """
+        html = self._render_pulse_square(client, animated=False)
+        assert html, "Export returned empty response for Pulse × instagram_square"
+        assert "pex-card" in html, (
+            "Dedicated Pulse export template not used — expected .pex-card root element"
+        )
+        assert "card-wrap" not in html, "Editor chrome (card-wrap) found in Pulse export HTML"
+        assert "tab-bar" not in html, "tab-bar found in Pulse export HTML"

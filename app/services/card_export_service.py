@@ -30,7 +30,8 @@ CANVAS_SIZES: dict[str, tuple[int, int]] = {
 # dedicated animated export template.  All other combinations are unsupported
 # and the video endpoint returns 422 — no fallback, no silent degradation.
 ANIMATED_EXPORT_CAPABLE: frozenset[tuple[str, str]] = frozenset({
-    ("fifa", "instagram_square"),
+    ("fifa",  "instagram_square"),
+    ("pulse", "instagram_square"),
 })
 
 
@@ -41,6 +42,20 @@ def is_animated_capable(variant_id: str, platform_id: str) -> bool:
 
 _GOTO_TIMEOUT_MS  = 10_000  # 10 s — generous vs. measured 0.6 s
 _VIDEO_TIMEOUT_MS = 30_000  # 30 s — covers 10 s recording + Chromium launch overhead
+
+# Pre-roll: ms to wait after networkidle + document.fonts.ready before the main
+# recording duration begins.  Allows DOMContentLoaded JS callbacks (OVR ring
+# requestAnimationFrame, radar fade-in) to fire and the first CSS animation
+# frame to commit, so the recording never starts in a half-initialized state.
+# To change: update this constant only — do not touch duration_s.
+_PRE_ROLL_MS = 400
+
+# Video recording frame rate note:
+# Playwright records via Chrome DevTools Protocol screencast at ~25 fps.
+# This is not configurable through Playwright's public API without dropping
+# to CDP level (Page.startScreencast with everyNthFrame).
+# To change fps: replace record_video_dir approach with CDP screencast directly.
+_VIDEO_FPS_NOTE = "~25 fps (CDP screencast default, not user-configurable via Playwright API)"
 
 
 class CardExportTimeoutError(Exception):
@@ -186,6 +201,14 @@ def _sync_record_video(  # pragma: no cover
                 )
                 page = context.new_page()
                 page.goto(render_url, wait_until="networkidle", timeout=_VIDEO_TIMEOUT_MS)
+                # Font readiness: await document.fonts.ready so DM Mono (Google
+                # Fonts CDN) is fully loaded before recording begins.
+                # page.evaluate() awaits the returned Promise in Playwright sync API.
+                page.evaluate("() => document.fonts.ready")
+                # Pre-roll: let DOMContentLoaded JS callbacks (OVR ring
+                # requestAnimationFrame, radar fade-in) fire and the first
+                # CSS animation frame commit before starting the timed recording.
+                page.wait_for_timeout(_PRE_ROLL_MS)
                 page.wait_for_timeout(duration_s * 1000)
                 context.close()   # triggers WebM finalization
                 browser.close()

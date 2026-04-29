@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ player.name }} — LFA Pulse Card</title>
+
+<!--
+  Pulse × IG Square — Dedicated export template
+  Canvas  : 1080 × 1080 px  (Playwright viewport)
+  Purpose : static PNG export + animated WebM video — no editor UI
+  Font    : DM Mono via Google Fonts CDN (loaded before recording via
+            document.fonts.ready check in _sync_record_video)
+  FPS     : ~25 fps (CDP screencast default — see _VIDEO_FPS_NOTE in
+            card_export_service.py for how to change)
+  Duration: 5 s default (configurable via duration_s in _sync_record_video)
+
+  Animation isolation:
+    ALL animation keyframe blocks and animation: declarations are inside the "animated_mode" conditional block.
+    PNG export (animated_mode=False) renders every element at its final state:
+      - OVR ring: stroke-dashoffset = computed target value (Jinja)
+      - Radar fill + dots: opacity = 1
+      - Scanline + pulse rings: no animation, base visual only
+    Video export (animated_mode=True):
+      - OVR ring: starts hidden (703.72), JS double-RAF draws to target
+      - Radar fill + dots: start hidden, JS fades in at 300 / 500-740 ms
+      - Scanline, pulse rings, OVR glow: infinite CSS animations autoplay
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+{#- OVR ring target dashoffset: 703.72 = full circumference (r=112, 2πr).
+    Filled fraction = overall/100 → offset = 703.72 × (1 − overall/100). -#}
+{%- set ovr_target_offset = (703.72 * (1.0 - (overall | float) / 100.0)) | round(2) %}
+
+<style>
+:root {
+    --pex-accent:    {{ theme.accent   if theme is defined else '#667eea' }};
+    --pex-panel-bg:  {{ theme.panel_bg if theme is defined else 'linear-gradient(155deg,#1a2744 0%,#2a3a5c 60%,#1e3a4a 100%)' }};
+    --pex-body-bg:   {{ theme.body_bg  if theme is defined else '#1a202c' }};
+    --pex-page-bg:   #0f1923;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--pex-page-bg);
+    font-family: 'DM Mono', 'SF Mono', 'Fira Mono', monospace, system-ui;
+}
+
+/* ── ROOT CANVAS — fills 1080×1080 viewport ─────────────────────────────── */
+.pex-card {
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    background: var(--pex-page-bg);
+}
+
+/* ── HERO ZONE — 580px ──────────────────────────────────────────────────── */
+.pex-hero {
+    flex: 0 0 580px;
+    background: var(--pex-panel-bg);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Scanline: base position (no movement without animated_mode) */
+.pex-scanline {
+    position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 3;
+    background: linear-gradient(90deg, transparent, var(--pex-accent), transparent);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Corner HUD marks */
+.pex-corner {
+    position: absolute; width: 16px; height: 16px; z-index: 4;
+    pointer-events: none;
+    border-color: color-mix(in srgb, var(--pex-accent) 55%, transparent);
+    border-style: solid;
+}
+.pex-corner-tl { top: 12px; left: 12px;   border-width: 2px 0 0 2px; }
+.pex-corner-tr { top: 12px; right: 12px;  border-width: 2px 2px 0 0; }
+.pex-corner-bl { bottom: 12px; left: 12px;  border-width: 0 0 2px 2px; }
+.pex-corner-br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+/* Player info row */
+.pex-player-row {
+    display: flex; align-items: center;
+    gap: 1rem; padding: 1.5rem 1.5rem 0.75rem;
+    position: relative; z-index: 2;
+}
+.pex-avatar {
+    width: 90px; height: 90px; border-radius: 50%; flex-shrink: 0;
+    border: 3px solid var(--pex-accent);
+    box-shadow: 0 0 28px color-mix(in srgb, var(--pex-accent) 50%, transparent),
+                inset 0 0 14px color-mix(in srgb, var(--pex-accent) 14%, transparent);
+    background: color-mix(in srgb, var(--pex-accent) 18%, transparent);
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; font-weight: 900; color: white;
+}
+.pex-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.pex-name-block { flex: 1; min-width: 0; }
+.pex-name {
+    font-size: 2rem; font-weight: 900; color: white;
+    line-height: 1.05; margin-bottom: 0.4rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pex-badges { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.3rem; flex-wrap: wrap; }
+.pex-pos-badge {
+    display: inline-block; padding: 3px 12px; border-radius: 4px;
+    font-size: 0.72rem; font-weight: 800; color: white;
+    text-transform: uppercase; letter-spacing: 0.1em;
+}
+.pex-tier-badge {
+    display: inline-block; padding: 3px 12px; border-radius: 4px;
+    font-size: 0.72rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em;
+}
+.pex-team-line {
+    font-size: 0.75rem; font-weight: 700;
+    color: color-mix(in srgb, var(--pex-accent) 80%, white);
+    letter-spacing: 0.04em;
+}
+.pex-mini-stats { text-align: right; flex-shrink: 0; }
+.pex-mini-label {
+    font-size: 0.6rem; font-weight: 700;
+    color: rgba(255,255,255,0.3); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 2px;
+}
+.pex-mini-val { font-size: 1.6rem; font-weight: 900; color: rgba(255,255,255,0.9); line-height: 1; }
+.pex-mini-xp {
+    font-size: 0.6rem; font-weight: 700;
+    color: color-mix(in srgb, var(--pex-accent) 70%, transparent);
+    letter-spacing: 0.1em; margin-top: 4px;
+}
+
+/* SVG zone — radar + rings */
+.pex-svg-zone {
+    display: flex; justify-content: center; position: relative; z-index: 2;
+    flex: 1;
+}
+.pex-svg-zone svg { width: 100%; max-width: 420px; display: block; overflow: visible; }
+
+/* Pulse rings (base: visible but static without animated_mode) */
+.pex-pulse-ring {
+    fill: none;
+    stroke: var(--pex-accent);
+    stroke-width: 2;
+    opacity: 0.08;
+    transform-origin: 140px 140px;
+}
+
+/* OVR ring */
+.pex-ovr-ring-track { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 3; }
+.pex-ovr-ring {
+    fill: none;
+    stroke: var(--pex-accent);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-dasharray: 703.72;
+    /* PNG-safe final state: ring drawn to target position immediately */
+    stroke-dashoffset: {{ ovr_target_offset | round(2) }};
+}
+
+/* Radar elements */
+.pex-radar-grid-diamond {
+    fill: none; stroke: rgba(255,255,255,0.05);
+    stroke-width: 0.5; stroke-dasharray: 3,3;
+}
+.pex-radar-grid-outer {
+    fill: none;
+    stroke: color-mix(in srgb, var(--pex-accent) 18%, transparent);
+    stroke-width: 1;
+}
+.pex-radar-axis { stroke: rgba(255,255,255,0.07); stroke-width: 0.8; }
+
+/* Radar fill: PNG-safe final state (fully visible) */
+.pex-radar-fill {
+    stroke: var(--pex-accent);
+    stroke-width: 1.8;
+    opacity: 1;
+}
+
+/* Radar dots: PNG-safe final state (fully visible) */
+.pex-radar-dot { fill: var(--pex-accent); opacity: 1; }
+
+/* OVR text (static glow) */
+.pex-ovr-text { opacity: 0.92; }
+
+/* Hero strip */
+.pex-hero-strip {
+    display: flex; justify-content: center; gap: 2.5rem;
+    padding: 0 1.5rem 1rem; position: relative; z-index: 2;
+}
+.pex-strip-item { text-align: center; }
+.pex-strip-label {
+    font-size: 0.6rem; font-weight: 700;
+    color: rgba(255,255,255,0.3); letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 2px;
+}
+.pex-strip-val { font-size: 0.85rem; font-weight: 800; color: rgba(255,255,255,0.75); }
+
+/* ── SKILLS ZONE — flex:1 (~460px) ─────────────────────────────────────── */
+.pex-skills {
+    flex: 1;
+    background: var(--pex-body-bg);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    padding: 14px;
+    min-height: 0;
+}
+.pex-skills-title {
+    flex-shrink: 0;
+    font-size: 0.7rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: rgba(255,255,255,0.28);
+    margin-bottom: 8px;
+}
+.pex-skill-cats {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 11fr 7fr;
+    grid-auto-flow: column;
+    gap: 8px;
+    overflow: hidden; min-height: 0;
+}
+.pex-cat {
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px; padding: 10px;
+    display: flex; flex-direction: column;
+    overflow: hidden; min-height: 0;
+}
+.pex-cat-name {
+    flex-shrink: 0;
+    font-size: 0.62rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.10em;
+    color: color-mix(in srgb, var(--pex-accent) 65%, transparent);
+    margin-bottom: 6px; padding-bottom: 5px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pex-skill-rows {
+    flex: 1; display: flex; flex-direction: column;
+    gap: 2px; min-height: 0; overflow: hidden;
+}
+.pex-row {
+    flex: 1; min-height: 0;
+    display: flex; align-items: center; gap: 6px;
+}
+.pex-sname {
+    flex: 0 0 130px;
+    font-size: 0.75rem; font-weight: 500;
+    color: rgba(255,255,255,0.68);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1;
+}
+.pex-bar-bg {
+    flex: 1; min-width: 0;
+    height: 5px; background: rgba(255,255,255,0.07);
+    border-radius: 3px; overflow: hidden;
+}
+.pex-bar-fill { height: 100%; border-radius: 3px; min-width: 3px; }
+.pex-sval {
+    flex: 0 0 32px;
+    font-size: 0.75rem; font-weight: 700;
+    text-align: right; line-height: 1;
+}
+.pex-trend {
+    flex: 0 0 12px;
+    font-size: 0.65rem; font-weight: 900;
+    text-align: center; line-height: 1;
+}
+
+/* ── FOOTER ─────────────────────────────────────────────────────────────── */
+.pex-footer {
+    flex: 0 0 40px;
+    background: color-mix(in srgb, var(--pex-panel-bg) 40%, #0f1923);
+    border-top: 1px solid color-mix(in srgb, var(--pex-accent) 10%, transparent);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 1.2rem;
+}
+.pex-footer-brand {
+    font-size: 0.58rem; font-weight: 700;
+    color: rgba(255,255,255,0.25); letter-spacing: 0.12em; text-transform: uppercase;
+}
+.pex-footer-variant {
+    font-size: 0.58rem; font-weight: 800;
+    color: color-mix(in srgb, var(--pex-accent) 60%, transparent);
+    letter-spacing: 0.14em;
+    text-shadow: 0 0 8px color-mix(in srgb, var(--pex-accent) 35%, transparent);
+}
+</style>
+
+{% if animated_mode %}
+<style>
+/*
+ * ANIMATED VIDEO EXPORT ONLY — rendered when ?animated=1 is in the render URL.
+ * The PNG export endpoint never passes animated=1, so this block is absent
+ * from all static exports.
+ *
+ * Animation timeline (5s recording after 400ms pre-roll):
+ *   t=0.0s  Scanline starts descent. Pulse rings begin expanding. OVR glow cycle.
+ *           OVR ring draw-in starts (JS double-RAF, 1.4s transition).
+ *   t=0.3s  Radar fill fades in (0.7s duration).
+ *   t=0.5–0.74s  Radar dots fade in staggered (4 × 80ms).
+ *   t=0.83s  Pulse ring 2 starts its own cycle.
+ *   t=1.4s   OVR ring fully drawn.
+ *   t=1.66s  Pulse ring 3 starts its own cycle.
+ *   t=2.5s   Pulse ring 1 completes first loop.
+ *   t=4.0s   Scanline completes first descent.
+ *   t=5.0s   Recording ends (2 pulse ring cycles, 1 scanline pass visible).
+ */
+
+/* ── Scanline ── */
+@keyframes pexScanline {
+    0%   { transform: translateY(-4px); opacity: 0; }
+    10%  { opacity: 0.6; }
+    90%  { opacity: 0.6; }
+    100% { transform: translateY(600px); opacity: 0; }
+}
+.pex-scanline { animation: pexScanline 4s linear infinite; }
+
+/* ── Pulse rings ── */
+@keyframes pexPulseRing {
+    0%   { opacity: 0.55; stroke-width: 2; }
+    60%  { opacity: 0.12; stroke-width: 10; }
+    100% { opacity: 0;    stroke-width: 18; }
+}
+.pex-pulse-ring   { opacity: 0.55; }
+.pex-pulse-ring-1 { animation: pexPulseRing 2.5s ease-out 0s    infinite; }
+.pex-pulse-ring-2 { animation: pexPulseRing 2.5s ease-out 0.83s infinite; }
+.pex-pulse-ring-3 { animation: pexPulseRing 2.5s ease-out 1.66s infinite; }
+
+/* ── OVR text glow ── */
+@keyframes pexOvrGlow {
+    0%, 100% { opacity: 0.88; }
+    50%       { opacity: 1; }
+}
+.pex-ovr-text { animation: pexOvrGlow 3s ease-in-out infinite; }
+
+/* ── OVR ring: override to start hidden, JS + transition draws it in ── */
+.pex-ovr-ring {
+    stroke-dashoffset: 703.72;
+    transition: stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Radar fill + dots: start hidden, JS fades them in ── */
+.pex-radar-fill { opacity: 0; transition: opacity 0.7s 0.4s; }
+.pex-radar-dot  { opacity: 0; transition: opacity 0.3s; }
+</style>
+{% endif %}
+</head>
+
+<body>
+
+{# ── PRE-COMPUTE: category averages + radar coordinates ──────────────────── #}
+{% set cat_avgs = namespace(outfield=50, set_pieces=50, mental=50, physical=50) %}
+{% for cat in skill_categories %}
+    {% set ns = namespace(total=0.0, count=0) %}
+    {% for sk in cat.skills %}
+        {% set ns.total = ns.total + player.skills.get(sk.key, {}).get('current_level', 50) %}
+        {% set ns.count = ns.count + 1 %}
+    {% endfor %}
+    {% set avg = (ns.total / ns.count) | round(0) | int if ns.count > 0 else 50 %}
+    {% if   cat.key == "outfield"   %}{% set cat_avgs.outfield   = avg %}
+    {% elif cat.key == "set_pieces" %}{% set cat_avgs.set_pieces = avg %}
+    {% elif cat.key == "mental"     %}{% set cat_avgs.mental     = avg %}
+    {% elif cat.key == "physical"   %}{% set cat_avgs.physical   = avg %}
+    {% endif %}
+{% endfor %}
+
+{% set r_of = (cat_avgs.outfield   / 100.0) * 80 %}
+{% set r_me = (cat_avgs.mental     / 100.0) * 80 %}
+{% set r_ph = (cat_avgs.physical   / 100.0) * 80 %}
+{% set r_sp = (cat_avgs.set_pieces / 100.0) * 80 %}
+{% set radar_poly = "140," ~ (140 - r_of) ~ " " ~ (140 + r_me) ~ ",140 140," ~ (140 + r_ph) ~ " " ~ (140 - r_sp) ~ ",140" %}
+{% set ovr_target_offset = 703.72 * (1 - (overall | round(0) | int) / 100) %}
+
+<div class="pex-card">
+
+    <!-- ── HERO ──────────────────────────────────────────────────────────── -->
+    <div class="pex-hero">
+
+        <div class="pex-scanline"></div>
+        <div class="pex-corner pex-corner-tl"></div>
+        <div class="pex-corner pex-corner-tr"></div>
+        <div class="pex-corner pex-corner-bl"></div>
+        <div class="pex-corner pex-corner-br"></div>
+
+        <div class="pex-player-row">
+            <div class="pex-avatar">
+                {% if portrait_photo_url %}
+                    <img src="{{ portrait_photo_url }}" alt="{{ player.name }}">
+                {% else %}
+                    {{ initials }}
+                {% endif %}
+            </div>
+            <div class="pex-name-block">
+                <div class="pex-name">{{ player.name }}</div>
+                <div class="pex-badges">
+                    {% if player.position and player.position != "Unknown" %}
+                    <span class="pex-pos-badge" style="background:{{ pos_color }};">{{ player.position }}</span>
+                    {% endif %}
+                    <span class="pex-tier-badge"
+                          style="color:{{ tier_color }};border:1px solid {{ tier_color }}55;background:{{ tier_color }}1a;">
+                        {{ tier_label }}
+                    </span>
+                </div>
+                {% if teams_info %}
+                <div class="pex-team-line">🏟 {{ teams_info[0].team_name }}</div>
+                {% endif %}
+            </div>
+            <div class="pex-mini-stats">
+                <div class="pex-mini-label">Events</div>
+                <div class="pex-mini-val">{{ player.total_tournaments }}</div>
+                <div class="pex-mini-xp">XP {{ (xp_balance | default(0) | int) | string }}</div>
+            </div>
+        </div>
+
+        <div class="pex-svg-zone">
+            <svg viewBox="0 0 280 280" aria-hidden="true">
+                <defs>
+                    <filter id="pex-glow" x="-60%" y="-60%" width="220%" height="220%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="pex-glow-strong" x="-80%" y="-80%" width="260%" height="260%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <radialGradient id="pex-radar-grad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%"   stop-color="{{ theme.accent }}" stop-opacity="0.28"/>
+                        <stop offset="100%" stop-color="{{ theme.accent }}" stop-opacity="0.05"/>
+                    </radialGradient>
+                </defs>
+
+                <!-- Pulse rings (3 staggered layers) -->
+                <circle class="pex-pulse-ring pex-pulse-ring-1" cx="140" cy="140" r="112"/>
+                <circle class="pex-pulse-ring pex-pulse-ring-2" cx="140" cy="140" r="112"/>
+                <circle class="pex-pulse-ring pex-pulse-ring-3" cx="140" cy="140" r="112"/>
+
+                <!-- OVR ring track -->
+                <circle class="pex-ovr-ring-track" cx="140" cy="140" r="112"/>
+
+                <!-- OVR ring progress -->
+                <circle id="pex-ovr-ring" class="pex-ovr-ring"
+                        cx="140" cy="140" r="112"
+                        transform="rotate(-90 140 140)"
+                        data-target-offset="{{ ovr_target_offset | round(2) }}"
+                        filter="url(#pex-glow)"/>
+
+                <!-- Radar grid -->
+                <polygon class="pex-radar-grid-diamond"
+                         points="140,113.6 166.4,140 140,166.4 113.6,140"/>
+                <polygon class="pex-radar-grid-diamond"
+                         points="140,87.2 192.8,140 140,192.8 87.2,140"/>
+                <polygon class="pex-radar-grid-outer"
+                         points="140,60 220,140 140,220 60,140"/>
+
+                <!-- Radar axes -->
+                <line class="pex-radar-axis" x1="140" y1="140" x2="140" y2="60"/>
+                <line class="pex-radar-axis" x1="140" y1="140" x2="220" y2="140"/>
+                <line class="pex-radar-axis" x1="140" y1="140" x2="140" y2="220"/>
+                <line class="pex-radar-axis" x1="140" y1="140" x2="60"  y2="140"/>
+
+                <!-- Radar fill polygon -->
+                <polygon id="pex-radar-fill" class="pex-radar-fill"
+                         points="{{ radar_poly }}"
+                         fill="url(#pex-radar-grad)"
+                         filter="url(#pex-glow)"/>
+
+                <!-- Radar dots -->
+                <circle id="pex-dot-top"    class="pex-radar-dot" cx="140"                        cy="{{ (140 - r_of) | round(2) }}" r="5" filter="url(#pex-glow-strong)"/>
+                <circle id="pex-dot-right"  class="pex-radar-dot" cx="{{ (140 + r_me) | round(2) }}" cy="140"                        r="5" filter="url(#pex-glow-strong)"/>
+                <circle id="pex-dot-bottom" class="pex-radar-dot" cx="140"                        cy="{{ (140 + r_ph) | round(2) }}" r="5" filter="url(#pex-glow-strong)"/>
+                <circle id="pex-dot-left"   class="pex-radar-dot" cx="{{ (140 - r_sp) | round(2) }}" cy="140"                        r="5" filter="url(#pex-glow-strong)"/>
+
+                <!-- Category labels -->
+                <text x="140" y="118" text-anchor="middle"
+                      fill="rgba(255,255,255,0.45)" font-size="7.5" font-weight="700"
+                      letter-spacing="1.5" font-family="monospace">OUTFIELD</text>
+                <text x="140" y="107" text-anchor="middle"
+                      fill="{{ theme.accent }}" font-size="13" font-weight="900"
+                      font-family="monospace" filter="url(#pex-glow)">{{ cat_avgs.outfield }}</text>
+
+                <text x="225" y="136" text-anchor="start"
+                      fill="rgba(255,255,255,0.45)" font-size="7.5" font-weight="700"
+                      letter-spacing="1.5" font-family="monospace">MENTAL</text>
+                <text x="225" y="150" text-anchor="start"
+                      fill="{{ theme.accent }}" font-size="13" font-weight="900"
+                      font-family="monospace" filter="url(#pex-glow)">{{ cat_avgs.mental }}</text>
+
+                <text x="140" y="232" text-anchor="middle"
+                      fill="rgba(255,255,255,0.45)" font-size="7.5" font-weight="700"
+                      letter-spacing="1.5" font-family="monospace">PHYSICAL</text>
+                <text x="140" y="245" text-anchor="middle"
+                      fill="{{ theme.accent }}" font-size="13" font-weight="900"
+                      font-family="monospace" filter="url(#pex-glow)">{{ cat_avgs.physical }}</text>
+
+                <text x="55" y="136" text-anchor="end"
+                      fill="rgba(255,255,255,0.45)" font-size="7.5" font-weight="700"
+                      letter-spacing="1.5" font-family="monospace">SET PCS</text>
+                <text x="55" y="150" text-anchor="end"
+                      fill="{{ theme.accent }}" font-size="13" font-weight="900"
+                      font-family="monospace" filter="url(#pex-glow)">{{ cat_avgs.set_pieces }}</text>
+
+                <!-- OVR number -->
+                <text id="pex-ovr-text" class="pex-ovr-text"
+                      x="140" y="132" text-anchor="middle"
+                      fill="white" font-size="36" font-weight="900"
+                      font-family="monospace" letter-spacing="-1"
+                      filter="url(#pex-glow)">{{ overall | round(0) | int }}</text>
+                <text x="140" y="148" text-anchor="middle"
+                      fill="{{ theme.accent }}" font-size="8.5" font-weight="800"
+                      font-family="monospace" letter-spacing="4" opacity="0.85">OVERALL</text>
+                <text x="140" y="162" text-anchor="middle"
+                      fill="rgba(255,255,255,0.3)" font-size="7" font-weight="700"
+                      font-family="monospace" letter-spacing="2">{{ tier_label }}</text>
+            </svg>
+        </div>
+
+        <div class="pex-hero-strip">
+            {% if player.nationality %}
+            <div class="pex-strip-item">
+                <div class="pex-strip-label">NAT</div>
+                <div class="pex-strip-val">{{ player.nationality }}</div>
+            </div>
+            {% endif %}
+            <div class="pex-strip-item">
+                <div class="pex-strip-label">GRP</div>
+                <div class="pex-strip-val">{{ player.age_group }}</div>
+            </div>
+        </div>
+
+    </div><!-- /pex-hero -->
+
+    <!-- ── SKILLS ─────────────────────────────────────────────────────────── -->
+    {% if skill_categories %}
+    <div class="pex-skills">
+        <div class="pex-skills-title">Football Skills — {{ overall | round(0) | int }} OVR · PULSE ◈</div>
+        <div class="pex-skill-cats">
+            {% for cat in skill_categories %}
+            <div class="pex-cat">
+                <div class="pex-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
+                <div class="pex-skill-rows">
+                    {% for skill in cat.skills %}
+                    {% set sdata  = player.skills.get(skill.key, {}) %}
+                    {% set sval   = sdata.get('current_level', 50) | round(0) | int %}
+                    {% set fill   = [sval, 100] | min %}
+                    {% set sdelta = last_skill_delta.get(skill.key, 0) %}
+                    {% if sdelta > 0 %}
+                        {% set bar_clr = '#48bb78' %}
+                        {% set val_clr = '#48bb78' %}
+                        {% set trend   = '↑' %}
+                        {% set trend_vis = 'visible' %}
+                    {% elif sdelta < 0 %}
+                        {% set bar_clr = '#fc8181' %}
+                        {% set val_clr = '#fc8181' %}
+                        {% set trend   = '↓' %}
+                        {% set trend_vis = 'visible' %}
+                    {% else %}
+                        {% set bar_clr = 'rgba(255,255,255,0.18)' %}
+                        {% set val_clr = 'rgba(255,255,255,0.80)' %}
+                        {% set trend   = '↑' %}
+                        {% set trend_vis = 'hidden' %}
+                    {% endif %}
+                    <div class="pex-row">
+                        <span class="pex-sname">{{ skill.name_en }}</span>
+                        <div class="pex-bar-bg">
+                            <div class="pex-bar-fill"
+                                 style="width:{{ fill }}%;background:{{ bar_clr }};box-shadow:0 0 6px {{ bar_clr }}55;"></div>
+                        </div>
+                        <span class="pex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
+                        <span class="pex-trend" style="color:{{ bar_clr }};visibility:{{ trend_vis }};">{{ trend }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ── FOOTER ─────────────────────────────────────────────────────────── -->
+    <div class="pex-footer">
+        <span class="pex-footer-brand">LFA Education Center</span>
+        <span class="pex-footer-variant">PULSE ◈</span>
+    </div>
+
+</div><!-- /pex-card -->
+
+<script>
+// OVR ring draw-in + radar reveal
+// Safe in both modes: in static (PNG) mode the CSS has no transition, so
+// the JS assignment is instantaneous (ring is already at target from CSS).
+// In animated mode the CSS transition is set and the double-RAF triggers it.
+document.addEventListener('DOMContentLoaded', function () {
+    var ring = document.getElementById('pex-ovr-ring');
+    if (ring) {
+        var target = parseFloat(ring.getAttribute('data-target-offset') || '703.72');
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                ring.style.strokeDashoffset = target;
+            });
+        });
+    }
+
+    setTimeout(function () {
+        var fill = document.getElementById('pex-radar-fill');
+        if (fill) fill.classList.add('visible');
+        // Direct opacity set (classList.add works only if transition is defined
+        // via CSS; for safety also set the style directly)
+        if (fill) fill.style.opacity = '1';
+    }, 300);
+
+    ['pex-dot-top', 'pex-dot-right', 'pex-dot-bottom', 'pex-dot-left'].forEach(
+        function (id, i) {
+            setTimeout(function () {
+                var dot = document.getElementById(id);
+                if (dot) dot.style.opacity = '1';
+            }, 500 + i * 80);
+        }
+    );
+});
+</script>
+
+</body>
+</html>
