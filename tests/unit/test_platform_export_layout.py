@@ -47,6 +47,10 @@ Tests:
   EX-30  square/fifa.html template source has no skill slicing (no cat.skills[:)
   EX-31  FIFA × instagram_square export uses column grid-auto-flow (proportional rows)
   EX-31b FIFA × instagram_square export CSS contains proportional row heights (11fr 7fr)
+  EX-32  square/fifa.html template source contains {% if animated_mode %} branch
+  EX-33  square/fifa.html rendered with animated_mode=True contains @keyframes
+  EX-34  square/fifa.html rendered with animated_mode=False (default) contains NO @keyframes
+  EX-35  animated_mode=False does not break PNG static layout (bar fill CSS present)
 """
 from __future__ import annotations
 
@@ -859,4 +863,83 @@ class TestFifaSquareAllSkills:
         assert "11fr 7fr" in html, (
             "Proportional row heights (11fr 7fr) not found in Square export CSS — "
             "grid rows may be equal (1fr 1fr) causing empty space in low-skill-count cells"
+        )
+
+
+@pytest.mark.unit
+class TestFifaSquareAnimatedMode:
+    """Animated video export template tests for FIFA Classic × Square.
+
+    EX-32  square/fifa.html source contains {%- if animated_mode %} branch
+    EX-33  rendered HTML with animated_mode=True contains @keyframes
+    EX-34  rendered HTML with animated_mode=False (default) contains NO @keyframes
+    EX-35  animated_mode=False does not break static layout (bar fill CSS present)
+    """
+
+    def _render_square(self, client, animated: bool = False) -> str:
+        """Render the square/fifa.html export template with animated_mode on or off."""
+        from app.main import app
+        from app.dependencies import get_db
+
+        db = _mock_db(user=_make_user(), license_=_make_license(card_variant="fifa"))
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            params = "platform=instagram_square&export=1"
+            if animated:
+                params += "&animated=1"
+            r = client.get(f"/players/7/card?{params}")
+            return r.text if r.status_code == 200 else ""
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+    def test_ex32_template_source_has_animated_mode_branch(self):
+        """square/fifa.html source must contain the animated_mode Jinja2 conditional."""
+        import os
+        import app as _app_pkg
+
+        tpl_path = os.path.join(
+            os.path.dirname(_app_pkg.__file__),
+            "templates/public/export/square/fifa.html",
+        )
+        with open(tpl_path, encoding="utf-8") as f:
+            source = f.read()
+
+        assert "animated_mode" in source, (
+            "{% if animated_mode %} branch not found in square/fifa.html — "
+            "animation CSS block missing from template source"
+        )
+
+    def test_ex33_animated_mode_true_renders_keyframes(self, client):
+        """When animated_mode=True, the rendered HTML must contain @keyframes."""
+        html = self._render_square(client, animated=True)
+        assert html, "Export returned empty response for animated=True render"
+        assert "@keyframes" in html, (
+            "@keyframes not found in animated render — "
+            "animation CSS block may not be activating when animated=1 is passed"
+        )
+
+    def test_ex34_animated_mode_false_no_keyframes(self, client):
+        """Default render (no animated param) must NOT contain @keyframes.
+
+        This is the critical static-export isolation invariant: PNG renders
+        must never include animation CSS, regardless of template changes.
+        """
+        html = self._render_square(client, animated=False)
+        assert html, "Export returned empty response for animated=False render"
+        assert "@keyframes" not in html, (
+            "@keyframes found in static (non-animated) Square export render — "
+            "animation CSS must be inside {% if animated_mode %} block only"
+        )
+
+    def test_ex35_static_layout_not_broken_by_animation_block(self, client):
+        """Static render must still contain the skill bar fill CSS.
+
+        Verifies that the animation block addition did not accidentally remove
+        or displace the static layout CSS.
+        """
+        html = self._render_square(client, animated=False)
+        assert html, "Export returned empty response"
+        assert "ex-bar-fill" in html, (
+            ".ex-bar-fill CSS class not found in static render — "
+            "static layout may have been broken by template changes"
         )

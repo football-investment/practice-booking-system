@@ -341,6 +341,59 @@ html, body {
     line-height: 1;
 }
 </style>
+
+{% if animated_mode %}
+<style>
+/* ── ANIMATED VIDEO EXPORT ONLY ──────────────────────────────────────────────
+ * This block is ONLY rendered when ?animated=1 is present in the render URL.
+ * The PNG export endpoint never passes animated=1 — static exports are
+ * completely unaffected and never contain @keyframes.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+/* OVR number: fade + elastic scale in */
+@keyframes ex-ovr-in {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.ex-ovr-num  { animation: ex-ovr-in 0.5s cubic-bezier(.34,1.56,.64,1) forwards; }
+.ex-tier-badge { opacity: 0; animation: ex-ovr-in 0.4s 0.4s ease-out forwards; }
+
+/* Skill bar fill: animate from width 0 → actual value (staggered per row) */
+@keyframes ex-bar-in {
+    from { width: 0%; }
+}
+.ex-bar-fill { animation: ex-bar-in 0.8s ease-out forwards; }
+.ex-row:nth-child(1)  .ex-bar-fill { animation-delay: 0.30s; }
+.ex-row:nth-child(2)  .ex-bar-fill { animation-delay: 0.35s; }
+.ex-row:nth-child(3)  .ex-bar-fill { animation-delay: 0.40s; }
+.ex-row:nth-child(4)  .ex-bar-fill { animation-delay: 0.45s; }
+.ex-row:nth-child(5)  .ex-bar-fill { animation-delay: 0.50s; }
+.ex-row:nth-child(6)  .ex-bar-fill { animation-delay: 0.55s; }
+.ex-row:nth-child(7)  .ex-bar-fill { animation-delay: 0.60s; }
+.ex-row:nth-child(8)  .ex-bar-fill { animation-delay: 0.65s; }
+.ex-row:nth-child(9)  .ex-bar-fill { animation-delay: 0.70s; }
+.ex-row:nth-child(10) .ex-bar-fill { animation-delay: 0.75s; }
+.ex-row:nth-child(11) .ex-bar-fill { animation-delay: 0.80s; }
+
+/* Category cells: slide up + fade in, staggered by grid position */
+@keyframes ex-cat-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.ex-cat { opacity: 0; animation: ex-cat-in 0.4s ease-out forwards; }
+.ex-cat:nth-child(1) { animation-delay: 0.15s; }
+.ex-cat:nth-child(2) { animation-delay: 0.25s; }
+.ex-cat:nth-child(3) { animation-delay: 0.20s; }
+.ex-cat:nth-child(4) { animation-delay: 0.30s; }
+
+/* Hero panel: subtle ambient glow pulse (continuous loop) */
+@keyframes ex-hero-glow {
+    0%, 100% { box-shadow: 0 0 0   0   rgba(102,126,234,0); }
+    50%       { box-shadow: 0 0 60px 12px rgba(102,126,234,0.15); }
+}
+.ex-hero { animation: ex-hero-glow 3s ease-in-out infinite; }
+</style>
+{% endif %}
 </head>
 <body>
 <div class="ex-card">

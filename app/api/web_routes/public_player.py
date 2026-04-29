@@ -61,6 +61,7 @@ def public_player_card(
     preview: Optional[str] = Query(None),
     platform: Optional[str] = Query(None),
     export: Optional[bool] = Query(default=False),
+    animated: Optional[bool] = Query(default=False),
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(
@@ -227,6 +228,10 @@ def public_player_card(
         if os.path.isfile(os.path.join(_TEMPLATES_DIR, _exp_tpl)):
             template_path = _exp_tpl
 
+    # animated_mode: True only when both export=1 AND animated=1 are present.
+    # The PNG endpoint never passes animated=1 → this is always False for PNG renders.
+    animated_mode = bool(export) and bool(animated)
+
     return templates.TemplateResponse(request, template_path, {
         "player": player,
         "overall": overall,
@@ -237,6 +242,7 @@ def public_player_card(
         "pos_color": _POS_COLORS.get(position, "#667eea"),
         "skill_categories": SKILL_CATEGORIES,
         "teams_info": teams_info,
+        "animated_mode": animated_mode,
         # photo_url kept for FIFA (original, uncropped)
         "photo_url": _orig_url,
         "portrait_photo_url": _portrait_url,   # compact / compact_bg
@@ -352,5 +358,130 @@ async def export_player_card(
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-store",
             "X-Export-Platform": platform,
+        },
+    )
+
+
+# ── Animated video export endpoint ───────────────────────────────────────────
+
+_SUPPORTED_VIDEO_FORMATS   = {"webm"}
+_SUPPORTED_VIDEO_DURATIONS = {5}
+
+
+@router.get("/players/{user_id}/card/export/video")
+async def export_player_card_video(
+    request: Request,
+    user_id: int,
+    platform: str = Query("instagram_square"),
+    format: str = Query("webm"),
+    duration: int = Query(5),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_web),
+):
+    """Export an animated player card as a WebM video.
+
+    Only available for (variant, platform) pairs in ANIMATED_EXPORT_CAPABLE.
+    MVP: format=webm, duration=5, platform=instagram_square, variant=fifa only.
+
+    Auth: authenticated users may only export their own card.
+    Admins may export any player's card.
+    Rate limit: 2 video exports per 60 s per user+IP (separate from PNG limit).
+    """
+    from app.config import settings
+
+    # Ownership check
+    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="You can only export your own card")
+
+    # MVP format + duration validation
+    if format not in _SUPPORTED_VIDEO_FORMATS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported video format: {format!r}. Supported: {sorted(_SUPPORTED_VIDEO_FORMATS)}",
+        )
+    if duration not in _SUPPORTED_VIDEO_DURATIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported duration: {duration}. Supported: {sorted(_SUPPORTED_VIDEO_DURATIONS)}",
+        )
+
+    # Platform whitelist — "default" has no canvas size and is not an export target
+    if platform not in _export_svc.CANVAS_SIZES:
+        valid = list(_export_svc.CANVAS_SIZES)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported export platform: {platform!r}. Valid values: {valid}",
+        )
+
+    # Validate target user + active LFA Player license
+    target_user = db.query(User).filter(
+        User.id == user_id, User.is_active == True
+    ).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    target_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not target_license:
+        raise HTTPException(status_code=404, detail="No active LFA Player license")
+
+    # Animated capability check — variant comes from DB, never from URL
+    card_variant_id = target_license.card_variant or "fifa"
+    if not _export_svc.is_animated_capable(card_variant_id, platform):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Animated video export is not available for variant={card_variant_id!r} "
+                f"and platform={platform!r}."
+            ),
+        )
+
+    # Dedicated export template existence check (guards registry/template drift)
+    if platform in _EXPORT_FORMAT_BUCKETS:
+        _fmt = _EXPORT_FORMAT_BUCKETS[platform]
+        _tpl = f"public/export/{_fmt}/{card_variant_id}.html"
+        if not os.path.isfile(os.path.join(_TEMPLATES_DIR, _tpl)):
+            raise HTTPException(
+                status_code=422,
+                detail=f"No export template found for variant={card_variant_id!r} and platform={platform!r}.",
+            )
+
+    # Rate limit: 2 video exports / 60 s per (user_id, client_ip)
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = f"{current_user.id}:{client_ip}"
+    if not _export_svc.check_video_rate_limit(rate_key):
+        raise HTTPException(
+            status_code=429,
+            detail="Video export rate limit exceeded (2 per minute). Please wait before exporting again.",
+        )
+
+    # Render URL — animated=1 activates the animation CSS block in the template.
+    # The PNG endpoint never includes animated=1, so static export is unaffected.
+    render_url = (
+        f"http://127.0.0.1:{settings.APP_INTERNAL_PORT}"
+        f"/players/{user_id}/card?platform={platform}&export=1&animated=1"
+    )
+
+    # Video recording runs in a thread so it does not block the event loop
+    try:
+        webm_bytes = await asyncio.to_thread(
+            _export_svc._sync_record_video, render_url, platform, duration
+        )
+    except _export_svc.CardVideoRecordError:
+        raise HTTPException(status_code=504, detail="Card video render timed out or failed")
+
+    filename = f"lfa_card_{user_id}_{platform}_animated.webm"
+    return Response(
+        content=webm_bytes,
+        media_type="video/webm",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+            "X-Export-Platform": platform,
+            "X-Export-Format": "webm",
+            "X-Export-Duration": str(duration),
         },
     )

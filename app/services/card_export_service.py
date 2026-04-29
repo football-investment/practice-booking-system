@@ -25,14 +25,33 @@ CANVAS_SIZES: dict[str, tuple[int, int]] = {
     "banner_custom":      (1500,  500),
 }
 
-_GOTO_TIMEOUT_MS = 10_000  # 10 s — generous vs. measured 0.6 s
+# ── Animated video export capability registry ─────────────────────────────────
+# Central source of truth: (variant_id, platform_id) pairs that have a
+# dedicated animated export template.  All other combinations are unsupported
+# and the video endpoint returns 422 — no fallback, no silent degradation.
+ANIMATED_EXPORT_CAPABLE: frozenset[tuple[str, str]] = frozenset({
+    ("fifa", "instagram_square"),
+})
+
+
+def is_animated_capable(variant_id: str, platform_id: str) -> bool:
+    """Return True if (variant_id, platform_id) supports animated video export."""
+    return (variant_id, platform_id) in ANIMATED_EXPORT_CAPABLE
+
+
+_GOTO_TIMEOUT_MS  = 10_000  # 10 s — generous vs. measured 0.6 s
+_VIDEO_TIMEOUT_MS = 30_000  # 30 s — covers 10 s recording + Chromium launch overhead
 
 
 class CardExportTimeoutError(Exception):
     """Raised when Playwright page load exceeds _GOTO_TIMEOUT_MS."""
 
 
-# ── In-memory rate limiter: 5 exports / 60 s per rate_key ────────────────────
+class CardVideoRecordError(Exception):
+    """Raised when Playwright video recording fails or produces no output."""
+
+
+# ── PNG rate limiter: 5 exports / 60 s per rate_key ──────────────────────────
 _EXPORT_LIMIT  = 5
 _EXPORT_WINDOW = 60  # seconds
 _rate_counters: dict[str, deque] = {}
@@ -40,7 +59,7 @@ _rate_lock = Lock()
 
 
 def check_export_rate_limit(rate_key: str) -> bool:
-    """Return True if the caller is within the rate limit, False if exceeded."""
+    """Return True if the caller is within the PNG rate limit, False if exceeded."""
     now = time.monotonic()
     with _rate_lock:
         if rate_key not in _rate_counters:
@@ -56,9 +75,39 @@ def check_export_rate_limit(rate_key: str) -> bool:
 
 
 def reset_rate_counters() -> None:
-    """Test helper — clears all in-memory rate counters."""
+    """Test helper — clears all in-memory PNG rate counters."""
     with _rate_lock:
         _rate_counters.clear()
+
+
+# ── Video rate limiter: 2 exports / 60 s per rate_key ────────────────────────
+# Video recording is ~10× heavier than PNG — separate, tighter limit.
+_VIDEO_LIMIT  = 2
+_VIDEO_WINDOW = 60  # seconds
+_video_rate_counters: dict[str, deque] = {}
+_video_rate_lock = Lock()
+
+
+def check_video_rate_limit(rate_key: str) -> bool:
+    """Return True if the caller is within the video rate limit, False if exceeded."""
+    now = time.monotonic()
+    with _video_rate_lock:
+        if rate_key not in _video_rate_counters:
+            _video_rate_counters[rate_key] = deque()
+        dq = _video_rate_counters[rate_key]
+        cutoff = now - _VIDEO_WINDOW
+        while dq and dq[0] < cutoff:
+            dq.popleft()
+        if len(dq) >= _VIDEO_LIMIT:
+            return False
+        dq.append(now)
+        return True
+
+
+def reset_video_rate_counters() -> None:
+    """Test helper — clears all in-memory video rate counters."""
+    with _video_rate_lock:
+        _video_rate_counters.clear()
 
 
 def _sync_take_screenshot(render_url: str, platform: str) -> bytes:  # pragma: no cover
@@ -95,3 +144,55 @@ def _sync_take_screenshot(render_url: str, platform: str) -> bytes:  # pragma: n
         raise CardExportTimeoutError(str(exc)) from exc
 
     return png
+
+
+def _sync_record_video(  # pragma: no cover
+    render_url: str,
+    platform: str,
+    duration_s: int = 5,
+) -> bytes:
+    """Launch headless Chromium, record the animated card for duration_s, return WebM bytes.
+
+    Called via asyncio.to_thread from the async video export endpoint so it does
+    not block the event loop.
+
+    Playwright writes a .webm file to a temp dir when context.close() is called.
+    The render_url must include ?animated=1 so the template activates its CSS
+    animation block — this function does not add that param itself.
+
+    Raises:
+        CardVideoRecordError: if recording times out or produces no WebM file
+        ValueError: if platform has no registered canvas size
+    """
+    import pathlib
+    import tempfile
+
+    canvas = CANVAS_SIZES.get(platform)
+    if canvas is None:
+        raise ValueError(f"No canvas size for platform: {platform!r}")
+    w, h = canvas
+
+    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import TimeoutError as _PWTimeout
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    viewport={"width": w, "height": h},
+                    record_video_dir=tmp_dir,
+                    record_video_size={"width": w, "height": h},
+                )
+                page = context.new_page()
+                page.goto(render_url, wait_until="networkidle", timeout=_VIDEO_TIMEOUT_MS)
+                page.wait_for_timeout(duration_s * 1000)
+                context.close()   # triggers WebM finalization
+                browser.close()
+
+            webm_files = list(pathlib.Path(tmp_dir).glob("*.webm"))
+            if not webm_files:
+                raise CardVideoRecordError("No WebM file produced by Playwright")
+            return webm_files[0].read_bytes()
+    except _PWTimeout as exc:
+        raise CardVideoRecordError(str(exc)) from exc

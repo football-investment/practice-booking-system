@@ -408,6 +408,13 @@ async def lfa_player_card_editor(
     ]
     active_card_variant = user_license.card_variant or "fifa"
 
+    # Animated video export capability: list of platforms supported for the
+    # current variant. Used by the card editor to show/hide the video button.
+    from ...services.card_export_service import ANIMATED_EXPORT_CAPABLE
+    animated_capable_platforms = [
+        p for (v, p) in ANIMATED_EXPORT_CAPABLE if v == active_card_variant
+    ]
+
     return templates.TemplateResponse(
         "dashboard_card_editor.html",
         {
@@ -421,6 +428,7 @@ async def lfa_player_card_editor(
             "active_card_variant": active_card_variant,
             "active_card_platform": user_license.public_card_platform or "default",
             "show_variant_picker": True,  # page is LFA Football Player only
+            "animated_capable_platforms": animated_capable_platforms,
         },
     )
 
