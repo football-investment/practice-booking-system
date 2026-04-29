@@ -57542,6 +57542,23 @@
               "default": false,
               "title": "Export"
             }
+          },
+          {
+            "in": "query",
+            "name": "animated",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": false,
+              "title": "Animated"
+            }
           }
         ],
         "responses": {
@@ -57618,6 +57635,77 @@
           }
         },
         "summary": "Export Player Card",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/players/{user_id}/card/export/video": {
+      "get": {
+        "description": "Export an animated player card as a WebM video.\n\nOnly available for (variant, platform) pairs in ANIMATED_EXPORT_CAPABLE.\nMVP: format=webm, duration=5, platform=instagram_square, variant=fifa only.\n\nAuth: authenticated users may only export their own card.\nAdmins may export any player's card.\nRate limit: 2 video exports per 60 s per user+IP (separate from PNG limit).",
+        "operationId": "export_player_card_video_players__user_id__card_export_video_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "default": "instagram_square",
+              "title": "Platform",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "webm",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "duration",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "title": "Duration",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Player Card Video",
         "tags": [
           "web"
         ]
