@@ -43,6 +43,9 @@ Tests:
   EX-26  FIFA × banner_custom export HTML has .ex-skill-cats
   EX-27  FIFA × banner_custom export uses landscape_photo_url variable
   EX-28  FIFA × banner_custom uses banner template, not landscape template (420px left panel)
+  EX-29  FIFA × instagram_square export HTML contains all 11 Outfield skill names
+  EX-30  square/fifa.html template source has no skill slicing (no cat.skills[:)
+  EX-31  FIFA × instagram_square export HTML contains fixed-row-height CSS (0 0 28px)
 """
 from __future__ import annotations
 
@@ -771,4 +774,74 @@ class TestFifaBannerExport:
         assert html, "Export returned empty response for banner_custom"
         assert "0 0 420px" in html, (
             "Banner-specific 420px left panel not found — landscape template (360px) may have loaded"
+        )
+
+
+@pytest.mark.unit
+class TestFifaSquareAllSkills:
+    """All-skills regression tests for FIFA Classic × Square export template.
+
+    EX-29  All 11 Outfield skill names present in rendered Square export HTML
+    EX-30  square/fifa.html template source contains no skill slicing (cat.skills[:)
+    EX-31  Square export HTML contains fixed-row-height CSS (flex: 0 0 28px)
+    """
+
+    def _get_fifa_export_html(self, client, platform: str = "instagram_square") -> str:
+        from app.main import app
+        from app.dependencies import get_db
+
+        db = _mock_db(user=_make_user(), license_=_make_license(card_variant="fifa"))
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            r = client.get(f"/players/7/card?platform={platform}&export=1")
+            return r.text if r.status_code == 200 else ""
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+    def test_ex29_square_all_outfield_skills(self, client):
+        """All 11 Outfield skill names must appear in the Square export HTML.
+
+        Verifies that the [:4] slicing has been removed and Outfield skills
+        (the largest category at 11 skills) are fully rendered.
+        """
+        from app.skills_config import SKILL_CATEGORIES
+
+        html = self._get_fifa_export_html(client, "instagram_square")
+        assert html, "Export returned empty response for instagram_square"
+
+        outfield = next(c for c in SKILL_CATEGORIES if c["name_en"] == "Outfield")
+        for skill in outfield["skills"]:
+            assert skill["name_en"] in html, (
+                f"Outfield skill '{skill['name_en']}' not found in Square export HTML — "
+                "skill slicing may still be active"
+            )
+
+    def test_ex30_square_no_skill_slicing(self, client):
+        """Template source must not contain cat.skills[: — all skills rendered without slicing."""
+        import os
+        import app as _app_pkg
+
+        tpl_path = os.path.join(
+            os.path.dirname(_app_pkg.__file__),
+            "templates/public/export/square/fifa.html",
+        )
+        with open(tpl_path, encoding="utf-8") as f:
+            source = f.read()
+
+        assert "cat.skills[:" not in source, (
+            "Skill slicing detected in export/square/fifa.html — "
+            "use `cat.skills` (no slice) so all 29 skills are rendered"
+        )
+
+    def test_ex31_square_fixed_row_height(self, client):
+        """Square export CSS must use fixed 28px row height, not flex:1 equal-stretch.
+
+        The 28px fixed height is the calculated minimum to fit Outfield's 11 skills
+        (328px) within the available cell height (336px, 8px spare).
+        """
+        html = self._get_fifa_export_html(client, "instagram_square")
+        assert html, "Export returned empty response for instagram_square"
+        assert "0 0 28px" in html, (
+            "Fixed row height (flex: 0 0 28px) not found in Square export CSS — "
+            "rows may be using flex:1 stretch which prevents all 11 Outfield skills from fitting"
         )

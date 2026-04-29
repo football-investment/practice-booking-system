@@ -9,6 +9,30 @@
  * Canvas  : 1080 × 1080 px  (Playwright viewport)
  * Purpose : static social export ONLY — no editor UI, no responsive CSS
  * Classes : ex- prefix throughout, no inheritance from editor templates
+ *
+ * All-skills layout (vs. original [:4] slicing):
+ *   hero        300px → 260px    (−40px, frees vertical space for skills)
+ *   padding     20px  → 14px     (skills zone outer)
+ *   title       13/14px → 12/8px (font / margin-bottom)
+ *   grid gap    12px  → 8px
+ *   cell pad    16px  → 10px
+ *   cat name    13/12/8px → 11/7/5px (font/margin/padding)
+ *   rows        flex:1 stretch → flex:0 0 28px fixed + gap:2px
+ *   row gap     8px   → 6px
+ *   sname       170px/16px → 130px/12px
+ *   bar height  8px   → 5px
+ *   sval        44px/16px  → 34px/12px
+ *   trend       18px/14px  → 14px/11px
+ *   slicing     [:4]  → none (all 29 skills rendered)
+ *
+ * Space budget for Outfield (11 skills, the critical constraint):
+ *   skills zone  = 1080 − 260 = 820px
+ *   inner height = 820 − 28 = 792px  (padding 14px t+b)
+ *   title        = ~22px consumed → 770px grid area
+ *   grid row     = (770 − 8) / 2 = 381px  (gap 8px, 2 rows)
+ *   cell inner   = 381 − 20 = 361px  (padding 10px t+b)
+ *   cat name     = ~25px consumed → 336px for skill rows
+ *   Outfield     = 11×28 + 10×2 = 328px ≤ 336px  (8px spare) ✓
  */
 
 :root {
@@ -38,11 +62,12 @@ html, body {
 }
 
 /* ── HERO ZONE ────────────────────────────────────────────────────────────────
-   Fixed at 300px (27.8% of 1080px).
+   Fixed at 260px (24.1% of 1080px — reduced from 300px to free space for all
+   29 skills in the skills zone below).
    Layout: [avatar 140px] · [identity flex:1] · [OVR block fixed]
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-hero {
-    flex: 0 0 300px;
+    flex: 0 0 260px;
     background: var(--ex-panel-bg);
     display: flex;
     align-items: center;
@@ -182,8 +207,15 @@ html, body {
 }
 
 /* ── SKILLS ZONE ──────────────────────────────────────────────────────────────
-   flex:1 → takes 1080 - 300 = 780px of remaining height.
+   flex:1 → takes 1080 − 260 = 820px of remaining height.
    Internal: skills-title (flex-shrink:0) + 2×2 grid (flex:1).
+
+   Grid row budget:
+     inner height = 820 − 28 (pad 14t+b) − 22 (title) = 770px
+     each grid row = (770 − 8 gap) / 2 = 381px
+     cell inner    = 381 − 20 (pad 10t+b) = 361px
+     cat name      = ~25px → 336px for skill rows
+     Outfield 11   = 11×28 + 10×2 = 328px ≤ 336px ✓
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-skills {
     flex: 1;
@@ -191,17 +223,17 @@ html, body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 20px;
+    padding: 14px;
     min-height: 0;
 }
 .ex-skills-title {
     flex-shrink: 0;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.14em;
     color: rgba(255,255,255,0.30);
-    margin-bottom: 14px;
+    margin-bottom: 8px;
 }
 
 /* 2×2 category grid */
@@ -210,7 +242,7 @@ html, body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
-    gap: 12px;
+    gap: 8px;
     overflow: hidden;
     min-height: 0;
 }
@@ -219,7 +251,7 @@ html, body {
 .ex-cat {
     background: var(--ex-cat-bg);
     border-radius: 12px;
-    padding: 16px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -227,41 +259,45 @@ html, body {
 }
 .ex-cat-name {
     flex-shrink: 0;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.10em;
     color: rgba(255,255,255,0.48);
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    margin-bottom: 7px;
+    padding-bottom: 5px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Skill rows container — fills remaining cell height evenly */
+/* Skill rows container — fixed-height rows stack from top; no flex:1 stretching.
+   gap:2px between rows; overflow:hidden prevents Set Pieces (3 rows) from
+   leaving visible empty space issues. */
 .ex-skill-rows {
     flex: 1;
     display: flex;
     flex-direction: column;
+    gap: 2px;
     min-height: 0;
     overflow: hidden;
 }
 
-/* Individual skill row — flex:1 stretches all rows equally */
+/* Individual skill row — fixed 28px height (replaces flex:1 equal-stretch).
+   Outfield (11 skills): 11×28 + 10×2 = 328px fits in 336px available. */
 .ex-row {
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 28px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
-/* Fixed-width name column — prevents bar widths from varying by name length */
+/* Fixed-width name column — 130px at 12px fits all 29 skill names without clip.
+   Longest: "Tactical Awareness" ~126px at 12px system font. */
 .ex-sname {
-    flex: 0 0 170px;
-    font-size: 16px;
+    flex: 0 0 130px;
+    font-size: 12px;
     font-weight: 500;
     color: rgba(255,255,255,0.72);
     white-space: nowrap;
@@ -270,11 +306,11 @@ html, body {
     line-height: 1;
 }
 
-/* Skill bar — fills remaining row width */
+/* Skill bar — fills remaining row width (~306px in a 522px wide cell) */
 .ex-bar-bg {
     flex: 1;
     min-width: 0;
-    height: 8px;
+    height: 5px;
     background: var(--ex-bar-bg);
     border-radius: 4px;
     overflow: hidden;
@@ -287,8 +323,8 @@ html, body {
 
 /* Value — right-aligned fixed width */
 .ex-sval {
-    flex: 0 0 44px;
-    font-size: 16px;
+    flex: 0 0 34px;
+    font-size: 12px;
     font-weight: 700;
     text-align: right;
     line-height: 1;
@@ -296,8 +332,8 @@ html, body {
 
 /* Trend arrow — hidden when neutral (visibility:hidden preserves alignment) */
 .ex-trend {
-    flex: 0 0 18px;
-    font-size: 14px;
+    flex: 0 0 14px;
+    font-size: 11px;
     font-weight: 900;
     text-align: center;
     line-height: 1;
@@ -368,7 +404,7 @@ html, body {
             <div class="ex-cat">
                 <div class="ex-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
                 <div class="ex-skill-rows">
-                    {% for skill in cat.skills[:4] %}
+                    {% for skill in cat.skills %}
                     {% set sdata = player.skills.get(skill.key, {}) %}
                     {% set sval  = sdata.get('current_level', 50) | round(0) | int %}
                     {% set fill  = [sval, 100] | min %}
