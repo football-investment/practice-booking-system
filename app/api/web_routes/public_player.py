@@ -24,6 +24,7 @@ from app.models.team import Team, TeamMember
 from app.models.club import Club
 from app.services import card_export_service as _export_svc
 from app.skills_config import SKILL_CATEGORIES
+from app.utils.dominant_foot import calculate_dominant_badge
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -279,6 +280,10 @@ def public_player_card(
         "player_height_cm":      (lfa_license.motivation_scores or {}).get("height_cm"),
         "player_weight_kg":      (lfa_license.motivation_scores or {}).get("weight_kg"),
         "player_preferred_foot": (lfa_license.motivation_scores or {}).get("preferred_foot"),
+        "dominant_badge":        calculate_dominant_badge(
+            lfa_license.right_foot_score,
+            lfa_license.left_foot_score,
+        ),
     })
 
 

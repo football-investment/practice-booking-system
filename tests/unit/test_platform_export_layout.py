@@ -93,6 +93,8 @@ def _make_license(card_variant: str = "compact") -> MagicMock:
     lic.compact_photo_position = "left"
     lic.compact_focus_x = 50
     lic.compact_focus_y = 20
+    lic.right_foot_score = None
+    lic.left_foot_score = None
     return lic
 
 
@@ -717,6 +719,46 @@ class TestFifaLandscapeExport:
         assert html, "Export returned empty response for og"
         assert "ex-card" in html, (
             "Landscape export template not used for og — expected .ex-card root element"
+        )
+
+    def test_ex41_landscape_template_source_has_dom_badge(self):
+        """landscape/fifa.html source must reference the dominant_badge variable."""
+        import os, app as _app_pkg
+        tpl_path = os.path.join(
+            os.path.dirname(_app_pkg.__file__),
+            "templates/public/export/landscape/fifa.html",
+        )
+        with open(tpl_path, encoding="utf-8") as f:
+            source = f.read()
+        assert "dominant_badge" in source, (
+            "dominant_badge not referenced in landscape/fifa.html — "
+            "dominant foot badge block missing from template"
+        )
+        assert "ex-dom-badge" in source, (
+            ".ex-dom-badge CSS class not found in landscape/fifa.html — "
+            "dominant foot badge CSS missing from template"
+        )
+
+    def test_ex42_dominant_badge_rendered_when_provided(self, client):
+        """Landscape export must emit the .ex-dom-badge element when dominant_badge is set."""
+        from app.main import app
+        from app.dependencies import get_db
+        from unittest.mock import patch
+
+        lic = _make_license(card_variant="fifa")
+        lic.right_foot_score = 75.0
+        lic.left_foot_score  = 25.0  # → "Rl"
+        db = _mock_db(user=_make_user(), license_=lic)
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            r = client.get("/players/7/card?platform=facebook_landscape&export=1")
+            html = r.text if r.status_code == 200 else ""
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert html, "Export returned empty response for facebook_landscape"
+        assert "ex-dom-badge" in html, (
+            ".ex-dom-badge not rendered — dominant foot badge missing from landscape export"
         )
 
 

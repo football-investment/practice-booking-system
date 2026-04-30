@@ -193,6 +193,18 @@ html, body {
     color: white;
     white-space: nowrap;
 }
+/* Dominant foot badge — Rl / rL / RL / rl */
+.ex-dom-badge {
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.55);
+    line-height: 1;
+    white-space: nowrap;
+}
+.ex-dom-badge .ex-dom-hi {
+    color: rgba(255,255,255,0.92);
+}
 
 /* ── RIGHT SKILLS PANEL ───────────────────────────────────────────────────────
    flex:1 → takes 1200 - 360 = 840px of width.
@@ -373,6 +385,16 @@ html, body {
         <div class="ex-ovr-block">
             <div class="ex-ovr-num">{{ overall | round(0) | int }}</div>
             <span class="ex-tier-badge" style="background: {{ tier_color }};">{{ tier_label }}</span>
+            {% if dominant_badge is defined and dominant_badge %}
+            <span class="ex-dom-badge">
+                {%- set db = dominant_badge -%}
+                {%- if db == "Rl" %}<span class="ex-dom-hi">R</span>l
+                {%- elif db == "rL" %}r<span class="ex-dom-hi">L</span>
+                {%- elif db == "RL" %}<span class="ex-dom-hi">R</span><span class="ex-dom-hi">L</span>
+                {%- else %}rl
+                {%- endif %}
+            </span>
+            {% endif %}
         </div>
 
     </div>

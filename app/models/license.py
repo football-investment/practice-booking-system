@@ -190,6 +190,12 @@ class UserLicense(Base):
     card_showcase_focus_y = Column(Integer, nullable=True, default=50,
                                     comment="Vertical focus point % for showcase banner (0-100)")
 
+    # ⚽ DOMINANT FOOT SCORES: assessed strength 0.0–100.0 for each foot
+    right_foot_score = Column(Float, nullable=True,
+                              comment="Right-foot assessed strength 0.0–100.0 (NULL = not assessed)")
+    left_foot_score  = Column(Float, nullable=True,
+                              comment="Left-foot assessed strength 0.0–100.0 (NULL = not assessed)")
+
     # 🎨 CARD CUSTOMISATION: active theme/variant + unlocked lists
     card_theme = Column(String(50), nullable=True, default="default",
                         comment="Active card theme ID (default/midnight/arctic/gold/emerald/crimson)")
