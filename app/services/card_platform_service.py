@@ -86,6 +86,12 @@ PLATFORM_PRESETS: dict[str, PlatformPresetDefinition] = {
         "Facebook Cover · 1500×500",
         LayoutStrategy.BANNER,
     ),
+    "facebook_post": PlatformPresetDefinition(
+        "facebook_post", "Facebook Post",
+        "platform-facebook-post",
+        "Facebook Post · 1200×630 — 3-column FIFA layout with all skills",
+        LayoutStrategy.LANDSCAPE,
+    ),
 }
 
 _FALLBACK = PLATFORM_PRESETS["default"]

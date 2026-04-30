@@ -52,6 +52,7 @@ _EXPORT_FORMAT_BUCKETS: dict[str, str] = {
     "facebook_landscape": "landscape",
     "og":                 "landscape",
     "banner_custom":      "banner",
+    "facebook_post":      "landscape",
 }
 
 
@@ -228,6 +229,13 @@ def public_player_card(
         _exp_tpl = f"public/export/{_fmt}/{card_variant_id}.html"
         if os.path.isfile(os.path.join(_TEMPLATES_DIR, _exp_tpl)):
             template_path = _exp_tpl
+
+    # facebook_post browser-preview: same standalone export template as PNG
+    # Single source of truth — no separate preview template to avoid visual drift
+    if not export and platform_preset.id == "facebook_post" and card_variant_id == "fifa":
+        _fb_tpl = "public/export/landscape/fifa.html"
+        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _fb_tpl)):
+            template_path = _fb_tpl
 
     # animated_mode: True only when both export=1 AND animated=1 are present.
     # The PNG endpoint never passes animated=1 → this is always False for PNG renders.

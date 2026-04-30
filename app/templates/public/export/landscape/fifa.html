@@ -151,27 +151,24 @@ html, body {
 }
 
 /* ── CENTER PANEL — player profile data ──────────────────────────────────────
-   195px fixed. Contains name, position badge, 9 profile rows, team pill.
-   Slightly lighter overlay on body bg.
+   195px fixed. White/light background — approved mockup spec.
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-center {
     flex: 0 0 195px;
-    background: var(--ex-center-bg);
-    background-color: var(--ex-body-bg);
-    background-image: linear-gradient(to right, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    background: #ffffff;
     display: flex;
     flex-direction: column;
     padding: 14px 12px;
     gap: 8px;
     overflow: hidden;
-    border-right: 1px solid rgba(255,255,255,0.07);
+    border-right: 1px solid rgba(0,0,0,0.10);
 }
 
 /* Player name */
 .ex-name {
     font-size: 17px;
     font-weight: 800;
-    color: white;
+    color: #1a202c;
     line-height: 1.1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -204,7 +201,7 @@ html, body {
     justify-content: space-between;
     align-items: baseline;
     padding: 3px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
     flex-shrink: 0;
 }
 .ex-profile-label {
@@ -212,14 +209,14 @@ html, body {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: rgba(255,255,255,0.38);
+    color: #718096;
     white-space: nowrap;
     flex-shrink: 0;
 }
 .ex-profile-value {
     font-size: 10px;
     font-weight: 700;
-    color: rgba(255,255,255,0.82);
+    color: #2d3748;
     text-align: right;
     margin-left: 6px;
     white-space: nowrap;
@@ -233,9 +230,9 @@ html, body {
     flex-shrink: 0;
     font-size: 8px;
     font-weight: 600;
-    color: rgba(255,255,255,0.55);
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.10);
+    color: #4a5568;
+    background: #f0f4ff;
+    border: 1px solid #e2e8f0;
     border-radius: 99px;
     padding: 3px 8px;
     white-space: nowrap;

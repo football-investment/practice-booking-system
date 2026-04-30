@@ -23,6 +23,7 @@ CANVAS_SIZES: dict[str, tuple[int, int]] = {
     "facebook_landscape": (1200,  630),
     "og":                 (1200,  630),
     "banner_custom":      (1500,  500),
+    "facebook_post":      (1200,  630),
 }
 
 # ── Animated video export capability registry ─────────────────────────────────
