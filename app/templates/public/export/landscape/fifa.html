@@ -205,7 +205,7 @@ html, body {
 
 /* Player name */
 .ex-name {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 800;
     color: #1a202c;
     line-height: 1.1;
@@ -214,7 +214,18 @@ html, body {
     white-space: nowrap;
 }
 
-/* Team subtitle — directly under name */
+/* Nickname — italic, under name */
+.ex-nickname {
+    font-size: 11px;
+    font-style: italic;
+    color: #a0aec0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+
+/* Team subtitle — directly under name / nickname */
 .ex-team-sub {
     font-size: 11px;
     font-weight: 600;
@@ -222,9 +233,23 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin-top: 2px;
 }
 
-/* Profile rows — packed at top, rows grow evenly within available space */
+/* Group separator — PROFILE / CAREER labels */
+.ex-group-sep {
+    font-size: 7px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: #cbd5e0;
+    margin: 10px 0 4px;
+    border: none;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+/* Profile rows — packed at top */
 .ex-profile-rows {
     flex: 1;
     display: flex;
@@ -232,7 +257,7 @@ html, body {
     justify-content: flex-start;
     min-height: 0;
     overflow: hidden;
-    margin-top: 12px;
+    margin-top: 10px;
     gap: 0;
 }
 .ex-profile-row {
@@ -240,7 +265,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     padding: 8px 0;
-    border-bottom: 1px solid rgba(0,0,0,0.08);
+    border-bottom: 1px solid rgba(0,0,0,0.07);
     flex-shrink: 0;
 }
 .ex-profile-label {
@@ -261,7 +286,7 @@ html, body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 150px;
+    max-width: 155px;
 }
 
 /* ── SKILLS PANEL — 2×2 category grid, ALL skills ────────────────────────────
@@ -440,18 +465,24 @@ html, body {
     <!-- ── CENTER PANEL — player profile ─────────────────────────────────── -->
     <div class="ex-center">
 
-        <!-- Name + team subtitle -->
+        <!-- Name + optional nickname + optional team subtitle -->
         <div class="ex-center-top">
             <div class="ex-name">{{ player.name }}</div>
+            {% if player_nickname %}
+            <div class="ex-nickname">"{{ player_nickname }}"</div>
+            {% endif %}
             {% if teams_info %}
             {% set t = teams_info[0] %}
+            {% if t.team_name or t.club_name %}
             <div class="ex-team-sub">🏟 {{ t.team_name }}{% if t.club_name %} · {{ t.club_name }}{% endif %}</div>
+            {% endif %}
             {% endif %}
         </div>
 
-        <!-- 9-row profile grid
-             Order: Nationality → Age → Gender → Age Group → Height → Weight → Events → License → XP -->
         <div class="ex-profile-rows">
+
+            <!-- PROFILE group -->
+            <div class="ex-group-sep">Profile</div>
             {% if player.nationality %}
             <div class="ex-profile-row">
                 <span class="ex-profile-label">Nationality</span>
@@ -470,40 +501,38 @@ html, body {
                 <span class="ex-profile-value">{{ player_gender }}</span>
             </div>
             {% endif %}
-            {% if player.age_group %}
+            {% if player_location %}
+            <div class="ex-profile-row">
+                <span class="ex-profile-label">Location</span>
+                <span class="ex-profile-value">{{ player_location }}</span>
+            </div>
+            {% endif %}
             <div class="ex-profile-row">
                 <span class="ex-profile-label">Age Group</span>
                 <span class="ex-profile-value">{{ player.age_group }}</span>
             </div>
-            {% endif %}
-            {% if player_height_cm %}
+
+            <!-- CAREER group -->
+            <div class="ex-group-sep">Career</div>
+            {% if member_since %}
             <div class="ex-profile-row">
-                <span class="ex-profile-label">Height</span>
-                <span class="ex-profile-value">{{ player_height_cm }} cm</span>
-            </div>
-            {% endif %}
-            {% if player_weight_kg %}
-            <div class="ex-profile-row">
-                <span class="ex-profile-label">Weight</span>
-                <span class="ex-profile-value">{{ player_weight_kg }} kg</span>
+                <span class="ex-profile-label">Member Since</span>
+                <span class="ex-profile-value">{{ member_since }}</span>
             </div>
             {% endif %}
             <div class="ex-profile-row">
                 <span class="ex-profile-label">Events</span>
                 <span class="ex-profile-value">{{ player.total_tournaments }}</span>
             </div>
-            {% if license_current_level %}
             <div class="ex-profile-row">
                 <span class="ex-profile-label">License</span>
-                <span class="ex-profile-value">Lv. {{ license_current_level }}</span>
+                <span class="ex-profile-value">Lv. {{ license_current_level }}{% if license_max_level is defined and license_max_level > license_current_level %} / {{ license_max_level }}{% endif %}</span>
             </div>
-            {% endif %}
-            {% if xp_balance is defined %}
             <div class="ex-profile-row">
                 <span class="ex-profile-label">XP</span>
                 <span class="ex-profile-value">{{ "{:,}".format(xp_balance | int) }} ✦</span>
             </div>
-            {% endif %}
+
         </div>
 
     </div>

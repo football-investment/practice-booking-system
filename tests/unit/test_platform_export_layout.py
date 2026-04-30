@@ -95,6 +95,8 @@ def _make_license(card_variant: str = "compact") -> MagicMock:
     lic.compact_focus_y = 20
     lic.right_foot_score = None
     lic.left_foot_score = None
+    lic.current_level = 1
+    lic.max_achieved_level = 1
     return lic
 
 
