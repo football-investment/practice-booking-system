@@ -57642,7 +57642,7 @@
     },
     "/players/{user_id}/card/export/video": {
       "get": {
-        "description": "Export an animated player card as a WebM video.\n\nOnly available for (variant, platform) pairs in ANIMATED_EXPORT_CAPABLE.\nMVP: format=webm, duration=5, platform=instagram_square, variant=fifa only.\n\nAuth: authenticated users may only export their own card.\nAdmins may export any player's card.\nRate limit: 2 video exports per 60 s per user+IP (separate from PNG limit).",
+        "description": "Export an animated player card as a video file.\n\nOnly available for (variant, platform) pairs in ANIMATED_EXPORT_CAPABLE.\n\nSupported formats:\n  - webm: raw Playwright CDP screencast output (~25 fps, VP8/VP9). Works on\n          Chrome and Android; NOT supported on iOS or Instagram upload.\n  - mp4:  WebM post-processed via FFmpeg (libx264, CRF 22, yuv420p,\n          movflags+faststart, silent AAC). Requires ffmpeg binary on server.\n          If FFmpeg fails the response falls back to WebM with header\n          X-Export-Fallback: ffmpeg-failed.\n\nAuth: authenticated users may only export their own card.\nAdmins may export any player's card.\nRate limit: 2 video exports per 60 s per user+IP (separate from PNG limit).",
         "operationId": "export_player_card_video_players__user_id__card_export_video_get",
         "parameters": [
           {
