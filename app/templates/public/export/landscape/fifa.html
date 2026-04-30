@@ -11,10 +11,10 @@
  * Classes : ex- prefix throughout, no inheritance from editor templates
  * Covers  : facebook_landscape AND og (both map to 'landscape' bucket)
  *
- * 3-COLUMN LAYOUT:
- *   .ex-left    155px  — dark FIFA panel: avatar, OVR watermark, OVR num, tier, dom badge
- *   .ex-center  195px  — profile panel: name, position, 9 profile rows, team pill
- *   .ex-skills  flex:1 — 2×2 skill grid: ALL skills per category (no slicing)
+ * 3-COLUMN LAYOUT — equal thirds (flex:1 each):
+ *   .ex-left    flex:1 (~400px) — dark FIFA panel: avatar, OVR watermark, OVR num, tier, dom badge
+ *   .ex-center  flex:1 (~400px) — profile panel: name, position, 9 profile rows, team pill
+ *   .ex-skills  flex:1 (~400px) — 2×2 skill grid: ALL skills per category (no slicing)
  */
 
 :root {
@@ -45,11 +45,11 @@ html, body {
 }
 
 /* ── LEFT PANEL — dark FIFA identity column ──────────────────────────────────
-   155px fixed. Contains OVR watermark (absolute), avatar, OVR num, badges.
-   position: relative required for .ex-ovr-watermark.
+   flex:1 (~400px at 1200px canvas). Contains OVR watermark (absolute),
+   avatar, OVR num, badges. position: relative required for .ex-ovr-watermark.
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-left {
-    flex: 0 0 155px;
+    flex: 1;
     background: var(--ex-panel-bg);
     display: flex;
     flex-direction: column;
@@ -151,10 +151,10 @@ html, body {
 }
 
 /* ── CENTER PANEL — player profile data ──────────────────────────────────────
-   195px fixed. White/light background — approved mockup spec.
+   flex:1 (~400px at 1200px canvas). White/light background — approved mockup spec.
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-center {
-    flex: 0 0 195px;
+    flex: 1;
     background: #ffffff;
     display: flex;
     flex-direction: column;
