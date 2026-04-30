@@ -289,7 +289,7 @@
             {# Video export button — hidden by default; JS shows it only for animated-capable combos #}
             <button id="btn-export-video" class="btn-export-card btn-export-video"
                     style="display:none;" onclick="exportCardVideo()"
-                    title="Download animated WebM video (5s) — FIFA Classic × IG Square only">▶ Download WebM</button>
+                    title="Download animated MP4 video (5s, H.264) — compatible with iOS and Instagram">▶ Download MP4</button>
         </div>
     </section>
 
@@ -580,16 +580,21 @@ async function exportCardVideo() {
     btn.textContent = '⏳ Generating… (5s)';
     try {
         const r = await fetch(
-            `/players/${_cardUserId}/card/export/video?platform=${_currentPlatform}&format=webm&duration=5`
+            `/players/${_cardUserId}/card/export/video?platform=${_currentPlatform}&format=mp4&duration=5`
         );
         if (r.status === 429) { alert('Too many video exports — please wait a moment and try again.'); return; }
         if (r.status === 422) { alert('Animated video export is not available for this card/platform combination.'); return; }
         if (!r.ok) { alert('Video export failed — please try again.'); return; }
+        const fallback = r.headers.get('X-Export-Fallback');
+        const ext = fallback === 'ffmpeg-failed' ? 'webm' : 'mp4';
+        if (fallback === 'ffmpeg-failed') {
+            alert('MP4 conversion failed, downloaded WebM instead.');
+        }
         const blob = await r.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `lfa_card_${_cardUserId}_${_currentPlatform}_animated.webm`;
+        a.download = `lfa_card_${_cardUserId}_${_currentPlatform}_animated.${ext}`;
         a.click();
         URL.revokeObjectURL(url);
     } catch(e) {
