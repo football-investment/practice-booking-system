@@ -11,8 +11,8 @@
  * Classes : ex- prefix throughout, no inheritance from editor templates
  *
  * Layout:
- *   .ex-hero  (flex: 0 0 38%) — photo-col 32% | profile-col flex:1
- *   .ex-skills (flex: 1)       — 2×2 grid, all 29 skills
+ *   .ex-hero  (flex: 0 0 42%) — photo-col 32% | profile-col flex:1
+ *   .ex-skills (flex: 1)       — 2×2 grid, all 29 skills (58% of canvas)
  *
  * Hero photo: portrait_photo_url → photo_url (no circle, no border, cover)
  * Skill grid: rows 1fr/1fr + align-items:start (Set Pieces compact)
@@ -53,11 +53,11 @@ html, body {
 }
 
 /* ── HERO ZONE ────────────────────────────────────────────────────────────────
-   Fixed at 32% of card height (≈ 346px at 1080px canvas).
+   Fixed at 42% of card height (≈ 454px at 1080px canvas). Upper bound.
    Layout: [photo-col 32% fixed] | [profile-col flex:1]
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-hero {
-    flex: 0 0 32%;
+    flex: 0 0 42%;
     background: var(--ex-panel-bg);
     display: flex;
     flex-direction: row;
@@ -123,7 +123,8 @@ html, body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 10px;
     padding: 14px 16px 14px 14px;
     min-width: 0;
     position: relative;
@@ -145,7 +146,7 @@ html, body {
     gap: 4px;
 }
 .ex-naam {
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 800;
     color: white;
     line-height: 1.05;
@@ -186,7 +187,7 @@ html, body {
     gap: 5px;
 }
 .ex-ovr-num {
-    font-size: 72px;
+    font-size: 80px;
     font-weight: 900;
     line-height: 1;
     color: white;
@@ -224,7 +225,7 @@ html, body {
     white-space: nowrap;
 }
 .ex-mini-value {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     color: rgba(255,255,255,0.82);
     white-space: nowrap;
@@ -261,7 +262,7 @@ html, body {
     white-space: nowrap;
 }
 .ex-stat-value {
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 800;
     color: rgba(255,255,255,0.82);
 }
@@ -377,11 +378,11 @@ html, body {
     line-height: 1;
 }
 
-/* Skill bar — compact fixed width, does not fill full row */
+/* Skill bar — fills available row width after name + value + trend */
 .ex-bar-bg {
-    flex: 0 1 40px;
+    flex: 1;
     min-width: 0;
-    height: 7px;
+    height: 8px;
     background: var(--ex-bar-bg);
     border-radius: 4px;
     overflow: hidden;
@@ -394,8 +395,8 @@ html, body {
 
 /* Value — right-aligned fixed width */
 .ex-sval {
-    flex: 0 0 36px;
-    font-size: 13px;
+    flex: 0 0 30px;
+    font-size: 14px;
     font-weight: 700;
     text-align: right;
     line-height: 1;
