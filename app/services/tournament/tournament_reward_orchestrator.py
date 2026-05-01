@@ -298,10 +298,15 @@ def distribute_rewards_for_user(
     bonus_xp = participation_service.convert_skill_points_to_xp(db, skill_points)
     total_xp = base_xp + bonus_xp
 
+    # Resolve foot_context from the already-loaded tournament preset (F4a — laterality).
+    _preset    = getattr(tournament, "game_preset", None) if tournament else None
+    _foot_ctx  = getattr(_preset, "foot_context", "neutral") if _preset is not None else "neutral"
+
     # Record participation
     participation_record = participation_service.record_tournament_participation(
         db, user_id, tournament_id, placement, skill_points, base_xp, credits, distributed_by,
         team_id=team_id,
+        foot_context=_foot_ctx,
     )
 
     # ── Monitoring: log dominant/minor delta ratio (sampled: podium placements only) ──

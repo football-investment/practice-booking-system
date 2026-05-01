@@ -384,6 +384,7 @@ def record_tournament_participation(
     credits: int,
     assessed_by_id: Optional[int] = None,
     team_id: Optional[int] = None,
+    foot_context: str = "neutral",
 ) -> TournamentParticipation:
     """
     Record tournament participation and update player skill assessments.
@@ -415,12 +416,9 @@ def record_tournament_participation(
         TournamentParticipation.semester_id == tournament_id
     ).first()
 
-    # Resolve foot_context from the tournament's game preset (F4a — laterality).
-    # Semester.game_preset uses a backward-compatible property (P3 path).
-    # Falls back to "neutral" when no preset is attached or the JSONB key is absent.
-    _semester = db.query(Semester).filter(Semester.id == tournament_id).first()
-    _preset   = getattr(_semester, "game_preset", None) if _semester else None
-    _foot_ctx = getattr(_preset, "foot_context", "neutral") if _preset is not None else "neutral"
+    # foot_context is resolved by the caller from the tournament's game preset (F4a).
+    # Default "neutral" covers callers that don't supply laterality context.
+    _foot_ctx = foot_context if foot_context in ("right", "left", "neutral") else "neutral"
 
     if existing_participation:
         existing_participation.placement = placement
