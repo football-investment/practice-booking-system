@@ -5,41 +5,25 @@
 <title>{{ player.name }} — LFA Player Card</title>
 <style>
 /*
- * FIFA Classic × IG Square — Dedicated export template
+ * FIFA Classic × FB Square — Dedicated export template
  * Canvas  : 1080 × 1080 px  (Playwright viewport)
  * Purpose : static social export ONLY — no editor UI, no responsive CSS
  * Classes : ex- prefix throughout, no inheritance from editor templates
  *
- * All-skills layout (vs. original [:4] slicing):
- *   hero        300px → 260px    (−40px, frees vertical space for skills)
- *   padding     20px  → 14px     (skills zone outer)
- *   title       13/14px → 12/8px (font / margin-bottom)
- *   grid gap    12px  → 8px
- *   cell pad    16px  → 10px
- *   cat name    13/12/8px → 11/7/5px (font/margin/padding)
- *   rows        fixed 28px → flex:1 proportional (UI/UX opt pass)
- *   row gap     8px   → 6px
- *   sname       170px/16px → 145px/13px
- *   bar height  8px   → 7px
- *   sval        44px/16px  → 36px/13px
- *   trend       18px/14px  → 14px/11px
- *   slicing     [:4]  → none (all 29 skills rendered)
+ * Layout:
+ *   .ex-hero  (flex: 0 0 38%) — photo-col 32% | profile-col flex:1
+ *   .ex-skills (flex: 1)       — 2×2 grid, all 29 skills
  *
- * UI/UX optimization (proportional grid):
- *   grid-auto-flow: column → Outfield+Set Pieces col-1, Mental+Physical col-2
- *   grid-template-rows: 11fr 7fr → row heights proportional to max skill count
- *     col-1: row-1=Outfield(11), row-2=Set Pieces(3) → 11:3 unused space disappears
- *     col-2: row-1=Mental(8),    row-2=Physical(7)   → 8:7  near-equal
- *   flex:1 rows → each skill row stretches to fill available cell height equally
+ * Hero photo: portrait_photo_url → photo_url (no circle, no border, cover)
+ * Skill grid: rows 1fr/1fr + align-items:start (Set Pieces compact)
+ * Category order in HTML: Outfield · Mental / Set Pieces · Physical
+ *   (row-flow, so rendered as [0],[2],[1],[3] from skill_categories)
  *
- * Space math with proportional grid (skills zone 820px):
- *   inner height = 820 − 28 = 792px; title ~22px → 770px grid area
- *   row-1 height = 770 × 11/18 − 4 (gap) ≈ 466px; cell inner ≈ 421px; cat ~25px → 396px
- *     Outfield  11 rows → 396/11 = 36.0px/row ✓ (comfortable at 13px font)
- *     Mental     8 rows → 396/8  = 49.5px/row ✓ (spacious)
- *   row-2 height = 770 × 7/18 − 4 (gap) ≈ 296px; cell inner ≈ 251px; cat ~25px → 226px
- *     Physical   7 rows → 226/7  = 32.3px/row ✓
- *     Set Pieces 3 rows → 226/3  = 75.3px/row ✓ (premium feel — intentional)
+ * Skill zone all-skills layout (same as previous square version):
+ *   grid-template-columns: 1fr 1fr
+ *   grid-template-rows: 1fr 1fr
+ *   align-items: start  ← NEW: Set Pieces (3 rows) no longer stretches
+ *   gap: 8px
  */
 
 :root {
@@ -47,7 +31,7 @@
     --ex-body-bg:  {{ theme.body_bg  if theme is defined else '#1a202c' }};
     --ex-accent:   {{ theme.accent   if theme is defined else '#667eea' }};
     --ex-bar-bg:      rgba(255,255,255,0.10);
-    --ex-cat-bg:      rgba(255,255,255,0.05);
+    --ex-cat-bg:      rgba(255,255,255,0.06);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,165 +43,251 @@ html, body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
 
-/* Root card — fills the 1080×1080 viewport exactly */
+/* Root card — 1:1 aspect ratio, fills the 1080×1080 Playwright viewport */
 .ex-card {
-    width:  100vw;
-    height: 100vh;
+    width:  100%;
+    aspect-ratio: 1 / 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
 /* ── HERO ZONE ────────────────────────────────────────────────────────────────
-   Fixed at 260px (24.1% of 1080px — reduced from 300px to free space for all
-   29 skills in the skills zone below).
-   Layout: [avatar 140px] · [identity flex:1] · [OVR block fixed]
+   Fixed at 32% of card height (≈ 346px at 1080px canvas).
+   Layout: [photo-col 32% fixed] | [profile-col flex:1]
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-hero {
-    flex: 0 0 260px;
+    flex: 0 0 32%;
     background: var(--ex-panel-bg);
     display: flex;
-    align-items: center;
-    padding: 0 40px;
-    gap: 28px;
+    flex-direction: row;
+    position: relative;
     overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
-/* Avatar circle */
-.ex-avatar {
-    flex-shrink: 0;
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    border: 4px solid rgba(255,255,255,0.22);
-    object-fit: cover;
+/* Photo column — left 32%, full-height, keretmentes cover */
+.ex-photo-col {
+    flex: 0 0 32%;
+    position: relative;
+    overflow: hidden;
 }
-.ex-avatar-placeholder {
-    flex-shrink: 0;
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    border: 4px solid rgba(255,255,255,0.22);
+.ex-photo-col img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    border: none;
+    border-radius: 0;
+}
+.ex-photo-placeholder {
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 46px;
+    font-size: 48px;
     font-weight: 900;
-    color: white;
-    letter-spacing: -0.02em;
+    color: rgba(255,255,255,0.20);
 }
 
-/* Identity block — fills space between avatar and OVR */
-.ex-identity {
+/* Right-edge gradient on photo — blends into profile col */
+.ex-photo-fade {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 45%;
+    background: linear-gradient(to right, transparent, rgba(0,0,0,0.45));
+    pointer-events: none;
+}
+
+/* Position badge — overlaid top-left of photo */
+.ex-pos-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    color: white;
+    padding: 3px 9px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+/* Profile column — right side of hero */
+.ex-profile-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 14px 16px 14px 14px;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Profile top: naam block (left) + OVR block (right) */
+.ex-profile-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+.ex-naam-block {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 4px;
 }
-.ex-name {
-    font-size: 40px;
-    font-weight: 900;
-    color: white;
-    line-height: 1.1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.ex-tag-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: nowrap;
-    overflow: hidden;
-}
-.ex-pos-badge {
-    font-size: 13px;
+.ex-naam {
+    font-size: 28px;
     font-weight: 800;
     color: white;
-    padding: 4px 14px;
-    border-radius: 99px;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.ex-brand-tag {
-    font-size: 12px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.40);
-    text-transform: uppercase;
-    letter-spacing: 0.10em;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.ex-meta-row {
-    display: flex;
-    gap: 24px;
-    align-items: flex-start;
-}
-.ex-meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-}
-.ex-meta-label {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: rgba(255,255,255,0.42);
-    white-space: nowrap;
-}
-.ex-meta-value {
-    font-size: 17px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.90);
+    line-height: 1.05;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.4);
 }
-.ex-club-row {
-    font-size: 14px;
-    color: rgba(255,255,255,0.50);
+.ex-naam-team {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* OVR block — right anchor of hero */
+/* DOM badge — monospace inline badge */
+.ex-dom-badge {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-family: 'SFMono-Regular', 'Fira Code', 'Consolas', monospace;
+    line-height: 1;
+    align-self: flex-start;
+}
+
+/* OVR block — right of profile top */
 .ex-ovr-block {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
 }
 .ex-ovr-num {
-    font-size: 80px;
+    font-size: 72px;
     font-weight: 900;
     line-height: 1;
     color: white;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
 }
 .ex-tier-badge {
     font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    padding: 5px 18px;
+    letter-spacing: 0.09em;
+    padding: 3px 12px;
     border-radius: 99px;
     color: white;
     white-space: nowrap;
 }
 
+/* 3×2 mini-grid: profile data */
+.ex-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px 8px;
+}
+.ex-mini-item {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.ex-mini-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.32);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    white-space: nowrap;
+}
+.ex-mini-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.82);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Stat strip: Events · License · XP */
+.ex-stat-strip {
+    display: flex;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    padding-top: 6px;
+}
+.ex-stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.ex-stat-item:not(:last-child) {
+    padding-right: 10px;
+    border-right: 1px solid rgba(255,255,255,0.10);
+    margin-right: 10px;
+}
+.ex-stat-item:first-child  { align-items: flex-start; }
+.ex-stat-item:nth-child(2) { align-items: center; }
+.ex-stat-item:last-child   { align-items: flex-end; }
+.ex-stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.28);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+.ex-stat-value {
+    font-size: 16px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.82);
+}
+.ex-stat-accent {
+    color: var(--ex-accent);
+}
+
+/* OVR watermark — large ghost number behind profile col */
+.ex-ovr-watermark {
+    position: absolute;
+    right: -10px;
+    bottom: -15px;
+    font-size: 130px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.035);
+    line-height: 1;
+    user-select: none;
+    pointer-events: none;
+    letter-spacing: -0.04em;
+    z-index: 0;
+}
+
 /* ── SKILLS ZONE ──────────────────────────────────────────────────────────────
-   flex:1 → takes 1080 − 260 = 820px of remaining height.
-   Internal: skills-title (flex-shrink:0) + 2×2 grid (flex:1).
-   Grid fills column-first: [Outfield, Set Pieces] | [Mental, Physical]
-   Row heights 11fr:7fr match the dominant-category skill counts per row.
+   flex:1 → takes 1080 − 410 = 670px of remaining height.
+   2×2 grid, row-flow, category order in HTML: OF · MNT / SET · PHY.
+   align-items:start → Set Pieces (3 skills) does not stretch to fill row.
    ─────────────────────────────────────────────────────────────────────────── */
 .ex-skills {
     flex: 1;
@@ -238,23 +308,24 @@ html, body {
     margin-bottom: 8px;
 }
 
-/* 2×2 category grid — column-first fill, proportional row heights */
+/* 2×2 category grid */
 .ex-skill-cats {
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 11fr 7fr;
-    grid-auto-flow: column;
-    gap: 8px;
+    grid-template-rows: 1fr 1fr;
+    gap: 6px;
     overflow: hidden;
     min-height: 0;
+    align-items: start;
 }
 
 /* Category cell */
 .ex-cat {
     background: var(--ex-cat-bg);
+    border: 1px solid rgba(255,255,255,0.10);
     border-radius: 12px;
-    padding: 10px;
+    padding: 8px 10px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -275,7 +346,7 @@ html, body {
     text-overflow: ellipsis;
 }
 
-/* Skill rows container — flex:1 stretches to fill proportional cell height. */
+/* Skill rows container */
 .ex-skill-rows {
     flex: 1;
     display: flex;
@@ -285,8 +356,7 @@ html, body {
     overflow: hidden;
 }
 
-/* Individual skill row — proportional stretch; each row gets equal share of
-   available cell height. Minimum height ~32px (Physical 7 rows in 226px). */
+/* Individual skill row */
 .ex-row {
     flex: 1;
     min-height: 0;
@@ -295,10 +365,9 @@ html, body {
     gap: 6px;
 }
 
-/* Fixed-width name column — 145px at 13px fits all 29 skill names without clip.
-   Longest: "Tactical Awareness" ~138px at 13px system font. */
+/* Fixed-width name column — 90px, longer names clip with ellipsis */
 .ex-sname {
-    flex: 0 0 145px;
+    flex: 0 0 90px;
     font-size: 13px;
     font-weight: 500;
     color: rgba(255,255,255,0.72);
@@ -308,9 +377,9 @@ html, body {
     line-height: 1;
 }
 
-/* Skill bar — fills remaining row width (~300px in a 522px wide cell) */
+/* Skill bar — compact fixed width, does not fill full row */
 .ex-bar-bg {
-    flex: 1;
+    flex: 0 1 40px;
     min-width: 0;
     height: 7px;
     background: var(--ex-bar-bg);
@@ -332,7 +401,7 @@ html, body {
     line-height: 1;
 }
 
-/* Trend arrow — hidden when neutral (visibility:hidden preserves alignment) */
+/* Trend arrow */
 .ex-trend {
     flex: 0 0 14px;
     font-size: 11px;
@@ -398,76 +467,122 @@ html, body {
 <body>
 <div class="ex-card">
 
-    <!-- ── HERO ────────────────────────────────────────────────────────────── -->
+    <!-- ── HERO ──────────────────────────────────────────────────────────────
+         Left 32%: keretmentes portré fotó, full cover
+         Right 68%: naam + OVR | 3×2 mini-grid | stat strip
+         ─────────────────────────────────────────────────────────────────── -->
     <div class="ex-hero">
 
-        {% if photo_url %}
-        <img class="ex-avatar" src="{{ photo_url }}" alt="{{ initials }}"
-             style="background: {{ avatar_bg }}; object-fit: cover;">
-        {% else %}
-        <div class="ex-avatar-placeholder" style="background: {{ avatar_bg }};">{{ initials }}</div>
-        {% endif %}
-
-        <div class="ex-identity">
-            <div class="ex-name">{{ player.name }}</div>
-
-            <div class="ex-tag-row">
-                {% if player.position and player.position != "Unknown" %}
-                <span class="ex-pos-badge" style="background: {{ pos_color }};">{{ player.position }}</span>
-                {% endif %}
-                <span class="ex-brand-tag">⚽ LFA Education</span>
-            </div>
-
-            <div class="ex-meta-row">
-                {% if player.nationality %}
-                <div class="ex-meta-item">
-                    <span class="ex-meta-label">Nationality</span>
-                    <span class="ex-meta-value">{{ player.nationality }}</span>
-                </div>
-                {% endif %}
-                <div class="ex-meta-item">
-                    <span class="ex-meta-label">Age Group</span>
-                    <span class="ex-meta-value">{{ player.age_group }}</span>
-                </div>
-                <div class="ex-meta-item">
-                    <span class="ex-meta-label">Events</span>
-                    <span class="ex-meta-value">{{ player.total_tournaments }}</span>
-                </div>
-                {% if xp_balance %}
-                <div class="ex-meta-item">
-                    <span class="ex-meta-label">XP</span>
-                    <span class="ex-meta-value">{{ xp_balance | int }}</span>
-                </div>
-                {% endif %}
-                {% if player_preferred_foot %}
-                <div class="ex-meta-item">
-                    <span class="ex-meta-label">Foot</span>
-                    <span class="ex-meta-value">{{ player_preferred_foot }}</span>
-                </div>
-                {% endif %}
-            </div>
-
-            {% if teams_info %}
-            <div class="ex-club-row">
-                {% set t = teams_info[0] %}
-                🏟️ {{ t.team_name }}{% if t.club_name %} · {{ t.club_name }}{% endif %}{% if t.age_group_label %} · {{ t.age_group_label }}{% endif %}
-            </div>
+        <!-- Photo column: full-height, no border, no circle -->
+        <div class="ex-photo-col">
+            {% set _photo = portrait_photo_url if portrait_photo_url is defined else None %}
+            {% set _photo = _photo or (photo_url if photo_url is defined else None) %}
+            {% if _photo %}
+            <img src="{{ _photo }}" alt="{{ initials }}">
+            {% else %}
+            <div class="ex-photo-placeholder" style="background: {{ avatar_bg }};">{{ initials }}</div>
+            {% endif %}
+            <div class="ex-photo-fade"></div>
+            {% if player.position and player.position != "Unknown" %}
+            <div class="ex-pos-badge" style="background: {{ pos_color }};">{{ player.position }}</div>
             {% endif %}
         </div>
 
-        <div class="ex-ovr-block">
-            <div class="ex-ovr-num">{{ overall | round(0) | int }}</div>
-            <span class="ex-tier-badge" style="background: {{ tier_color }};">{{ tier_label }}</span>
+        <!-- Profile column -->
+        <div class="ex-profile-col">
+
+            <!-- Top: naam block + OVR block -->
+            <div class="ex-profile-top">
+                <div class="ex-naam-block">
+                    <div class="ex-naam">{{ player.name }}</div>
+                    {% if teams_info %}
+                    {% set t = teams_info[0] %}
+                    <div class="ex-naam-team">🏟 {{ t.team_name }}{% if t.club_name %} · {{ t.club_name }}{% endif %}</div>
+                    {% endif %}
+                    {% if dominant_badge %}
+                    <div class="ex-dom-badge">
+                        {% for ch in dominant_badge %}
+                        {% if ch == ch.upper() and ch != ch.lower() %}
+                        <span style="font-size:18px;font-weight:900;color:var(--ex-accent);letter-spacing:-0.02em;">{{ ch }}</span>
+                        {% else %}
+                        <span style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.25);letter-spacing:-0.02em;">{{ ch }}</span>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="ex-ovr-block">
+                    <div class="ex-ovr-num" style="text-shadow: 0 0 28px {{ tier_color }}66;">{{ overall | round(0) | int }}</div>
+                    <span class="ex-tier-badge" style="background: {{ tier_color }};">{{ tier_label }}</span>
+                </div>
+            </div>
+
+            <!-- Mini-grid: 3×2 — all 6 cells always rendered, "—" fallback for nulls -->
+            <div class="ex-mini-grid">
+                <div class="ex-mini-item">
+                    <span class="ex-mini-label">NAT.</span>
+                    <span class="ex-mini-value">{{ player.nationality if player.nationality else "—" }}</span>
+                </div>
+                <div class="ex-mini-item">
+                    <span class="ex-mini-label">AGE</span>
+                    <span class="ex-mini-value">{{ (player_age ~ " yrs") if player_age else "—" }}</span>
+                </div>
+                <div class="ex-mini-item">
+                    <span class="ex-mini-label">GENDER</span>
+                    <span class="ex-mini-value">{{ player_gender if player_gender else "—" }}</span>
+                </div>
+                <div class="ex-mini-item">
+                    <span class="ex-mini-label">GROUP</span>
+                    <span class="ex-mini-value">{{ player.age_group }}</span>
+                </div>
+                <div class="ex-mini-item">
+                    <span class="ex-mini-label">HEIGHT</span>
+                    <span class="ex-mini-value">{{ (player_height_cm ~ " cm") if player_height_cm else "—" }}</span>
+                </div>
+                <div class="ex-mini-item">
+                    <span class="ex-mini-label">WEIGHT</span>
+                    <span class="ex-mini-value">{{ (player_weight_kg ~ " kg") if player_weight_kg else "—" }}</span>
+                </div>
+            </div>
+
+            <!-- Stat strip: Events · License · XP -->
+            <div class="ex-stat-strip">
+                <div class="ex-stat-item">
+                    <span class="ex-stat-label">EVENTS</span>
+                    <span class="ex-stat-value">{{ player.total_tournaments }}</span>
+                </div>
+                <div class="ex-stat-item">
+                    <span class="ex-stat-label">LICENSE</span>
+                    <span class="ex-stat-value">Lv. {{ license_current_level or 1 }}</span>
+                </div>
+                <div class="ex-stat-item">
+                    <span class="ex-stat-label">XP</span>
+                    {% if xp_balance %}
+                    <span class="ex-stat-value ex-stat-accent">{{ xp_balance | int }}</span>
+                    {% else %}
+                    <span class="ex-stat-value">0</span>
+                    {% endif %}
+                </div>
+            </div>
+
         </div>
+
+        <!-- OVR watermark -->
+        <div class="ex-ovr-watermark">{{ overall | round(0) | int }}</div>
 
     </div>
 
-    <!-- ── SKILLS ──────────────────────────────────────────────────────────── -->
+    <!-- ── SKILLS ─────────────────────────────────────────────────────────────
+         Category order: Outfield · Mental (row 1) / Set Pieces · Physical (row 2)
+         Row-flow grid — categories rendered in [0,2,1,3] index order so that
+         row-flow places them correctly without grid-auto-flow:column.
+         ─────────────────────────────────────────────────────────────────── -->
     {% if skill_categories %}
     <div class="ex-skills">
         <div class="ex-skills-title">Football Skills — {{ overall | round(0) | int }} OVR</div>
         <div class="ex-skill-cats">
-            {% for cat in skill_categories %}
+            {% set _cats = [skill_categories[0], skill_categories[2], skill_categories[1], skill_categories[3]] %}
+            {% for cat in _cats %}
             <div class="ex-cat">
                 <div class="ex-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
                 <div class="ex-skill-rows">
