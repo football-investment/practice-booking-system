@@ -1,12 +1,17 @@
 """
 DEV/DEMO SEED — Laterality tournament history for UI validation.
 
-Creates persistent tournament history for the 4 laterality control users by
-running the real distribute_rewards_for_user() pipeline.  After this seed:
+Creates a fully valid, user-facing LFA Player state for the 4 laterality control
+users: persistent tournament history via the real distribute_rewards_for_user()
+pipeline, and a complete onboarding state that mirrors what the production
+onboarding flow produces.
 
-  - Each control user has ≥ 1 TournamentParticipation row with foot_context set
-  - UserLicense.football_skills contains lateral_components on finishing / crossing
-  - user.onboarding_completed = True → /skills page is accessible
+After this seed:
+  - Login succeeds without DOB redirect  (user.date_of_birth set)
+  - /skills, /progress, /achievements accessible  (user.onboarding_completed = True)
+  - LFA dashboard accessible  (UserLicense.onboarding_completed = True)
+  - Tournament history shows foot badges  (TournamentParticipation.foot_context set)
+  - lateral_components present on finishing + crossing  (EMA pipeline ran)
 
 NOT for production use.  Does NOT run in CI.
 Only explicit execution creates persistent data.
@@ -26,7 +31,7 @@ Usage
 import sys
 import os
 import argparse
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -39,7 +44,9 @@ from app.models.game_preset import GamePreset
 from app.models.tournament_achievement import TournamentParticipation, TournamentSkillMapping
 from app.models.user import User
 from app.models.license import UserLicense
+from app.models.specialization import SpecializationType
 from app.services.tournament.tournament_reward_orchestrator import distribute_rewards_for_user
+from app.services.onboarding_service import complete_lfa_player_onboarding
 from scripts.seed_laterality_test_fixtures import seed_laterality_fixtures, _LAT_PRESETS, _CONTROL_USERS
 
 # ── Sentinel prefix ────────────────────────────────────────────────────────────
@@ -47,6 +54,29 @@ from scripts.seed_laterality_test_fixtures import seed_laterality_fixtures, _LAT
 # these records and their cascaded children — never production data, never users.
 
 _DEV_PREFIX = "DEV-LAT-"
+
+# ── Per-user onboarding metadata ───────────────────────────────────────────────
+# Mirrors what the real LFA player onboarding questionnaire collects.
+# date_of_birth: valid adult (18+), unique per user.
+
+_ONBOARDING_META = {
+    "lat.right@lfa-test.com": {
+        "date_of_birth": date(1992, 3, 15),
+        "position":      "STRIKER",
+    },
+    "lat.left@lfa-test.com": {
+        "date_of_birth": date(1994, 7, 22),
+        "position":      "MIDFIELDER",
+    },
+    "lat.balanced@lfa-test.com": {
+        "date_of_birth": date(1998, 11, 5),
+        "position":      "MIDFIELDER",
+    },
+    "lat.unmeasured@lfa-test.com": {
+        "date_of_birth": date(1990, 1, 20),
+        "position":      "DEFENDER",
+    },
+}
 
 # ── Scenario: which preset to run for each control user ───────────────────────
 # Two tournaments per user → right + non-right bucket always populated.
@@ -115,6 +145,64 @@ def _has_participation(db: Session, user_id: int, semester_id: int) -> bool:
     ).first() is not None
 
 
+def _apply_full_onboarding_state(db: Session, user: User, meta: dict) -> None:
+    """
+    Set a fully valid LFA Player onboarding state on user + license.
+
+    Mirrors what the production onboarding flow (POST /specialization/lfa-player/
+    onboarding-web) produces.  Uses complete_lfa_player_onboarding() as the
+    canonical service call so the exact same fields are set.
+
+    Idempotent: only writes fields that are currently NULL/False.
+    Does NOT call db.commit() — caller owns the transaction.
+    """
+    now = datetime.now(timezone.utc)
+
+    # 1. User-level prerequisite: date_of_birth (login gate)
+    if user.date_of_birth is None:
+        user.date_of_birth = meta["date_of_birth"]
+
+    # 2. User-level: specialization (dashboard spec context)
+    if user.specialization is None:
+        user.specialization = SpecializationType.LFA_FOOTBALL_PLAYER
+
+    # 3. Load license fresh so we have the post-pipeline football_skills
+    lic = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+    ).first()
+    if lic is None:
+        return
+    db.refresh(lic)
+
+    # 4. motivation_scores (license questionnaire data)
+    if lic.motivation_scores is None:
+        skills_map = lic.football_skills or {}
+        levels = [
+            v.get("current_level", 60.0) if isinstance(v, dict) else float(v)
+            for v in skills_map.values()
+        ]
+        avg_skill = round(sum(levels) / len(levels), 1) if levels else 60.0
+
+        lic.motivation_scores = {
+            "position":                meta["position"],
+            "goals":                   "competitive",
+            "motivation":              "[DEV] Control user — laterality validation seed",
+            "average_skill_level":     avg_skill,
+            "onboarding_completed_at": now.isoformat(),
+        }
+        lic.average_motivation_score      = avg_skill
+        lic.motivation_last_assessed_at   = now
+        lic.motivation_assessed_by        = user.id
+
+    # 5. Call the canonical onboarding service — sets:
+    #      license.onboarding_completed = True
+    #      license.onboarding_completed_at = now
+    #      user.onboarding_completed = True
+    #    Passes the current football_skills so the pipeline output is preserved.
+    complete_lfa_player_onboarding(db, user, lic, lic.football_skills)
+
+
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
 def clean_dev_history(db: Session) -> int:
@@ -161,15 +249,17 @@ def _load_or_create_fixtures(db: Session) -> dict:
 
 def seed_laterality_dev_history(db: Session) -> dict:
     """
-    Idempotent seed: run the real distribute_rewards_for_user() pipeline for
-    each (user, preset) scenario.  Skips scenarios where TournamentParticipation
-    already exists.
+    Idempotent seed: builds a fully valid LFA Player state for all 4 control users.
 
-    Side effects (all committed):
-      - Semester records (code DEV-LAT-*)
-      - TournamentParticipation rows with foot_context
-      - UserLicense.football_skills updated with lateral_components
-      - user.onboarding_completed = True for all 4 control users
+    Step 1 — Tournament history:
+      Runs distribute_rewards_for_user() for each (user, preset) scenario.
+      Skips scenarios where TournamentParticipation already exists.
+
+    Step 2 — Full onboarding state:
+      Sets all fields required for an unblocked user-facing experience:
+        user.date_of_birth, user.specialization, user.onboarding_completed
+        UserLicense.onboarding_completed, onboarding_completed_at, motivation_scores
+      Uses complete_lfa_player_onboarding() — the same service as the real flow.
 
     Returns summary dict for CLI output.
     """
@@ -191,10 +281,9 @@ def seed_laterality_dev_history(db: Session) -> dict:
         db.commit()  # commit so distribute_rewards_for_user sees the semester
 
         if _has_participation(db, user_id, sem.id):
-            label = f"{email} × {preset_code}"
             summary.setdefault(email, {"skipped": 0, "created": 0})
             summary[email]["skipped"] += 1
-            print(f"  SKIP  {label} (participation exists)")
+            print(f"  SKIP  {email} × {preset_code} (participation exists)")
             continue
 
         distribute_rewards_for_user(
@@ -209,16 +298,21 @@ def seed_laterality_dev_history(db: Session) -> dict:
         summary[email]["created"] += 1
         print(f"  OK    {email} × {preset_code}  (placement={placement})")
 
-    # 2. Set onboarding_completed = True for all 4 control users
+    # 2. Apply full onboarding state for all 4 control users
+    print()
     onboarding_updated = 0
-    for email in fixtures["users"]:
+    for email, meta in _ONBOARDING_META.items():
         user = db.query(User).filter(User.email == email).first()
-        if user and not user.onboarding_completed:
-            user.onboarding_completed = True
-            onboarding_updated += 1
+        if user is None:
+            print(f"  WARN: user {email!r} not found — skipping onboarding state")
+            continue
+
+        _apply_full_onboarding_state(db, user, meta)
+        onboarding_updated += 1
+        print(f"  ONBOARD  {email}  dob={meta['date_of_birth']}  pos={meta['position']}")
 
     db.commit()
-    print(f"\n  Onboarding flag set for {onboarding_updated} user(s).")
+    print(f"\n  Full onboarding state applied for {onboarding_updated} user(s).")
 
     return summary
 
@@ -227,7 +321,7 @@ def seed_laterality_dev_history(db: Session) -> dict:
 
 def _parse_args():
     p = argparse.ArgumentParser(
-        description="DEV seed: laterality tournament history for UI validation."
+        description="DEV seed: laterality tournament history + full onboarding state."
     )
     p.add_argument("--clean", action="store_true",
                    help="Delete all DEV-LAT-* semesters before seeding.")
@@ -242,7 +336,7 @@ if __name__ == "__main__":
 
     try:
         if args.clean:
-            print(f"🧹 Cleaning DEV-LAT-* tournaments…")
+            print("🧹 Cleaning DEV-LAT-* tournaments…")
             n = clean_dev_history(db)
             print(f"   Deleted {n} semester(s) and their cascaded rows.")
 
@@ -250,7 +344,7 @@ if __name__ == "__main__":
                 print("   --no-reseed set, done.")
                 sys.exit(0)
 
-        print("\n🦵 Seeding laterality dev history (idempotent)…")
+        print("\n🦵 Seeding laterality dev history + full onboarding state (idempotent)…")
         print("=" * 70)
         summary = seed_laterality_dev_history(db)
 
@@ -261,8 +355,9 @@ if __name__ == "__main__":
             total_created += counts["created"]
             total_skipped += counts["skipped"]
 
-        print(f"\n  Total: {total_created} created, {total_skipped} skipped")
-        print("\n✅ Done. Run the /skills page as any lat.* user to validate.")
+        print(f"\n  Total tournaments: {total_created} created, {total_skipped} skipped")
+        print("\n✅ Done.")
+        print("   Login as any lat.* user → no DOB redirect → /skills loads directly.")
 
     except Exception:
         db.rollback()
