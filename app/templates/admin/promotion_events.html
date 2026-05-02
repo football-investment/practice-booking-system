@@ -290,7 +290,13 @@
                 {% endif %}
             </div>
             <div class="event-meta">
-                {% if info.source_club %}
+                {% if info.organizer_club %}
+                <a href="/admin/clubs/{{ info.organizer_club.id }}" class="meta-club" style="color:#667eea;text-decoration:none;">🏟️ {{ info.organizer_club.name }}</a>
+                <span class="meta-sep">·</span>
+                {% elif info.organizer_sponsor %}
+                <a href="/admin/sponsors/{{ info.organizer_sponsor.id }}" class="meta-club" style="color:#d69e2e;text-decoration:none;">🤝 {{ info.organizer_sponsor.name }}</a>
+                <span class="meta-sep">·</span>
+                {% elif info.source_club %}
                 <a href="/admin/clubs/{{ info.source_club.id }}" class="meta-club" style="color:#667eea;text-decoration:none;">{{ info.source_club.name }}</a>
                 <span class="meta-sep">·</span>
                 {% endif %}

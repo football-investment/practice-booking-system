@@ -1,0 +1,164 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}{{ sponsor.name }}{% endblock %}
+{% block page_heading %}🤝 {{ sponsor.name }}{% endblock %}
+{% block page_subtitle %}Partner detail — code: {{ sponsor.code }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .field-row { margin-bottom: 0.75rem; }
+    .field-label { font-size: 0.75rem; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.06em; }
+    .field-val { font-size: 0.95rem; color: #2d3748; margin-top: 0.1rem; }
+    .badge-active { background: #c6f6d5; color: #276749; border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.75rem; font-weight: 700; }
+    .badge-inactive { background: #fed7d7; color: #9b2c2c; border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.75rem; font-weight: 700; }
+    .contact-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: flex-start; }
+    .primary-badge { background: #bee3f8; color: #2b6cb0; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.7rem; font-weight: 700; margin-left: 0.4rem; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+{% set flash = request.query_params.get('flash') %}
+{% set err = request.query_params.get('error') %}
+{% if flash %}<div class="alert-bar alert-success">✅ {{ flash }}</div>{% endif %}
+{% if err %}<div class="alert-bar alert-error">⚠️ {{ err }}</div>{% endif %}
+
+<div style="display:flex;gap:1rem;margin-bottom:1.5rem;">
+    <a href="/admin/sponsors" style="color:#718096;text-decoration:none;font-size:0.85rem;">← Back to Partners</a>
+</div>
+
+<div class="detail-grid">
+    <!-- Left: info + edit -->
+    <div>
+        <div class="content-card">
+            <h3 style="margin-top:0;">Details</h3>
+            <form method="POST" action="/admin/sponsors/{{ sponsor.id }}/edit">
+                <input type="hidden" name="csrf_token" id="edit-csrf">
+
+                <div class="form-group">
+                    <label>Name *</label>
+                    <input name="name" type="text" required value="{{ sponsor.name }}">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <input name="brand_category" type="text" value="{{ sponsor.brand_category or '' }}">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                    <div class="form-group">
+                        <label>City</label>
+                        <input name="city" type="text" value="{{ sponsor.city or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Country</label>
+                        <input name="country" type="text" value="{{ sponsor.country or '' }}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contact Email</label>
+                    <input name="contact_email" type="email" value="{{ sponsor.contact_email or '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Website</label>
+                    <input name="website" type="url" value="{{ sponsor.website or '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="3">{{ sponsor.notes or '' }}</textarea>
+                </div>
+                <div class="form-group" style="display:flex;align-items:center;gap:0.5rem;">
+                    <input name="is_active" type="checkbox" id="is-active-cb"
+                           {% if sponsor.is_active %}checked{% endif %}>
+                    <label for="is-active-cb" style="margin:0;">Active</label>
+                </div>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right: contacts + linked events -->
+    <div>
+        <div class="content-card" style="margin-bottom:1.5rem;">
+            <h3 style="margin-top:0;">Contacts</h3>
+
+            {% for c in sponsor.contacts %}
+            <div class="contact-card">
+                <div>
+                    <div style="font-weight:600;">
+                        {{ c.name }}
+                        {% if c.is_primary %}<span class="primary-badge">Primary</span>{% endif %}
+                    </div>
+                    {% if c.role %}<div style="font-size:0.82rem;color:#718096;">{{ c.role }}</div>{% endif %}
+                    {% if c.email %}<div style="font-size:0.82rem;">{{ c.email }}</div>{% endif %}
+                    {% if c.phone %}<div style="font-size:0.82rem;">{{ c.phone }}</div>{% endif %}
+                </div>
+                <form method="POST" action="/admin/sponsors/{{ sponsor.id }}/contacts/{{ c.id }}/delete"
+                      onsubmit="return confirm('Remove this contact?')">
+                    <input type="hidden" name="csrf_token" class="csrf-field">
+                    <button type="submit" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:0.8rem;">Remove</button>
+                </form>
+            </div>
+            {% else %}
+            <p style="color:#a0aec0;font-size:0.85rem;">No contacts added yet.</p>
+            {% endfor %}
+
+            <details style="margin-top:1rem;">
+                <summary style="cursor:pointer;font-weight:600;font-size:0.85rem;color:#5a4a9a;">+ Add Contact</summary>
+                <form method="POST" action="/admin/sponsors/{{ sponsor.id }}/contacts/add" style="margin-top:0.75rem;">
+                    <input type="hidden" name="csrf_token" class="csrf-field">
+                    <div class="form-group">
+                        <label>Name *</label>
+                        <input name="contact_name" type="text" required placeholder="Kovács János">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <input name="contact_role" type="text" placeholder="Partnership Manager">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input name="contact_email" type="email">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input name="contact_phone" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:center;gap:0.5rem;">
+                        <input name="is_primary" type="checkbox" id="new-primary-cb">
+                        <label for="new-primary-cb" style="margin:0;">Set as primary contact</label>
+                    </div>
+                    <button type="submit" class="btn-primary" style="font-size:0.85rem;">Add Contact</button>
+                </form>
+            </details>
+        </div>
+
+        <div class="content-card">
+            <h3 style="margin-top:0;">Linked Promotion Events</h3>
+            {% if sponsor.promotion_events %}
+            <table class="data-table">
+                <thead>
+                    <tr><th>Event</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for ev in sponsor.promotion_events %}
+                <tr>
+                    <td style="font-weight:600;">{{ ev.name }}</td>
+                    <td><code style="font-size:0.75rem;">{{ ev.tournament_status or ev.status.value }}</code></td>
+                    <td><a href="/admin/promotion-events/{{ ev.id }}" style="font-size:0.82rem;color:#5a4a9a;">View</a></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:#a0aec0;font-size:0.85rem;">No promotion events linked to this partner yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+const csrfVal = document.cookie.split('; ').find(r => r.startsWith('csrf_token='))?.split('=')[1] || '';
+document.getElementById('edit-csrf').value = csrfVal;
+document.querySelectorAll('.csrf-field').forEach(f => f.value = csrfVal);
+</script>
+{% endblock %}

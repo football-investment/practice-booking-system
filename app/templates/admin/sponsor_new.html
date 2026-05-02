@@ -1,0 +1,96 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}New Partner{% endblock %}
+{% block page_heading %}🤝 New Partner{% endblock %}
+{% block page_subtitle %}Create a sponsor or event organizer{% endblock %}
+
+{% block admin_content %}
+{% if error %}
+<div class="alert-bar alert-error">⚠️ {{ error }}</div>
+{% endif %}
+
+<div style="max-width:680px;">
+<form method="POST" action="/admin/sponsors/new">
+    <input type="hidden" name="csrf_token" id="form-csrf">
+
+    <div class="content-card" style="margin-bottom:1.5rem;">
+        <h3 style="margin-top:0;">Partner Details</h3>
+
+        <div class="form-group">
+            <label>Name *</label>
+            <input name="name" type="text" required placeholder="e.g. Adidas Hungary"
+                   value="{{ form.name if form else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Code * <small style="color:#a0aec0;">(unique, UPPERCASE)</small></label>
+            <input name="code" type="text" required placeholder="e.g. ADIDAS-HU"
+                   style="text-transform:uppercase;"
+                   value="{{ form.code if form else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Category</label>
+            <input name="brand_category" type="text" placeholder="e.g. Sportswear, Media, Insurance"
+                   value="{{ form.brand_category if form else '' }}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div class="form-group">
+                <label>City</label>
+                <input name="city" type="text" placeholder="Budapest"
+                       value="{{ form.city if form else '' }}">
+            </div>
+            <div class="form-group">
+                <label>Country</label>
+                <input name="country" type="text" placeholder="Hungary"
+                       value="{{ form.country if form else '' }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Contact Email</label>
+            <input name="contact_email" type="email" placeholder="info@partner.com"
+                   value="{{ form.contact_email if form else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Website</label>
+            <input name="website" type="url" placeholder="https://partner.com"
+                   value="{{ form.website if form else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Notes</label>
+            <textarea name="notes" rows="3" placeholder="Internal notes…">{{ form.notes if form else '' }}</textarea>
+        </div>
+    </div>
+
+    <div class="content-card" style="margin-bottom:1.5rem;">
+        <h3 style="margin-top:0;">Primary Contact <small style="color:#a0aec0;font-weight:400;">(optional)</small></h3>
+        <div class="form-group">
+            <label>Contact Name</label>
+            <input name="contact_name" type="text" placeholder="Kovács János">
+        </div>
+        <div class="form-group">
+            <label>Role</label>
+            <input name="contact_role" type="text" placeholder="e.g. Partnership Manager">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div class="form-group">
+                <label>Email</label>
+                <input name="contact_email_primary" type="email" placeholder="janos@partner.com">
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input name="contact_phone" type="text" placeholder="+36 1 234 5678">
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;">
+        <button type="submit" class="btn-primary">Create Partner</button>
+        <a href="/admin/sponsors" class="btn-secondary">Cancel</a>
+    </div>
+</form>
+</div>
+
+<script>
+document.getElementById('form-csrf').value =
+    document.cookie.split('; ').find(r => r.startsWith('csrf_token='))?.split('=')[1] || '';
+</script>
+{% endblock %}
