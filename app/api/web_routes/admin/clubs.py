@@ -421,10 +421,10 @@ async def admin_club_promotion(
         extra={"admin": user.email, "club": club.name, "age_groups": age_groups, "tournament_ids": created_ids},
     )
 
-    # Redirect to tournaments list; flash is shown via query param
+    # Redirect to promotion events list; flash is shown via query param
     names_enc = "+".join(ag.replace(" ", "_") for ag in age_groups)
     return RedirectResponse(
-        url=f"/admin/tournaments?flash=Promotion+tournaments+created+for+{names_enc}",
+        url=f"/admin/promotion-events?flash=Promotion+tournaments+created+for+{names_enc}",
         status_code=303,
     )
 
