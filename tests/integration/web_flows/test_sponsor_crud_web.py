@@ -1,5 +1,5 @@
 """
-Sponsor CRUD Web Flow Tests — SPON-01 through SPON-11
+Sponsor CRUD Web Flow Tests — SPON-01 through SPON-14
 
   SPON-01  GET /admin/sponsors → 200 (empty list)
   SPON-02  POST /admin/sponsors/new → sponsor created, redirects to detail
@@ -12,6 +12,9 @@ Sponsor CRUD Web Flow Tests — SPON-01 through SPON-11
   SPON-09  POST /admin/sponsors/{id}/contacts/{cid}/delete → contact removed
   SPON-10  GET /admin/sponsors/{id} non-existent → 404
   SPON-11  POST /admin/sponsors/new then GET /admin/sponsors → sponsor appears in list
+  SPON-12  POST duplicate code → primary contact fields repopulated in response
+  SPON-13  GET /admin/sponsors/{id} → linked events View link uses /admin/tournaments/ prefix
+  SPON-14  GET /admin/sponsors/{id} → Create Promotion Event CTA present
 
 DONE = pytest tests/integration/web_flows/test_sponsor_crud_web.py -v
 """
@@ -329,5 +332,135 @@ class TestSponsorContacts:
 
             deleted = test_db.query(SponsorContact).filter(SponsorContact.id == contact_id).first()
             assert deleted is None
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestSponsorUXFixes:
+    """SPON-12..14: UX fixes — primary contact repopulation, detail page link + CTA."""
+
+    def test_spon_12_primary_contact_repopulated_on_duplicate_code_error(self, test_db: Session):
+        """SPON-12: After duplicate-code 400, primary contact fields survive in the response.
+
+        The route now includes contact_name/role/email_primary/phone in the form dict
+        so the template can repopulate them instead of silently losing the user's input.
+        """
+        admin = _make_admin(test_db)
+        client = _admin_client(test_db, admin)
+        code = f"DUP12-{uuid.uuid4().hex[:4].upper()}"
+        try:
+            # First creation — establishes the code
+            first = client.post(
+                "/admin/sponsors/new",
+                data={"name": "First Sponsor", "code": code},
+                follow_redirects=False,
+            )
+            assert first.status_code == 303
+
+            # Second creation with same code + primary contact data
+            resp = client.post(
+                "/admin/sponsors/new",
+                data={
+                    "name": "Duplicate Partner",
+                    "code": code,
+                    "contact_name": "Kovács János",
+                    "contact_role": "Partnership Manager",
+                    "contact_email_primary": "janos@partner.com",
+                    "contact_phone": "+36 1 234 5678",
+                },
+                follow_redirects=False,
+            )
+            assert resp.status_code == 400
+            assert "already in use" in resp.text
+
+            # Primary contact fields must be repopulated in the response HTML
+            assert "Kovács János" in resp.text, (
+                "contact_name not repopulated after duplicate code error"
+            )
+            assert "Partnership Manager" in resp.text, (
+                "contact_role not repopulated after duplicate code error"
+            )
+            assert "janos@partner.com" in resp.text, (
+                "contact_email_primary not repopulated after duplicate code error"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_spon_13_detail_view_link_uses_tournaments_prefix(self, test_db: Session):
+        """SPON-13: Linked promotion events 'View' link must use /admin/tournaments/{id}/edit.
+
+        The broken /admin/promotion-events/{id} route was replaced with the correct
+        /admin/tournaments/{id}/edit route in the detail template.
+        """
+        from datetime import date
+        from app.models.semester import Semester, SemesterCategory
+        from app.models.campus import Campus
+        from app.models.location import Location
+
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db, admin, suffix="LinkTest")
+
+        # Create a minimal campus for the event
+        loc = Location(name=f"LinkLoc-{uuid.uuid4().hex[:6]}", city=f"City-{uuid.uuid4().hex[:4]}", country="HU")
+        test_db.add(loc)
+        test_db.flush()
+        campus = Campus(name=f"LinkCampus-{uuid.uuid4().hex[:6]}", location_id=loc.id, is_active=True)
+        test_db.add(campus)
+        test_db.flush()
+
+        # Create a promotion event linked to this sponsor
+        uid = uuid.uuid4().hex[:8]
+        event = Semester(
+            code=f"LNK-{uid}",
+            name=f"Link Test Event {uid}",
+            start_date=date(2026, 10, 1),
+            end_date=date(2026, 10, 3),
+            status="DRAFT",
+            tournament_status="DRAFT",
+            semester_category=SemesterCategory.PROMOTION_EVENT,
+            enrollment_cost=0,
+            campus_id=campus.id,
+            organizer_sponsor_id=sponsor.id,
+        )
+        test_db.add(event)
+        test_db.commit()
+
+        client = _admin_client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/sponsors/{sponsor.id}")
+            assert resp.status_code == 200
+
+            # Must use /admin/tournaments/{id}/edit — NOT /admin/promotion-events/{id}
+            assert f"/admin/tournaments/{event.id}/edit" in resp.text, (
+                f"Expected /admin/tournaments/{event.id}/edit in detail page HTML, "
+                f"but it was not found — broken link may still be present"
+            )
+            assert f"/admin/promotion-events/{event.id}" not in resp.text, (
+                "Old broken /admin/promotion-events/{id} link still present in detail page"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_spon_14_detail_create_promotion_event_cta_present(self, test_db: Session):
+        """SPON-14: Sponsor detail page must contain a CTA linking to /admin/clubs.
+
+        The 'Create Promotion Event' guidance points admins to the Club page wizard.
+        """
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db, admin, suffix="CTA")
+        test_db.commit()
+        client = _admin_client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/sponsors/{sponsor.id}")
+            assert resp.status_code == 200
+
+            # The wizard guidance must point to /admin/clubs
+            assert "/admin/clubs" in resp.text, (
+                "Create Promotion Event CTA (/admin/clubs link) not found in sponsor detail page"
+            )
+            # The explanatory text must be present
+            assert "Promotion Event wizard" in resp.text or "promotion event" in resp.text.lower(), (
+                "Promotion Event wizard guidance text not found in sponsor detail page"
+            )
         finally:
             app.dependency_overrides.clear()

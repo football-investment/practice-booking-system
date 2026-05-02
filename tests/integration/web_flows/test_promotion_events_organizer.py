@@ -1,9 +1,10 @@
 """
-Promotion Event Organizer Integration Tests — ORG-01 through ORG-03
+Promotion Event Organizer Integration Tests — ORG-01 through ORG-04
 
   ORG-01  Promotion wizard sets organizer_club_id on every created event
   ORG-02  GET /admin/promotion-events → organizer club name visible in page
   ORG-03  Sponsor can be set as organizer; promotion-events page shows sponsor name
+  ORG-04  Standalone event (no organizer) shows "— standalone —" in promotion-events page
 
 DONE = pytest tests/integration/web_flows/test_promotion_events_organizer.py -v
 """
@@ -238,6 +239,44 @@ class TestSponsorOrganizerOnEvent:
             assert page.status_code == 200
             assert sponsor.name in page.text, (
                 f"Sponsor organizer name '{sponsor.name}' not found in /admin/promotion-events"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestStandaloneOrganizerCell:
+    """ORG-04: Standalone promotion event shows '— standalone —' in the organizer cell."""
+
+    def test_org_04_standalone_event_shows_standalone_label(self, test_db: Session):
+        admin = _make_admin(test_db)
+        campus = _make_campus(test_db)
+
+        uid = uuid.uuid4().hex[:8]
+        from app.models.semester import Semester, SemesterCategory
+        event = Semester(
+            code=f"ORG04-{uid}",
+            name=f"ORG04 Standalone {uid}",
+            start_date=date(2026, 11, 1),
+            end_date=date(2026, 11, 3),
+            status="DRAFT",
+            tournament_status="DRAFT",
+            semester_category=SemesterCategory.PROMOTION_EVENT,
+            enrollment_cost=0,
+            campus_id=campus.id,
+            # Both organizer FKs explicitly NULL — standalone
+            organizer_club_id=None,
+            organizer_sponsor_id=None,
+        )
+        test_db.add(event)
+        test_db.commit()
+
+        client = _admin_client(test_db, admin)
+        try:
+            page = client.get("/admin/promotion-events")
+            assert page.status_code == 200
+            assert "standalone" in page.text.lower(), (
+                "Expected '— standalone —' label for standalone event in /admin/promotion-events, "
+                "but 'standalone' not found in page HTML"
             )
         finally:
             app.dependency_overrides.clear()

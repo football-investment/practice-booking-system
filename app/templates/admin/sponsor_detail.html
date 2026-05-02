@@ -23,6 +23,12 @@
 {% if flash %}<div class="alert-bar alert-success">✅ {{ flash }}</div>{% endif %}
 {% if err %}<div class="alert-bar alert-error">⚠️ {{ err }}</div>{% endif %}
 
+{% if not sponsor.is_active %}
+<div class="alert-bar" style="background:#fff5f5;border-left:4px solid #e53e3e;color:#742a2a;padding:0.65rem 1rem;border-radius:8px;font-size:0.87rem;font-weight:500;margin-bottom:1rem;">
+    ⚠️ This sponsor is <strong>inactive</strong>. Inactive sponsors cannot organize new events.
+</div>
+{% endif %}
+
 <div style="display:flex;gap:1rem;margin-bottom:1.5rem;">
     <a href="/admin/sponsors" style="color:#718096;text-decoration:none;font-size:0.85rem;">← Back to Partners</a>
 </div>
@@ -32,6 +38,10 @@
     <div>
         <div class="content-card">
             <h3 style="margin-top:0;">Details</h3>
+            <div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:7px;padding:0.5rem 0.85rem;margin-bottom:1.1rem;display:flex;align-items:center;gap:0.75rem;">
+                <span style="font-size:0.72rem;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.06em;">Code</span>
+                <code style="font-size:0.9rem;font-weight:700;color:#2d3748;letter-spacing:0.04em;">{{ sponsor.code }}</code>
+            </div>
             <form method="POST" action="/admin/sponsors/{{ sponsor.id }}/edit">
                 <input type="hidden" name="csrf_token" id="edit-csrf">
 
@@ -141,10 +151,11 @@
                 </thead>
                 <tbody>
                 {% for ev in sponsor.promotion_events %}
+                {% set ev_status = ev.tournament_status or (ev.status if ev.status is string else ev.status.value if ev.status else 'DRAFT') %}
                 <tr>
                     <td style="font-weight:600;">{{ ev.name }}</td>
-                    <td><code style="font-size:0.75rem;">{{ ev.tournament_status or ev.status.value }}</code></td>
-                    <td><a href="/admin/promotion-events/{{ ev.id }}" style="font-size:0.82rem;color:#5a4a9a;">View</a></td>
+                    <td><code style="font-size:0.75rem;">{{ ev_status }}</code></td>
+                    <td><a href="/admin/tournaments/{{ ev.id }}/edit" style="font-size:0.82rem;color:#5a4a9a;">View</a></td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -152,6 +163,11 @@
             {% else %}
             <p style="color:#a0aec0;font-size:0.85rem;">No promotion events linked to this partner yet.</p>
             {% endif %}
+            <div style="margin-top:1rem;padding:0.75rem 1rem;background:#fffbeb;border:1px solid #fef3c7;border-radius:8px;font-size:0.83rem;color:#92400e;">
+                💡 To create a new promotion event with this partner as organizer, go to a
+                <a href="/admin/clubs" style="color:#667eea;font-weight:600;text-decoration:none;">Club page</a>
+                and use the Promotion Event wizard.
+            </div>
         </div>
     </div>
 </div>
