@@ -25,7 +25,7 @@ from app.main import app
 from app.database import get_db
 from app.dependencies import get_current_user_web
 from app.models.user import User, UserRole
-from app.models.sponsor import Sponsor, SponsorAudienceEntry
+from app.models.sponsor import Sponsor, SponsorAudienceEntry, SponsorCampaign
 from app.models.club import Club, CsvImportLog
 from app.models.team import Team, TeamMember
 from app.core.security import get_password_hash
@@ -58,6 +58,19 @@ def _make_sponsor(db: Session, admin: User, *, active: bool = True) -> Sponsor:
     return s
 
 
+def _make_campaign(db: Session, sponsor: Sponsor, admin: User) -> SponsorCampaign:
+    c = SponsorCampaign(
+        sponsor_id=sponsor.id,
+        name=f"CSV Campaign {uuid.uuid4().hex[:4]}",
+        campaign_type="IMPORT",
+        status="ACTIVE",
+        created_by=admin.id,
+    )
+    db.add(c)
+    db.flush()
+    return c
+
+
 def _client(db: Session, admin: User) -> TestClient:
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user_web] = lambda: admin
@@ -79,13 +92,16 @@ class TestCsvUploadForm:
     """SPON-CSV-01"""
 
     def test_spon_csv_01_upload_form_loads(self, test_db: Session):
-        """GET /csv-import → 200, sponsor name visible."""
+        """GET /campaigns/{cid}/import → 200, sponsor name visible."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
         try:
-            resp = client.get(f"/admin/sponsors/{sponsor.id}/csv-import")
+            resp = client.get(
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import"
+            )
             assert resp.status_code == 200
             assert sponsor.name in resp.text
             assert "Import Audience" in resp.text
@@ -98,9 +114,10 @@ class TestCsvPreview:
     """SPON-CSV-02"""
 
     def test_spon_csv_02_preview_shows_breakdown(self, test_db: Session):
-        """POST /preview valid CSV → 200, age breakdown, consent counts visible."""
+        """POST /campaigns/{cid}/import/preview valid CSV → 200, age breakdown, consent counts visible."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -111,7 +128,7 @@ class TestCsvPreview:
         ])
         try:
             resp = client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/preview",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/preview",
                 files=[_upload_file(csv_content)],
             )
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
@@ -136,11 +153,12 @@ class TestCsvApply:
     """SPON-CSV-03, SPON-CSV-10"""
 
     def test_spon_csv_03_apply_creates_entries_no_side_effects(self, test_db: Session):
-        """POST /apply → SponsorAudienceEntry created, 0 Club/Team/TeamMember/User side effects."""
+        """POST /campaigns/{cid}/import/apply → SponsorAudienceEntry created, 0 Club/Team/TeamMember/User side effects."""
         from app.models.team import TournamentTeamEnrollment
 
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -157,7 +175,7 @@ class TestCsvApply:
 
         try:
             resp = client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "apply_test.csv"},
                 follow_redirects=False,
             )
@@ -183,9 +201,10 @@ class TestCsvApply:
             app.dependency_overrides.clear()
 
     def test_spon_csv_10_log_has_sponsor_id_no_club_id(self, test_db: Session):
-        """POST /apply → CsvImportLog.sponsor_id = sponsor.id, club_id NULL."""
+        """POST /campaigns/{cid}/import/apply → CsvImportLog.sponsor_id = sponsor.id, club_id NULL."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -193,7 +212,7 @@ class TestCsvApply:
         b64 = base64.b64encode(csv_content).decode()
         try:
             resp = client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "log_test.csv"},
                 follow_redirects=False,
             )
@@ -214,9 +233,10 @@ class TestReImport:
     """SPON-CSV-04"""
 
     def test_spon_csv_04_reimport_updates_not_duplicates(self, test_db: Session):
-        """Re-import same email → 1 SponsorAudienceEntry, action=updated on second run."""
+        """Re-import same email in same campaign → 1 SponsorAudienceEntry (updated, not duplicate)."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -228,12 +248,12 @@ class TestReImport:
         b64_2 = base64.b64encode(csv2).decode()
         try:
             client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64_1, "filename": "run1.csv"},
                 follow_redirects=False,
             )
             client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64_2, "filename": "run2.csv"},
                 follow_redirects=False,
             )
@@ -256,6 +276,7 @@ class TestConsentStatus:
         """consent_given=False (or missing) → status=SUPPRESSED."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -267,7 +288,7 @@ class TestConsentStatus:
         b64 = base64.b64encode(csv_content).decode()
         try:
             client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "consent_test.csv"},
                 follow_redirects=False,
             )
@@ -293,6 +314,7 @@ class TestDobConflict:
         """DOB derives YOUTH (2010) but CSV says PRO → DOB wins, warning in log."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -301,7 +323,7 @@ class TestDobConflict:
         b64 = base64.b64encode(csv_content).decode()
         try:
             client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "dob_test.csv"},
                 follow_redirects=False,
             )
@@ -338,6 +360,7 @@ class TestForbiddenColumns:
         """CSV with club_name column → global warning, row imported, 0 Club created."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -352,7 +375,7 @@ class TestForbiddenColumns:
         try:
             # Preview must show global warning
             resp_preview = client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/preview",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/preview",
                 files=[_upload_file(csv_content)],
             )
             assert resp_preview.status_code == 200
@@ -362,7 +385,7 @@ class TestForbiddenColumns:
 
             # Apply — row must be imported, but no Club created
             client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "forbidden.csv"},
                 follow_redirects=False,
             )
@@ -386,6 +409,7 @@ class TestUserMatch:
 
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
 
         existing_user = User(
             email=f"existing+{uuid.uuid4().hex[:6]}@lfa.com",
@@ -406,7 +430,7 @@ class TestUserMatch:
         b64 = base64.b64encode(csv_content).decode()
         try:
             client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "usermatch.csv"},
                 follow_redirects=False,
             )
@@ -434,32 +458,35 @@ class TestInactiveGuard:
     """SPON-CSV-09"""
 
     def test_spon_csv_09_inactive_sponsor_blocked(self, test_db: Session):
-        """Inactive sponsor → upload/preview/apply routes return 303 redirect with error."""
+        """Inactive sponsor → campaign-scoped upload/preview/apply routes return 303 with error."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin, active=False)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
         dummy_csv = _csv(["A,B,ab@inactive.test,,YOUTH,1,,"])
         b64 = base64.b64encode(dummy_csv).decode()
         try:
-            # GET upload form
-            r1 = client.get(f"/admin/sponsors/{sponsor.id}/csv-import",
-                            follow_redirects=False)
+            # GET upload form — inactive guard fires
+            r1 = client.get(
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import",
+                follow_redirects=False,
+            )
             assert r1.status_code == 303
             assert "error" in r1.headers.get("location", "").lower()
 
-            # POST preview
+            # POST preview — inactive guard fires
             r2 = client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/preview",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/preview",
                 files=[_upload_file(dummy_csv)],
                 follow_redirects=False,
             )
             assert r2.status_code == 303
 
-            # POST apply
+            # POST apply — inactive guard fires
             r3 = client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "inactive.csv"},
                 follow_redirects=False,
             )
@@ -478,9 +505,10 @@ class TestAudienceList:
     """SPON-CSV-11"""
 
     def test_spon_csv_11_audience_list_shows_imported_entries(self, test_db: Session):
-        """GET /audience → 200, shows all imported entries with name/email/status/age."""
+        """GET /campaigns/{cid}/audience → 200, shows all imported entries."""
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -491,25 +519,23 @@ class TestAudienceList:
         b64 = base64.b64encode(csv_content).decode()
         try:
             client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "aud.csv"},
                 follow_redirects=False,
             )
 
-            resp = client.get(f"/admin/sponsors/{sponsor.id}/audience")
+            resp = client.get(
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/audience"
+            )
             assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
 
             body = resp.text
-            # Both entries visible
             assert "alice.s@aud.test" in body
             assert "bob.j@aud.test" in body
-            # Status badges present
             assert "ACTIVE" in body
             assert "SUPPRESSED" in body
-            # Age category visible
             assert "YOUTH" in body
             assert "PRE" in body
-            # Sponsor name in header
             assert sponsor.name in body
         finally:
             app.dependency_overrides.clear()

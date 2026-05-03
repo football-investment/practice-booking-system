@@ -300,107 +300,114 @@
     </div>
 </div>
 
-<!-- ── Import Audience ───────────────────────────────────────────────────── -->
+<!-- ── Campaigns ──────────────────────────────────────────────────────────── -->
 <div class="section-card">
     <div class="section-header">
-        <h3>📥 Import Audience ({{ sponsor.audience_entries|length }})</h3>
-        <div style="display:flex;gap:0.5rem;align-items:center;">
-            {% if sponsor.audience_entries %}
-            <a href="/admin/sponsors/{{ sponsor.id }}/audience"
-               style="padding:0.35rem 0.9rem;border-radius:6px;font-size:0.82rem;font-weight:600;text-decoration:none;background:#f0f4ff;color:#5a4a9a;">
-                View Audience →
-            </a>
-            {% endif %}
-            {% if sponsor.is_active %}
-            <a href="/admin/sponsors/{{ sponsor.id }}/csv-import" class="btn-cta">
-                ↑ Upload CSV
-            </a>
-            {% endif %}
-        </div>
+        <h3>📋 Campaigns ({{ sponsor.campaigns|length }})</h3>
+        {% if sponsor.is_active %}
+        <button onclick="document.getElementById('new-campaign-modal').style.display='flex'"
+                class="btn-cta">+ New Campaign</button>
+        {% endif %}
     </div>
     <div class="section-body">
-        {% if sponsor.audience_entries %}
-
-        {# Age category breakdown #}
-        {% set age_counts = {} %}
-        {% for e in sponsor.audience_entries %}
-            {% set cat = e.age_category or 'UNKNOWN' %}
-            {% if cat in age_counts %}
-                {% set _ = age_counts.update({cat: age_counts[cat] + 1}) %}
-            {% else %}
-                {% set _ = age_counts.update({cat: 1}) %}
-            {% endif %}
-        {% endfor %}
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem;">
-            {% for cat, cnt in age_counts.items() %}
-            <div style="text-align:center;padding:0.5rem 1rem;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;min-width:70px;">
-                <div style="font-size:1.25rem;font-weight:800;color:#667eea;">{{ cnt }}</div>
-                <div style="font-size:0.7rem;font-weight:700;color:#718096;text-transform:uppercase;">{{ cat }}</div>
-            </div>
+        {% if sponsor.campaigns %}
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+            <thead>
+                <tr style="border-bottom:1px solid #e2e8f0;">
+                    <th style="text-align:left;padding:0.4rem 0.5rem;color:#718096;font-size:0.72rem;text-transform:uppercase;font-weight:700;">Name</th>
+                    <th style="text-align:left;padding:0.4rem 0.5rem;color:#718096;font-size:0.72rem;text-transform:uppercase;font-weight:700;">Type</th>
+                    <th style="text-align:right;padding:0.4rem 0.5rem;color:#718096;font-size:0.72rem;text-transform:uppercase;font-weight:700;">Entries</th>
+                    <th style="text-align:left;padding:0.4rem 0.5rem;color:#718096;font-size:0.72rem;text-transform:uppercase;font-weight:700;">Status</th>
+                    <th style="text-align:left;padding:0.4rem 0.5rem;color:#718096;font-size:0.72rem;text-transform:uppercase;font-weight:700;">Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for c in sponsor.campaigns %}
+            {% set active_cnt = c.entries | rejectattr('status', 'equalto', 'DELETED') | list | length %}
+            <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:0.55rem 0.5rem;font-weight:600;">{{ c.name }}</td>
+                <td style="padding:0.55rem 0.5rem;">
+                    <span style="background:#e9d8fd;color:#553c9a;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.72rem;font-weight:700;">{{ c.campaign_type }}</span>
+                </td>
+                <td style="padding:0.55rem 0.5rem;text-align:right;font-weight:700;color:#667eea;">{{ active_cnt }}</td>
+                <td style="padding:0.55rem 0.5rem;">
+                    {% if c.status == 'ACTIVE' %}
+                    <span style="background:#c6f6d5;color:#276749;border-radius:99px;padding:0.1rem 0.5rem;font-size:0.72rem;font-weight:700;">ACTIVE</span>
+                    {% elif c.status == 'CLOSED' %}
+                    <span style="background:#e2e8f0;color:#718096;border-radius:99px;padding:0.1rem 0.5rem;font-size:0.72rem;font-weight:700;">CLOSED</span>
+                    {% else %}
+                    <span style="background:#fefcbf;color:#744210;border-radius:99px;padding:0.1rem 0.5rem;font-size:0.72rem;font-weight:700;">{{ c.status }}</span>
+                    {% endif %}
+                </td>
+                <td style="padding:0.55rem 0.5rem;color:#a0aec0;font-size:0.78rem;">
+                    {{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}
+                </td>
+                <td style="padding:0.55rem 0.5rem;text-align:right;">
+                    <a href="/admin/sponsors/{{ sponsor.id }}/campaigns/{{ c.id }}"
+                       style="font-size:0.8rem;color:#5a4a9a;font-weight:600;text-decoration:none;">View →</a>
+                </td>
+            </tr>
             {% endfor %}
-        </div>
-
-        {# Recent import history #}
-        {% if sponsor.csv_imports %}
-        <div>
-            <div style="font-size:0.8rem;font-weight:700;color:#718096;margin-bottom:0.5rem;">Recent imports</div>
-            {% for log in sponsor.csv_imports | sort(attribute='uploaded_at', reverse=True) | list %}
-            {% if loop.index <= 5 %}
-            <div style="display:flex;align-items:center;gap:1rem;padding:0.6rem 0;border-bottom:1px solid #f0f0f0;font-size:0.85rem;">
-                <span style="font-weight:600;flex:1;">{{ log.filename or 'upload.csv' }}</span>
-                <span style="font-size:0.8rem;color:#718096;">
-                    ✅ {{ log.rows_created }} · ↻ {{ log.rows_updated }}
-                    {% if log.rows_failed %} · <span style="color:#e53e3e;">✕ {{ log.rows_failed }}</span>{% endif %}
-                </span>
-                <span style="font-size:0.75rem;color:#a0aec0;">
-                    {{ log.uploaded_at.strftime('%Y-%m-%d %H:%M') if log.uploaded_at else '' }}
-                </span>
-                <form method="POST"
-                      action="/admin/sponsors/{{ sponsor.id }}/csv-import/{{ log.id }}/rollback"
-                      style="margin:0;">
-                    <input type="hidden" name="csrf_token" id="rollback-csrf-{{ log.id }}">
-                    <button type="submit"
-                            style="background:none;border:1px solid #fed7d7;color:#c53030;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.7rem;font-weight:600;cursor:pointer;"
-                            onclick="return confirm('Rollback this import?\n\n{{ log.filename or 'upload.csv' }} ({{ log.uploaded_at.strftime('%Y-%m-%d') if log.uploaded_at else '' }})\n\nAll unpromoted entries from this import will be soft-deleted.\nAlready promoted entries will be skipped.\n\nThis cannot be undone.')">
-                        ↩ Rollback
-                    </button>
-                </form>
-            </div>
-            {% endif %}
-            {% endfor %}
-            <script>
-            (function() {
-                var csrf = (document.cookie.split('; ')
-                    .find(function(r){ return r.startsWith('csrf_token='); }) || '')
-                    .split('=')[1] || '';
-                document.querySelectorAll('[id^="rollback-csrf-"]').forEach(function(el){
-                    el.value = csrf;
-                });
-            }());
-            </script>
-        </div>
-        {% endif %}
-
+            </tbody>
+        </table>
         {% else %}
         <div class="import-placeholder">
-            <div class="import-icon">📁</div>
+            <div class="import-icon">📋</div>
             <p>
-                No audience imported yet.<br>
-                Upload a CSV to segment <strong>{{ sponsor.name }}</strong>'s audience by age category.
+                No campaigns yet.<br>
+                Create a campaign to start importing audience data for <strong>{{ sponsor.name }}</strong>.
             </p>
             {% if sponsor.is_active %}
-            <a href="/admin/sponsors/{{ sponsor.id }}/csv-import"
-               style="background:#1a6b5a;color:white;border:none;padding:0.5rem 1.5rem;border-radius:6px;font-size:0.9rem;font-weight:600;text-decoration:none;display:inline-block;">
-                Upload CSV
-            </a>
+            <button onclick="document.getElementById('new-campaign-modal').style.display='flex'"
+                    style="background:#1a6b5a;color:white;border:none;padding:0.5rem 1.5rem;border-radius:6px;font-size:0.9rem;font-weight:600;cursor:pointer;">
+                + New Campaign
+            </button>
             {% else %}
-            <button class="btn-disabled" disabled>Upload CSV</button>
+            <button class="btn-disabled" disabled>+ New Campaign</button>
             {% endif %}
-            <div style="font-size:0.75rem;color:#cbd5e0;margin-top:0.75rem;">
-                Columns: first_name, last_name, email, date_of_birth, age_category, consent_given, …
-            </div>
         </div>
         {% endif %}
+    </div>
+</div>
+
+<!-- ── New Campaign Modal ─────────────────────────────────────────────────── -->
+<div id="new-campaign-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>📋 New Campaign</h3>
+        <form method="POST" action="/admin/sponsors/{{ sponsor.id }}/campaigns">
+            <input type="hidden" name="csrf_token" id="campaign-csrf">
+            <div class="m-form-group">
+                <label>Campaign Name *</label>
+                <input name="name" type="text" required placeholder="Puma Spring Cup 2026">
+            </div>
+            <div class="form-row">
+                <div class="m-form-group">
+                    <label>Type</label>
+                    <select name="campaign_type">
+                        <option value="IMPORT">IMPORT</option>
+                        <option value="EVENT">EVENT</option>
+                        <option value="ONGOING">ONGOING</option>
+                        <option value="PILOT">PILOT</option>
+                    </select>
+                </div>
+                <div class="m-form-group">
+                    <label>Event Date</label>
+                    <input name="event_date" type="date">
+                </div>
+            </div>
+            <div class="m-form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="2" placeholder="Optional context…"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-secondary"
+                        onclick="document.getElementById('new-campaign-modal').style.display='none'">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-modal-primary">Create Campaign</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -468,7 +475,7 @@
     var csrf = (document.cookie.split('; ')
         .find(function (r) { return r.startsWith('csrf_token='); }) || '')
         .split('=')[1] || '';
-    ['edit-csrf', 'toggle-csrf'].forEach(function (id) {
+    ['edit-csrf', 'toggle-csrf', 'campaign-csrf'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.value = csrf;
     });

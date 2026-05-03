@@ -13,7 +13,7 @@ from ....dependencies import get_current_user_web
 from ....models.campus import Campus
 from ....models.club import CsvImportLog
 from ....models.semester import Semester, SemesterCategory, SemesterStatus
-from ....models.sponsor import Sponsor, SponsorAudienceEntry, SponsorContact
+from ....models.sponsor import Sponsor, SponsorAudienceEntry, SponsorCampaign, SponsorContact
 from ....models.tournament_configuration import TournamentConfiguration
 from ....models.tournament_type import TournamentType as TournamentTypeModel
 from ....models.license import UserLicense
@@ -375,45 +375,120 @@ async def admin_sponsors_toggle(
     )
 
 
-# ── Sponsor Audience CSV Import ───────────────────────────────────────────────
+# ── P3: Campaign management ───────────────────────────────────────────────────
 
-@router.get("/admin/sponsors/{sponsor_id}/audience", response_class=HTMLResponse)
-async def admin_sponsor_audience_list(
+@router.post("/admin/sponsors/{sponsor_id}/campaigns")
+async def admin_sponsor_campaigns_create(
     sponsor_id: int,
     request: Request,
+    name: str = Form(...),
+    campaign_type: str = Form("IMPORT"),
+    event_date: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Admin: full paginated audience/prospect list for a sponsor."""
+    """Create a new campaign for a sponsor."""
     _admin_guard(user)
     sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
     if not sponsor:
         raise HTTPException(status_code=404, detail="Partner not found")
-    entries = (
-        db.query(SponsorAudienceEntry)
-        .filter(SponsorAudienceEntry.sponsor_id == sponsor_id)
-        .order_by(SponsorAudienceEntry.imported_at.desc())
+    if not sponsor.is_active:
+        return RedirectResponse(
+            f"/admin/sponsors/{sponsor_id}?error=Inactive+partner+cannot+create+campaign",
+            status_code=303,
+        )
+    parsed_date: Optional[date] = None
+    if event_date and event_date.strip():
+        try:
+            parsed_date = date.fromisoformat(event_date.strip())
+        except ValueError:
+            pass
+    campaign = SponsorCampaign(
+        sponsor_id=sponsor_id,
+        name=name.strip(),
+        campaign_type=campaign_type.strip() or "IMPORT",
+        event_date=parsed_date,
+        status="ACTIVE",
+        notes=notes or None,
+        created_by=user.id,
+    )
+    db.add(campaign)
+    db.commit()
+    logger.info("sponsor_campaign_created sponsor=%s campaign=%s by=%s",
+                sponsor_id, campaign.id, user.id)
+    return RedirectResponse(
+        f"/admin/sponsors/{sponsor_id}/campaigns/{campaign.id}?flash=Campaign+created",
+        status_code=303,
+    )
+
+
+@router.get("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}", response_class=HTMLResponse)
+async def admin_sponsor_campaign_detail(
+    sponsor_id: int,
+    campaign_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Campaign detail: entry stats, import history, audience link."""
+    _admin_guard(user)
+    sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
+    if not sponsor:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    campaign = (
+        db.query(SponsorCampaign)
+        .filter(SponsorCampaign.id == campaign_id, SponsorCampaign.sponsor_id == sponsor_id)
+        .first()
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    imports = (
+        db.query(CsvImportLog)
+        .filter(CsvImportLog.campaign_id == campaign_id)
+        .order_by(CsvImportLog.uploaded_at.desc())
         .all()
     )
-    # Build promoted_by display names for audit column
+    flash = request.query_params.get("flash", "")
+    err   = request.query_params.get("error", "")
+    return templates.TemplateResponse(
+        "admin/sponsor_campaign_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "sponsor": sponsor,
+            "campaign": campaign,
+            "imports": imports,
+            "flash": flash,
+            "error": err,
+        },
+    )
+
+
+# ── P3: Campaign-scoped audience list ────────────────────────────────────────
+
+def _build_audience_context(
+    sponsor_id: int,
+    entries: list,
+    db: Session,
+) -> dict:
+    """Build promoters + readiness dicts for audience list template."""
     promoter_ids = {e.promoted_by for e in entries if e.promoted_by}
     promoters: dict[int, str] = {}
     if promoter_ids:
         for u in db.query(User).filter(User.id.in_(promoter_ids)).all():
             promoters[u.id] = u.name
 
-    # Compute tournament-readiness per entry
-    # Fetch all LFA_FOOTBALL_PLAYER licenses for promoted users in one query
     _VALID_POS = frozenset({"STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"})
     promoted_user_ids = {e.user_id for e in entries if e.user_id}
-    license_map: dict[int, UserLicense] = {}  # user_id → license
+    license_map: dict[int, UserLicense] = {}
     if promoted_user_ids:
         for lic in (
             db.query(UserLicense)
             .filter(
                 UserLicense.user_id.in_(promoted_user_ids),
                 UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
-                UserLicense.is_active == True,
+                UserLicense.is_active == True,  # noqa: E712
             )
             .all()
         ):
@@ -432,6 +507,38 @@ async def admin_sponsor_audience_list(
             has_onboarding = lic and (lic.onboarding_completed or lic.football_skills is not None)
             readiness[e.id] = "ready" if has_onboarding else "onboarding_missing"
 
+    return {"promoters": promoters, "readiness": readiness}
+
+
+@router.get("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience",
+            response_class=HTMLResponse)
+async def admin_sponsor_campaign_audience_list(
+    sponsor_id: int,
+    campaign_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Campaign-scoped audience/prospect list."""
+    _admin_guard(user)
+    sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
+    if not sponsor:
+        raise HTTPException(status_code=404, detail="Partner not found")
+    campaign = (
+        db.query(SponsorCampaign)
+        .filter(SponsorCampaign.id == campaign_id, SponsorCampaign.sponsor_id == sponsor_id)
+        .first()
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    entries = (
+        db.query(SponsorAudienceEntry)
+        .filter(SponsorAudienceEntry.campaign_id == campaign_id)
+        .order_by(SponsorAudienceEntry.imported_at.desc())
+        .all()
+    )
+    ctx = _build_audience_context(sponsor_id, entries, db)
     flash = request.query_params.get("flash", "")
     return templates.TemplateResponse(
         "admin/sponsor_audience_list.html",
@@ -439,29 +546,30 @@ async def admin_sponsor_audience_list(
             "request": request,
             "user": user,
             "sponsor": sponsor,
+            "campaign": campaign,
             "entries": entries,
-            "promoters": promoters,
-            "readiness": readiness,
             "flash": flash,
+            **ctx,
         },
     )
 
 
-@router.post("/admin/sponsors/{sponsor_id}/audience/promote")
-async def admin_sponsor_audience_promote(
+@router.post("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience/promote")
+async def admin_sponsor_campaign_audience_promote(
     sponsor_id: int,
+    campaign_id: int,
     request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Admin: promote selected ACTIVE SponsorAudienceEntry rows to User accounts."""
+    """Promote selected ACTIVE entries from a campaign to User accounts."""
     _admin_guard(user)
     sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
     if not sponsor:
         raise HTTPException(status_code=404, detail="Partner not found")
     if not sponsor.is_active:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}?error=Inactive+partner",
+            f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}?error=Inactive+partner",
             status_code=303,
         )
 
@@ -471,18 +579,19 @@ async def admin_sponsor_audience_promote(
         entry_ids = [int(i) for i in raw_ids if i]
     except ValueError:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}/audience?error=Invalid+entry+IDs",
+            f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience"
+            "?error=Invalid+entry+IDs",
             status_code=303,
         )
 
     if not entry_ids:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}/audience?flash=No+entries+selected",
+            f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience"
+            "?flash=No+entries+selected",
             status_code=303,
         )
 
     result = promote_entries(entry_ids, sponsor_id, db, user)
-
     parts = []
     if result.promoted:
         parts.append(f"{result.promoted}+promoted")
@@ -491,193 +600,182 @@ async def admin_sponsor_audience_promote(
     if result.skipped:
         parts.append(f"{result.skipped}+skipped+%28not+ACTIVE+or+no+consent%29")
     flash = "%2C+".join(parts) if parts else "No+changes"
-
     return RedirectResponse(
-        f"/admin/sponsors/{sponsor_id}/audience?flash={flash}",
+        f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience?flash={flash}",
         status_code=303,
     )
 
 
-# ── P2-E Cleanup routes ───────────────────────────────────────────────────────
+# ── P3: Campaign-scoped cleanup routes ───────────────────────────────────────
 
-@router.post("/admin/sponsors/{sponsor_id}/audience/{entry_id}/suppress")
-async def admin_sponsor_audience_suppress(
+@router.post("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience/{entry_id}/suppress")
+async def admin_campaign_audience_suppress(
     sponsor_id: int,
+    campaign_id: int,
     entry_id: int,
     request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Suppress a single audience entry (status → SUPPRESSED)."""
     _admin_guard(user)
     result = suppress_entry(entry_id, sponsor_id, db, user)
+    base = f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience"
     if result.errors:
-        flash = f"error="+"+".join(result.errors[0].replace(" ", "+").split())
-        return RedirectResponse(f"/admin/sponsors/{sponsor_id}/audience?{flash}", status_code=303)
-    return RedirectResponse(
-        f"/admin/sponsors/{sponsor_id}/audience?flash=1+suppressed",
-        status_code=303,
-    )
+        flash = "error=" + "+".join(result.errors[0].replace(" ", "+").split())
+        return RedirectResponse(f"{base}?{flash}", status_code=303)
+    return RedirectResponse(f"{base}?flash=1+suppressed", status_code=303)
 
 
-@router.post("/admin/sponsors/{sponsor_id}/audience/{entry_id}/delete")
-async def admin_sponsor_audience_delete(
+@router.post("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience/{entry_id}/delete")
+async def admin_campaign_audience_delete(
     sponsor_id: int,
+    campaign_id: int,
     entry_id: int,
     request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Soft-delete a single audience entry (status → DELETED)."""
     _admin_guard(user)
     result = soft_delete_entry(entry_id, sponsor_id, db, user)
+    base = f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience"
     if result.errors:
-        flash = "error="+"+".join(result.errors[0].replace(" ", "+").split())
-        return RedirectResponse(f"/admin/sponsors/{sponsor_id}/audience?{flash}", status_code=303)
-    return RedirectResponse(
-        f"/admin/sponsors/{sponsor_id}/audience?flash=1+deleted",
-        status_code=303,
-    )
+        flash = "error=" + "+".join(result.errors[0].replace(" ", "+").split())
+        return RedirectResponse(f"{base}?{flash}", status_code=303)
+    return RedirectResponse(f"{base}?flash=1+deleted", status_code=303)
 
 
-@router.post("/admin/sponsors/{sponsor_id}/audience/{entry_id}/unlink")
-async def admin_sponsor_audience_unlink(
+@router.post("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience/{entry_id}/unlink")
+async def admin_campaign_audience_unlink(
     sponsor_id: int,
+    campaign_id: int,
     entry_id: int,
     request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Unlink User from a promoted audience entry (clears user_id/promoted_at/promoted_by).
-
-    User and UserLicense are NOT modified.
-    """
     _admin_guard(user)
     result = unlink_entry(entry_id, sponsor_id, db, user)
+    base = f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/audience"
     if result.errors:
-        flash = "error="+"+".join(result.errors[0].replace(" ", "+").split())
-        return RedirectResponse(f"/admin/sponsors/{sponsor_id}/audience?{flash}", status_code=303)
+        flash = "error=" + "+".join(result.errors[0].replace(" ", "+").split())
+        return RedirectResponse(f"{base}?{flash}", status_code=303)
     flash = f"1+unlinked+%28User+%23{result.unlinked_user_id}+preserved%29"
-    return RedirectResponse(
-        f"/admin/sponsors/{sponsor_id}/audience?flash={flash}",
-        status_code=303,
-    )
+    return RedirectResponse(f"{base}?flash={flash}", status_code=303)
 
 
-@router.post("/admin/sponsors/{sponsor_id}/csv-import/{log_id}/rollback")
-async def admin_sponsor_import_rollback(
+# ── P3: Campaign-scoped import ────────────────────────────────────────────────
+
+@router.get("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/import",
+            response_class=HTMLResponse)
+async def admin_sponsor_campaign_import_form(
     sponsor_id: int,
-    log_id: int,
+    campaign_id: int,
     request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Rollback a CSV import: soft-delete all unpromoted entries from this import log.
-
-    Promoted entries (user_id IS NOT NULL) are skipped and reported.
-    """
-    _admin_guard(user)
-    result = rollback_import(log_id, sponsor_id, db, user)
-    if result.errors:
-        flash = "error="+"+".join(result.errors[0].replace(" ", "+").split())
-        return RedirectResponse(f"/admin/sponsors/{sponsor_id}/audience?{flash}", status_code=303)
-    parts = []
-    if result.deleted:
-        parts.append(f"{result.deleted}+deleted")
-    if result.skipped:
-        parts.append(f"{result.skipped}+skipped+%28already+promoted%29")
-    flash = "%2C+".join(parts) if parts else "0+entries+affected"
-    return RedirectResponse(
-        f"/admin/sponsors/{sponsor_id}/audience?flash={flash}",
-        status_code=303,
-    )
-
-
-@router.get("/admin/sponsors/{sponsor_id}/csv-import", response_class=HTMLResponse)
-async def admin_sponsor_csv_upload_form(
-    sponsor_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user_web),
-):
-    """Admin: render the CSV upload form for sponsor audience import."""
+    """Render CSV upload form scoped to a campaign."""
     _admin_guard(user)
     sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
     if not sponsor:
         raise HTTPException(status_code=404, detail="Partner not found")
+    campaign = (
+        db.query(SponsorCampaign)
+        .filter(SponsorCampaign.id == campaign_id, SponsorCampaign.sponsor_id == sponsor_id)
+        .first()
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
     if not sponsor.is_active:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}?error=Inactive+partner+cannot+import+audience",
+            f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}"
+            "?error=Inactive+partner+cannot+import+audience",
             status_code=303,
         )
     return templates.TemplateResponse(
         "admin/sponsor_csv_upload.html",
-        {"request": request, "user": user, "sponsor": sponsor},
+        {"request": request, "user": user, "sponsor": sponsor, "campaign": campaign},
     )
 
 
-@router.post("/admin/sponsors/{sponsor_id}/csv-import/preview", response_class=HTMLResponse)
-async def admin_sponsor_csv_preview(
+@router.post("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/import/preview",
+             response_class=HTMLResponse)
+async def admin_sponsor_campaign_import_preview(
     sponsor_id: int,
+    campaign_id: int,
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Admin: parse and validate CSV, return preview page.  Writes nothing to DB."""
+    """Parse and validate CSV for a campaign.  Writes nothing to DB."""
     _admin_guard(user)
     sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
     if not sponsor:
         raise HTTPException(status_code=404, detail="Partner not found")
+    campaign = (
+        db.query(SponsorCampaign)
+        .filter(SponsorCampaign.id == campaign_id, SponsorCampaign.sponsor_id == sponsor_id)
+        .first()
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
     if not sponsor.is_active:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}?error=Inactive+partner+cannot+import+audience",
+            f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}"
+            "?error=Inactive+partner+cannot+import+audience",
             status_code=303,
         )
 
     content = await file.read()
+    base_url = f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/import"
     if len(content) > MAX_CSV_BYTES:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}/csv-import"
-            "?error=CSV+file+too+large+%28max+1+MB%29",
+            f"{base_url}?error=CSV+file+too+large+%28max+1+MB%29",
             status_code=303,
         )
     if not content:
-        return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}/csv-import?error=Empty+file",
-            status_code=303,
-        )
+        return RedirectResponse(f"{base_url}?error=Empty+file", status_code=303)
 
-    result = preview_rows(content, sponsor_id, db, filename=file.filename or "upload.csv")
-
+    result = preview_rows(content, campaign_id, db, filename=file.filename or "upload.csv")
     return templates.TemplateResponse(
         "admin/sponsor_csv_preview.html",
         {
             "request": request,
             "user": user,
             "sponsor": sponsor,
+            "campaign": campaign,
             "preview": result,
         },
     )
 
 
-@router.post("/admin/sponsors/{sponsor_id}/csv-import/apply")
-async def admin_sponsor_csv_apply(
+@router.post("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/import/apply")
+async def admin_sponsor_campaign_import_apply(
     sponsor_id: int,
+    campaign_id: int,
     request: Request,
     csv_data: str = Form(...),
     filename: str = Form("upload.csv"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Admin: apply the previously-previewed CSV import (single atomic transaction)."""
+    """Apply the previewed CSV import into a campaign (single atomic transaction)."""
     _admin_guard(user)
     sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
     if not sponsor:
         raise HTTPException(status_code=404, detail="Partner not found")
+    campaign = (
+        db.query(SponsorCampaign)
+        .filter(SponsorCampaign.id == campaign_id, SponsorCampaign.sponsor_id == sponsor_id)
+        .first()
+    )
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
     if not sponsor.is_active:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}?error=Inactive+partner+cannot+import+audience",
+            f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}"
+            "?error=Inactive+partner+cannot+import+audience",
             status_code=303,
         )
 
@@ -685,18 +783,88 @@ async def admin_sponsor_csv_apply(
         content = base64.b64decode(csv_data)
     except Exception:
         return RedirectResponse(
-            f"/admin/sponsors/{sponsor_id}?error=Invalid+import+data",
+            f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}?error=Invalid+import+data",
             status_code=303,
         )
 
-    log = apply_import(content, sponsor, db, user, filename=filename)
+    log = apply_import(content, sponsor, db, user, campaign_id=campaign_id, filename=filename)
     flash = (
         f"Audience+imported+%E2%80%94+"
         f"{log.rows_created}+created%2C+{log.rows_updated}+updated"
         + (f"%2C+{log.rows_failed}+failed" if log.rows_failed else "")
     )
     return RedirectResponse(
-        f"/admin/sponsors/{sponsor_id}?flash={flash}",
+        f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}?flash={flash}",
+        status_code=303,
+    )
+
+
+@router.post("/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}/import/{log_id}/rollback")
+async def admin_sponsor_campaign_import_rollback(
+    sponsor_id: int,
+    campaign_id: int,
+    log_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Rollback a CSV import: soft-delete all unpromoted entries from this import log."""
+    _admin_guard(user)
+    result = rollback_import(log_id, sponsor_id, db, user)
+    base = f"/admin/sponsors/{sponsor_id}/campaigns/{campaign_id}"
+    if result.errors:
+        flash = "error=" + "+".join(result.errors[0].replace(" ", "+").split())
+        return RedirectResponse(f"{base}?{flash}", status_code=303)
+    parts = []
+    if result.deleted:
+        parts.append(f"{result.deleted}+deleted")
+    if result.already_deleted:
+        parts.append(f"{result.already_deleted}+already+deleted+%E2%80%94+no+action+needed")
+    if result.skipped:
+        parts.append(f"{result.skipped}+skipped+%28already+promoted%29")
+    flash = "%2C+".join(parts) if parts else "nothing+to+rollback"
+    return RedirectResponse(f"{base}?flash={flash}", status_code=303)
+
+
+# ── Legacy redirects (P2 URLs → P3 campaign-based URLs) ──────────────────────
+
+@router.get("/admin/sponsors/{sponsor_id}/audience", response_class=HTMLResponse)
+async def _redirect_audience_to_campaigns(
+    sponsor_id: int,
+    user: User = Depends(get_current_user_web),
+):
+    """Legacy URL — redirects to campaign list on sponsor detail."""
+    _admin_guard(user)
+    return RedirectResponse(
+        f"/admin/sponsors/{sponsor_id}",
+        status_code=303,
+    )
+
+
+@router.get("/admin/sponsors/{sponsor_id}/csv-import", response_class=HTMLResponse)
+async def _redirect_csv_import_to_campaigns(
+    sponsor_id: int,
+    user: User = Depends(get_current_user_web),
+):
+    """Legacy URL — redirects to sponsor detail (create a campaign there first)."""
+    _admin_guard(user)
+    return RedirectResponse(
+        f"/admin/sponsors/{sponsor_id}",
+        status_code=303,
+    )
+
+
+@router.post("/admin/sponsors/{sponsor_id}/csv-import/{log_id}/rollback")
+async def _legacy_rollback_redirect(
+    sponsor_id: int,
+    log_id: int,
+    user: User = Depends(get_current_user_web),
+):
+    """Legacy rollback URL — redirects to sponsor detail with guidance."""
+    _admin_guard(user)
+    return RedirectResponse(
+        f"/admin/sponsors/{sponsor_id}"
+        "?error=Please+use+the+campaign+rollback+button+in+the+campaign+detail+page",
         status_code=303,
     )
 

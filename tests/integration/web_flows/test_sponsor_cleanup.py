@@ -1,5 +1,5 @@
 """
-Sponsor Audience P2-E — Cleanup / Rollback Tests (SPON-CL-01 through SPON-CL-06)
+Sponsor Audience P2-E — Cleanup / Rollback Tests (SPON-CL-01 through SPON-CL-08)
 
   SPON-CL-01  suppress_entry → status=SUPPRESSED, User count unchanged
   SPON-CL-02  unlink_entry → user_id=None, promoted_at=None, promoted_by=None;
@@ -8,6 +8,9 @@ Sponsor Audience P2-E — Cleanup / Rollback Tests (SPON-CL-01 through SPON-CL-0
   SPON-CL-04  rollback_import with promoted entries → promoted skipped, in result.skipped
   SPON-CL-05  DELETED entry is not promotable (promote skips it)
   SPON-CL-06  CSV re-import does NOT reactivate a DELETED entry
+  SPON-CL-07  rollback on already-DELETED entries → result.already_deleted counts them,
+              result.deleted==0 (no silent no-op)
+  SPON-CL-08  rollback on mixed batch → deleted + already_deleted counted separately
 
 DONE = pytest tests/integration/web_flows/test_sponsor_cleanup.py -v
 """
@@ -19,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.models.club import CsvImportLog
 from app.models.license import UserLicense
-from app.models.sponsor import Sponsor, SponsorAudienceEntry
+from app.models.sponsor import Sponsor, SponsorAudienceEntry, SponsorCampaign
 from app.models.user import User, UserRole
 from app.core.security import get_password_hash
 from app.services.sponsor_cleanup_service import (
@@ -59,9 +62,16 @@ def _make_sponsor(db: Session, admin: User) -> Sponsor:
     return s
 
 
-def _make_log(db: Session, sponsor: Sponsor, admin: User, filename: str = "test.csv") -> CsvImportLog:
+def _make_log(
+    db: Session,
+    sponsor: Sponsor,
+    admin: User,
+    filename: str = "test.csv",
+    campaign: SponsorCampaign | None = None,
+) -> CsvImportLog:
     log = CsvImportLog(
         sponsor_id=sponsor.id,
+        campaign_id=campaign.id if campaign else None,
         filename=filename,
         total_rows=1,
         uploaded_by=admin.id,
@@ -71,11 +81,25 @@ def _make_log(db: Session, sponsor: Sponsor, admin: User, filename: str = "test.
     return log
 
 
+def _make_campaign(db: Session, sponsor: Sponsor, admin: User, name: str = "Test Campaign") -> SponsorCampaign:
+    c = SponsorCampaign(
+        sponsor_id=sponsor.id,
+        name=name,
+        campaign_type="IMPORT",
+        status="ACTIVE",
+        created_by=admin.id,
+    )
+    db.add(c)
+    db.flush()
+    return c
+
+
 def _make_entry(
     db: Session,
     sponsor: Sponsor,
     log: CsvImportLog,
     *,
+    campaign_id: int | None = None,
     status: str = "ACTIVE",
     consent_given: bool = True,
     user_id: int | None = None,
@@ -85,6 +109,7 @@ def _make_entry(
 ) -> SponsorAudienceEntry:
     e = SponsorAudienceEntry(
         sponsor_id=sponsor.id,
+        campaign_id=campaign_id or log.campaign_id,
         import_log_id=log.id,
         first_name="Test",
         last_name="Player",
@@ -121,7 +146,8 @@ class TestSuppress:
     def test_spon_cl_01_suppress_active_entry(self, test_db: Session):
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
-        log = _make_log(test_db, sponsor, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
         entry = _make_entry(test_db, sponsor, log)
         test_db.commit()
 
@@ -138,7 +164,8 @@ class TestSuppress:
     def test_spon_cl_01_suppress_already_deleted_returns_error(self, test_db: Session):
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
-        log = _make_log(test_db, sponsor, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
         entry = _make_entry(test_db, sponsor, log, status="DELETED")
         test_db.commit()
 
@@ -155,7 +182,8 @@ class TestUnlink:
     def test_spon_cl_02_unlink_clears_promotion_fields(self, test_db: Session):
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
-        log = _make_log(test_db, sponsor, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
 
         linked_user = _make_user(test_db)
         lic = UserLicense(
@@ -203,7 +231,8 @@ class TestUnlink:
     def test_spon_cl_02_unlink_no_user_returns_error(self, test_db: Session):
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
-        log = _make_log(test_db, sponsor, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
         entry = _make_entry(test_db, sponsor, log)  # no user_id
         test_db.commit()
 
@@ -220,7 +249,8 @@ class TestRollbackUnpromoted:
     def test_spon_cl_03_rollback_deletes_only_unpromoted(self, test_db: Session):
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
-        log = _make_log(test_db, sponsor, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
 
         e1 = _make_entry(test_db, sponsor, log, status="ACTIVE")
         e2 = _make_entry(test_db, sponsor, log, status="SUPPRESSED")
@@ -246,7 +276,8 @@ class TestRollbackSkipsPromoted:
     def test_spon_cl_04_rollback_skips_promoted(self, test_db: Session):
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
-        log = _make_log(test_db, sponsor, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
 
         linked_user = _make_user(test_db)
         e_promoted = _make_entry(test_db, sponsor, log, user_id=linked_user.id)
@@ -274,7 +305,8 @@ class TestDeletedNotPromotable:
     def test_spon_cl_05_deleted_entry_skipped_by_promote(self, test_db: Session):
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
-        log = _make_log(test_db, sponsor, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
         entry = _make_entry(test_db, sponsor, log, status="DELETED")
         test_db.commit()
 
@@ -299,13 +331,26 @@ class TestReimportDoesNotReactivateDeleted:
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
 
+        # Create a campaign for the re-import
+        campaign = SponsorCampaign(
+            sponsor_id=sponsor.id,
+            name="CL-06 Campaign",
+            campaign_type="IMPORT",
+            status="ACTIVE",
+            created_by=admin.id,
+        )
+        test_db.add(campaign)
+        test_db.flush()
+
         # Pre-seed a DELETED entry for an email that will be in the CSV
         log0 = _make_log(test_db, sponsor, admin, filename="original.csv")
+        log0.campaign_id = campaign.id
         entry = _make_entry(
             test_db, sponsor, log0,
             status="DELETED",
             email="reimport-cl@test.com",
         )
+        entry.campaign_id = campaign.id
         test_db.commit()
 
         # Re-import the same email with consent=1 (would normally create ACTIVE)
@@ -316,8 +361,64 @@ class TestReimportDoesNotReactivateDeleted:
 
         from app.models.sponsor import Sponsor as SponsorModel
         sponsor_obj = test_db.query(SponsorModel).filter(SponsorModel.id == sponsor.id).first()
-        apply_import(csv_content, sponsor_obj, test_db, admin, filename="reimport.csv")
+        apply_import(csv_content, sponsor_obj, test_db, admin,
+                     campaign_id=campaign.id, filename="reimport.csv")
 
         test_db.expire(entry)
         # Status must remain DELETED — import cannot reactivate
         assert entry.status == "DELETED"
+
+
+# ── SPON-CL-07 ────────────────────────────────────────────────────────────────
+
+class TestRollbackAlreadyDeleted:
+    """SPON-CL-07: rollback on already-DELETED entries → already_deleted counter, deleted==0."""
+
+    def test_spon_cl_07_already_deleted_counted_not_silent(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
+
+        e1 = _make_entry(test_db, sponsor, log, status="DELETED")
+        e2 = _make_entry(test_db, sponsor, log, status="DELETED")
+        test_db.commit()
+
+        result = rollback_import(log.id, sponsor.id, test_db, admin)
+
+        # No new deletions — everything was already DELETED
+        assert result.deleted == 0
+        assert result.skipped == 0
+        assert result.already_deleted == 2
+        assert not result.errors
+
+
+# ── SPON-CL-08 ────────────────────────────────────────────────────────────────
+
+class TestRollbackMixedBatch:
+    """SPON-CL-08: rollback on mixed batch → deleted + already_deleted counted separately."""
+
+    def test_spon_cl_08_mixed_batch_counted_separately(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
+        log = _make_log(test_db, sponsor, admin, campaign=campaign)
+
+        e_active     = _make_entry(test_db, sponsor, log, status="ACTIVE")
+        e_suppressed = _make_entry(test_db, sponsor, log, status="SUPPRESSED")
+        e_deleted    = _make_entry(test_db, sponsor, log, status="DELETED")
+        test_db.commit()
+
+        result = rollback_import(log.id, sponsor.id, test_db, admin)
+
+        assert result.deleted == 2         # ACTIVE + SUPPRESSED → deleted
+        assert result.already_deleted == 1  # DELETED → counted, not silenced
+        assert result.skipped == 0
+        assert not result.errors
+
+        test_db.expire(e_active)
+        test_db.expire(e_suppressed)
+        test_db.expire(e_deleted)
+        assert e_active.status == "DELETED"
+        assert e_suppressed.status == "DELETED"
+        assert e_deleted.status == "DELETED"  # unchanged

@@ -25,7 +25,7 @@ from app.main import app
 from app.database import get_db
 from app.dependencies import get_current_user_web
 from app.models.user import User, UserRole
-from app.models.sponsor import Sponsor, SponsorAudienceEntry
+from app.models.sponsor import Sponsor, SponsorAudienceEntry, SponsorCampaign
 from app.models.license import UserLicense
 from app.core.security import get_password_hash
 from app.services.sponsor_promote_service import promote_entries
@@ -58,6 +58,19 @@ def _make_sponsor(db: Session, admin: User, *, active: bool = True) -> Sponsor:
     return s
 
 
+def _make_campaign(db: Session, sponsor: Sponsor, admin: User) -> SponsorCampaign:
+    c = SponsorCampaign(
+        sponsor_id=sponsor.id,
+        name=f"Promo Campaign {uuid.uuid4().hex[:4]}",
+        campaign_type="IMPORT",
+        status="ACTIVE",
+        created_by=admin.id,
+    )
+    db.add(c)
+    db.flush()
+    return c
+
+
 def _make_entry(
     db: Session,
     sponsor: Sponsor,
@@ -69,9 +82,10 @@ def _make_entry(
     user_id: int | None = None,
 ) -> SponsorAudienceEntry:
     from app.models.club import CsvImportLog
-    # Minimal import log required by FK
+    campaign = _make_campaign(db, sponsor, admin)
     log = CsvImportLog(
         sponsor_id=sponsor.id,
+        campaign_id=campaign.id,
         filename="test.csv",
         total_rows=1,
         uploaded_by=admin.id,
@@ -81,6 +95,7 @@ def _make_entry(
 
     e = SponsorAudienceEntry(
         sponsor_id=sponsor.id,
+        campaign_id=campaign.id,
         import_log_id=log.id,
         first_name="Test",
         last_name="User",
@@ -319,13 +334,14 @@ class TestInactiveGuard:
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin, active=False)
         entry = _make_entry(test_db, sponsor, admin)
+        campaign_id = entry.campaign_id
         test_db.commit()
         client = _client(test_db, admin)
 
         try:
             users_before = test_db.query(User).count()
             resp = client.post(
-                f"/admin/sponsors/{sponsor.id}/audience/promote",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign_id}/audience/promote",
                 data={"entry_ids": str(entry.id)},
                 follow_redirects=False,
             )
@@ -340,8 +356,10 @@ class TestCsvApplyStillZeroUsers:
 
     def test_spon_p_10_csv_apply_creates_zero_users(self, test_db: Session):
         """CSV import apply path still creates 0 Users (P2-B invariant)."""
+        from app.models.sponsor import SponsorCampaign
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin)
+        campaign = _make_campaign(test_db, sponsor, admin)
         test_db.commit()
         client = _client(test_db, admin)
 
@@ -354,7 +372,7 @@ class TestCsvApplyStillZeroUsers:
         try:
             users_before = test_db.query(User).count()
             resp = client.post(
-                f"/admin/sponsors/{sponsor.id}/csv-import/apply",
+                f"/admin/sponsors/{sponsor.id}/campaigns/{campaign.id}/import/apply",
                 data={"csv_data": b64, "filename": "p10.csv"},
                 follow_redirects=False,
             )

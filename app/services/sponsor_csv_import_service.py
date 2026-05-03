@@ -11,10 +11,10 @@ Business rules:
   - DOB is authoritative for age_category.  Explicit CSV value stored in age_raw for audit.
 
 Row lifecycle:
-  Valid new (sponsor_id, email)  → CREATE SponsorAudienceEntry  → "created"
-  Valid existing (sponsor_id, email) → UPDATE non-null fields   → "updated"
-  Missing required field         → skip row, append error        → "failed"
-  Invalid format                 → skip row, append error        → "failed"
+  Valid new (campaign_id, email)  → CREATE SponsorAudienceEntry  → "created"
+  Valid existing (campaign_id, email) → UPDATE non-null fields   → "updated"
+  Missing required field          → skip row, append error        → "failed"
+  Invalid format                  → skip row, append error        → "failed"
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from app.models.sponsor import SponsorAudienceEntry
 from app.models.user import User
 
 if TYPE_CHECKING:
-    from app.models.sponsor import Sponsor
+    from app.models.sponsor import Sponsor, SponsorCampaign
 
 import logging
 
@@ -236,7 +236,7 @@ def _status_for_consent(consent: bool) -> str:
 
 def preview_rows(
     content: bytes,
-    sponsor_id: int,
+    campaign_id: int,
     db: Session,
     filename: str = "upload.csv",
 ) -> PreviewResult:
@@ -295,11 +295,11 @@ def preview_rows(
         _, fd_warnings = _parse_foot_dominance(row.get("foot_dominance", ""))
         row_warnings.extend(fd_warnings)
 
-        # Determine create vs update
+        # Determine create vs update (scoped to campaign)
         existing = (
             db.query(SponsorAudienceEntry)
             .filter(
-                SponsorAudienceEntry.sponsor_id == sponsor_id,
+                SponsorAudienceEntry.campaign_id == campaign_id,
                 SponsorAudienceEntry.email == email,
             )
             .first()
@@ -350,18 +350,28 @@ def apply_import(
     sponsor: "Sponsor",
     db: Session,
     admin_user: User,
+    *,
+    campaign_id: int,
     filename: str = "upload.csv",
 ) -> CsvImportLog:
     """Process all valid rows in a single DB transaction.
 
+    campaign_id is required — raises ValueError if not provided.
     Raises on unhandled DB error — caller must not catch silently.
     Validation failures (missing fields, bad email) are recorded in log.errors
     and do NOT abort the transaction.
     """
+    if campaign_id is None:
+        raise ValueError(
+            "apply_import requires campaign_id.  "
+            "Create a SponsorCampaign first, then pass its id."
+        )
+
     rows = _parse_csv(content)
 
     log = CsvImportLog(
         sponsor_id=sponsor.id,
+        campaign_id=campaign_id,
         club_id=None,
         uploaded_by=admin_user.id,
         filename=filename,
@@ -408,7 +418,7 @@ def apply_import(
 
         entry, action = _upsert_entry(
             db, row, email, canonical, age_raw, consent,
-            sponsor, log.id, admin_user.id,
+            sponsor, campaign_id, log.id, admin_user.id,
             position=position, foot_dominance=foot_dominance,
         )
 
@@ -424,8 +434,8 @@ def apply_import(
     db.commit()  # single atomic commit — any unhandled exception above rolls back everything
 
     logger.info(
-        "sponsor_audience_import_done sponsor=%s created=%d updated=%d failed=%d",
-        sponsor.name, log.rows_created, log.rows_updated, log.rows_failed,
+        "sponsor_audience_import_done sponsor=%s campaign=%s created=%d updated=%d failed=%d",
+        sponsor.name, campaign_id, log.rows_created, log.rows_updated, log.rows_failed,
     )
     return log
 
@@ -440,19 +450,24 @@ def _upsert_entry(
     age_raw: str | None,
     consent: bool,
     sponsor: "Sponsor",
+    campaign_id: int,
     log_id: int,
     admin_id: int,
     *,
     position: str | None = None,
     foot_dominance: int | None = None,
 ) -> tuple[SponsorAudienceEntry, str]:
-    """Create or update a SponsorAudienceEntry. Returns (entry, action)."""
+    """Create or update a SponsorAudienceEntry. Returns (entry, action).
+
+    Upsert key: (campaign_id, email) — the same email can appear in
+    multiple campaigns for the same sponsor.
+    """
     now = datetime.now(timezone.utc)
 
     existing = (
         db.query(SponsorAudienceEntry)
         .filter(
-            SponsorAudienceEntry.sponsor_id == sponsor.id,
+            SponsorAudienceEntry.campaign_id == campaign_id,
             SponsorAudienceEntry.email == email,
         )
         .first()
@@ -489,6 +504,7 @@ def _upsert_entry(
     if existing is None:
         entry = SponsorAudienceEntry(
             sponsor_id=sponsor.id,
+            campaign_id=campaign_id,
             import_log_id=log_id,
             user_id=user_id,
             first_name=row["first_name"].strip(),
@@ -531,9 +547,9 @@ def _upsert_entry(
     _set("position",        position)
     _set("foot_dominance",  foot_dominance)
 
-    existing.consent_given   = effective_consent
-    existing.status          = new_status
-    existing.import_log_id   = log_id
+    existing.consent_given    = effective_consent
+    existing.status           = new_status
+    existing.import_log_id    = log_id
     existing.last_imported_at = now
     if user_id and not existing.user_id:
         existing.user_id = user_id

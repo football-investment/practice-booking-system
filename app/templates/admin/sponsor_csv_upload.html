@@ -96,7 +96,7 @@
     <h3>Upload Audience CSV</h3>
 
     <form method="POST"
-          action="/admin/sponsors/{{ sponsor.id }}/csv-import/preview"
+          action="{% if campaign %}/admin/sponsors/{{ sponsor.id }}/campaigns/{{ campaign.id }}/import/preview{% else %}/admin/sponsors/{{ sponsor.id }}/csv-import/preview{% endif %}"
           enctype="multipart/form-data"
           id="upload-form">
         <input type="hidden" name="csrf_token" id="upload-csrf">

@@ -18,7 +18,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.models.license import UserLicense
-from app.models.sponsor import Sponsor, SponsorAudienceEntry
+from app.models.sponsor import Sponsor, SponsorAudienceEntry, SponsorCampaign
 from app.models.user import User, UserRole
 from app.core.security import get_password_hash
 from app.services.sponsor_promote_service import (
@@ -62,6 +62,19 @@ def _make_sponsor(db: Session, admin: User) -> Sponsor:
     return s
 
 
+def _make_campaign(db: Session, sponsor: Sponsor, admin: User) -> SponsorCampaign:
+    c = SponsorCampaign(
+        sponsor_id=sponsor.id,
+        name=f"BL Campaign {uuid.uuid4().hex[:4]}",
+        campaign_type="IMPORT",
+        status="ACTIVE",
+        created_by=admin.id,
+    )
+    db.add(c)
+    db.flush()
+    return c
+
+
 def _make_entry(
     db: Session,
     sponsor: Sponsor,
@@ -76,8 +89,10 @@ def _make_entry(
     user_id: int | None = None,
 ) -> SponsorAudienceEntry:
     from app.models.club import CsvImportLog
+    campaign = _make_campaign(db, sponsor, admin)
     log = CsvImportLog(
         sponsor_id=sponsor.id,
+        campaign_id=campaign.id,
         filename="test.csv",
         total_rows=1,
         uploaded_by=admin.id,
@@ -87,6 +102,7 @@ def _make_entry(
 
     e = SponsorAudienceEntry(
         sponsor_id=sponsor.id,
+        campaign_id=campaign.id,
         import_log_id=log.id,
         first_name="Test",
         last_name="Player",

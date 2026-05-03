@@ -109,17 +109,26 @@
 
 <div class="module-strip">
     <span class="module-strip-label">People</span>
-    <a href="/admin/users" class="module-link">👥 Users</a>
-    <a href="/admin/instructors" class="module-link">👨‍🏫 Instructors</a>
-    <a href="/admin/sport-directors" class="module-link">🎯 Sport Directors</a>
-    <a href="/admin/clubs" class="module-link">🏟️ Clubs</a>
-    <a href="/admin/sponsors" class="module-link active">🤝 Partners</a>
+    <a href="/admin/sponsors" class="module-link">🤝 Partners</a>
+    <a href="/admin/sponsors/{{ sponsor.id }}" class="module-link">{{ sponsor.name }}</a>
+    {% if campaign %}
+    <a href="/admin/sponsors/{{ sponsor.id }}/campaigns/{{ campaign.id }}" class="module-link">{{ campaign.name }}</a>
+    <span class="module-link active">Audience</span>
+    {% else %}
+    <span class="module-link active">Audience</span>
+    {% endif %}
 </div>
 
 <div style="margin-bottom:1rem;">
+    {% if campaign %}
+    <a href="/admin/sponsors/{{ sponsor.id }}/campaigns/{{ campaign.id }}" style="color:#718096;font-size:0.85rem;text-decoration:none;">
+        ← Back to {{ campaign.name }}
+    </a>
+    {% else %}
     <a href="/admin/sponsors/{{ sponsor.id }}" style="color:#718096;font-size:0.85rem;text-decoration:none;">
         ← Back to {{ sponsor.name }}
     </a>
+    {% endif %}
 </div>
 
 {% if flash %}
@@ -135,16 +144,23 @@
 <div class="toolbar">
     <input type="text" id="filter-input" class="filter-input"
            placeholder="Filter by name or email…" oninput="filterTable(this.value)">
-    {% if sponsor.is_active %}
-    <a href="/admin/sponsors/{{ sponsor.id }}/csv-import"
+    {% if sponsor.is_active and campaign %}
+    <a href="/admin/sponsors/{{ sponsor.id }}/campaigns/{{ campaign.id }}/import"
        style="background:#1a6b5a;color:white;padding:0.45rem 1.25rem;border-radius:6px;font-size:0.85rem;font-weight:600;text-decoration:none;">
         ↑ Upload CSV
     </a>
     {% endif %}
 </div>
 
+{% if campaign %}
+<form method="POST" action="/admin/sponsors/{{ sponsor.id }}/campaigns/{{ campaign.id }}/audience/promote" id="promote-form">
+    <input type="hidden" name="csrf_token" id="promote-csrf">
+</form>
+{% else %}
 <form method="POST" action="/admin/sponsors/{{ sponsor.id }}/audience/promote" id="promote-form">
     <input type="hidden" name="csrf_token" id="promote-csrf">
+</form>
+{% endif %}
 
 <div class="section-card">
 {% if entries %}
@@ -181,7 +197,7 @@
             <td class="td-check">
                 {% if promotable %}
                 <input type="checkbox" name="entry_ids" value="{{ e.id }}"
-                       class="row-check" onchange="updateBar()">
+                       class="row-check" onchange="updateBar()" form="promote-form">
                 {% elif already_linked %}
                 <span title="Already promoted" style="color:#a0aec0;font-size:0.8rem;">✓</span>
                 {% else %}
@@ -258,10 +274,11 @@
                 {% if e.status == 'DELETED' %}
                 <span style="color:#a0aec0;font-size:0.7rem;">deleted</span>
                 {% else %}
+                    {% set _base = '/admin/sponsors/' ~ sponsor.id ~ ('/campaigns/' ~ campaign.id ~ '/audience' if campaign else '/audience') %}
                     {# Suppress — only for ACTIVE entries #}
                     {% if e.status == 'ACTIVE' %}
                     <form class="action-form" method="POST"
-                          action="/admin/sponsors/{{ sponsor.id }}/audience/{{ e.id }}/suppress">
+                          action="{{ _base }}/{{ e.id }}/suppress">
                         <input type="hidden" name="csrf_token" class="inline-csrf">
                         <button type="submit" class="btn-suppress"
                                 onclick="return confirm('Suppress this entry?\n\n{{ e.email }}\n\nThe entry will be marked SUPPRESSED and cannot be promoted until reactivated.')">
@@ -271,7 +288,7 @@
                     {% endif %}
                     {# Delete — for ACTIVE and SUPPRESSED entries #}
                     <form class="action-form" method="POST"
-                          action="/admin/sponsors/{{ sponsor.id }}/audience/{{ e.id }}/delete">
+                          action="{{ _base }}/{{ e.id }}/delete">
                         <input type="hidden" name="csrf_token" class="inline-csrf">
                         <button type="submit" class="btn-del"
                                 onclick="return confirm('Soft-delete this entry?\n\n{{ e.email }}\n\nThe entry will be marked DELETED. It will remain in the database for audit purposes but cannot be promoted.')">
@@ -281,7 +298,7 @@
                     {# Unlink — only for promoted entries #}
                     {% if e.user_id %}
                     <form class="action-form" method="POST"
-                          action="/admin/sponsors/{{ sponsor.id }}/audience/{{ e.id }}/unlink">
+                          action="{{ _base }}/{{ e.id }}/unlink">
                         <input type="hidden" name="csrf_token" class="inline-csrf">
                         <button type="submit" class="btn-unlink"
                                 onclick="return confirm('Unlink User #{{ e.user_id }} from this entry?\n\n{{ e.email }}\n\n⚠️ The User account will NOT be deleted — manage it separately via User Admin.\n\nThe entry status will remain unchanged.')">
@@ -299,8 +316,8 @@
 <div class="empty-state">
     <div style="font-size:2.5rem;">📭</div>
     <p>No audience entries yet for <strong>{{ sponsor.name }}</strong>.</p>
-    {% if sponsor.is_active %}
-    <a href="/admin/sponsors/{{ sponsor.id }}/csv-import"
+    {% if sponsor.is_active and campaign %}
+    <a href="/admin/sponsors/{{ sponsor.id }}/campaigns/{{ campaign.id }}/import"
        style="background:#1a6b5a;color:white;padding:0.5rem 1.5rem;border-radius:6px;font-size:0.9rem;font-weight:600;text-decoration:none;display:inline-block;">
         Upload CSV
     </a>
@@ -314,10 +331,8 @@
     <div class="action-bar-left">
         <strong id="sel-count">0</strong> entries selected for promotion
     </div>
-    <button type="submit" class="btn-promote">Promote to User →</button>
+    <button type="submit" class="btn-promote" form="promote-form">Promote to User →</button>
 </div>
-
-</form>
 
 <script>
 (function () {

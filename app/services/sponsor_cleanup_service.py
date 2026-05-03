@@ -33,6 +33,7 @@ class CleanupResult:
     deleted: int = 0
     unlinked: int = 0
     skipped: int = 0               # promoted entries skipped by rollback
+    already_deleted: int = 0       # entries that were already DELETED before rollback
     errors: list[str] = field(default_factory=list)
     unlinked_user_id: int | None = None   # set by unlink_entry for UI warning
 
@@ -167,7 +168,7 @@ def rollback_import(
         if entry.user_id is not None:
             result.skipped += 1
         elif entry.status == "DELETED":
-            pass  # already deleted — don't double-count
+            result.already_deleted += 1
         else:
             entry.status = "DELETED"
             result.deleted += 1
