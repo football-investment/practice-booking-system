@@ -5,8 +5,8 @@ Sponsor audience list + detail templates — form structure and count regression
   SAT-02  cleanup action forms (/suppress, /delete, /unlink) are outside the promote-form
   SAT-03  entry_ids checkboxes carry form="promote-form"
   SAT-04  promote submit button carries form="promote-form"
-  SAT-05  sponsor_detail.html audience count uses active_entries (rejects DELETED)
-  SAT-06  sponsor_detail.html age breakdown uses active_entries (rejects DELETED)
+  SAT-05  sponsor_campaign_detail.html audience count uses active_entries (rejects DELETED)
+  SAT-06  sponsor_campaign_detail.html raw campaign.entries|length not shown as active count
 
 These tests parse the raw Jinja2 template files — no running server needed.
 """
@@ -18,9 +18,9 @@ TEMPLATE_PATH = os.path.join(
     "../../app/templates/admin/sponsor_audience_list.html",
 )
 
-DETAIL_TEMPLATE_PATH = os.path.join(
+CAMPAIGN_DETAIL_TEMPLATE_PATH = os.path.join(
     os.path.dirname(__file__),
-    "../../app/templates/admin/sponsor_detail.html",
+    "../../app/templates/admin/sponsor_campaign_detail.html",
 )
 
 
@@ -29,8 +29,8 @@ def _load_template() -> str:
         return fh.read()
 
 
-def _load_detail_template() -> str:
-    with open(DETAIL_TEMPLATE_PATH, encoding="utf-8") as fh:
+def _load_campaign_detail_template() -> str:
+    with open(CAMPAIGN_DETAIL_TEMPLATE_PATH, encoding="utf-8") as fh:
         return fh.read()
 
 
@@ -99,36 +99,44 @@ def test_sat_04_promote_button_has_form_attribute():
 # ── SAT-05 ────────────────────────────────────────────────────────────────────
 
 def test_sat_05_detail_audience_count_uses_active_entries():
-    """Import Audience (N) header must use active_entries, not sponsor.audience_entries.
+    """Campaign overview must display only active (non-DELETED) entry count.
 
-    If the raw relationship is used, DELETED entries inflate the count and make
-    successful rollbacks invisible to the admin (they still see N unchanged).
+    P3 moved the audience view from sponsor_detail to sponsor_campaign_detail.
+    The Active Entries count must use active_entries|length (filtered via rejectattr),
+    not the raw campaign.entries|length which includes soft-deleted entries.
     """
-    html = _load_detail_template()
-    # active_entries must be defined via rejectattr('status', 'equalto', 'DELETED')
+    html = _load_campaign_detail_template()
+    # active_entries defined via rejectattr to exclude DELETED
     assert "rejectattr('status', 'equalto', 'DELETED')" in html, (
-        "sponsor_detail.html must filter out DELETED entries via rejectattr"
+        "sponsor_campaign_detail.html must filter out DELETED entries via rejectattr"
     )
-    # The header count must reference active_entries, not sponsor.audience_entries|length
+    # The count shown to users must use the filtered variable
     assert "active_entries|length" in html, (
-        "Import Audience count must use active_entries|length, not sponsor.audience_entries|length"
+        "Campaign overview must use active_entries|length, not campaign.entries|length"
     )
-    # The raw unfiltered length must NOT appear in the header (regression guard)
-    # Find the section-header for Import Audience
-    header_start = html.index("Import Audience")
-    header_end = html.index("</h3>", header_start)
-    header = html[header_start:header_end]
-    assert "sponsor.audience_entries|length" not in header, (
-        "Import Audience header must not use the unfiltered sponsor.audience_entries|length"
+    # Raw unfiltered length must NOT be presented as the active entry count
+    assert "campaign.entries|length" not in html, (
+        "campaign.entries|length must not appear — it would include DELETED entries"
     )
 
 
 # ── SAT-06 ────────────────────────────────────────────────────────────────────
 
-def test_sat_06_detail_age_breakdown_uses_active_entries():
-    """Age category breakdown must loop over active_entries, not sponsor.audience_entries."""
-    html = _load_detail_template()
-    # The age_counts loop must reference active_entries
-    assert "for e in active_entries" in html, (
-        "Age category breakdown must loop over active_entries, not sponsor.audience_entries"
+def test_sat_06_campaign_detail_promoted_count_uses_filtered_set():
+    """Promoted entry count must be derived from the campaign entries, not a raw count.
+
+    In P3, all three counters (active, promoted, deleted) are computed from
+    filtered Jinja2 sets; campaign.entries|length must not appear raw.
+    """
+    html = _load_campaign_detail_template()
+    # promoted_entries must be built via selectattr on the relationship
+    assert "promoted_entries" in html, (
+        "sponsor_campaign_detail.html must define promoted_entries"
+    )
+    assert "promoted_entries|length" in html, (
+        "Promoted count must use promoted_entries|length, not campaign.entries|length"
+    )
+    # No raw unfiltered count
+    assert "campaign.entries|length" not in html, (
+        "campaign.entries|length must not appear — DELETED entries would inflate it"
     )
