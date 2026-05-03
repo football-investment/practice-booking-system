@@ -143,17 +143,25 @@
         </div>
 
         <div class="content-card">
-            <h3 style="margin-top:0;">Linked Promotion Events</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h3 style="margin:0;">Linked Promotion Events</h3>
+                {% if sponsor.is_active %}
+                <a href="/admin/sponsors/{{ sponsor.id }}/promotion" class="btn btn-primary" style="font-size:0.83rem;">
+                    + Create Promotion Event
+                </a>
+                {% endif %}
+            </div>
             {% if sponsor.promotion_events %}
             <table class="data-table">
                 <thead>
-                    <tr><th>Event</th><th>Status</th><th></th></tr>
+                    <tr><th>Event</th><th>Age</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                 {% for ev in sponsor.promotion_events %}
                 {% set ev_status = ev.tournament_status or (ev.status if ev.status is string else ev.status.value if ev.status else 'DRAFT') %}
                 <tr>
                     <td style="font-weight:600;">{{ ev.name }}</td>
+                    <td><span style="font-size:0.78rem;color:#718096;">{{ ev.age_group or '—' }}</span></td>
                     <td><code style="font-size:0.75rem;">{{ ev_status }}</code></td>
                     <td><a href="/admin/tournaments/{{ ev.id }}/edit" style="font-size:0.82rem;color:#5a4a9a;">View</a></td>
                 </tr>
@@ -161,13 +169,15 @@
                 </tbody>
             </table>
             {% else %}
-            <p style="color:#a0aec0;font-size:0.85rem;">No promotion events linked to this partner yet.</p>
+            <p style="color:#a0aec0;font-size:0.85rem;">
+                No promotion events yet.
+                {% if sponsor.is_active %}
+                <a href="/admin/sponsors/{{ sponsor.id }}/promotion" style="color:#667eea;">
+                    Create the first event for {{ sponsor.name }}.
+                </a>
+                {% endif %}
+            </p>
             {% endif %}
-            <div style="margin-top:1rem;padding:0.75rem 1rem;background:#fffbeb;border:1px solid #fef3c7;border-radius:8px;font-size:0.83rem;color:#92400e;">
-                💡 To create a new promotion event with this partner as organizer, go to a
-                <a href="/admin/clubs" style="color:#667eea;font-weight:600;text-decoration:none;">Club page</a>
-                and use the Promotion Event wizard.
-            </div>
         </div>
     </div>
 </div>

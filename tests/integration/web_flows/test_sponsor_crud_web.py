@@ -1,5 +1,5 @@
 """
-Sponsor CRUD Web Flow Tests — SPON-01 through SPON-14
+Sponsor CRUD Web Flow Tests — SPON-01 through SPON-15
 
   SPON-01  GET /admin/sponsors → 200 (empty list)
   SPON-02  POST /admin/sponsors/new → sponsor created, redirects to detail
@@ -14,7 +14,9 @@ Sponsor CRUD Web Flow Tests — SPON-01 through SPON-14
   SPON-11  POST /admin/sponsors/new then GET /admin/sponsors → sponsor appears in list
   SPON-12  POST duplicate code → primary contact fields repopulated in response
   SPON-13  GET /admin/sponsors/{id} → linked events View link uses /admin/tournaments/ prefix
-  SPON-14  GET /admin/sponsors/{id} → Create Promotion Event CTA present
+  SPON-14  GET /admin/sponsors/{id} → Create Promotion Event CTA points to sponsor promotion wizard
+  SPON-15  GET + POST /admin/sponsors/{id}/promotion → INDIVIDUAL PROMOTION_EVENT created,
+           organizer_sponsor_id set, organizer_club_id NULL, no TournamentTeamEnrollment
 
 DONE = pytest tests/integration/web_flows/test_sponsor_crud_web.py -v
 """
@@ -442,9 +444,9 @@ class TestSponsorUXFixes:
             app.dependency_overrides.clear()
 
     def test_spon_14_detail_create_promotion_event_cta_present(self, test_db: Session):
-        """SPON-14: Sponsor detail page must contain a CTA linking to /admin/clubs.
+        """SPON-14: Sponsor detail page must contain a direct CTA to the sponsor promotion wizard.
 
-        The 'Create Promotion Event' guidance points admins to the Club page wizard.
+        The CTA must NOT reference /admin/clubs — sponsor events are sponsor-only.
         """
         admin = _make_admin(test_db)
         sponsor = _make_sponsor(test_db, admin, suffix="CTA")
@@ -454,13 +456,154 @@ class TestSponsorUXFixes:
             resp = client.get(f"/admin/sponsors/{sponsor.id}")
             assert resp.status_code == 200
 
-            # The wizard guidance must point to /admin/clubs
-            assert "/admin/clubs" in resp.text, (
-                "Create Promotion Event CTA (/admin/clubs link) not found in sponsor detail page"
+            # CTA must point directly to the sponsor promotion wizard
+            assert f"/admin/sponsors/{sponsor.id}/promotion" in resp.text, (
+                f"Create Promotion Event CTA (/admin/sponsors/{sponsor.id}/promotion) "
+                "not found in sponsor detail page"
             )
-            # The explanatory text must be present
-            assert "Promotion Event wizard" in resp.text or "promotion event" in resp.text.lower(), (
-                "Promotion Event wizard guidance text not found in sponsor detail page"
+            # Must contain the CTA label
+            assert "Create Promotion Event" in resp.text, (
+                "Create Promotion Event label not found in sponsor detail page"
             )
+            # Must NOT contain the old misleading "go to Club page" copy
+            # (nav bar may legitimately contain /admin/clubs — check content copy only)
+            assert "Club page" not in resp.text, (
+                "Sponsor detail page must not contain 'Club page' guidance — "
+                "sponsor promotion events are sponsor-only"
+            )
+            assert "go to a Club" not in resp.text, (
+                "Sponsor detail page must not redirect user to Club page for creating events"
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestSponsorPromotionWizard:
+    """SPON-15: Sponsor promotion wizard creates INDIVIDUAL PROMOTION_EVENT with correct organizer."""
+
+    def test_spon_15_wizard_creates_individual_promo_event(self, test_db: Session):
+        """SPON-15: POST /admin/sponsors/{id}/promotion creates:
+        - Semester with semester_category=PROMOTION_EVENT
+        - organizer_sponsor_id = sponsor.id
+        - organizer_club_id IS NULL
+        - TournamentConfiguration.participant_type = INDIVIDUAL
+        - NO TournamentTeamEnrollment
+        - Event visible in sponsor detail linked events list
+        """
+        from datetime import date
+        from app.models.semester import Semester, SemesterCategory
+        from app.models.tournament_configuration import TournamentConfiguration
+        from app.models.team import TournamentTeamEnrollment
+        from app.models.location import Location
+        from app.models.campus import Campus
+        from app.models.tournament_type import TournamentType as TournamentTypeModel
+
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db, admin, suffix="WizardTest")
+
+        loc = Location(
+            name=f"WizLoc-{uuid.uuid4().hex[:6]}",
+            city=f"WizCity-{uuid.uuid4().hex[:6]}",
+            country="HU",
+        )
+        test_db.add(loc)
+        test_db.flush()
+        campus = Campus(
+            name=f"WizCampus-{uuid.uuid4().hex[:6]}",
+            location_id=loc.id,
+            is_active=True,
+        )
+        test_db.add(campus)
+        test_db.flush()
+
+        tt = TournamentTypeModel(
+            code=f"wiz-tt-{uuid.uuid4().hex[:4]}",
+            display_name="Wizard Test Format",
+            format="HEAD_TO_HEAD",
+            config={},
+        )
+        test_db.add(tt)
+        test_db.commit()
+
+        client = _admin_client(test_db, admin)
+        event_name = f"Puma Spring Challenge {uuid.uuid4().hex[:6]}"
+        try:
+            # GET wizard form — must render without errors
+            get_resp = client.get(f"/admin/sponsors/{sponsor.id}/promotion")
+            assert get_resp.status_code == 200, (
+                f"GET /admin/sponsors/{sponsor.id}/promotion returned {get_resp.status_code}"
+            )
+            assert "Create Promotion Event" in get_resp.text
+            assert sponsor.name in get_resp.text
+            # Wizard must NOT mention Club or Team
+            # (nav bar legitimately contains /admin/clubs — check content copy only)
+            assert "Club page" not in get_resp.text
+            assert "go to a Club" not in get_resp.text
+
+            # POST wizard — create event
+            resp = client.post(
+                f"/admin/sponsors/{sponsor.id}/promotion",
+                data={
+                    "tournament_name": event_name,
+                    "start_date": "2026-09-01",
+                    "end_date": "2026-09-03",
+                    "campus_id": str(campus.id),
+                    "tournament_type_id": str(tt.id),
+                    "age_groups": ["YOUTH"],
+                },
+                follow_redirects=False,
+            )
+            assert resp.status_code in (302, 303), (
+                f"Expected redirect, got {resp.status_code}: {resp.text[:200]}"
+            )
+
+            test_db.expire_all()
+
+            # Verify Semester
+            event = (
+                test_db.query(Semester)
+                .filter(
+                    Semester.name.like(f"{event_name}%"),
+                    Semester.semester_category == SemesterCategory.PROMOTION_EVENT,
+                )
+                .first()
+            )
+            assert event is not None, (
+                f"No PROMOTION_EVENT Semester found with name like '{event_name}%'"
+            )
+            assert event.organizer_sponsor_id == sponsor.id, (
+                f"organizer_sponsor_id expected {sponsor.id}, got {event.organizer_sponsor_id}"
+            )
+            assert event.organizer_club_id is None, (
+                f"organizer_club_id must be NULL for sponsor event, got {event.organizer_club_id}"
+            )
+            assert event.age_group == "YOUTH", (
+                f"age_group expected YOUTH, got {event.age_group}"
+            )
+
+            # Verify TournamentConfiguration.participant_type = INDIVIDUAL
+            config = test_db.query(TournamentConfiguration).filter(
+                TournamentConfiguration.semester_id == event.id
+            ).first()
+            assert config is not None, "TournamentConfiguration not created for sponsor event"
+            assert config.participant_type == "INDIVIDUAL", (
+                f"participant_type must be INDIVIDUAL for sponsor event, got {config.participant_type}"
+            )
+
+            # Verify NO TournamentTeamEnrollment — sponsor events have no teams
+            enrollments = test_db.query(TournamentTeamEnrollment).filter(
+                TournamentTeamEnrollment.semester_id == event.id
+            ).all()
+            assert len(enrollments) == 0, (
+                f"Sponsor promotion event must have 0 TournamentTeamEnrollments, got {len(enrollments)}"
+            )
+
+            # Verify event visible in sponsor detail page
+            detail_resp = client.get(f"/admin/sponsors/{sponsor.id}")
+            assert detail_resp.status_code == 200
+            assert event.name in detail_resp.text, (
+                f"Created event '{event.name}' not visible in sponsor detail linked events list"
+            )
+
         finally:
             app.dependency_overrides.clear()

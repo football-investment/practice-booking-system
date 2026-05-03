@@ -3,12 +3,17 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import date, datetime
 import logging
 
 from ....database import get_db
 from ....dependencies import get_current_user_web
 from ....models.user import User
 from ....models.sponsor import Sponsor, SponsorContact
+from ....models.semester import Semester, SemesterStatus, SemesterCategory
+from ....models.tournament_configuration import TournamentConfiguration
+from ....models.campus import Campus
+from ....models.tournament_type import TournamentType as TournamentTypeModel
 
 from . import templates, _admin_guard
 
@@ -223,6 +228,112 @@ async def admin_sponsors_add_contact(
     db.commit()
     return RedirectResponse(
         f"/admin/sponsors/{sponsor_id}?flash=Contact+added",
+        status_code=303,
+    )
+
+
+@router.get("/admin/sponsors/{sponsor_id}/promotion", response_class=HTMLResponse)
+async def admin_sponsor_promotion_form(
+    sponsor_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: render the sponsor promotion event wizard."""
+    _admin_guard(user)
+    sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
+    if not sponsor:
+        raise HTTPException(status_code=404, detail="Partner not found")
+
+    campuses = db.query(Campus).filter(Campus.is_active == True).order_by(Campus.name).all()  # noqa: E712
+    tournament_types = db.query(TournamentTypeModel).order_by(TournamentTypeModel.display_name).all()
+
+    return templates.TemplateResponse(
+        "admin/sponsor_promotion_wizard.html",
+        {
+            "request": request,
+            "user": user,
+            "sponsor": sponsor,
+            "campuses": campuses,
+            "tournament_types": tournament_types,
+        },
+    )
+
+
+@router.post("/admin/sponsors/{sponsor_id}/promotion")
+async def admin_sponsor_promotion_create(
+    sponsor_id: int,
+    request: Request,
+    tournament_name: str = Form(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    campus_id: str = Form(""),
+    tournament_type_id: str = Form(""),
+    age_groups: list[str] = Form(default=[]),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Admin: create one INDIVIDUAL promotion event per selected age category for a sponsor.
+
+    Sponsor-only flow — no Club, no Team, no TournamentTeamEnrollment.
+    Each age group produces one Semester record with:
+      organizer_sponsor_id = sponsor.id
+      organizer_club_id    = NULL  (explicit)
+      participant_type     = INDIVIDUAL
+    """
+    _admin_guard(user)
+    sponsor = db.query(Sponsor).filter(Sponsor.id == sponsor_id).first()
+    if not sponsor:
+        raise HTTPException(status_code=404, detail="Partner not found")
+
+    if not age_groups:
+        return RedirectResponse(
+            url=f"/admin/sponsors/{sponsor_id}/promotion?error=Select+at+least+one+age+category",
+            status_code=303,
+        )
+
+    for ag in age_groups:
+        suffix = datetime.now().strftime("%H%M%S%f")[:9]
+        code = f"PROMO-{date.fromisoformat(start_date).strftime('%Y%m%d')}-{ag.upper()[:6]}-{suffix}"
+
+        t = Semester(
+            code=code,
+            name=f"{tournament_name} ({ag})",
+            start_date=date.fromisoformat(start_date),
+            end_date=date.fromisoformat(end_date),
+            status=SemesterStatus.DRAFT,
+            tournament_status="DRAFT",
+            semester_category=SemesterCategory.PROMOTION_EVENT,
+            age_group=ag,                      # PRE / YOUTH / AMATEUR / PRO — already canonical
+            enrollment_cost=0,
+            campus_id=int(campus_id) if campus_id.strip() else None,
+            organizer_sponsor_id=sponsor.id,   # sponsor organizer
+            organizer_club_id=None,            # explicit NULL — never a club
+        )
+        db.add(t)
+        db.flush()
+
+        # Derive location from campus
+        if t.campus_id:
+            campus = db.query(Campus).filter(Campus.id == t.campus_id).first()
+            if campus and campus.location_id:
+                t.location_id = campus.location_id
+
+        db.add(TournamentConfiguration(
+            semester_id=t.id,
+            tournament_type_id=int(tournament_type_id) if tournament_type_id.strip() else None,
+            participant_type="INDIVIDUAL",     # sponsor events are always INDIVIDUAL
+            number_of_rounds=1,
+        ))
+        # No TournamentTeamEnrollment — sponsor events have no teams
+
+    db.commit()
+    logger.info(
+        "sponsor_promotion_created sponsor=%s age_groups=%s by admin=%s",
+        sponsor.name, age_groups, user.email,
+    )
+    return RedirectResponse(
+        url=f"/admin/promotion-events?flash=Promotion+event+created+for+{sponsor.name}",
         status_code=303,
     )
 
