@@ -1086,7 +1086,7 @@ class TestAnswerOptionShuffle:
              patch.object(svc, "_get_candidate_questions", return_value=[question]), \
              patch.object(svc, "_get_session_time_remaining", return_value=120), \
              patch.object(svc, "_get_question_difficulty", return_value=0.4):
-            return svc.get_next_question(user_id=1, session_id=1)
+            return svc.get_next_question(user_id=42, session_id=99)
 
     def test_shuffle_applied_to_options(self):
         """AL-SHUFFLE-01: options in response differ from original insertion order."""
