@@ -10,6 +10,11 @@ Integration tests — tournament edit page field rendering.
               enrolled-players section absent
   EDIT-UI-07  Non-promotion event → standard enrolled-players section shown,
               campaign audience placeholder absent
+  EDIT-UI-08  PROMOTION_EVENT with linked campaign → id="section-campaign-audience"
+              present, id="campaign-audience-backlink" present
+  EDIT-UI-09  PROMOTION_EVENT without campaign link → id="section-campaign-audience"
+              present, id="campaign-audience-no-link" shown (fallback)
+  EDIT-UI-10  Non-promotion event → id="section-campaign-audience" absent
 
 DONE = pytest tests/integration/web_flows/test_tournament_edit_ui.py -v
 """
@@ -25,6 +30,8 @@ from app.database import get_db
 from app.dependencies import get_current_user_web
 from app.models.user import User, UserRole
 from app.models.semester import Semester, SemesterStatus, SemesterCategory
+from app.models.sponsor import Sponsor, SponsorCampaign, SponsorAudienceEntry
+from app.models.club import CsvImportLog
 from app.core.security import get_password_hash
 
 
@@ -191,5 +198,141 @@ class TestNonPromotionEventEnrolledPlayersSection:
             html = resp.text
             assert 'id="section-checkin"' in html
             assert 'id="section-campaign-audience-placeholder"' not in html
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── Helpers for EDIT-UI-08/09/10 ─────────────────────────────────────────────
+
+def _make_sponsor(db: Session) -> Sponsor:
+    s = Sponsor(
+        name=f"Test Sponsor {uuid.uuid4().hex[:6]}",
+        code=f"TSP-{uuid.uuid4().hex[:6]}",
+        is_active=True,
+    )
+    db.add(s)
+    db.flush()
+    return s
+
+
+def _make_campaign(db: Session, sponsor: Sponsor) -> SponsorCampaign:
+    c = SponsorCampaign(
+        sponsor_id=sponsor.id,
+        name=f"Test Campaign {uuid.uuid4().hex[:6]}",
+        campaign_type="IMPORT",
+        status="ACTIVE",
+    )
+    db.add(c)
+    db.flush()
+    return c
+
+
+def _make_audience_entry(db: Session, sponsor: Sponsor, campaign: SponsorCampaign) -> SponsorAudienceEntry:
+    log = CsvImportLog(sponsor_id=sponsor.id, campaign_id=campaign.id)
+    db.add(log)
+    db.flush()
+    entry = SponsorAudienceEntry(
+        sponsor_id=sponsor.id,
+        campaign_id=campaign.id,
+        import_log_id=log.id,
+        first_name="Test",
+        last_name="Player",
+        email=f"audience+{uuid.uuid4().hex[:8]}@lfa.com",
+        status="ACTIVE",
+    )
+    db.add(entry)
+    db.flush()
+    return entry
+
+
+def _make_promotion_semester_with_campaign(
+    db: Session, sponsor: Sponsor, campaign: SponsorCampaign
+) -> Semester:
+    sem = Semester(
+        code=f"PROMO-CA-{uuid.uuid4().hex[:6]}",
+        name="UI Test Promo With Campaign",
+        start_date=date(2026, 9, 1),
+        end_date=date(2026, 9, 2),
+        status=SemesterStatus.DRAFT,
+        tournament_status="DRAFT",
+        semester_category=SemesterCategory.PROMOTION_EVENT,
+        age_group=None,
+        age_groups=["PRE", "YOUTH"],
+        enrollment_cost=0,
+        organizer_sponsor_id=sponsor.id,
+        organizer_campaign_id=campaign.id,
+    )
+    db.add(sem)
+    db.flush()
+    return sem
+
+
+# ── EDIT-UI-08 ────────────────────────────────────────────────────────────────
+
+class TestCampaignAudienceSectionWithLink:
+    """EDIT-UI-08: PROMOTION_EVENT with linked campaign → audience section and
+    backlink rendered."""
+
+    def test_edit_ui_08_section_and_backlink_present(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db)
+        campaign = _make_campaign(test_db, sponsor)
+        _make_audience_entry(test_db, sponsor, campaign)
+        sem = _make_promotion_semester_with_campaign(test_db, sponsor, campaign)
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+
+            html = resp.text
+            assert 'id="section-campaign-audience"' in html
+            assert 'id="campaign-audience-backlink"' in html
+            assert 'id="campaign-audience-no-link"' not in html
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-09 ────────────────────────────────────────────────────────────────
+
+class TestCampaignAudienceSectionFallback:
+    """EDIT-UI-09: PROMOTION_EVENT without campaign link → audience section shows
+    fallback message."""
+
+    def test_edit_ui_09_section_present_fallback_shown(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sem = _make_promotion_semester(test_db, age_groups=["PRE"])
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+
+            html = resp.text
+            assert 'id="section-campaign-audience"' in html
+            assert 'id="campaign-audience-no-link"' in html
+            assert 'id="campaign-audience-backlink"' not in html
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-10 ────────────────────────────────────────────────────────────────
+
+class TestNonPromotionEventNoCampaignAudienceSection:
+    """EDIT-UI-10: non-promotion event → campaign audience section absent."""
+
+    def test_edit_ui_10_section_absent(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sem = _make_mini_season_semester(test_db)
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+
+            assert 'id="section-campaign-audience"' not in resp.text
         finally:
             app.dependency_overrides.clear()
