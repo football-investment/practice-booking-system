@@ -36,7 +36,7 @@ def _count_active_participants(tournament) -> int:
 # NOTE: IN_PROGRESS guard still requires master_instructor_id — so a fast-path tournament
 #       can open enrollment without an instructor but cannot be started without one.
 VALID_TRANSITIONS = {
-    "DRAFT": ["SEEKING_INSTRUCTOR", "ENROLLMENT_OPEN", "CANCELLED"],
+    "DRAFT": ["SEEKING_INSTRUCTOR", "ENROLLMENT_OPEN", "ENROLLMENT_CLOSED", "CANCELLED"],
     "SEEKING_INSTRUCTOR": ["PENDING_INSTRUCTOR_ACCEPTANCE", "CANCELLED"],
     "PENDING_INSTRUCTOR_ACCEPTANCE": ["INSTRUCTOR_CONFIRMED", "SEEKING_INSTRUCTOR", "CANCELLED"],
     "INSTRUCTOR_CONFIRMED": ["ENROLLMENT_OPEN", "CANCELLED"],  # Direct to ENROLLMENT_OPEN
@@ -84,6 +84,16 @@ def validate_status_transition(
         return False, f"Invalid transition: {current_status} → {new_status} is not allowed"
 
     # 2. Business rule validations for specific status transitions
+
+    # Guard: DRAFT → ENROLLMENT_CLOSED is a PROMOTION_EVENT-only fast path.
+    # All other categories must pass through ENROLLMENT_OPEN first.
+    if current_status == "DRAFT" and new_status == "ENROLLMENT_CLOSED":
+        from app.models.semester import SemesterCategory
+        if getattr(tournament, 'semester_category', None) != SemesterCategory.PROMOTION_EVENT:
+            return False, (
+                "Direct DRAFT → ENROLLMENT_CLOSED is only allowed for PROMOTION_EVENT tournaments. "
+                "Non-promotion events must pass through ENROLLMENT_OPEN first."
+            )
 
     if new_status == "SEEKING_INSTRUCTOR":
         # Must have sessions defined before seeking instructor
@@ -142,27 +152,51 @@ def validate_status_transition(
         # SM-BUG-01 fix: bifurcate guard on source state.
         # IN_PROGRESS → ENROLLMENT_CLOSED is an admin emergency rollback for a
         # stuck tournament.  The player-count guard was designed for the forward
-        # path (ENROLLMENT_OPEN → ENROLLMENT_CLOSED) and must NOT block a rewind.
+        # path (ENROLLMENT_OPEN/DRAFT → ENROLLMENT_CLOSED) and must NOT block a rewind.
         if current_status != "IN_PROGRESS":
-            # Forward path: must have at least minimum participants
-            player_count = _count_active_participants(tournament)
+            from app.models.semester import SemesterCategory
+            if getattr(tournament, 'semester_category', None) == SemesterCategory.PROMOTION_EVENT:
+                # PROMOTION_EVENT forward path: validate campaign linkage + active audience.
+                # Counts SponsorAudienceEntry rows that are ACTIVE with consent — the same
+                # filter used by promote_entries() — so only entries that can become
+                # enrolled participants count toward readiness.
+                if not tournament.organizer_sponsor_id or not tournament.organizer_campaign_id:
+                    return False, (
+                        "Cannot lock audience: PROMOTION_EVENT must have both organizer sponsor "
+                        "and campaign linked before locking."
+                    )
+                _db = tournament.__dict__.get('_sa_instance_state').session
+                if _db:
+                    from app.models.sponsor import SponsorAudienceEntry
+                    audience_count = _db.query(SponsorAudienceEntry).filter(
+                        SponsorAudienceEntry.sponsor_id == tournament.organizer_sponsor_id,
+                        SponsorAudienceEntry.campaign_id == tournament.organizer_campaign_id,
+                        SponsorAudienceEntry.status == "ACTIVE",
+                        SponsorAudienceEntry.consent_given == True,
+                    ).count()
+                    if audience_count < 1:
+                        return False, (
+                            "Cannot lock audience: campaign has no active, consented audience entries. "
+                            "Import and activate campaign entries before locking."
+                        )
+            else:
+                # Standard forward path: SemesterEnrollment-based participant count.
+                player_count = _count_active_participants(tournament)
 
-            # Get minimum from tournament type (fallback to 2 if no type configured)
-            min_players_required = 2
-            if tournament.tournament_type_id:
-                # Load tournament type to get min_players
-                from app.models.tournament_type import TournamentType
-                from sqlalchemy.orm import Session
+                # Get minimum from tournament type (fallback to 2 if no type configured)
+                min_players_required = 2
+                if tournament.tournament_type_id:
+                    from app.models.tournament_type import TournamentType
+                    from sqlalchemy.orm import Session
 
-                # Get db session from tournament
-                db: Session = tournament.__dict__.get('_sa_instance_state').session
-                if db:
-                    tournament_type = db.query(TournamentType).filter(TournamentType.id == tournament.tournament_type_id).first()
-                    if tournament_type:
-                        min_players_required = tournament_type.min_players
+                    db: Session = tournament.__dict__.get('_sa_instance_state').session
+                    if db:
+                        tournament_type = db.query(TournamentType).filter(TournamentType.id == tournament.tournament_type_id).first()
+                        if tournament_type:
+                            min_players_required = tournament_type.min_players
 
-            if player_count < min_players_required:
-                return False, f"Cannot close enrollment: Minimum {min_players_required} participants required (current: {player_count})"
+                if player_count < min_players_required:
+                    return False, f"Cannot close enrollment: Minimum {min_players_required} participants required (current: {player_count})"
         # else: rollback path (IN_PROGRESS → ENROLLMENT_CLOSED) — allow unconditionally
 
     if new_status == "IN_PROGRESS":

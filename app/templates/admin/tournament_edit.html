@@ -572,7 +572,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 
     {% if step1_state == 'active' %}
     <div class="wiz-action-row">
+      {% if is_promotion_event %}
+      <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">🔒 Lock Audience &amp; Start Preparation</button>
+      {% else %}
       <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">📢 Open Enrollment</button>
+      {% endif %}
     </div>
     {% endif %}
   </div>{# /wiz-step-body #}
@@ -583,8 +587,15 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
   <div class="wiz-step-header" onclick="wizToggle('wiz-step-2')">
     <div class="wiz-num">{% if step2_state == 'done' %}✓{% else %}2{% endif %}</div>
     <div style="flex:1">
-      <div class="wiz-step-title">Enrollment</div>
-      <div class="wiz-step-subtitle">{{ enrolled_count }} {{ 'team' if (cfg and cfg.participant_type == 'TEAM') else 'player' }}{{ 's' if enrolled_count != 1 else '' }} enrolled</div>
+      <div class="wiz-step-title">{% if is_promotion_event %}Campaign Audience{% else %}Enrollment{% endif %}</div>
+      <div class="wiz-step-subtitle">
+        {%- if is_promotion_event -%}
+          {%- set _aud = campaign_audience | length -%}
+          {{ _aud }} campaign audience entr{{ 'ies' if _aud != 1 else 'y' }}
+        {%- else -%}
+          {{ enrolled_count }} {{ 'team' if (cfg and cfg.participant_type == 'TEAM') else 'player' }}{{ 's' if enrolled_count != 1 else '' }} enrolled
+        {%- endif -%}
+      </div>
     </div>
     <span style="color:#a0aec0;font-size:.8rem;">{% if step2_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
   </div>
@@ -633,7 +644,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 </div>
 {% endif %}
 
-    {% if step2_state == 'active' %}
+    {% if step2_state == 'active' and not is_promotion_event %}
     <div class="wiz-action-row">
       <button class="btn btn-warning"
               {% if enrolled_count < 2 %}disabled title="Need at least 2 participants" style="opacity:.5;cursor:not-allowed"{% endif %}
@@ -1148,6 +1159,32 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         {% endif %}
     </div>
 
+    {# ── Bulk Enroll action — DRAFT / ENROLLMENT_CLOSED only ── #}
+    {% if organizer_campaign and t.tournament_status in ['DRAFT', 'ENROLLMENT_CLOSED'] %}
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+        <button class="btn btn-primary" onclick="bulkEnrollCampaign()"
+                id="bulk-enroll-btn"
+                {% if bulk_enroll_eligible_count == 0 %}
+                disabled
+                title="No eligible entries to enroll (must be ACTIVE, consented, and promoted)"
+                style="opacity:.55;cursor:not-allowed;"
+                {% endif %}>
+            👥 Bulk Enroll Campaign Participants
+            {% if bulk_enroll_eligible_count > 0 %}
+            <span style="background:rgba(255,255,255,.25);border-radius:.3rem;padding:.1rem .4rem;font-size:.8rem;margin-left:.35rem;">
+                {{ bulk_enroll_eligible_count }} eligible
+            </span>
+            {% endif %}
+        </button>
+        <span id="bulk-enroll-status" style="font-size:.85rem;color:#718096;"></span>
+    </div>
+    {% if bulk_enroll_eligible_count == 0 and organizer_campaign %}
+    <p style="font-size:.82rem;color:#a0aec0;margin:0 0 .75rem;">
+        No eligible entries found. Entries must be ACTIVE with consent and have been promoted (linked user) before they can be enrolled.
+    </p>
+    {% endif %}
+    {% endif %}
+
     {% if organizer_sponsor or organizer_campaign %}
     <div style="margin-bottom:.75rem;font-size:.875rem;color:#718096;" id="campaign-audience-backlink">
         {% if organizer_sponsor %}
@@ -1250,10 +1287,16 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     <div class="save-row" style="flex-wrap:wrap;gap:0.6rem;">
         {# Status lifecycle transition buttons #}
         {% if t.tournament_status == 'DRAFT' %}
-        <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">
-            📢 Open Enrollment
-        </button>
-        {% elif t.tournament_status == 'ENROLLMENT_OPEN' %}
+          {% if is_promotion_event %}
+          <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">
+              🔒 Lock Audience &amp; Start Preparation
+          </button>
+          {% else %}
+          <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">
+              📢 Open Enrollment
+          </button>
+          {% endif %}
+        {% elif t.tournament_status == 'ENROLLMENT_OPEN' and not is_promotion_event %}
         <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">
             🔒 Close Enrollment
         </button>
@@ -1320,6 +1363,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 <script src="/static/js/session-gen-wizard.js?v=2"></script>
 <script>
 const TOURN_ID = {{ t.id }};
+const IS_PROMO_EVENT = {{ is_promotion_event | tojson }};
 
 // ── Format toggle ─────────────────────────────────────────────────────────────
 let _currentFormat = '{{ t.format }}';
@@ -1633,11 +1677,31 @@ async function wizDistributeRewards(tournId) {
     } catch (err) { toast(err.message, 'error'); }
 }
 
+// ── Bulk enroll campaign audience (PROMOTION_EVENT only) ─────────────────────
+async function bulkEnrollCampaign() {
+    const btn = document.getElementById('bulk-enroll-btn');
+    const statusEl = document.getElementById('bulk-enroll-status');
+    if (!confirm('Enroll all eligible campaign participants into this tournament?')) return;
+    btn.disabled = true;
+    statusEl.textContent = 'Enrolling…';
+    try {
+        const data = await AdminAPI.post(
+            `/api/v1/tournaments/${TOURN_ID}/bulk-enroll-campaign`, {}
+        );
+        statusEl.textContent =
+            `✅ ${data.enrolled_count} enrolled, ${data.skipped_count} skipped`;
+        setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+        statusEl.textContent = '❌ ' + err.message;
+        btn.disabled = false;
+    }
+}
+
 // ── Status lifecycle transition ───────────────────────────────────────────────
 async function transitionStatus(newStatus) {
     const labels = {
         'ENROLLMENT_OPEN':   'open enrollment for this tournament',
-        'ENROLLMENT_CLOSED': 'close enrollment',
+        'ENROLLMENT_CLOSED': IS_PROMO_EVENT ? 'lock the campaign audience and begin preparation' : 'close enrollment',
         'CHECK_IN_OPEN':     'open check-in for this tournament',
         'IN_PROGRESS':       'start the tournament (sessions will be auto-generated)',
     };

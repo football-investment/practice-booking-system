@@ -21,7 +21,7 @@ Integration tests — tournament edit page field rendering.
 DONE = pytest tests/integration/web_flows/test_tournament_edit_ui.py -v
 """
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -419,5 +419,229 @@ class TestCampaignAudienceAllDeletedFallback:
             # The deleted entry emails must not be visible
             assert "Playerx" not in html
             assert "Playery" not in html
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-13 ────────────────────────────────────────────────────────────────
+
+class TestPromotionEventLockAudienceButton:
+    """EDIT-UI-13: PROMOTION_EVENT DRAFT → shows Lock Audience button, not Open Enrollment."""
+
+    def test_edit_ui_13_lock_audience_present_open_enrollment_absent(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sem = _make_promotion_semester(test_db, age_groups=["PRE"])
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+
+            html = resp.text
+            assert "Lock Audience" in html
+            assert "Open Enrollment" not in html
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-14 ────────────────────────────────────────────────────────────────
+
+class TestNonPromotionEventOpenEnrollmentButton:
+    """EDIT-UI-14: non-PROMOTION_EVENT DRAFT → shows Open Enrollment, not Lock Audience."""
+
+    def test_edit_ui_14_open_enrollment_present_lock_audience_absent(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sem = _make_mini_season_semester(test_db)
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+
+            html = resp.text
+            assert "Open Enrollment" in html
+            assert "Lock Audience" not in html
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-15 ────────────────────────────────────────────────────────────────
+
+class TestPromotionEventStep2Subtitle:
+    """EDIT-UI-15: PROMOTION_EVENT step 2 shows campaign audience count, not enrolled players."""
+
+    def test_edit_ui_15_campaign_audience_subtitle(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db)
+        campaign = _make_campaign(test_db, sponsor)
+        _make_audience_entry(test_db, sponsor, campaign)
+        sem = _make_promotion_semester_with_campaign(test_db, sponsor, campaign)
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+
+            html = resp.text
+            assert "campaign audience entr" in html
+            assert "players enrolled" not in html
+            assert "0 player" not in html
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-16 ────────────────────────────────────────────────────────────────
+
+class TestNonPromotionEventCloseEnrollmentButton:
+    """EDIT-UI-16: non-PROMOTION_EVENT ENROLLMENT_OPEN → shows Close Enrollment button."""
+
+    def test_edit_ui_16_close_enrollment_present_for_non_promo(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sem = _make_mini_season_semester(test_db)
+        sem.tournament_status = "ENROLLMENT_OPEN"
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+
+            assert "Close Enrollment" in resp.text
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── Helpers for EDIT-UI-17..20 ────────────────────────────────────────────────
+
+from app.models.license import UserLicense
+
+
+def _make_user_with_license(db: Session) -> tuple:
+    u = User(
+        email=f"lic+{uuid.uuid4().hex[:8]}@lfa.com",
+        name="Licensed Player",
+        password_hash=get_password_hash("x"),
+        role=UserRole.STUDENT,
+        is_active=True,
+    )
+    db.add(u)
+    db.flush()
+    lic = UserLicense(
+        user_id=u.id,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        is_active=True,
+        started_at=datetime.now(timezone.utc),
+    )
+    db.add(lic)
+    db.flush()
+    return u, lic
+
+
+def _make_audience_entry_promoted(db: Session, sponsor: Sponsor,
+                                   campaign: SponsorCampaign,
+                                   user: User) -> SponsorAudienceEntry:
+    """Active + consented + promoted audience entry."""
+    log = CsvImportLog(sponsor_id=sponsor.id, campaign_id=campaign.id)
+    db.add(log)
+    db.flush()
+    entry = SponsorAudienceEntry(
+        sponsor_id=sponsor.id,
+        campaign_id=campaign.id,
+        import_log_id=log.id,
+        first_name="UI",
+        last_name=f"BulkTest {uuid.uuid4().hex[:4]}",
+        email=f"ui-bulk+{uuid.uuid4().hex[:8]}@lfa.com",
+        status="ACTIVE",
+        consent_given=True,
+        user_id=user.id,
+    )
+    db.add(entry)
+    db.flush()
+    return entry
+
+
+# ── EDIT-UI-17 ────────────────────────────────────────────────────────────────
+
+class TestBulkEnrollButtonVisible:
+    """EDIT-UI-17: PROMOTION_EVENT DRAFT + linked campaign + eligible entries → button shown."""
+
+    def test_edit_ui_17_bulk_enroll_button_visible(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db)
+        campaign = _make_campaign(test_db, sponsor)
+        user, _ = _make_user_with_license(test_db)
+        _make_audience_entry_promoted(test_db, sponsor, campaign, user)
+        sem = _make_promotion_semester_with_campaign(test_db, sponsor, campaign)
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+            assert "Bulk Enroll Campaign Participants" in resp.text
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-18 ────────────────────────────────────────────────────────────────
+
+class TestBulkEnrollButtonHiddenNoCampaign:
+    """EDIT-UI-18: PROMOTION_EVENT DRAFT, no campaign → button absent."""
+
+    def test_edit_ui_18_bulk_enroll_hidden_no_campaign(self, test_db: Session):
+        admin = _make_admin(test_db)
+        # PROMOTION_EVENT without campaign linkage
+        sem = _make_promotion_semester(test_db, age_groups=["PRE"])
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+            assert "Bulk Enroll Campaign Participants" not in resp.text
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-19 ────────────────────────────────────────────────────────────────
+
+class TestBulkEnrollButtonHiddenNonPromo:
+    """EDIT-UI-19: non-PROMOTION_EVENT → button absent."""
+
+    def test_edit_ui_19_bulk_enroll_hidden_non_promo(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sem = _make_mini_season_semester(test_db)
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+            assert "Bulk Enroll Campaign Participants" not in resp.text
+        finally:
+            app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-20 ────────────────────────────────────────────────────────────────
+
+class TestBulkEnrollButtonHiddenFrozenStatus:
+    """EDIT-UI-20: PROMOTION_EVENT IN_PROGRESS → button absent (frozen status)."""
+
+    def test_edit_ui_20_bulk_enroll_hidden_in_progress(self, test_db: Session):
+        admin = _make_admin(test_db)
+        sponsor = _make_sponsor(test_db)
+        campaign = _make_campaign(test_db, sponsor)
+        sem = _make_promotion_semester_with_campaign(test_db, sponsor, campaign)
+        sem.tournament_status = "IN_PROGRESS"
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+            assert "Bulk Enroll Campaign Participants" not in resp.text
         finally:
             app.dependency_overrides.clear()

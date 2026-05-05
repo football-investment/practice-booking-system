@@ -235,6 +235,7 @@ async def admin_tournament_edit_page(
     campaign_audience: list = []
     organizer_sponsor = None
     organizer_campaign = None
+    bulk_enroll_eligible_count: int = 0
     if _is_promo:
         if t.organizer_sponsor_id:
             organizer_sponsor = (
@@ -256,6 +257,22 @@ async def admin_tournament_edit_page(
                     .order_by(SponsorAudienceEntry.last_name, SponsorAudienceEntry.first_name)
                     .all()
                 )
+                # Eligible count for the Bulk Enroll button (shown in DRAFT / ENROLLMENT_CLOSED).
+                # Mirrors the service filter: ACTIVE + consent + promoted (user_id set).
+                # Does not subtract already-enrolled — the button label is indicative;
+                # idempotency is enforced in the service.
+                if t.tournament_status in ("DRAFT", "ENROLLMENT_CLOSED"):
+                    bulk_enroll_eligible_count = (
+                        db.query(SponsorAudienceEntry)
+                        .filter(
+                            SponsorAudienceEntry.sponsor_id == t.organizer_sponsor_id,
+                            SponsorAudienceEntry.campaign_id == t.organizer_campaign_id,
+                            SponsorAudienceEntry.status == "ACTIVE",
+                            SponsorAudienceEntry.consent_given == True,
+                            SponsorAudienceEntry.user_id.isnot(None),
+                        )
+                        .count()
+                    )
 
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
@@ -295,6 +312,7 @@ async def admin_tournament_edit_page(
             "campaign_audience": campaign_audience,
             "organizer_sponsor": organizer_sponsor,
             "organizer_campaign": organizer_campaign,
+            "bulk_enroll_eligible_count": bulk_enroll_eligible_count,
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },
