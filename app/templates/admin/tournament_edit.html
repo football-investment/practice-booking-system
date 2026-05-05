@@ -1137,6 +1137,70 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
   </div>{# /wiz-step-body #}
 </div>{# /wiz-step-7 #}
 
+{# ── SECTION: Campaign Audience (PROMOTION_EVENT only) ──────────────────────── #}
+{% if is_promotion_event %}
+<div class="card" id="section-campaign-audience" style="margin-top:1.5rem;">
+    <div class="section-header">
+        <span class="section-icon">📋</span>
+        <h2>Campaign Audience</h2>
+        {% if campaign_audience %}
+        <span style="background:#e2e8f0;color:#4a5568;border-radius:.4rem;padding:.2rem .6rem;font-size:.8rem;font-weight:600;margin-left:.75rem;">{{ campaign_audience|length }}</span>
+        {% endif %}
+    </div>
+
+    {% if organizer_sponsor or organizer_campaign %}
+    <div style="margin-bottom:.75rem;font-size:.875rem;color:#718096;" id="campaign-audience-backlink">
+        {% if organizer_sponsor %}
+        Sponsor: <a href="/admin/sponsors/{{ organizer_sponsor.id }}" style="color:#667eea;">{{ organizer_sponsor.name }}</a>
+        {% endif %}
+        {% if organizer_sponsor and organizer_campaign %}&nbsp;·&nbsp;{% endif %}
+        {% if organizer_campaign %}
+        Campaign: <a href="/admin/sponsors/{{ organizer_sponsor.id if organizer_sponsor else t.organizer_sponsor_id }}/campaigns/{{ organizer_campaign.id }}/audience" style="color:#667eea;">{{ organizer_campaign.name }}</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <p style="color:#a0aec0;font-style:italic;" id="campaign-audience-no-link">
+        No sponsor campaign is linked to this event. Audience data is unavailable until a campaign is assigned.
+    </p>
+    {% endif %}
+
+    {% if campaign_audience %}
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+        <thead>
+            <tr style="border-bottom:2px solid #e2e8f0;text-align:left;">
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Name</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Email</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Status</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Promoted At</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Linked User</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for entry in campaign_audience %}
+        <tr style="border-bottom:1px solid #f0f4f8;">
+            <td style="padding:.5rem .75rem;">{{ entry.first_name }} {{ entry.last_name }}</td>
+            <td style="padding:.5rem .75rem;">{{ entry.email }}</td>
+            <td style="padding:.5rem .75rem;">
+                <span style="background:{% if entry.status == 'ACTIVE' %}#c6f6d5{% elif entry.status == 'SUPPRESSED' %}#fed7d7{% else %}#e2e8f0{% endif %};color:{% if entry.status == 'ACTIVE' %}#276749{% elif entry.status == 'SUPPRESSED' %}#742a2a{% else %}#4a5568{% endif %};border-radius:.3rem;padding:.15rem .5rem;font-size:.78rem;font-weight:600;">
+                    {{ entry.status }}
+                </span>
+            </td>
+            <td style="padding:.5rem .75rem;color:#718096;">{{ entry.promoted_at.strftime('%Y-%m-%d') if entry.promoted_at else '—' }}</td>
+            <td style="padding:.5rem .75rem;">
+                {% if entry.user %}<a href="/admin/users/{{ entry.user.id }}" style="color:#667eea;">{{ entry.user.name }}</a>{% else %}—{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% elif organizer_campaign %}
+    <p style="color:#a0aec0;font-style:italic;margin-top:.5rem;">No audience entries found for this campaign.</p>
+    {% endif %}
+</div>
+{% endif %}
+
 {# ── Result Entry Modal ────────────────────────────────────────────────────── #}
 <div id="result-modal-overlay"
      onclick="if(event.target===this)closeResultModal()"

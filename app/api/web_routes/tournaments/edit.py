@@ -13,6 +13,7 @@ from ....models.location import Location
 from ....models.semester import Semester, SemesterCategory
 from ....services.tournament import get_allowed_age_groups
 from ....models.semester_enrollment import SemesterEnrollment
+from ....models.sponsor import Sponsor, SponsorCampaign, SponsorAudienceEntry
 from ....models.session import Session as SessionModel, EventCategory
 from ....models.team import Team, TournamentTeamEnrollment
 from ....models.tournament_ranking import TournamentRanking
@@ -229,6 +230,30 @@ async def admin_tournament_edit_page(
         if s.game_results or (s.rounds_data and s.rounds_data.get("round_results"))
     )
 
+    # Campaign audience — only queried for PROMOTION_EVENT to avoid unnecessary work
+    _is_promo = t.semester_category == SemesterCategory.PROMOTION_EVENT
+    campaign_audience: list = []
+    organizer_sponsor = None
+    organizer_campaign = None
+    if _is_promo:
+        if t.organizer_sponsor_id:
+            organizer_sponsor = (
+                db.query(Sponsor).filter(Sponsor.id == t.organizer_sponsor_id).first()
+            )
+        if t.organizer_campaign_id:
+            organizer_campaign = (
+                db.query(SponsorCampaign)
+                .filter(SponsorCampaign.id == t.organizer_campaign_id)
+                .first()
+            )
+            if organizer_campaign:
+                campaign_audience = (
+                    db.query(SponsorAudienceEntry)
+                    .filter(SponsorAudienceEntry.campaign_id == t.organizer_campaign_id)
+                    .order_by(SponsorAudienceEntry.last_name, SponsorAudienceEntry.first_name)
+                    .all()
+                )
+
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
         {
@@ -262,8 +287,11 @@ async def admin_tournament_edit_page(
             "eligible_instructors": eligible_instructors,
             "pitches_for_roster": pitches_for_roster,
             "has_absent_field": has_absent_field,
-            "is_promotion_event": t.semester_category == SemesterCategory.PROMOTION_EVENT,
+            "is_promotion_event": _is_promo,
             "promotion_age_groups": get_allowed_age_groups(t),
+            "campaign_audience": campaign_audience,
+            "organizer_sponsor": organizer_sponsor,
+            "organizer_campaign": organizer_campaign,
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },
