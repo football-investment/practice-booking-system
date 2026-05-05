@@ -200,6 +200,13 @@ def validate_status_transition(
         # else: rollback path (IN_PROGRESS → ENROLLMENT_CLOSED) — allow unconditionally
 
     if new_status == "IN_PROGRESS":
+        # Participant count contract: SemesterEnrollment is the SOLE source of truth
+        # for ALL tournament types, including PROMOTION_EVENT.
+        # Campaign audience (SponsorAudienceEntry) drives only the ENROLLMENT_CLOSED
+        # "lock audience" guard.  Reaching IN_PROGRESS requires that bulk_enroll_from_campaign
+        # (or manual enroll) has created actual SemesterEnrollment rows first.
+        # Do NOT replace _count_active_participants with an audience query here.
+
         # Check instructor assignment: legacy field OR new TournamentInstructorSlot
         has_instructor = bool(tournament.master_instructor_id)
         if not has_instructor:

@@ -531,3 +531,43 @@ class TestNonPromotionEventRegressions:
         is_valid, err = validate_status_transition("ENROLLMENT_OPEN", "ENROLLMENT_CLOSED", t)
         assert is_valid is False
         assert "participants" in err.lower() or "players" in err.lower()
+
+
+# ──────────────────── PROMOTION_EVENT IN_PROGRESS invariant ──────────────────
+
+
+class TestPromotionEventInProgressGuard:
+    """PROMO-SM-08..10: IN_PROGRESS guard uses SemesterEnrollment for PROMOTION_EVENT.
+
+    Core invariant: campaign audience (SponsorAudienceEntry) drives ONLY the
+    ENROLLMENT_CLOSED "lock audience" guard.  IN_PROGRESS requires actual
+    SemesterEnrollment rows — created by bulk_enroll_from_campaign() or manual
+    enroll.  A tournament with audience entries but no enrollments must be blocked.
+    """
+
+    def test_promo_sm_08_blocked_audience_present_no_enrollment(self):
+        """PROMO-SM-08: audience_count=3 but 0 SemesterEnrollments → IN_PROGRESS blocked."""
+        # audience_count=3 wires the mock DB to return 3 for any .count() call;
+        # enrollments=[] means no SemesterEnrollment rows → the player count is 0.
+        t = _promo_tournament(audience_count=3, enrollments=[])
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+        assert is_valid is False
+        assert "participants" in err.lower() or "players" in err.lower()
+
+    def test_promo_sm_09_allowed_after_bulk_enroll(self):
+        """PROMO-SM-09: 2 active SemesterEnrollments → IN_PROGRESS allowed."""
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _promo_tournament(audience_count=2, enrollments=enrollments)
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+        assert is_valid is True
+        assert err is None
+
+    def test_promo_sm_10_non_promo_in_progress_unchanged(self):
+        """PROMO-SM-10: non-PROMOTION_EVENT CHECK_IN_OPEN → IN_PROGRESS still uses SemesterEnrollment (regression)."""
+        from app.models.semester import SemesterCategory
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(status="CHECK_IN_OPEN", enrollments=enrollments, master_id=1)
+        t.semester_category = SemesterCategory.MINI_SEASON
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+        assert is_valid is True
+        assert err is None
