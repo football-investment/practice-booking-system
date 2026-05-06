@@ -106,7 +106,7 @@ class TestCheckinPlayerPromotionEvent:
         db = _db_query_factory(player_checkin=None, semester_enrollment=enrollment)
 
         with patch(f"{_SVC}._get_tournament_or_404", return_value=promo_tournament):
-            checkin_player(db=db, tournament_id=5, user_id=17, team_id=None, by_user_id=1)
+            checkin_player(db=db, tournament_id=5, user_id=17, team_id=None, by_user_id=42)
 
         # enrollment.tournament_checked_in_at must be stamped
         assert enrollment.tournament_checked_in_at is not None
@@ -119,7 +119,7 @@ class TestCheckinPlayerPromotionEvent:
 
         with patch(f"{_SVC}._get_enrollment_or_404", return_value=enrollment), \
              patch(f"{_SVC}._require_instructor_checked_in") as mock_gate:
-            checkin_team(db=db, tournament_id=5, team_id=3, by_user_id=1)
+            checkin_team(db=db, tournament_id=5, team_id=3, by_user_id=42)
 
         mock_gate.assert_not_called()
         assert enrollment.checked_in_at is not None

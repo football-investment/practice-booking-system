@@ -175,7 +175,8 @@ def validate_status_transition(
                         "Cannot lock audience: PROMOTION_EVENT must have both organizer sponsor "
                         "and campaign linked before locking."
                     )
-                _db = tournament.__dict__.get('_sa_instance_state').session
+                _sa_state = tournament.__dict__.get('_sa_instance_state')
+                _db = _sa_state.session if _sa_state is not None else None
                 if _db:
                     from app.models.sponsor import SponsorAudienceEntry
                     audience_count = _db.query(SponsorAudienceEntry).filter(
