@@ -833,32 +833,40 @@ def test_IND_ATT_05_checkin_syncs_semester_enrollment(test_db: Session):
 # ATT-07: checkin_team blocked when no instructor is CHECKED_IN
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_ATT_07_team_checkin_blocked_without_instructor(test_db: Session):
-    """checkin_team → 409 when no TournamentInstructorSlot has status=CHECKED_IN."""
+def test_ATT_07_team_checkin_no_instructor_gate(test_db: Session):
+    """checkin_team succeeds even when no TournamentInstructorSlot has status=CHECKED_IN.
+
+    Stage 1 removed the instructor-gate from checkin_team.  Verify the endpoint
+    returns 200 regardless of instructor slot state (slot exists but only PLANNED).
+    """
     admin = _admin(test_db)
     cap   = _player(test_db)
     tourn = _tournament(test_db)
     team  = _team(test_db, tourn, cap)
-    # Slot exists but only PLANNED — NOT CHECKED_IN
+    # Slot exists but only PLANNED — gate removed, so checkin must still succeed
     _instructor_slot(test_db, tourn, admin, status=SlotStatus.PLANNED)
 
     client = _client(test_db, admin)
     resp = client.post(f"/admin/tournaments/{tourn.id}/teams/{team.id}/checkin")
-    assert resp.status_code == 409, f"Expected 409, got {resp.status_code}: {resp.text}"
-    assert "instructor" in resp.text.lower()
+    assert resp.status_code == 200, f"Expected 200 (no instructor gate), got {resp.status_code}: {resp.text}"
+    assert resp.json()["ok"] is True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ATT-08: checkin_player blocked when no instructor is CHECKED_IN
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_ATT_08_player_checkin_blocked_without_instructor(test_db: Session):
-    """checkin_player → 409 when no TournamentInstructorSlot has status=CHECKED_IN."""
+def test_ATT_08_player_checkin_no_instructor_gate(test_db: Session):
+    """checkin_player succeeds when no TournamentInstructorSlot has status=CHECKED_IN.
+
+    Stage 1 removed the instructor-gate from checkin_player.  Verify the endpoint
+    returns 200 regardless of instructor slot state (no slot at all).
+    """
     admin  = _admin(test_db)
     player = _player(test_db)
     tourn  = _ind_tournament(test_db)
     _enroll_player(test_db, tourn, player)
-    # No instructor slot at all → 0 CHECKED_IN
+    # No instructor slot at all — gate removed, so checkin must succeed
     test_db.flush()
 
     client = _client(test_db, admin)
@@ -866,8 +874,8 @@ def test_ATT_08_player_checkin_blocked_without_instructor(test_db: Session):
         f"/admin/tournaments/{tourn.id}/players/{player.id}/checkin",
         json={},
     )
-    assert resp.status_code == 409, f"Expected 409, got {resp.status_code}: {resp.text}"
-    assert "instructor" in resp.text.lower()
+    assert resp.status_code == 200, f"Expected 200 (no instructor gate), got {resp.status_code}: {resp.text}"
+    assert resp.json()["ok"] is True
 
 
 # ─────────────────────────────────────────────────────────────────────────────

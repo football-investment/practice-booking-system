@@ -13,6 +13,8 @@ from ....models.location import Location
 from ....models.semester import Semester, SemesterCategory
 from ....services.tournament import get_allowed_age_groups
 from ....models.semester_enrollment import SemesterEnrollment
+from ....models.license import UserLicense
+from ....models.sponsor import Sponsor, SponsorCampaign, SponsorAudienceEntry
 from ....models.session import Session as SessionModel, EventCategory
 from ....models.team import Team, TournamentTeamEnrollment
 from ....models.tournament_ranking import TournamentRanking
@@ -115,7 +117,12 @@ async def admin_tournament_edit_page(
     )
 
     def _matchup_label(s, teams_dict: dict, users_dict: dict):
-        """Return 'Team A vs Team B' / 'Player X vs Player Y' / 'N participants' / None."""
+        """Return 'Team A vs Team B' / 'Player X vs Player Y' / 'N participants' / None.
+
+        Falls back to structure_config.matchup (written at generation time) when
+        participant_user_ids is not yet populated — e.g. pending knockout slots.
+        Concrete participant names take priority over the slot label.
+        """
         if s.participant_team_ids:
             names = [teams_dict.get(tid, f"Team #{tid}") for tid in s.participant_team_ids[:2]]
             return " vs ".join(names) if len(names) >= 2 else names[0]
@@ -127,7 +134,8 @@ async def admin_tournament_edit_page(
                 n2 = u2.name if u2 else f"Player #{s.participant_user_ids[1]}"
                 return f"{n1} vs {n2}"
             return f"{len(s.participant_user_ids)} participants"
-        return None
+        sc = s.structure_config or {}
+        return sc.get("matchup") or None
 
     # Team name map for TEAM tournaments (team_id → name) — built first for matchup_label
     enrolled_teams: dict = {}
@@ -158,11 +166,39 @@ async def admin_tournament_edit_page(
             "participant_team_ids": s.participant_team_ids or [],
             "tournament_round": s.tournament_round,
             "group_identifier": s.group_identifier,
+            "tournament_phase": s.tournament_phase.value if s.tournament_phase else None,
             "matchup_label": _matchup_label(s, enrolled_teams, enrolled_users),
             "postponed_reason": s.postponed_reason,
         }
         for s in all_match_sessions
     ]
+
+    # View preprocessing for format-aware Section 7 rendering
+    tt_code = (cfg.tournament_type.code if cfg and cfg.tournament_type else None) or "unknown"
+    _gk_unique_groups: list = []
+    _ko_unique_rounds: list = []
+    _ko_round_labels: dict = {}
+    if tt_code == "group_knockout":
+        _gk_unique_groups = sorted(set(
+            s["group_identifier"] for s in sessions_result_status
+            if s.get("group_identifier") and s.get("tournament_phase") == "GROUP_STAGE"
+        ))
+        _ko_unique_rounds = sorted(set(
+            s["tournament_round"] for s in sessions_result_status
+            if s.get("tournament_phase") == "KNOCKOUT" and s["tournament_round"] is not None
+        ))
+        for s in sessions_result_status:
+            if s.get("tournament_phase") == "KNOCKOUT" and s["tournament_round"] is not None:
+                rn = s["tournament_round"]
+                if rn not in _ko_round_labels:
+                    title = s["title"]
+                    parts = [p.strip() for p in title.split(" - ")]
+                    if len(parts) >= 3 and parts[-1].lower().startswith("match"):
+                        _ko_round_labels[rn] = " - ".join(parts[1:-1])
+                    elif len(parts) == 2:
+                        _ko_round_labels[rn] = parts[-1]
+                    else:
+                        _ko_round_labels[rn] = f"Round {rn}"
 
     # Existing rankings (for Section 8 — rankings panel)
     existing_rankings = (
@@ -221,13 +257,76 @@ async def admin_tournament_edit_page(
         for s in instructor_roster
     )
 
+    # Campaign audience — only queried for PROMOTION_EVENT to avoid unnecessary work
+    _is_promo = t.semester_category == SemesterCategory.PROMOTION_EVENT
+
     # Wizard context: enrolled_count + completed_session_count
+    # PROMOTION_EVENT always uses individual SemesterEnrollments (bulk_enroll never
+    # creates TournamentTeamEnrollment rows) — ignore participant_type for PROMO.
     _participant_type = cfg.participant_type if cfg else "INDIVIDUAL"
-    enrolled_count = len(team_enrollments) if _participant_type == "TEAM" else len(enrollments)
+    if _is_promo:
+        enrolled_count = len(enrollments)
+    else:
+        enrolled_count = len(team_enrollments) if _participant_type == "TEAM" else len(enrollments)
     completed_session_count = sum(
         1 for s in all_match_sessions
         if s.game_results or (s.rounds_data and s.rounds_data.get("round_results"))
     )
+    campaign_audience: list = []
+    organizer_sponsor = None
+    organizer_campaign = None
+    bulk_enroll_eligible_count: int = 0
+    if _is_promo:
+        if t.organizer_sponsor_id:
+            organizer_sponsor = (
+                db.query(Sponsor).filter(Sponsor.id == t.organizer_sponsor_id).first()
+            )
+        if t.organizer_campaign_id:
+            organizer_campaign = (
+                db.query(SponsorCampaign)
+                .filter(SponsorCampaign.id == t.organizer_campaign_id)
+                .first()
+            )
+            if organizer_campaign:
+                campaign_audience = (
+                    db.query(SponsorAudienceEntry)
+                    .filter(
+                        SponsorAudienceEntry.campaign_id == t.organizer_campaign_id,
+                        SponsorAudienceEntry.status != "DELETED",
+                    )
+                    .order_by(SponsorAudienceEntry.last_name, SponsorAudienceEntry.first_name)
+                    .all()
+                )
+                # Eligible count for the Bulk Enroll button.
+                # Mirrors the service filter exactly: ACTIVE + consent + promoted +
+                # active User + active LFA_FOOTBALL_PLAYER license.
+                # JOIN with UserLicense keeps this accurate so the button count matches
+                # what the service will actually enroll (no inflated "eligible" promise).
+                # Does not subtract already-enrolled — idempotency is in the service.
+                _ts = t.tournament_status or "DRAFT"
+                if _ts in ("DRAFT", "ENROLLMENT_OPEN", "ENROLLMENT_CLOSED"):
+                    bulk_enroll_eligible_count = (
+                        db.query(SponsorAudienceEntry)
+                        .join(
+                            User,
+                            (User.id == SponsorAudienceEntry.user_id)
+                            & (User.is_active == True),
+                        )
+                        .join(
+                            UserLicense,
+                            (UserLicense.user_id == SponsorAudienceEntry.user_id)
+                            & (UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER")
+                            & (UserLicense.is_active == True),
+                        )
+                        .filter(
+                            SponsorAudienceEntry.sponsor_id == t.organizer_sponsor_id,
+                            SponsorAudienceEntry.campaign_id == t.organizer_campaign_id,
+                            SponsorAudienceEntry.status == "ACTIVE",
+                            SponsorAudienceEntry.consent_given == True,
+                            SponsorAudienceEntry.user_id.isnot(None),
+                        )
+                        .count()
+                    )
 
     return templates.TemplateResponse(
         "admin/tournament_edit.html",
@@ -249,6 +348,10 @@ async def admin_tournament_edit_page(
             "sessions": sessions,
             "session_count": session_count,
             "sessions_result_status": sessions_result_status,
+            "tt_code": tt_code,
+            "gk_unique_groups": _gk_unique_groups,
+            "ko_unique_rounds": _ko_unique_rounds,
+            "ko_round_labels": _ko_round_labels,
             "enrolled_teams": enrolled_teams,
             "existing_rankings": existing_rankings,
             "ranking_users": ranking_users,
@@ -262,8 +365,12 @@ async def admin_tournament_edit_page(
             "eligible_instructors": eligible_instructors,
             "pitches_for_roster": pitches_for_roster,
             "has_absent_field": has_absent_field,
-            "is_promotion_event": t.semester_category == SemesterCategory.PROMOTION_EVENT,
+            "is_promotion_event": _is_promo,
             "promotion_age_groups": get_allowed_age_groups(t),
+            "campaign_audience": campaign_audience,
+            "organizer_sponsor": organizer_sponsor,
+            "organizer_campaign": organizer_campaign,
+            "bulk_enroll_eligible_count": bulk_enroll_eligible_count,
             "flash": request.query_params.get("flash"),
             "error": request.query_params.get("error"),
         },

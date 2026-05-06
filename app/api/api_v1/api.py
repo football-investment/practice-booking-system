@@ -81,7 +81,7 @@ from .endpoints import (
 )
 from .endpoints.sessions import results as session_results
 from .endpoints import session_groups
-from .endpoints.tournaments import generate_sessions, admin_enroll
+from .endpoints.tournaments import generate_sessions, admin_enroll, campaign_enroll
 
 # ── FINANCE ───────────────────────────────────────────────────────────────────
 from .endpoints import (
@@ -185,6 +185,7 @@ api_router.include_router(teams.router, prefix="", tags=["teams"])
 api_router.include_router(pitches.router, prefix="", tags=["pitches", "pitch-instructor-assignments"])
 api_router.include_router(generate_sessions.router, prefix="/tournaments", tags=["tournaments", "session-generation"])
 api_router.include_router(admin_enroll.router, prefix="/tournaments", tags=["tournaments", "admin-enrollment"])
+api_router.include_router(campaign_enroll.router, prefix="/tournaments", tags=["tournaments", "campaign-enrollment"])
 api_router.include_router(admin_players.router, prefix="/admin", tags=["admin", "player-provisioning"])
 api_router.include_router(sandbox.router, prefix="/sandbox", tags=["sandbox-testing"])
 api_router.include_router(sandbox_data.router, prefix="/sandbox", tags=["sandbox-data"])

@@ -410,6 +410,67 @@ def _add_lfa_u18_enrollment(tid):
     _db.expire_all()
 
 
+def _add_lfa_u15_enrollment(tid):
+    """Directly enroll LFA U15 into a tournament."""
+    u15 = (
+        _db.query(Team)
+        .filter(Team.name == "LFA U15", Team.is_active == True)  # noqa: E712
+        .first()
+    )
+    if not u15:
+        fail("LFA U15 bootstrap team not found — run bootstrap_clean.py first")
+    existing = _db.query(TournamentTeamEnrollment).filter(
+        TournamentTeamEnrollment.semester_id == tid,
+        TournamentTeamEnrollment.team_id == u15.id,
+    ).first()
+    if not existing:
+        _db.add(TournamentTeamEnrollment(
+            semester_id=tid,
+            team_id=u15.id,
+            is_active=True,
+            payment_verified=True,
+        ))
+        _db.commit()
+    _db.expire_all()
+
+
+def _create_regular_tournament(campus_id, tt_id, name_prefix):
+    """Create a regular TEAM tournament (SemesterCategory.TOURNAMENT, not PROMOTION_EVENT).
+
+    Used by lifecycle tests that traverse the standard path including ENROLLMENT_OPEN.
+    PROMOTION_EVENT tournaments block ENROLLMENT_OPEN by design, so any test that
+    needs the full DRAFT→ENROLLMENT_OPEN→... path must use a regular TOURNAMENT.
+    Creates with LFA U15 + LFA U18 enrolled (≥2 teams satisfies enrollment-close guard).
+    """
+    suffix = uuid.uuid4().hex[:6]
+    t = Semester(
+        code=f"LC-{suffix}",
+        name=f"{name_prefix}-{suffix}",
+        start_date=datetime.date(2026, 7, 1),
+        end_date=datetime.date(2026, 7, 3),
+        status=SemesterStatus.DRAFT,
+        tournament_status="DRAFT",
+        semester_category=SemesterCategory.TOURNAMENT,
+        specialization_type="LFA_FOOTBALL_PLAYER",
+        campus_id=campus_id,
+        enrollment_cost=0,
+    )
+    _db.add(t)
+    _db.flush()
+    _db.add(TournamentConfiguration(
+        semester_id=t.id,
+        tournament_type_id=tt_id,
+        participant_type="TEAM",
+        number_of_rounds=1,
+    ))
+    _db.commit()
+    _db.expire_all()
+    _add_lfa_u15_enrollment(t.id)
+    _add_lfa_u18_enrollment(t.id)
+    info(f"  Tournament: id={t.id}  name={t.name!r}  campus_id={t.campus_id}  status={t.tournament_status}")
+    return _db.query(Semester).filter(Semester.id == t.id).first()
+
+
 def _promotion_wizard(club_id, campus_id, tt_id, age_group, name_prefix):
     resp = _post_form(
         f"/admin/clubs/{club_id}/promotion",
@@ -531,8 +592,7 @@ def test_guard_a_campus_required(tt_id):
 def test_guard_c_instructor_required(club, campus, tt_id):
     """Run lifecycle to CHECK_IN_OPEN without instructor; assert IN_PROGRESS fails."""
     prefix = f"Guard-C-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
-    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
+    t = _create_regular_tournament(campus.id, tt_id, prefix)
 
     enr_count = _db.query(TournamentTeamEnrollment).filter(
         TournamentTeamEnrollment.semester_id == t.id,
@@ -561,8 +621,7 @@ def test_guard_c_instructor_required(club, campus, tt_id):
 def test_guard_d_rankings_required(club, campus, tt_id, instructor):
     """Advance to IN_PROGRESS without rankings; assert COMPLETED fails."""
     prefix = f"Guard-D-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
-    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
+    t = _create_regular_tournament(campus.id, tt_id, prefix)
 
     _status_transition(t.id, "ENROLLMENT_OPEN")
     _status_transition(t.id, "ENROLLMENT_CLOSED")
@@ -609,8 +668,7 @@ def test_full_lifecycle_visibility(club, campus, tt_id, instructor):
     Returns tournament id for the follow-up frontend consistency test.
     """
     prefix = f"FullLC-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
-    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
+    t = _create_regular_tournament(campus.id, tt_id, prefix)
 
     enrollments = _db.query(TournamentTeamEnrollment).filter(
         TournamentTeamEnrollment.semester_id == t.id,
@@ -730,12 +788,12 @@ def test_frontend_consistency(tid):
     status = t.tournament_status
     info(f"  Tournament id={tid}  status={status!r}  name={name!r}")
 
-    resp = _client.get("/admin/promotion-events")
+    resp = _client.get("/admin/semesters")
     if resp.status_code != 200:
-        fail(f"/admin/promotion-events returned HTTP {resp.status_code}")
+        fail(f"/admin/semesters returned HTTP {resp.status_code}")
     if name not in resp.text:
-        fail(f"/admin/promotion-events: tournament '{name}' not found in HTML")
-    ok("/admin/promotion-events → 200, tournament listed ✓")
+        fail(f"/admin/semesters: tournament '{name}' not found in HTML")
+    ok("/admin/semesters → 200, tournament listed ✓")
 
     resp = _client.get(f"/admin/tournaments/{tid}/edit")
     if resp.status_code != 200:
@@ -765,8 +823,7 @@ def test_idempotency(club, campus, tt_id, instructor):
     3. IN_PROGRESS transition attempted again (already past) → 400
     """
     prefix = f"Idem-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
-    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
+    t = _create_regular_tournament(campus.id, tt_id, prefix)
 
     # Fast-track to IN_PROGRESS
     _status_transition(t.id, "ENROLLMENT_OPEN")
@@ -868,8 +925,7 @@ def test_public_api_strict(club, campus, tt_id, instructor):
     This is a 1:1 projection check: DB state → rendered HTML.
     """
     prefix = f"PubStrict-{uuid.uuid4().hex[:6]}"
-    t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
-    _add_lfa_u18_enrollment(t.id)  # need ≥2 teams to close enrollment
+    t = _create_regular_tournament(campus.id, tt_id, prefix)
     tournament_name = t.name
 
     def _check_html(expected_status):

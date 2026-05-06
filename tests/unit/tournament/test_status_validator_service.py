@@ -391,3 +391,219 @@ class TestDraftToEnrollmentOpenValidation:
         is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
         assert is_valid is False
         assert "campus" in err.lower()
+
+
+# ──────────────────── PROMOTION_EVENT status machine ────────────────────────
+
+
+def _audience_db(count: int) -> MagicMock:
+    """DB mock whose query().filter(...).count() returns `count`."""
+    db = MagicMock()
+    q = MagicMock()
+    q.filter.return_value = q
+    q.count.return_value = count
+    db.query.return_value = q
+    return db
+
+
+def _promo_tournament(
+    status: str = "DRAFT",
+    organizer_sponsor_id: int = 10,
+    organizer_campaign_id: int = 20,
+    audience_count: int = 3,
+    enrollments=None,
+    master_id: int = 1,
+):
+    """Build a PROMOTION_EVENT mock tournament with a wired DB session."""
+    from app.models.semester import SemesterCategory
+
+    t = MagicMock()
+    t.tournament_status = status
+    t.semester_category = SemesterCategory.PROMOTION_EVENT
+    t.organizer_sponsor_id = organizer_sponsor_id
+    t.organizer_campaign_id = organizer_campaign_id
+    t.master_instructor_id = master_id
+    t.tournament_type_id = None
+    t.campus_id = 1
+    t.name = "Promo Test Event"
+    t.start_date = "2026-09-01"
+    t.end_date = "2026-09-02"
+    t.enrollments = enrollments or []
+    t.sessions = [MagicMock()]
+    t.format = "INDIVIDUAL_RANKING"
+    t.participant_type = "INDIVIDUAL"
+
+    db = _audience_db(audience_count)
+    state = MagicMock()
+    state.session = db
+    t.__dict__["_sa_instance_state"] = state
+    return t
+
+
+def _non_promo_tournament(status: str = "DRAFT"):
+    """Build a non-PROMOTION_EVENT (MINI_SEASON) mock tournament."""
+    from app.models.semester import SemesterCategory
+
+    t = _tournament(status=status)
+    t.semester_category = SemesterCategory.MINI_SEASON
+    return t
+
+
+class TestPromotionEventDraftToEnrollmentClosed:
+    """PROMO-SM-01..04: DRAFT → ENROLLMENT_CLOSED guard for PROMOTION_EVENT."""
+
+    def test_promo_sm_01_passes_with_campaign_and_active_entries(self):
+        """PROMO-SM-01: PROMOTION_EVENT + campaign linked + ACTIVE entries → valid."""
+        t = _promo_tournament(audience_count=3)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_CLOSED", t)
+        assert is_valid is True
+        assert err is None
+
+    def test_promo_sm_02_blocked_no_campaign_linkage(self):
+        """PROMO-SM-02: organizer_campaign_id=None → rejected, mentions campaign."""
+        t = _promo_tournament(organizer_campaign_id=None)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_CLOSED", t)
+        assert is_valid is False
+        assert "campaign" in err.lower()
+
+    def test_promo_sm_02b_blocked_no_sponsor_linkage(self):
+        """PROMO-SM-02b: organizer_sponsor_id=None → rejected, mentions sponsor/campaign."""
+        t = _promo_tournament(organizer_sponsor_id=None)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_CLOSED", t)
+        assert is_valid is False
+        assert "sponsor" in err.lower() or "campaign" in err.lower()
+
+    def test_promo_sm_03_blocked_all_deleted_entries(self):
+        """PROMO-SM-03: campaign has 0 active+consented entries → rejected."""
+        t = _promo_tournament(audience_count=0)
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_CLOSED", t)
+        assert is_valid is False
+        assert "active" in err.lower() or "entries" in err.lower()
+
+    def test_promo_sm_04_blocked_for_non_promotion_event(self):
+        """PROMO-SM-04: MINI_SEASON DRAFT → ENROLLMENT_CLOSED → rejected (must go via ENROLLMENT_OPEN)."""
+        t = _non_promo_tournament(status="DRAFT")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_CLOSED", t)
+        assert is_valid is False
+        assert "PROMOTION_EVENT" in err
+
+
+class TestNonPromotionEventRegressions:
+    """PROMO-SM-05..07: existing non-PROMOTION_EVENT paths unchanged."""
+
+    def _valid_non_promo_draft(self):
+        from app.models.semester import SemesterCategory
+        from datetime import date
+        t = MagicMock()
+        t.tournament_status = "DRAFT"
+        t.semester_category = SemesterCategory.MINI_SEASON
+        t.tournament_type_id = None
+        t.master_instructor_id = 1
+        t.campus_id = 1
+        t.name = "Mini Season"
+        t.start_date = date(2027, 1, 1)
+        t.end_date = date(2027, 1, 2)
+        t.format = "INDIVIDUAL_RANKING"
+        t.enrollments = []
+        t.sessions = [MagicMock()]
+        return t
+
+    def test_promo_sm_05_non_promo_draft_to_enrollment_open(self):
+        """PROMO-SM-05: MINI_SEASON DRAFT → ENROLLMENT_OPEN still works (regression)."""
+        t = self._valid_non_promo_draft()
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is True
+
+    def test_promo_sm_06_non_promo_enrollment_open_to_closed_with_players(self):
+        """PROMO-SM-06: MINI_SEASON ENROLLMENT_OPEN → ENROLLMENT_CLOSED with ≥2 players (regression)."""
+        from app.models.semester import SemesterCategory
+        enrollments = [_active_enrollment(), _active_enrollment(), _active_enrollment()]
+        t = _tournament(status="ENROLLMENT_OPEN", enrollments=enrollments)
+        t.semester_category = SemesterCategory.MINI_SEASON
+        is_valid, err = validate_status_transition("ENROLLMENT_OPEN", "ENROLLMENT_CLOSED", t)
+        assert is_valid is True
+
+    def test_promo_sm_07_non_promo_enrollment_open_to_closed_no_players(self):
+        """PROMO-SM-07: MINI_SEASON ENROLLMENT_OPEN → ENROLLMENT_CLOSED with 0 players → rejected (regression)."""
+        from app.models.semester import SemesterCategory
+        t = _tournament(status="ENROLLMENT_OPEN", enrollments=[])
+        t.semester_category = SemesterCategory.MINI_SEASON
+        is_valid, err = validate_status_transition("ENROLLMENT_OPEN", "ENROLLMENT_CLOSED", t)
+        assert is_valid is False
+        assert "participants" in err.lower() or "players" in err.lower()
+
+
+# ──────────────────── PROMOTION_EVENT IN_PROGRESS invariant ──────────────────
+
+
+class TestPromotionEventInProgressGuard:
+    """PROMO-SM-08..10: IN_PROGRESS guard uses SemesterEnrollment for PROMOTION_EVENT.
+
+    Core invariant: campaign audience (SponsorAudienceEntry) drives ONLY the
+    ENROLLMENT_CLOSED "lock audience" guard.  IN_PROGRESS requires actual
+    SemesterEnrollment rows — created by bulk_enroll_from_campaign() or manual
+    enroll.  A tournament with audience entries but no enrollments must be blocked.
+    """
+
+    def test_promo_sm_08_blocked_audience_present_no_enrollment(self):
+        """PROMO-SM-08: audience_count=3 but 0 SemesterEnrollments → IN_PROGRESS blocked."""
+        # audience_count=3 wires the mock DB to return 3 for any .count() call;
+        # enrollments=[] means no SemesterEnrollment rows → the player count is 0.
+        t = _promo_tournament(audience_count=3, enrollments=[])
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+        assert is_valid is False
+        assert "participants" in err.lower() or "players" in err.lower()
+
+    def test_promo_sm_09_allowed_after_bulk_enroll(self):
+        """PROMO-SM-09: 2 active SemesterEnrollments → IN_PROGRESS allowed."""
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _promo_tournament(audience_count=2, enrollments=enrollments)
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+        assert is_valid is True
+        assert err is None
+
+    def test_promo_sm_10_non_promo_in_progress_unchanged(self):
+        """PROMO-SM-10: non-PROMOTION_EVENT CHECK_IN_OPEN → IN_PROGRESS still uses SemesterEnrollment (regression)."""
+        from app.models.semester import SemesterCategory
+        enrollments = [_active_enrollment(), _active_enrollment()]
+        t = _tournament(status="CHECK_IN_OPEN", enrollments=enrollments, master_id=1)
+        t.semester_category = SemesterCategory.MINI_SEASON
+        is_valid, err = validate_status_transition("CHECK_IN_OPEN", "IN_PROGRESS", t)
+        assert is_valid is True
+        assert err is None
+
+
+# ──────────────────── PROMOTION_EVENT ENROLLMENT_OPEN prevention ─────────────
+
+
+class TestPromotionEventBlockedFromEnrollmentOpen:
+    """PROMO-SM-11: DRAFT → ENROLLMENT_OPEN is blocked for PROMOTION_EVENT.
+
+    Prevention: PROMOTION_EVENT uses the DRAFT → ENROLLMENT_CLOSED fast path.
+    Allowing ENROLLMENT_OPEN would create a dead-end (no recovery UI).
+    Non-PROMOTION_EVENT DRAFT → ENROLLMENT_OPEN must remain unaffected.
+    """
+
+    def test_promo_sm_11_draft_to_enrollment_open_blocked(self):
+        """PROMO-SM-11: PROMOTION_EVENT DRAFT → ENROLLMENT_OPEN → rejected."""
+        t = _promo_tournament(status="DRAFT")
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is False
+        assert "ENROLLMENT_OPEN" in err or "Lock Audience" in err
+
+    def test_promo_sm_11b_non_promo_draft_to_enrollment_open_unchanged(self):
+        """PROMO-SM-11b: non-PROMOTION_EVENT DRAFT → ENROLLMENT_OPEN still allowed (regression)."""
+        from app.models.semester import SemesterCategory
+        from datetime import date
+        t = MagicMock()
+        t.tournament_status = "DRAFT"
+        t.semester_category = SemesterCategory.MINI_SEASON
+        t.tournament_type_id = None
+        t.master_instructor_id = 1
+        t.campus_id = 1
+        t.name = "Mini Season"
+        t.start_date = date(2027, 1, 1)
+        t.end_date = date(2027, 1, 2)
+        t.format = "INDIVIDUAL_RANKING"
+        is_valid, err = validate_status_transition("DRAFT", "ENROLLMENT_OPEN", t)
+        assert is_valid is True

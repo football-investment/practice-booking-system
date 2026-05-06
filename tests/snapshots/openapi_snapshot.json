@@ -53275,6 +53275,48 @@
         ]
       }
     },
+    "/api/v1/tournaments/{tournament_id}/bulk-enroll-campaign": {
+      "post": {
+        "description": "Bulk-enroll all eligible campaign audience entries for a PROMOTION_EVENT.\n\nReturns:\n    {\n        \"enrolled_count\": int,\n        \"skipped_count\": int,\n        \"enrolled\": [user_id, ...],\n        \"skipped\": [{\"user_id\": int, \"reason\": str}, ...]\n    }",
+        "operationId": "bulk_enroll_campaign_audience_api_v1_tournaments__tournament_id__bulk_enroll_campaign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tournament_id",
+            "required": true,
+            "schema": {
+              "title": "Tournament Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk Enroll Campaign Audience",
+        "tags": [
+          "tournaments",
+          "campaign-enrollment"
+        ]
+      }
+    },
     "/api/v1/tournaments/{tournament_id}/calculate-rankings": {
       "post": {
         "description": "Calculate and store tournament rankings\n\nFor INDIVIDUAL tournaments:\n- Reads session results (rounds_data or game_results)\n- Applies appropriate ranking strategy (TIME_BASED, SCORE_BASED, etc.)\n- Stores rankings in tournament_rankings table\n\nFor HEAD_TO_HEAD tournaments:\n- Reads all match results from sessions\n- Applies league or knockout ranking logic\n- Stores rankings in tournament_rankings table\n\nAuthorization: Master Instructor or Admin only\nIdempotent: Can be called multiple times (overwrites existing rankings)",

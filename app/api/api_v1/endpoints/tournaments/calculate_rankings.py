@@ -95,7 +95,7 @@ def calculate_tournament_rankings(
     # For group+knockout tournaments: use GROUP_STAGE sessions for validation,
     # but pass ALL completed sessions (group + knockout) to the ranking strategy
     # so final ranks reflect bracket position, not group stage points.
-    if tournament_type_code == "group_knockout":
+    if tournament_type_code and tournament_type_code.startswith("group_knockout"):
         group_sessions = [s for s in all_sessions if s.tournament_phase == "GROUP_STAGE"]
         knockout_sessions = [
             s for s in all_sessions
@@ -114,6 +114,38 @@ def calculate_tournament_rankings(
                 status_code=400,
                 detail=f"{len(group_missing)} GROUP_STAGE session(s) do not have results yet."
             )
+
+        # Assign semifinal participants if qualification policy requires it.
+        # Must run after group-complete validation above (group_missing guard)
+        # so that assign_semifinal_participants() always sees complete standings.
+        # Policy is stored per player-count in group_configuration[N_players] —
+        # same location the generator reads it from; top-level lookup was wrong.
+        _tt_cfg = (
+            tournament.tournament_config_obj.tournament_type.config
+            if tournament.tournament_config_obj
+            and tournament.tournament_config_obj.tournament_type
+            else {}
+        )
+        _tc = tournament.tournament_config_obj
+        _snap = (getattr(_tc, 'enrollment_snapshot', None) or {})
+        _total_enrolled = _snap.get('total_enrolled')
+        if not _total_enrolled:
+            from sqlalchemy import func
+            from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
+            _total_enrolled = db.query(func.count(SemesterEnrollment.id)).filter(
+                SemesterEnrollment.semester_id == tournament_id,
+                SemesterEnrollment.is_active == True,
+                SemesterEnrollment.request_status == EnrollmentStatus.APPROVED,
+            ).scalar() or 0
+        _per_size_cfg = _tt_cfg.get('group_configuration', {}).get(
+            f'{_total_enrolled}_players', {}
+        )
+        _q_policy = _per_size_cfg.get('qualification_policy', 'fixed_per_group')
+        _brc = int(_per_size_cfg.get('best_runner_up_count', 0))
+        if _q_policy == 'winners_plus_best_runner_up' and _brc > 0:
+            from app.services.tournament.qualification import assign_semifinal_participants
+            assign_semifinal_participants(db, tournament_id, _brc)
+
         # Pass all sessions (group + completed knockout) to strategy
         sessions = group_sessions + knockout_sessions
     else:

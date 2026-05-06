@@ -63,6 +63,7 @@ from app.services.tournament.status_validator import (
     is_terminal_status,
     VALID_TRANSITIONS,
 )
+from app.models.semester import SemesterCategory
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -158,6 +159,16 @@ class TestAllowedEdgesHappyPath:
             )
         if target == "COMPLETED":
             base = _tournament(sessions=[SimpleNamespace()])
+        # DRAFT → ENROLLMENT_CLOSED is a PROMOTION_EVENT-only fast path (guard added
+        # in promotion-event work). The transition is still in VALID_TRANSITIONS so
+        # it must be tested with the correct semester_category.
+        if source == "DRAFT" and target == "ENROLLMENT_CLOSED":
+            base = _tournament(
+                enrollments=_active_enrollments(4),
+                semester_category=SemesterCategory.PROMOTION_EVENT,
+                organizer_sponsor_id=99,
+                organizer_campaign_id=88,
+            )
         return base
 
     @pytest.mark.parametrize("source,targets", VALID_TRANSITIONS.items())
@@ -691,15 +702,16 @@ class TestGraphCompleteness:
         """Verify the exact number of allowed edges to catch accidental additions.
 
         Manual count:
-          DRAFT(3) + SEEKING_INSTRUCTOR(2) + PENDING_INSTRUCTOR_ACCEPTANCE(3)
+          DRAFT(4) + SEEKING_INSTRUCTOR(2) + PENDING_INSTRUCTOR_ACCEPTANCE(3)
           + INSTRUCTOR_CONFIRMED(2) + ENROLLMENT_OPEN(2) + ENROLLMENT_CLOSED(2)
           + CHECK_IN_OPEN(3) + IN_PROGRESS(3) + COMPLETED(2) + REWARDS_DISTRIBUTED(1)
-          + CANCELLED(1) + ARCHIVED(0) = 24
+          + CANCELLED(1) + ARCHIVED(0) = 25
           (+3 vs previous: CHECK_IN_OPEN state added with 3 outgoing edges;
            ENROLLMENT_CLOSED → IN_PROGRESS removed, CHECK_IN_OPEN → {IN_PROGRESS, ENROLLMENT_CLOSED, CANCELLED} added)
+          (+1 vs above: DRAFT → ENROLLMENT_CLOSED added for PROMOTION_EVENT fast-path)
         """
         total = sum(len(v) for v in VALID_TRANSITIONS.values())
-        assert total == 24, (
-            f"Expected 24 allowed edges in VALID_TRANSITIONS, found {total}. "
+        assert total == 25, (
+            f"Expected 25 allowed edges in VALID_TRANSITIONS, found {total}. "
             "Update this test if a new edge is intentionally added."
         )

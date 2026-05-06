@@ -196,6 +196,27 @@
 .wiz-step-body{padding:0.25rem 0 0.75rem;}
 .wiz-step.done:not(.expanded) .wiz-step-body,.wiz-step.locked .wiz-step-body{display:none;}
 .wiz-action-row{display:flex;justify-content:flex-end;padding:.75rem 1.25rem 0;margin-top:0.5rem;border-top:1px solid #e2e8f0;gap:.75rem;}
+.fmt-phase-block{margin-bottom:1.25rem;}
+.fmt-phase-hdr{font-weight:700;font-size:.9rem;color:#4a5568;padding:.5rem .75rem;background:#edf2f7;border-radius:6px;margin-bottom:.75rem;border-left:3px solid #667eea;}
+.fmt-groups-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.75rem;}
+.fmt-group-col{border:1px solid #e2e8f0;border-radius:8px;padding:.5rem;}
+.fmt-group-col-hdr{font-weight:700;font-size:.82rem;color:#2b6cb0;background:#ebf8ff;border-radius:4px;padding:.25rem .5rem;margin-bottom:.4rem;text-align:center;}
+.fmt-group-round{font-size:.74rem;color:#718096;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin:.4rem 0 .15rem;padding-left:.25rem;}
+.fmt-ko-round{margin-bottom:.75rem;}
+.fmt-ko-round-hdr{font-weight:700;font-size:.85rem;color:#553c9a;padding:.3rem .75rem;background:#faf5ff;border-radius:6px;margin-bottom:.4rem;border-left:3px solid #805ad5;}
+.fmt-session-row{padding:.4rem .25rem;border-bottom:1px solid #f7fafc;}
+.fmt-session-row:last-child{border-bottom:none;}
+/* F-6: tablet — reduce grid column min so 2 columns still fit at 640px */
+@media (max-width:1023px) {
+    .fmt-groups-grid { grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); }
+}
+/* F-3,F-4,F-5,F-8: mobile — single-col grid, stacked rows, touch targets, page scroll */
+@media (max-width:639px) {
+    .fmt-groups-grid { grid-template-columns: 1fr; }
+    .fmt-session-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    .fmt-session-row .btn { padding: 0.5rem 0.75rem; font-size: 0.82rem; }
+    .fmt-flat-list-wrap { max-height: none; overflow-y: visible; }
+}
 </style>
 {% endblock %}
 
@@ -219,7 +240,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 {% set _all_results_done = (session_count > 0 and completed_session_count >= session_count) %}
 {% set _has_rankings = (existing_rankings | length > 0) %}
 {% set step1_state = 'done' if _status != 'DRAFT' else 'active' %}
-{% set step2_state = 'done' if _status not in ['DRAFT','ENROLLMENT_OPEN'] else ('active' if _status == 'ENROLLMENT_OPEN' else 'locked') %}
+{% set step2_state = 'done' if _status not in ['DRAFT','ENROLLMENT_OPEN'] else ('active' if (_status == 'ENROLLMENT_OPEN' or (is_promotion_event and _status == 'DRAFT')) else 'locked') %}
 {% set step3_state = 'done' if _status not in ['DRAFT','ENROLLMENT_OPEN','ENROLLMENT_CLOSED'] else ('active' if _status == 'ENROLLMENT_CLOSED' else 'locked') %}
 {% set step4_state = 'done' if _status in ['IN_PROGRESS','COMPLETED','REWARDS_DISTRIBUTED'] else ('active' if _status == 'CHECK_IN_OPEN' else 'locked') %}
 {% set step5_state = 'done' if (_status in ['COMPLETED','REWARDS_DISTRIBUTED'] or (_status == 'IN_PROGRESS' and _all_results_done)) else ('active' if _status == 'IN_PROGRESS' else 'locked') %}
@@ -572,7 +593,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 
     {% if step1_state == 'active' %}
     <div class="wiz-action-row">
+      {% if is_promotion_event %}
+      <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">🔒 Lock Audience &amp; Start Preparation</button>
+      {% else %}
       <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">📢 Open Enrollment</button>
+      {% endif %}
     </div>
     {% endif %}
   </div>{# /wiz-step-body #}
@@ -583,8 +608,15 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
   <div class="wiz-step-header" onclick="wizToggle('wiz-step-2')">
     <div class="wiz-num">{% if step2_state == 'done' %}✓{% else %}2{% endif %}</div>
     <div style="flex:1">
-      <div class="wiz-step-title">Enrollment</div>
-      <div class="wiz-step-subtitle">{{ enrolled_count }} {{ 'team' if (cfg and cfg.participant_type == 'TEAM') else 'player' }}{{ 's' if enrolled_count != 1 else '' }} enrolled</div>
+      <div class="wiz-step-title">{% if is_promotion_event %}Campaign Audience{% else %}Enrollment{% endif %}</div>
+      <div class="wiz-step-subtitle">
+        {%- if is_promotion_event -%}
+          {%- set _aud = campaign_audience | length -%}
+          {{ _aud }} campaign audience entr{{ 'ies' if _aud != 1 else 'y' }}
+        {%- else -%}
+          {{ enrolled_count }} {{ 'team' if (cfg and cfg.participant_type == 'TEAM') else 'player' }}{{ 's' if enrolled_count != 1 else '' }} enrolled
+        {%- endif -%}
+      </div>
     </div>
     <span style="color:#a0aec0;font-size:.8rem;">{% if step2_state == 'locked' %}🔒{% else %}▼{% endif %}</span>
   </div>
@@ -635,9 +667,16 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 
     {% if step2_state == 'active' %}
     <div class="wiz-action-row">
-      <button class="btn btn-warning"
+      {% if is_promotion_event %}
+      <button type="button" class="btn btn-warning"
+              onclick="transitionStatus('ENROLLMENT_CLOSED')">
+          🔒 Lock Audience &amp; Start Preparation
+      </button>
+      {% else %}
+      <button type="button" class="btn btn-warning"
               {% if enrolled_count < 2 %}disabled title="Need at least 2 participants" style="opacity:.5;cursor:not-allowed"{% endif %}
               onclick="transitionStatus('ENROLLMENT_CLOSED')">🔒 Close Enrollment</button>
+      {% endif %}
     </div>
     {% endif %}
   </div>{# /wiz-step-body #}
@@ -787,10 +826,23 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         <div class="stat-card"><div class="val">{{ enrolled_count }}</div><div class="lbl">Enrolled</div></div>
         <div class="stat-card"><div class="val">{{ checked_in_count }}</div><div class="lbl">Checked In</div></div>
       </div>
-      <div class="info-banner">ℹ️ Sessions will be auto-generated when you start the tournament.</div>
+      <div class="info-banner">ℹ️ Sessions are auto-generated from enrolled participants when opening check-in (preview draw). If players check in, the draw is refreshed from checked-in participants when the tournament starts.</div>
+      {% if cfg and cfg.sessions_generated and checked_in_count == 0 %}
+      <div class="warn-banner" style="margin-top:0.5rem;">⚠️ 0 checked-in — sessions currently based on enrolled participants. The tournament will start with this draw unless players check in.</div>
+      {% elif cfg and cfg.sessions_generated and checked_in_count > 0 %}
+      <div class="info-banner" style="margin-top:0.5rem;">ℹ️ {{ checked_in_count }} player{{ 's' if checked_in_count != 1 else '' }} checked in — draw will be refreshed from checked-in participants at start.</div>
+      {% endif %}
+      <div style="margin-top:0.75rem;">
+        <a href="/admin/tournaments/{{ t.id }}/attendance" class="btn btn-primary" id="btn-manage-checkins">
+          👤 Manage Check-ins →
+        </a>
+      </div>
     </div>
     {% if step4_state == 'active' %}
     <div class="wiz-action-row">
+      {% if checked_in_count == 0 %}
+      <span style="font-size:0.82rem;color:#b7791f;margin-right:auto;align-self:center;">⚠️ No check-ins — will start with enrolled participants</span>
+      {% endif %}
       <button class="btn btn-start" onclick="transitionStatus('IN_PROGRESS')">🚀 Start Tournament</button>
     </div>
     {% endif %}
@@ -822,8 +874,18 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
             <div class="lbl">Sessions</div>
         </div>
         <div class="stat-card">
-            <div class="val">{{ '✅' if (cfg and cfg.sessions_generated) else '—' }}</div>
+            {% if cfg and cfg.sessions_generated %}
+                {% if _status == 'IN_PROGRESS' and checked_in_count > 0 %}
+                <div class="val">✅</div>
+                <div class="lbl">Final draw</div>
+                {% else %}
+                <div class="val">✅</div>
+                <div class="lbl">Preview draw</div>
+                {% endif %}
+            {% else %}
+            <div class="val">—</div>
             <div class="lbl">Generated</div>
+            {% endif %}
         </div>
         <div class="stat-card">
             <div class="val">{{ enrollments|length }}</div>
@@ -841,8 +903,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     {% endif %}
 
     {% if cfg and cfg.sessions_generated %}
-        <div class="info-banner">✅ Sessions already generated ({{ session_count }} sessions).
-        Regeneration will delete existing sessions first.</div>
+        {% if _status == 'IN_PROGRESS' and checked_in_count > 0 %}
+        <div class="info-banner">✅ Final draw generated from {{ checked_in_count }} checked-in participant{{ 's' if checked_in_count != 1 else '' }} ({{ session_count }} sessions). Regeneration will delete existing sessions first.</div>
+        {% else %}
+        <div class="info-banner">✅ Preview draw generated from enrolled participants ({{ session_count }} sessions). If players check in, draw will be refreshed at start. Regeneration will delete existing sessions first.</div>
+        {% endif %}
 
         {% if sessions %}
         <div style="margin-top:0.75rem;">
@@ -893,51 +958,110 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
         </span>
     </div>
 
-    {% if sessions_result_status %}
-    <div style="max-height:420px;overflow-y:auto;">
-        {% for sess in sessions_result_status %}
-        <div class="session-list-row" style="justify-content:space-between;padding:0.65rem 0;">
-            <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.15rem;">
-                    <span class="sess-time">{{ sess.date_start }}</span>
-                    {% if sess.tournament_round %}
-                    <span style="background:#e2e8f0;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#4a5568;">R{{ sess.tournament_round }}</span>
-                    {% endif %}
-                    {% if sess.group_identifier %}
-                    <span style="background:#bee3f8;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#2b6cb0;">Group {{ sess.group_identifier }}</span>
-                    {% endif %}
-                </div>
+    {% macro sess_row(sess, show_context_badges=False) %}
+    <div class="session-list-row fmt-session-row" style="justify-content:space-between;">
+        <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.15rem;">
+                <span class="sess-time">{{ sess.date_start }}</span>
+                {# F-7: round/group context badges — shown only in flat-list path #}
+                {% if show_context_badges %}
+                {% if sess.tournament_round %}
+                <span style="background:#e2e8f0;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#4a5568;">R{{ sess.tournament_round }}</span>
+                {% endif %}
+                {% if sess.group_identifier %}
+                <span style="background:#bee3f8;border-radius:4px;padding:0.1rem 0.4rem;font-size:0.75rem;font-weight:600;color:#2b6cb0;">Group {{ sess.group_identifier }}</span>
+                {% endif %}
+                {% endif %}
                 {% if sess.matchup_label %}
                 <span style="font-weight:700;font-size:0.95rem;color:#2d3748;">{{ sess.matchup_label }}</span>
                 {% else %}
                 <span style="font-size:0.85rem;color:#718096;">{{ sess.title }}</span>
                 {% endif %}
-                <span class="sess-type" style="margin-left:0.4rem;">{{ sess.match_format }}</span>
+                {# F-9: hide format badge on mobile — low-priority in narrow layout #}
+                <span class="sess-type" data-priority="medium" style="margin-left:0.2rem;">{{ sess.match_format }}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
-                {% if sess.postponed_reason %}
-                    <span style="color:#c05621;font-weight:600;font-size:0.85rem;" title="{{ sess.postponed_reason }}">⏸ Postponed</span>
-                {% elif sess.has_results %}
-                    <span style="color:#27ae60;font-weight:600;font-size:0.85rem;">✅ Results entered</span>
-                {% else %}
-                    <span style="color:#a0aec0;font-size:0.85rem;">⬜ No results</span>
-                {% endif %}
-                {% if t.tournament_status == 'IN_PROGRESS' %}
-                <button class="btn btn-secondary"
-                        style="font-size:0.78rem;padding:0.3rem 0.75rem;"
-                        onclick="openResultModal({{ sess.id }}, '{{ sess.match_format }}', {{ sess.participant_user_ids | tojson }}, {{ sess.participant_team_ids | tojson }})">
-                    ✏️ Enter Results
-                </button>
-                <button class="btn btn-secondary"
-                        style="font-size:0.78rem;padding:0.3rem 0.75rem;{% if sess.postponed_reason %}background:#fffaf0;border-color:#fed7aa;color:#c05621;{% endif %}"
-                        onclick="openPostponeModal({{ sess.id }}, {{ sess.postponed_reason | tojson }})">
-                    ⏸ {% if sess.postponed_reason %}Edit Postpone{% else %}Postpone{% endif %}
-                </button>
-                {% endif %}
-            </div>
+        </div>
+        {# F-1: allow wrap; F-2: each button gets flex-shrink:0 so it wraps as a unit #}
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            {% if sess.postponed_reason %}
+                <span style="color:#c05621;font-weight:600;font-size:0.85rem;white-space:nowrap;" title="{{ sess.postponed_reason }}">⏸ Postponed</span>
+            {% elif sess.has_results %}
+                <span style="color:#27ae60;font-weight:600;font-size:0.85rem;white-space:nowrap;">✅ Results entered</span>
+            {% else %}
+                <span style="color:#a0aec0;font-size:0.85rem;white-space:nowrap;">⬜ No results</span>
+            {% endif %}
+            {% if t.tournament_status == 'IN_PROGRESS' %}
+            <button class="btn btn-secondary"
+                    style="font-size:0.78rem;padding:0.3rem 0.75rem;flex-shrink:0;white-space:nowrap;"
+                    onclick="openResultModal({{ sess.id }}, '{{ sess.match_format }}', {{ sess.participant_user_ids | tojson }}, {{ sess.participant_team_ids | tojson }})">
+                ✏️ Enter Results
+            </button>
+            <button class="btn btn-secondary"
+                    style="font-size:0.78rem;padding:0.3rem 0.75rem;flex-shrink:0;white-space:nowrap;{% if sess.postponed_reason %}background:#fffaf0;border-color:#fed7aa;color:#c05621;{% endif %}"
+                    onclick="openPostponeModal({{ sess.id }}, {{ sess.postponed_reason | tojson }})">
+                ⏸ {% if sess.postponed_reason %}Edit Postpone{% else %}Postpone{% endif %}
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endmacro %}
+
+    {% if sessions_result_status %}
+    {% if tt_code == 'group_knockout' %}
+    {# ── GROUP STAGE ──────────────────────────────────────────────────── #}
+    {% set gs_sessions = sessions_result_status | selectattr('tournament_phase', 'equalto', 'GROUP_STAGE') | list %}
+    {% if gs_sessions %}
+    <div class="fmt-phase-block">
+        <div class="fmt-phase-hdr">⚽ Group Stage</div>
+        <div class="fmt-groups-grid">
+        {% for grp in gk_unique_groups %}
+        <div class="fmt-group-col">
+            <div class="fmt-group-col-hdr">Group {{ grp }}</div>
+            {% set grp_sessions = gs_sessions | selectattr('group_identifier', 'equalto', grp) | list %}
+            {% for rn, round_sessions in grp_sessions | groupby('tournament_round') %}
+            <div class="fmt-group-round">Round {{ rn }}</div>
+            {% for sess in round_sessions %}
+            {{ sess_row(sess) }}
+            {% endfor %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {# ── KNOCKOUT STAGE ───────────────────────────────────────────────── #}
+    {% set ko_sessions = sessions_result_status | selectattr('tournament_phase', 'equalto', 'KNOCKOUT') | list %}
+    {% if ko_sessions %}
+    <div class="fmt-phase-block">
+        <div class="fmt-phase-hdr">🏆 Knockout Stage</div>
+        {% for rn in ko_unique_rounds %}
+        <div class="fmt-ko-round">
+            <div class="fmt-ko-round-hdr">{{ ko_round_labels[rn] if rn in ko_round_labels else 'Round ' ~ rn }}</div>
+            {% for sess in ko_sessions %}
+            {% if sess.tournament_round == rn %}{{ sess_row(sess) }}{% endif %}
+            {% endfor %}
         </div>
         {% endfor %}
     </div>
+    {% endif %}
+    {# ── OTHER phases (FINALS, PLACEMENT, etc.) ───────────────────────── #}
+    {% set other_sessions = sessions_result_status | rejectattr('tournament_phase', 'equalto', 'GROUP_STAGE') | rejectattr('tournament_phase', 'equalto', 'KNOCKOUT') | list %}
+    {% if other_sessions %}
+    <div class="fmt-phase-block">
+        <div class="fmt-phase-hdr">📋 Other Sessions</div>
+        {% for sess in other_sessions %}{{ sess_row(sess) }}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    {# ── fallback: flat list (league, swiss, standalone knockout, etc.) ── #}
+    <div class="fmt-flat-list-wrap" style="max-height:420px;overflow-y:auto;">
+        {% for sess in sessions_result_status %}
+        {{ sess_row(sess, show_context_badges=True) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% else %}
         <p style="color:#718096;font-style:italic;">No match sessions found. Generate sessions first.</p>
     {% endif %}
@@ -1137,6 +1261,97 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
   </div>{# /wiz-step-body #}
 </div>{# /wiz-step-7 #}
 
+{# ── SECTION: Campaign Audience (PROMOTION_EVENT only) ──────────────────────── #}
+{% if is_promotion_event %}
+<div class="card" id="section-campaign-audience" style="margin-top:1.5rem;">
+    <div class="section-header">
+        <span class="section-icon">📋</span>
+        <h2>Campaign Audience</h2>
+        {% if campaign_audience %}
+        <span style="background:#e2e8f0;color:#4a5568;border-radius:.4rem;padding:.2rem .6rem;font-size:.8rem;font-weight:600;margin-left:.75rem;">{{ campaign_audience|length }}</span>
+        {% endif %}
+    </div>
+
+    {# ── Bulk Enroll action — DRAFT / ENROLLMENT_OPEN / ENROLLMENT_CLOSED ── #}
+    {% if organizer_campaign and _status in ['DRAFT', 'ENROLLMENT_OPEN', 'ENROLLMENT_CLOSED'] %}
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.5rem;">
+        <button type="button" class="btn btn-primary" onclick="bulkEnrollCampaign()"
+                id="bulk-enroll-btn"
+                {% if bulk_enroll_eligible_count == 0 %}
+                disabled
+                title="No eligible entries to enroll (must be ACTIVE, consented, promoted, and have an active LFA license)"
+                style="opacity:.55;cursor:not-allowed;"
+                {% endif %}>
+            👥 Bulk Enroll Campaign Participants
+            {% if bulk_enroll_eligible_count > 0 %}
+            <span style="background:rgba(255,255,255,.25);border-radius:.3rem;padding:.1rem .4rem;font-size:.8rem;margin-left:.35rem;">
+                {{ bulk_enroll_eligible_count }} eligible
+            </span>
+            {% endif %}
+        </button>
+        <span id="bulk-enroll-status" style="font-size:.85rem;color:#718096;"></span>
+    </div>
+    <div id="bulk-enroll-skipped" style="display:none;margin-bottom:.75rem;padding:.6rem .8rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:.4rem;font-size:.82rem;color:#92400e;"></div>
+    {% if bulk_enroll_eligible_count == 0 and organizer_campaign %}
+    <p style="font-size:.82rem;color:#a0aec0;margin:0 0 .75rem;">
+        No eligible promoted campaign participants to enroll. Participants must have an active LFA Football Player license.
+    </p>
+    {% endif %}
+    {% endif %}
+
+    {% if organizer_sponsor or organizer_campaign %}
+    <div style="margin-bottom:.75rem;font-size:.875rem;color:#718096;" id="campaign-audience-backlink">
+        {% if organizer_sponsor %}
+        Sponsor: <a href="/admin/sponsors/{{ organizer_sponsor.id }}" style="color:#667eea;">{{ organizer_sponsor.name }}</a>
+        {% endif %}
+        {% if organizer_sponsor and organizer_campaign %}&nbsp;·&nbsp;{% endif %}
+        {% if organizer_campaign %}
+        Campaign: <a href="/admin/sponsors/{{ organizer_sponsor.id if organizer_sponsor else t.organizer_sponsor_id }}/campaigns/{{ organizer_campaign.id }}/audience" style="color:#667eea;">{{ organizer_campaign.name }}</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <p style="color:#a0aec0;font-style:italic;" id="campaign-audience-no-link">
+        No sponsor campaign is linked to this event. Audience data is unavailable until a campaign is assigned.
+    </p>
+    {% endif %}
+
+    {% if campaign_audience %}
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+        <thead>
+            <tr style="border-bottom:2px solid #e2e8f0;text-align:left;">
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Name</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Email</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Status</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Promoted At</th>
+                <th style="padding:.5rem .75rem;color:#718096;font-weight:600;">Linked User</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for entry in campaign_audience %}
+        <tr style="border-bottom:1px solid #f0f4f8;">
+            <td style="padding:.5rem .75rem;">{{ entry.first_name }} {{ entry.last_name }}</td>
+            <td style="padding:.5rem .75rem;">{{ entry.email }}</td>
+            <td style="padding:.5rem .75rem;">
+                <span style="background:{% if entry.status == 'ACTIVE' %}#c6f6d5{% elif entry.status == 'SUPPRESSED' %}#fed7d7{% else %}#e2e8f0{% endif %};color:{% if entry.status == 'ACTIVE' %}#276749{% elif entry.status == 'SUPPRESSED' %}#742a2a{% else %}#4a5568{% endif %};border-radius:.3rem;padding:.15rem .5rem;font-size:.78rem;font-weight:600;">
+                    {{ entry.status }}
+                </span>
+            </td>
+            <td style="padding:.5rem .75rem;color:#718096;">{{ entry.promoted_at.strftime('%Y-%m-%d') if entry.promoted_at else '—' }}</td>
+            <td style="padding:.5rem .75rem;">
+                {% if entry.user %}<a href="/admin/users/{{ entry.user.id }}" style="color:#667eea;">{{ entry.user.name }}</a>{% else %}—{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% elif organizer_campaign %}
+    <p style="color:#a0aec0;font-style:italic;margin-top:.5rem;">No audience entries found for this campaign.</p>
+    {% endif %}
+</div>
+{% endif %}
+
 {# ── Result Entry Modal ────────────────────────────────────────────────────── #}
 <div id="result-modal-overlay"
      onclick="if(event.target===this)closeResultModal()"
@@ -1186,13 +1401,25 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
     <div class="save-row" style="flex-wrap:wrap;gap:0.6rem;">
         {# Status lifecycle transition buttons #}
         {% if t.tournament_status == 'DRAFT' %}
-        <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">
-            📢 Open Enrollment
-        </button>
+          {% if is_promotion_event %}
+          <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">
+              🔒 Lock Audience &amp; Start Preparation
+          </button>
+          {% else %}
+          <button class="btn btn-start" onclick="transitionStatus('ENROLLMENT_OPEN')">
+              📢 Open Enrollment
+          </button>
+          {% endif %}
         {% elif t.tournament_status == 'ENROLLMENT_OPEN' %}
-        <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">
-            🔒 Close Enrollment
-        </button>
+          {% if is_promotion_event %}
+          <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">
+              🔒 Lock Audience &amp; Start Preparation
+          </button>
+          {% else %}
+          <button class="btn btn-warning" onclick="transitionStatus('ENROLLMENT_CLOSED')">
+              🔒 Close Enrollment
+          </button>
+          {% endif %}
         {% elif t.tournament_status == 'ENROLLMENT_CLOSED' %}
         <button class="btn btn-warning" onclick="transitionStatus('CHECK_IN_OPEN')">
             ⏰ Open Check-In
@@ -1256,6 +1483,7 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
 <script src="/static/js/session-gen-wizard.js?v=2"></script>
 <script>
 const TOURN_ID = {{ t.id }};
+const IS_PROMO_EVENT = {{ is_promotion_event | tojson }};
 
 // ── Format toggle ─────────────────────────────────────────────────────────────
 let _currentFormat = '{{ t.format }}';
@@ -1569,11 +1797,57 @@ async function wizDistributeRewards(tournId) {
     } catch (err) { toast(err.message, 'error'); }
 }
 
+// ── Bulk enroll campaign audience (PROMOTION_EVENT only) ─────────────────────
+async function bulkEnrollCampaign() {
+    const btn = document.getElementById('bulk-enroll-btn');
+    const statusEl = document.getElementById('bulk-enroll-status');
+    const skippedEl = document.getElementById('bulk-enroll-skipped');
+    if (!confirm('Enroll all eligible campaign participants into this tournament?')) return;
+
+    btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Enrolling…';
+    if (skippedEl) skippedEl.style.display = 'none';
+
+    try {
+        const data = await AdminAPI.post(
+            `/api/v1/tournaments/${TOURN_ID}/bulk-enroll-campaign`, {}
+        );
+
+        if (data.enrolled_count > 0) {
+            toast(`✅ ${data.enrolled_count} enrolled, ${data.skipped_count} skipped`);
+            if (statusEl) statusEl.textContent = '';
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            // 0 enrolled — show detail, no reload
+            const msg = data.skipped_count > 0
+                ? `⚠️ 0 enrolled — ${data.skipped_count} skipped (see details below)`
+                : '⚠️ 0 enrolled — no eligible participants found';
+            toast(msg, 'warning');
+            if (statusEl) statusEl.textContent = msg;
+            btn.disabled = false;
+
+            if (skippedEl && data.skipped && data.skipped.length > 0) {
+                const reasons = data.skipped
+                    .map(s => `• user_id ${s.user_id}: ${s.reason}`)
+                    .join('\n');
+                skippedEl.style.display = 'block';
+                skippedEl.textContent = `Skipped (${data.skipped_count}):\n${reasons}`;
+                skippedEl.style.whiteSpace = 'pre-line';
+            }
+        }
+    } catch (err) {
+        const msg = err.message || 'Unknown error';
+        toast('❌ Bulk enroll failed: ' + msg, 'error');
+        if (statusEl) statusEl.textContent = '❌ ' + msg;
+        btn.disabled = false;
+    }
+}
+
 // ── Status lifecycle transition ───────────────────────────────────────────────
 async function transitionStatus(newStatus) {
     const labels = {
         'ENROLLMENT_OPEN':   'open enrollment for this tournament',
-        'ENROLLMENT_CLOSED': 'close enrollment',
+        'ENROLLMENT_CLOSED': IS_PROMO_EVENT ? 'lock the campaign audience and begin preparation' : 'close enrollment',
         'CHECK_IN_OPEN':     'open check-in for this tournament',
         'IN_PROGRESS':       'start the tournament (sessions will be auto-generated)',
     };
