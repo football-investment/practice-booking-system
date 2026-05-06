@@ -71,7 +71,6 @@ def checkin_team(
 ) -> TournamentTeamEnrollment:
     """Mark a team as checked-in for the tournament."""
     enrollment = _get_enrollment_or_404(db, tournament_id, team_id)
-    _require_instructor_checked_in(db, tournament_id)
     enrollment.checked_in_at = datetime.now(timezone.utc)
     enrollment.checked_in_by_id = by_user_id
     db.flush()
@@ -111,7 +110,6 @@ def checkin_player(
     """
     # Verify tournament exists
     _get_tournament_or_404(db, tournament_id)
-    _require_instructor_checked_in(db, tournament_id)
 
     now_utc = datetime.now(timezone.utc)
 
@@ -230,7 +228,8 @@ def get_attendance_summary(db: Session, tournament_id: int) -> Dict[str, Any]:
         }
     """
     tournament = _get_tournament_or_404(db, tournament_id)
-    participant_type = getattr(tournament, "participant_type", "INDIVIDUAL") or "INDIVIDUAL"
+    cfg_obj = tournament.tournament_config_obj
+    participant_type = (cfg_obj.participant_type if cfg_obj and cfg_obj.participant_type else "INDIVIDUAL")
 
     # ── Instructors ─────────────────────────────────────────────────────────
     slots = (

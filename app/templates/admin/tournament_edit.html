@@ -811,6 +811,11 @@ ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.valu
       {% elif cfg and cfg.sessions_generated and checked_in_count > 0 %}
       <div class="info-banner" style="margin-top:0.5rem;">ℹ️ {{ checked_in_count }} player{{ 's' if checked_in_count != 1 else '' }} checked in — draw will be refreshed from checked-in participants at start.</div>
       {% endif %}
+      <div style="margin-top:0.75rem;">
+        <a href="/admin/tournaments/{{ t.id }}/attendance" class="btn btn-primary" id="btn-manage-checkins">
+          👤 Manage Check-ins →
+        </a>
+      </div>
     </div>
     {% if step4_state == 'active' %}
     <div class="wiz-action-row">

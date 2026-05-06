@@ -1286,3 +1286,54 @@ class TestSessionStatCardLabels:
             assert "Final draw" not in html
         finally:
             app.dependency_overrides.clear()
+
+
+# ── EDIT-UI-36 ────────────────────────────────────────────────────────────────
+
+class TestStep4ManageCheckinsLink:
+    """CHK-UI-01 / EDIT-UI-36: Step 4 contains the 'Manage Check-ins' button.
+
+    Stage 2 added a btn-primary link to /admin/tournaments/{id}/attendance
+    inside the step 4 body.  The button must always be present whenever
+    step 4 is rendered (any tournament status that shows step 4).
+    """
+
+    def test_edit_ui_36_manage_checkins_link_present(self, test_db: Session):
+        """CHECK_IN_OPEN (step4_state == 'active') → attendance link visible."""
+        admin = _make_admin(test_db)
+        sem = _make_mini_season_semester(test_db)
+        sem.tournament_status = "CHECK_IN_OPEN"
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+            html = resp.text
+            assert 'id="btn-manage-checkins"' in html
+            assert f"/admin/tournaments/{sem.id}/attendance" in html
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_edit_ui_36b_manage_checkins_link_in_progress(self, test_db: Session):
+        """IN_PROGRESS (step4_state == 'done') → attendance link still present."""
+        admin = _make_admin(test_db)
+        sem = _make_mini_season_semester(test_db)
+        sem.tournament_status = "IN_PROGRESS"
+        test_db.flush()
+        test_db.add(TournamentConfiguration(
+            semester_id=sem.id,
+            participant_type="INDIVIDUAL",
+            sessions_generated=True,
+        ))
+        test_db.commit()
+
+        client = _client(test_db, admin)
+        try:
+            resp = client.get(f"/admin/tournaments/{sem.id}/edit")
+            assert resp.status_code == 200
+            html = resp.text
+            assert 'id="btn-manage-checkins"' in html
+            assert f"/admin/tournaments/{sem.id}/attendance" in html
+        finally:
+            app.dependency_overrides.clear()
