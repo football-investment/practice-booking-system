@@ -53,7 +53,7 @@ from pathlib import Path
 from typing import AsyncIterator, Optional
 
 from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -64,6 +64,7 @@ from app.models.user import User, UserRole
 from app.models.semester import Semester
 from app.models.session import Session as SessionModel
 from app.core.redis_pubsub import subscribe_tournament_updates, get_idle_pitches
+from app.services.tournament.live_model_service import build_live_model
 
 logger = logging.getLogger(__name__)
 
@@ -180,22 +181,10 @@ async def tournament_live_dashboard(
         from fastapi.responses import PlainTextResponse
         return PlainTextResponse("Tournament not found", status_code=404)
 
-    total_sessions = (
-        db.query(SessionModel)
-        .filter(SessionModel.semester_id == tournament_id)
-        .count()
-    )
-    completed_sessions = (
-        db.query(SessionModel)
-        .filter(
-            SessionModel.semester_id == tournament_id,
-            SessionModel.session_status == "completed",
-        )
-        .count()
-    )
-
     import app.services.tournament.instructor_planning_service as _ip_svc
     instructor_roster = _ip_svc.get_roster(db, tournament_id)
+
+    live_model = build_live_model(db, tournament, instructor_roster=instructor_roster)
 
     return templates.TemplateResponse(
         "admin/tournament_live.html",
@@ -203,11 +192,52 @@ async def tournament_live_dashboard(
             "request": request,
             "user": current_user,
             "tournament": tournament,
-            "total_sessions": total_sessions,
-            "completed_sessions": completed_sessions,
+            "total_sessions": live_model["summary"]["total_sessions"],
+            "completed_sessions": live_model["summary"]["completed_sessions"],
             "instructor_roster": instructor_roster,
+            "live_model": live_model,
         },
     )
+
+
+# ── Live snapshot REST endpoint ────────────────────────────────────────────────
+
+@router.get("/admin/tournaments/{tournament_id}/live-snapshot")
+async def tournament_live_snapshot(
+    tournament_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Return a full live model snapshot as JSON.
+
+    Auth: Bearer token in Authorization header (same JWT used for WS).
+    Returns 401 JSON on missing/invalid token, 403 JSON on insufficient role.
+    Used by the dashboard JS to refresh group standings and KO bracket after
+    each WS session_result event (debounced 500 ms).
+    """
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip() if auth_header.startswith("Bearer ") else None
+    if not token:
+        return JSONResponse({"detail": "Missing token"}, status_code=401)
+
+    username = verify_token(token, "access")
+    if username is None:
+        return JSONResponse({"detail": "Invalid or expired token"}, status_code=401)
+
+    user = db.query(User).filter(User.email == username).first()
+    if user is None or not user.is_active or user.role not in _ALLOWED_ROLES:
+        return JSONResponse({"detail": "Forbidden"}, status_code=403)
+
+    tournament = db.query(Semester).filter(Semester.id == tournament_id).first()
+    if tournament is None:
+        return JSONResponse({"detail": "Tournament not found"}, status_code=404)
+
+    import app.services.tournament.instructor_planning_service as _ip_svc
+    instructor_roster = _ip_svc.get_roster(db, tournament_id)
+
+    live_model = build_live_model(db, tournament, instructor_roster=instructor_roster)
+    return JSONResponse(live_model)
 
 
 # ── WebSocket endpoint ─────────────────────────────────────────────────────

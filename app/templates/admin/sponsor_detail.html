@@ -285,6 +285,12 @@
             <code style="font-size:0.75rem;">{{ ev_status }}</code>
             <a href="/admin/tournaments/{{ ev.id }}/edit"
                style="font-size:0.82rem;color:#5a4a9a;">View</a>
+            {% if ev_status == 'IN_PROGRESS' %}
+            <a href="/admin/tournaments/{{ ev.id }}/live"
+               style="font-size:0.82rem;font-weight:600;color:#c53030;
+                      background:#fff5f5;border:1px solid #fed7d7;border-radius:4px;
+                      padding:0.15rem 0.5rem;text-decoration:none;">📡 Live</a>
+            {% endif %}
         </div>
         {% endfor %}
         {% else %}

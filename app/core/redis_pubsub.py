@@ -80,6 +80,9 @@ class TournamentUpdateEvent(TypedDict):
     total_count: int
     progress_pct: float    # 0.0 – 1.0
     completed_at: str      # ISO-8601 UTC
+    tournament_phase: Optional[str]   # GROUP_STAGE / KNOCKOUT / None
+    group_identifier: Optional[str]   # "A" / "B" / None
+    game_type: Optional[str]          # "Semi-finals" / "Final" / None
 
 
 # ── Per-pitch activity tracking (server-side idle detection) ─────────────────
