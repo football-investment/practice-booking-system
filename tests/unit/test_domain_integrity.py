@@ -394,8 +394,9 @@ class TestGenerationValidatorInstructorGuard:
         t = MagicMock()
         t.id = 99
         t.sessions_generated = False
-        t.format = "INDIVIDUAL_RANKING"
-        t.tournament_type_id = None
+        # HEAD_TO_HEAD so instructor guard applies (INDIVIDUAL_RANKING is exempt)
+        t.format = "HEAD_TO_HEAD"
+        t.tournament_type_id = 1
         t.tournament_status = "CHECK_IN_OPEN"
         t.participant_type = "INDIVIDUAL"
         t.location_id = 1
@@ -408,6 +409,7 @@ class TestGenerationValidatorInstructorGuard:
         from app.models.semester_enrollment import SemesterEnrollment
         from app.models.semester import Semester
         from app.models.tournament_instructor_slot import TournamentInstructorSlot
+        from app.models.tournament_type import TournamentType
 
         db = MagicMock()
 
@@ -420,6 +422,10 @@ class TestGenerationValidatorInstructorGuard:
                 q.count.return_value = 4
             elif model is Semester:
                 q.first.return_value = tournament
+            elif model is TournamentType:
+                tt = MagicMock()
+                tt.min_players = 2
+                q.first.return_value = tt
             elif model is TournamentInstructorSlot:
                 q.first.return_value = master_slot
             else:
