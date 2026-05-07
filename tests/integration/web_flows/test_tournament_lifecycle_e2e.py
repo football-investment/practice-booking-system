@@ -72,6 +72,7 @@ from app.core.security import get_password_hash
 from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
+from app.models.pitch import Pitch
 from tests.factories.game_factory import PlayerFactory, TournamentFactory
 
 
@@ -1613,6 +1614,9 @@ class TestMultiRoundSessionGeneration:
         db.flush()
         camp = Campus(location_id=loc.id, name=f"SESS Campus {uid}", is_active=True)
         db.add(camp)
+        db.flush()
+        # Session generation requires ≥1 active pitch on the campus (domain invariant)
+        db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
         db.flush()
 
         code = f"SESS-{uuid.uuid4().hex[:8].upper()}"

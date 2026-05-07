@@ -75,6 +75,7 @@ from app.models.license import UserLicense
 from app.models.team import Team, TeamMember, TournamentTeamEnrollment
 from app.models.location import Location
 from app.models.campus import Campus
+from app.models.pitch import Pitch
 from app.core.security import get_password_hash
 
 
@@ -924,6 +925,9 @@ def _campus(db: Session) -> "Campus":
     db.flush()
     camp = Campus(location_id=loc.id, name=f"SRL-Campus-{_uid()}", is_active=True)
     db.add(camp)
+    db.flush()
+    # Session generation requires ≥1 active pitch on the campus (domain invariant)
+    db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
     db.flush()
     return camp
 

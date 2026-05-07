@@ -202,6 +202,12 @@
 {% block page_subtitle %}
 <div class="breadcrumb"><a href="/admin/tournaments">← Tournaments</a></div>
 ID {{ t.id }} · {{ t.code }} · <strong>{{ t.tournament_status or t.status.value }}</strong>
+{% if (t.tournament_status or '') == 'IN_PROGRESS' %}
+<a href="/admin/tournaments/{{ t.id }}/live"
+   style="margin-left:1rem;font-size:0.82rem;font-weight:600;color:#c53030;
+          background:#fff5f5;border:1px solid #fed7d7;border-radius:6px;
+          padding:0.2rem 0.7rem;text-decoration:none;">📡 Live</a>
+{% endif %}
 {% endblock %}
 
 {% block admin_content %}

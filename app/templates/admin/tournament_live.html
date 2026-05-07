@@ -272,6 +272,19 @@
     </div>
 </div>
 
+<!-- ── Format-aware live section ───────────────────────────────────────── -->
+{% if live_model is defined and live_model %}
+<div id="live-format-section" style="margin:0 20px 20px">
+    {% if live_model.format_type == 'group_knockout' %}
+        {% include 'admin/_live_group_knockout.html' %}
+    {% elif live_model.format_type == 'knockout' %}
+        {% include 'admin/_live_knockout.html' %}
+    {% elif live_model.format_type == 'league' %}
+        {% include 'admin/_live_league.html' %}
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="live-grid">
     <!-- ── Left: progress + KPIs + pitch table ────────────────────────── -->
     <div>
@@ -397,6 +410,7 @@
     const STALE_THRESHOLD_S   = 60;   // show warning after 60 s without events
     const REDIS_DOWN_TIMEOUT  = 30;   // show error banner after 30 s without WS
     const PITCH_IDLE_WARN_S   = 300;  // mark pitch 🔴 if idle > 5 min
+    const SNAPSHOT_DEBOUNCE_MS = 500; // debounce snapshot refresh after WS event
 
     /* ── State ─────────────────────────────────────────────────────────── */
     let completedCount  = {{ completed_sessions }};
@@ -406,6 +420,7 @@
     let lastEventTs     = null;      // Date when last event was received
     let sessionStartTs  = Date.now(); // page load time for ETA calc
     let startCompleted  = completedCount;
+    let _snapshotTimer  = null;      // debounce handle for snapshot refresh
 
     /* ── DOM refs ──────────────────────────────────────────────────────── */
     const dot             = document.getElementById("ws-dot");
@@ -524,10 +539,12 @@
         const campus  = msg.campus_id  ? "C" + msg.campus_id  : "?";
         const pitch   = msg.pitch_id   ? "/" + "P" + msg.pitch_id : "";
         const round   = msg.round_number ? " R" + msg.round_number : "";
+        const group   = msg.group_identifier ? " G" + msg.group_identifier : "";
+        const gtype   = msg.game_type ? " " + msg.game_type : "";
         const li = document.createElement("li");
         li.innerHTML = `
             <span class="f-time">${nowStr()}</span>
-            <span class="f-badge">${campus}${pitch}${round}</span>
+            <span class="f-badge">${campus}${pitch}${round}${group}${gtype}</span>
             <span class="f-txt">Session #${msg.session_id}</span>
         `;
         feedList.insertBefore(li, feedList.firstChild);
@@ -626,6 +643,51 @@
             };
             rebuildPitchTable();
         }
+
+        // Trigger debounced snapshot refresh for format section
+        scheduleSnapshotRefresh();
+    }
+
+    /* ── Snapshot refresh ──────────────────────────────────────────────── */
+    function getToken() {
+        for (const c of document.cookie.split("; ")) {
+            if (c.startsWith("access_token=")) {
+                return decodeURIComponent(c.split("=").slice(1).join("="))
+                       .replace(/^Bearer\s+/i, "");
+            }
+        }
+        return null;
+    }
+
+    function scheduleSnapshotRefresh() {
+        if (_snapshotTimer) clearTimeout(_snapshotTimer);
+        _snapshotTimer = setTimeout(fetchSnapshot, SNAPSHOT_DEBOUNCE_MS);
+    }
+
+    function fetchSnapshot() {
+        const token = getToken();
+        if (!token) return;
+        fetch(`/admin/tournaments/${TOURNAMENT_ID}/live-snapshot`, {
+            headers: { "Authorization": "Bearer " + token }
+        })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) renderLiveFormatSection(data); })
+        .catch(() => { /* snapshot errors must not break WS counter */ });
+    }
+
+    function renderLiveFormatSection(data) {
+        const el = document.getElementById("live-format-section");
+        if (!el) return;
+        // Re-render group standings summary inline (lightweight update)
+        // Full re-render is done on page reload; here we update just the progress counts
+        const gs = data.group_stage;
+        if (!gs) return;
+        for (const [gid, gdata] of Object.entries(gs.groups || {})) {
+            const completedInGroup = (gdata.sessions || []).filter(s => s.status === "completed").length;
+            const totalInGroup = (gdata.sessions || []).length;
+            const badge = el.querySelector(`[data-group-progress="${gid}"]`);
+            if (badge) badge.textContent = `${completedInGroup}/${totalInGroup}`;
+        }
     }
 
     /* ── Stale-data watchdog ────────────────────────────────────────────── */
@@ -641,16 +703,6 @@
     }, 5000);
 
     /* ── WebSocket ──────────────────────────────────────────────────────── */
-    function getToken() {
-        for (const c of document.cookie.split("; ")) {
-            if (c.startsWith("access_token=")) {
-                return decodeURIComponent(c.split("=").slice(1).join("="))
-                       .replace(/^Bearer\s+/i, "");
-            }
-        }
-        return null;
-    }
-
     let ws          = null;
     let retryMs     = 2000;
     let retryTmo    = null;

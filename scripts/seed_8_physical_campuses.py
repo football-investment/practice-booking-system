@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.campus import Campus
 from app.models.location import Location
+from app.models.pitch import Pitch
 
 
 def seed_8_campuses(db: Session) -> None:
@@ -112,6 +113,12 @@ def seed_8_campuses(db: Session) -> None:
         existing = db.query(Campus).filter(Campus.name == campus_data["name"]).first()
         if existing:
             print(f"⏭️  Campus '{campus_data['name']}' already exists (id={existing.id})")
+            # Domain invariant: ensure pitches exist even for pre-existing campuses
+            pitch_count = db.query(Pitch).filter(Pitch.campus_id == existing.id, Pitch.is_active == True).count()
+            if pitch_count == 0:
+                for pitch_num, pitch_name in enumerate(["Pálya A", "Pálya B"], start=1):
+                    db.add(Pitch(campus_id=existing.id, pitch_number=pitch_num, name=pitch_name, capacity=22, is_active=True))
+                print(f"   ↳ Added 2 pitches to existing campus (was pitch-less)")
             skipped_count += 1
             continue
 
@@ -125,6 +132,16 @@ def seed_8_campuses(db: Session) -> None:
             is_active=True,
         )
         db.add(campus)
+        db.flush()
+        # Domain invariant: session generation requires ≥1 active pitch per campus
+        for pitch_num, pitch_name in enumerate(["Pálya A", "Pálya B"], start=1):
+            db.add(Pitch(
+                campus_id=campus.id,
+                pitch_number=pitch_num,
+                name=pitch_name,
+                capacity=22,
+                is_active=True,
+            ))
         created_count += 1
         print(f"✅ Created: {campus_data['name']} ({campus_data['venue']})")
 

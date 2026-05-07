@@ -83,6 +83,7 @@ def _publish_session_result(db, session: SessionModel) -> None:
             .count()
         )
         progress = round(completed / total, 4) if total > 0 else 0.0
+        phase = session.tournament_phase
         publish_tournament_update(
             tournament_id,
             {
@@ -96,6 +97,9 @@ def _publish_session_result(db, session: SessionModel) -> None:
                 "total_count": total,
                 "progress_pct": progress,
                 "completed_at": datetime.datetime.utcnow().isoformat() + "Z",
+                "tournament_phase": phase.value if phase else None,
+                "group_identifier": getattr(session, "group_identifier", None),
+                "game_type": getattr(session, "game_type", None),
             },
         )
     except Exception:

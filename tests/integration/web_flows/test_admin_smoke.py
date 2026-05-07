@@ -32,6 +32,7 @@ from app.dependencies import get_current_user_web, get_current_user, get_current
 from app.models.user import User, UserRole
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
+from app.models.pitch import Pitch
 from app.models.game_preset import GamePreset
 from app.models.coupon import Coupon, CouponType
 from app.models.invitation_code import InvitationCode
@@ -2538,6 +2539,9 @@ class TestSmoke22GamePresetPlayerCountGuard:
         camp = Campus(location_id=loc.id, name=f"S22 Campus {uid}", is_active=True)
         test_db.add(camp)
         test_db.flush()
+        # Session generation requires ≥1 active pitch on the campus (domain invariant)
+        test_db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
+        test_db.flush()
         tourn = Semester(
             code=f"S22{suffix}-{uuid.uuid4().hex[:6]}",
             name=f"SMOKE-22{suffix} Preset Guard Test",
@@ -2987,6 +2991,9 @@ class TestSmoke24SessionGenWizard:
         test_db.flush()
         camp = Campus(location_id=loc.id, name=f"S24 Campus {uid}", is_active=True)
         test_db.add(camp)
+        test_db.flush()
+        # Session generation requires ≥1 active pitch on the campus (domain invariant)
+        test_db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
         test_db.flush()
         tourn = Semester(
             code=f"S24{suffix}-{uuid.uuid4().hex[:6]}",
