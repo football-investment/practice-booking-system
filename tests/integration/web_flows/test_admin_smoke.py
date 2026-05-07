@@ -2539,6 +2539,7 @@ class TestSmoke22GamePresetPlayerCountGuard:
         camp = Campus(location_id=loc.id, name=f"S22 Campus {uid}", is_active=True)
         test_db.add(camp)
         test_db.flush()
+        # Session generation requires ≥1 active pitch on the campus (domain invariant)
         test_db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
         test_db.flush()
         tourn = Semester(
@@ -2990,6 +2991,9 @@ class TestSmoke24SessionGenWizard:
         test_db.flush()
         camp = Campus(location_id=loc.id, name=f"S24 Campus {uid}", is_active=True)
         test_db.add(camp)
+        test_db.flush()
+        # Session generation requires ≥1 active pitch on the campus (domain invariant)
+        test_db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
         test_db.flush()
         tourn = Semester(
             code=f"S24{suffix}-{uuid.uuid4().hex[:6]}",
