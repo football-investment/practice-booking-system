@@ -278,21 +278,6 @@ def transition_tournament_status(
             detail=error_message
         )
 
-    # ── Instructor prerequisite guard for CHECK_IN_OPEN ──────────────────────
-    # Session generation fires immediately at CHECK_IN_OPEN (initial bracket draw).
-    # Block here — before any DB write — so the tournament cannot enter CHECK_IN_OPEN
-    # with sessions that would carry instructor_id=NULL.
-    if request.new_status == "CHECK_IN_OPEN":
-        from app.services.tournament.instructor_service import has_master_instructor_assignment
-        if not has_master_instructor_assignment(db, tournament_id):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Cannot open check-in: No instructor assigned. "
-                    "Assign a master instructor before transitioning to CHECK_IN_OPEN."
-                ),
-            )
-
     # Record old status for response and history
     old_status = tournament.tournament_status
 
@@ -443,6 +428,17 @@ def transition_tournament_status(
     # AUTO-REGENERATE SESSIONS when transitioning to IN_PROGRESS (check-in filter)
     # ============================================================================
     if request.new_status == "IN_PROGRESS":
+        # ── Instructor prerequisite guard ─────────────────────────────────────
+        from app.services.tournament.instructor_service import has_master_instructor_assignment
+        if not has_master_instructor_assignment(db, tournament_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Cannot start tournament: No instructor assigned. "
+                    "Assign a master instructor before transitioning to IN_PROGRESS."
+                ),
+            )
+
         # 📸 SAVE REWARD POLICY SNAPSHOT FIRST (lock reward_config for this tournament)
         # This MUST happen BEFORE session generation and ALWAYS when entering IN_PROGRESS
         # This prevents admin from changing reward config after tournament starts

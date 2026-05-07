@@ -11,6 +11,7 @@ Tests verify the invariants introduced by the domain integrity fix:
   SI-03  _stamp_player_checkins is idempotent (already-stamped rows unchanged)
   PA-01  session_generator assigns pitch_id from active pitches round-robin
   PA-02  session_generator skips pitch assignment when no active pitches
+  HMIA-01..04  has_master_instructor_assignment helper unit tests
 """
 from __future__ import annotations
 
@@ -382,109 +383,6 @@ class TestPitchAssignment:
 
         assert sessions[0]["pitch_id"] == 99, "Pre-assigned pitch_id must not be overwritten"
         assert sessions[1]["pitch_id"] in (10, 20), "Unassigned session must get a pitch"
-
-
-# ── GV-03 / GV-04 / GV-05 — generation validator instructor guard ─────────────
-
-
-class TestGenerationValidatorInstructorGuard:
-    """GV-03/04/05: can_generate_sessions() blocks without instructor prerequisite."""
-
-    def _make_tournament(self, master_instructor_id=None, campus_id=5):
-        t = MagicMock()
-        t.id = 99
-        t.sessions_generated = False
-        # HEAD_TO_HEAD so instructor guard applies (INDIVIDUAL_RANKING is exempt)
-        t.format = "HEAD_TO_HEAD"
-        t.tournament_type_id = 1
-        t.tournament_status = "CHECK_IN_OPEN"
-        t.participant_type = "INDIVIDUAL"
-        t.location_id = 1
-        t.campus_id = campus_id
-        t.master_instructor_id = master_instructor_id
-        return t
-
-    def _make_db(self, tournament, pitch_count=2, master_slot=None):
-        from app.models.pitch import Pitch
-        from app.models.semester_enrollment import SemesterEnrollment
-        from app.models.semester import Semester
-        from app.models.tournament_instructor_slot import TournamentInstructorSlot
-        from app.models.tournament_type import TournamentType
-
-        db = MagicMock()
-
-        def _query(model):
-            q = MagicMock()
-            q.filter.return_value = q
-            if model is Pitch:
-                q.count.return_value = pitch_count
-            elif model is SemesterEnrollment:
-                q.count.return_value = 4
-            elif model is Semester:
-                q.first.return_value = tournament
-            elif model is TournamentType:
-                tt = MagicMock()
-                tt.min_players = 2
-                q.first.return_value = tt
-            elif model is TournamentInstructorSlot:
-                q.first.return_value = master_slot
-            else:
-                q.first.return_value = tournament
-            return q
-
-        db.query.side_effect = _query
-        return db
-
-    def test_gv_03_blocks_without_master_instructor_id_and_no_slot(self):
-        """No master_instructor_id + no MASTER slot → (False, reason containing 'instructor')."""
-        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
-
-        t = self._make_tournament(master_instructor_id=None)
-        db = self._make_db(t, pitch_count=2, master_slot=None)
-
-        with patch(
-            "app.services.tournament.session_generation.validators.generation_validator.TournamentRepository"
-        ) as MockRepo:
-            MockRepo.return_value.get_optional.return_value = t
-            ok, reason = GenerationValidator(db).can_generate_sessions(99)
-
-        assert ok is False
-        assert "instructor" in reason.lower()
-
-    def test_gv_04_passes_with_master_instructor_id(self):
-        """master_instructor_id set → (True, ...) — instructor check passes."""
-        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
-
-        t = self._make_tournament(master_instructor_id=42)
-        db = self._make_db(t, pitch_count=2)
-
-        with patch(
-            "app.services.tournament.session_generation.validators.generation_validator.TournamentRepository"
-        ) as MockRepo:
-            MockRepo.return_value.get_optional.return_value = t
-            ok, _ = GenerationValidator(db).can_generate_sessions(99)
-
-        assert ok is True
-
-    def test_gv_05_passes_with_confirmed_master_slot_no_legacy_field(self):
-        """No master_instructor_id but MASTER/CONFIRMED TournamentInstructorSlot → (True, ...)."""
-        from app.models.tournament_instructor_slot import SlotRole, SlotStatus
-        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
-
-        slot = MagicMock()
-        slot.role = SlotRole.MASTER.value
-        slot.status = SlotStatus.CONFIRMED.value
-
-        t = self._make_tournament(master_instructor_id=None)
-        db = self._make_db(t, pitch_count=2, master_slot=slot)
-
-        with patch(
-            "app.services.tournament.session_generation.validators.generation_validator.TournamentRepository"
-        ) as MockRepo:
-            MockRepo.return_value.get_optional.return_value = t
-            ok, _ = GenerationValidator(db).can_generate_sessions(99)
-
-        assert ok is True
 
 
 # ── HMIA-01..04 — has_master_instructor_assignment unit tests ─────────────────
