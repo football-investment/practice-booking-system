@@ -107,4 +107,13 @@ class GenerationValidator:
                     "Add at least one active pitch before generating sessions."
                 )
 
+        # Check instructor assignment. Guards direct API calls to generate-sessions
+        # that bypass the lifecycle endpoint (which has its own CHECK_IN_OPEN guard).
+        from app.services.tournament.instructor_service import has_master_instructor_assignment
+        if not has_master_instructor_assignment(self.db, tournament_id):
+            return False, (
+                "Cannot generate sessions: No instructor assigned. "
+                "Assign a master instructor before generating sessions."
+            )
+
         return True, "Ready for session generation"

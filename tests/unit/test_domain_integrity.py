@@ -382,3 +382,233 @@ class TestPitchAssignment:
 
         assert sessions[0]["pitch_id"] == 99, "Pre-assigned pitch_id must not be overwritten"
         assert sessions[1]["pitch_id"] in (10, 20), "Unassigned session must get a pitch"
+
+
+# ── GV-03 / GV-04 / GV-05 — generation validator instructor guard ─────────────
+
+
+class TestGenerationValidatorInstructorGuard:
+    """GV-03/04/05: can_generate_sessions() blocks without instructor prerequisite."""
+
+    def _make_tournament(self, master_instructor_id=None, campus_id=5):
+        t = MagicMock()
+        t.id = 99
+        t.sessions_generated = False
+        t.format = "INDIVIDUAL_RANKING"
+        t.tournament_type_id = None
+        t.tournament_status = "CHECK_IN_OPEN"
+        t.participant_type = "INDIVIDUAL"
+        t.location_id = 1
+        t.campus_id = campus_id
+        t.master_instructor_id = master_instructor_id
+        return t
+
+    def _make_db(self, tournament, pitch_count=2, master_slot=None):
+        from app.models.pitch import Pitch
+        from app.models.semester_enrollment import SemesterEnrollment
+        from app.models.semester import Semester
+        from app.models.tournament_instructor_slot import TournamentInstructorSlot
+
+        db = MagicMock()
+
+        def _query(model):
+            q = MagicMock()
+            q.filter.return_value = q
+            if model is Pitch:
+                q.count.return_value = pitch_count
+            elif model is SemesterEnrollment:
+                q.count.return_value = 4
+            elif model is Semester:
+                q.first.return_value = tournament
+            elif model is TournamentInstructorSlot:
+                q.first.return_value = master_slot
+            else:
+                q.first.return_value = tournament
+            return q
+
+        db.query.side_effect = _query
+        return db
+
+    def test_gv_03_blocks_without_master_instructor_id_and_no_slot(self):
+        """No master_instructor_id + no MASTER slot → (False, reason containing 'instructor')."""
+        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
+
+        t = self._make_tournament(master_instructor_id=None)
+        db = self._make_db(t, pitch_count=2, master_slot=None)
+
+        with patch(
+            "app.services.tournament.session_generation.validators.generation_validator.TournamentRepository"
+        ) as MockRepo:
+            MockRepo.return_value.get_optional.return_value = t
+            ok, reason = GenerationValidator(db).can_generate_sessions(99)
+
+        assert ok is False
+        assert "instructor" in reason.lower()
+
+    def test_gv_04_passes_with_master_instructor_id(self):
+        """master_instructor_id set → (True, ...) — instructor check passes."""
+        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
+
+        t = self._make_tournament(master_instructor_id=42)
+        db = self._make_db(t, pitch_count=2)
+
+        with patch(
+            "app.services.tournament.session_generation.validators.generation_validator.TournamentRepository"
+        ) as MockRepo:
+            MockRepo.return_value.get_optional.return_value = t
+            ok, _ = GenerationValidator(db).can_generate_sessions(99)
+
+        assert ok is True
+
+    def test_gv_05_passes_with_confirmed_master_slot_no_legacy_field(self):
+        """No master_instructor_id but MASTER/CONFIRMED TournamentInstructorSlot → (True, ...)."""
+        from app.models.tournament_instructor_slot import SlotRole, SlotStatus
+        from app.services.tournament.session_generation.validators.generation_validator import GenerationValidator
+
+        slot = MagicMock()
+        slot.role = SlotRole.MASTER.value
+        slot.status = SlotStatus.CONFIRMED.value
+
+        t = self._make_tournament(master_instructor_id=None)
+        db = self._make_db(t, pitch_count=2, master_slot=slot)
+
+        with patch(
+            "app.services.tournament.session_generation.validators.generation_validator.TournamentRepository"
+        ) as MockRepo:
+            MockRepo.return_value.get_optional.return_value = t
+            ok, _ = GenerationValidator(db).can_generate_sessions(99)
+
+        assert ok is True
+
+
+# ── HMIA-01..04 — has_master_instructor_assignment unit tests ─────────────────
+
+
+class TestHasMasterInstructorAssignment:
+    """Unit tests for has_master_instructor_assignment(db, tournament_id)."""
+
+    def _make_db(self, tournament=None, master_slot=None):
+        from app.models.semester import Semester
+        from app.models.tournament_instructor_slot import TournamentInstructorSlot
+
+        db = MagicMock()
+
+        def _query(model):
+            q = MagicMock()
+            q.filter.return_value = q
+            if model is Semester:
+                q.first.return_value = tournament
+            elif model is TournamentInstructorSlot:
+                q.first.return_value = master_slot
+            else:
+                q.first.return_value = None
+            return q
+
+        db.query.side_effect = _query
+        return db
+
+    def test_hmia_01_returns_false_when_no_tournament(self):
+        from app.services.tournament.instructor_service import has_master_instructor_assignment
+        db = self._make_db(tournament=None)
+        assert has_master_instructor_assignment(db, 999) is False
+
+    def test_hmia_02_returns_true_with_master_instructor_id(self):
+        from app.services.tournament.instructor_service import has_master_instructor_assignment
+        t = MagicMock()
+        t.master_instructor_id = 7
+        db = self._make_db(tournament=t)
+        assert has_master_instructor_assignment(db, 1) is True
+
+    def test_hmia_03_returns_false_without_master_id_and_no_slot(self):
+        from app.services.tournament.instructor_service import has_master_instructor_assignment
+        t = MagicMock()
+        t.master_instructor_id = None
+        db = self._make_db(tournament=t, master_slot=None)
+        assert has_master_instructor_assignment(db, 1) is False
+
+    def test_hmia_04_returns_true_with_confirmed_master_slot(self):
+        from app.models.tournament_instructor_slot import SlotRole, SlotStatus
+        from app.services.tournament.instructor_service import has_master_instructor_assignment
+        t = MagicMock()
+        t.master_instructor_id = None
+        slot = MagicMock()
+        slot.role = SlotRole.MASTER.value
+        slot.status = SlotStatus.CONFIRMED.value
+        db = self._make_db(tournament=t, master_slot=slot)
+        assert has_master_instructor_assignment(db, 1) is True
+
+
+# ── PA-03 — preflight audit instructor check ─────────────────────────────────
+
+
+class TestPreflightAuditInstructorCheck:
+    """_run_preflight_audit() reports and blocks on instructor@lfa.com missing."""
+
+    def _make_db(self, *, has_campus=True, has_pitches=True, has_preset=True,
+                 has_admin=True, has_instructor=True):
+        from app.models.campus import Campus
+        from app.models.pitch import Pitch
+        from app.models.game_preset import GamePreset
+        from app.models.user import User
+
+        campus_obj = MagicMock()
+        campus_obj.id = 1
+        campus_obj.name = "TestCampus"
+
+        admin_obj = MagicMock() if has_admin else None
+        instructor_obj = MagicMock() if has_instructor else None
+
+        # Counter lives outside _query so it persists across multiple db.query(User) calls.
+        user_call_count = [0]
+
+        db = MagicMock()
+
+        def _query(model):
+            q = MagicMock()
+            if model is Campus:
+                q.filter.return_value.first.return_value = campus_obj if has_campus else None
+            elif model is Pitch:
+                q.filter.return_value.count.return_value = 2 if has_pitches else 0
+            elif model is GamePreset:
+                q.filter.return_value.first.return_value = MagicMock() if has_preset else None
+            elif model is User:
+                # Return admin on first User query, instructor on second.
+                # The counter is shared across calls so ordering is stable.
+                def _filter_side(*args, **kwargs):
+                    inner = MagicMock()
+                    idx = user_call_count[0]
+                    user_call_count[0] += 1
+                    inner.first.return_value = admin_obj if idx == 0 else instructor_obj
+                    return inner
+
+                q.filter.side_effect = _filter_side
+            return q
+
+        db.query.side_effect = _query
+        return db
+
+    def test_pa_03_all_ok_returns_empty_issues(self):
+        from scripts.seed_promotion_events import _run_preflight_audit
+        db = self._make_db()
+        issues = _run_preflight_audit(db, campus_id=1, fail=False)
+        assert issues == []
+
+    def test_pa_04_missing_instructor_adds_issue(self):
+        from scripts.seed_promotion_events import _run_preflight_audit
+        db = self._make_db(has_instructor=False)
+        issues = _run_preflight_audit(db, campus_id=1, fail=False)
+        assert any("instructor@lfa.com" in i for i in issues)
+
+    def test_pa_05_admin_ok_instructor_missing_is_single_distinct_issue(self):
+        """admin present, instructor missing → exactly 1 issue (not admin)."""
+        from scripts.seed_promotion_events import _run_preflight_audit
+        db = self._make_db(has_admin=True, has_instructor=False)
+        issues = _run_preflight_audit(db, campus_id=1, fail=False)
+        assert len(issues) == 1
+        assert "instructor" in issues[0].lower()
+
+    def test_pa_06_fail_true_exits_when_instructor_missing(self):
+        from scripts.seed_promotion_events import _run_preflight_audit
+        db = self._make_db(has_instructor=False)
+        with pytest.raises(SystemExit):
+            _run_preflight_audit(db, campus_id=1, fail=True)

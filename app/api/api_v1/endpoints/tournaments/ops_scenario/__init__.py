@@ -846,6 +846,14 @@ def run_ops_scenario(
         _User.role == _UserRole.INSTRUCTOR,
         _User.email == "grandmaster@lfa.com",
     ).first()
+    if not grandmaster:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "grandmaster@lfa.com instructor not found in DB. "
+                "Run seed_e2e_users.py or create_fresh_database.py first."
+            ),
+        )
 
     tc_ts = _dt.now().strftime("%Y%m%d-%H%M%S")
     tournament = _Semester(
@@ -855,7 +863,7 @@ def run_ops_scenario(
         end_date=(_dt.now() + _td(days=30)).date(),
         status=_SemStatus.ONGOING,        # lifecycle enum
         tournament_status=request.initial_tournament_status,  # Use parameter (default: IN_PROGRESS)
-        master_instructor_id=grandmaster.id if grandmaster else None,
+        master_instructor_id=grandmaster.id,  # guaranteed non-None after guard above
         enrollment_cost=request.enrollment_cost,  # Enrollment cost from request (default: 0)
         age_group=request.age_group,              # Age group from request (default: PRO)
     )
