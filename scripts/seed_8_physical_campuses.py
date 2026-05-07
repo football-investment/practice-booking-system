@@ -113,6 +113,12 @@ def seed_8_campuses(db: Session) -> None:
         existing = db.query(Campus).filter(Campus.name == campus_data["name"]).first()
         if existing:
             print(f"⏭️  Campus '{campus_data['name']}' already exists (id={existing.id})")
+            # Domain invariant: ensure pitches exist even for pre-existing campuses
+            pitch_count = db.query(Pitch).filter(Pitch.campus_id == existing.id, Pitch.is_active == True).count()
+            if pitch_count == 0:
+                for pitch_num, pitch_name in enumerate(["Pálya A", "Pálya B"], start=1):
+                    db.add(Pitch(campus_id=existing.id, pitch_number=pitch_num, name=pitch_name, capacity=22, is_active=True))
+                print(f"   ↳ Added 2 pitches to existing campus (was pitch-less)")
             skipped_count += 1
             continue
 
