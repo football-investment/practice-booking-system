@@ -232,15 +232,18 @@ def _enroll_teams_direct(tid, teams):
 
 # ── Common lifecycle (after enrollment phase) ─────────────────────────────────
 def _common_lifecycle(tid, instructor_id, expected_min_sessions=1):
-    """ENROLLMENT_CLOSED → CHECK_IN_OPEN → (set instructor) → IN_PROGRESS → verify."""
+    """ENROLLMENT_CLOSED → (set instructor) → CHECK_IN_OPEN → IN_PROGRESS → verify."""
     _status_transition(tid, "ENROLLMENT_CLOSED")
-    _status_transition(tid, "CHECK_IN_OPEN")
 
-    # Set instructor directly (simulates wizard Basic Info save)
+    # Set instructor BEFORE CHECK_IN_OPEN — eligibility guard requires master_instructor_id
+    # to be set (or a MASTER slot to exist) before the transition is allowed.
     t = _db.query(Semester).filter(Semester.id == tid).first()
     t.master_instructor_id = instructor_id
     _db.commit()
     ok(f"master_instructor_id = {instructor_id}")
+
+    _db.expire_all()
+    _status_transition(tid, "CHECK_IN_OPEN")
 
     _db.expire_all()
     _status_transition(tid, "IN_PROGRESS")
