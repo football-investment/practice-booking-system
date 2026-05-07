@@ -28889,7 +28889,7 @@
     },
     "/admin/tournaments/{tournament_id}/live-snapshot": {
       "get": {
-        "description": "Return a full live model snapshot as JSON.\n\nAuth: HttpOnly cookie ``access_token`` sent automatically by browser with\n``credentials: \"same-origin\"``.  Returns 401 JSON on missing/invalid\ntoken, 403 JSON on insufficient role.\nUsed by the dashboard JS to refresh group standings and KO bracket after\neach WS session_result event (debounced 500 ms).",
+        "description": "Return a full live model snapshot as JSON.\n\nAuth: Bearer token in Authorization header (same JWT used for WS).\nReturns 401 JSON on missing/invalid token, 403 JSON on insufficient role.\nUsed by the dashboard JS to refresh group standings and KO bracket after\neach WS session_result event (debounced 500 ms).",
         "operationId": "tournament_live_snapshot_admin_tournaments__tournament_id__live_snapshot_get",
         "parameters": [
           {
