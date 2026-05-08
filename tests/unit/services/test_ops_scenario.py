@@ -99,6 +99,7 @@ def _req(**overrides):
     r.ranking_direction = None
     r.number_of_rounds = 1
     r.simulation_mode = "manual"
+    r.participant_type = "INDIVIDUAL"
     for k, v in overrides.items():
         setattr(r, k, v)
     return r
@@ -529,6 +530,108 @@ class TestRunOpsScenarioValidation:
             )
         assert exc.value.status_code == 500
         assert "seed" in exc.value.detail.lower()
+
+
+# ===========================================================================
+# Phase 2b — participant_type propagation guards
+# ===========================================================================
+
+class TestParticipantTypePropagation:
+    """Guard A: TEAM+IR → 422. Guard B: TEAM+non-manual → 422. Happy paths pass guards."""
+
+    def test_guard_a_team_individual_ranking_raises_422(self):
+        """TEAM + INDIVIDUAL_RANKING → 422 before any DB access."""
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="TEAM", tournament_format="INDIVIDUAL_RANKING"),
+                db=MagicMock(), current_user=_admin(),
+            )
+        assert exc.value.status_code == 422
+        assert "HEAD_TO_HEAD" in exc.value.detail
+
+    def test_guard_b_team_auto_immediate_raises_422(self):
+        """TEAM + simulation_mode='auto_immediate' → 422."""
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="TEAM", tournament_format="HEAD_TO_HEAD",
+                     simulation_mode="auto_immediate"),
+                db=MagicMock(), current_user=_admin(),
+            )
+        assert exc.value.status_code == 422
+        assert "manual" in exc.value.detail
+
+    def test_guard_b_team_accelerated_raises_422(self):
+        """TEAM + simulation_mode='accelerated' → 422."""
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="TEAM", tournament_format="HEAD_TO_HEAD",
+                     simulation_mode="accelerated"),
+                db=MagicMock(), current_user=_admin(),
+            )
+        assert exc.value.status_code == 422
+        assert "manual" in exc.value.detail
+
+    def test_individual_ir_no_guard_triggered(self):
+        """INDIVIDUAL + INDIVIDUAL_RANKING + manual → guards pass (hits seed pool, not guard)."""
+        db = _seq_db(_q(all_=[]))
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="INDIVIDUAL", tournament_format="INDIVIDUAL_RANKING",
+                     simulation_mode="manual", player_count=4, tournament_name=""),
+                db=db, current_user=_admin(),
+            )
+        assert exc.value.status_code == 500  # seed pool empty, not a guard 422
+
+    def test_individual_h2h_no_guard_triggered(self):
+        """INDIVIDUAL + HEAD_TO_HEAD + accelerated → guards pass (hits seed pool, not guard)."""
+        db = _seq_db(_q(all_=[]))
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="INDIVIDUAL", tournament_format="HEAD_TO_HEAD",
+                     simulation_mode="accelerated", player_count=4, tournament_name=""),
+                db=db, current_user=_admin(),
+            )
+        assert exc.value.status_code == 500  # seed pool empty, not a guard 422
+
+    def test_team_h2h_manual_no_guard_triggered(self):
+        """TEAM + HEAD_TO_HEAD + manual → both guards pass (hits seed pool, not guard)."""
+        db = _seq_db(_q(all_=[]))
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="TEAM", tournament_format="HEAD_TO_HEAD",
+                     simulation_mode="manual", player_count=4, tournament_name=""),
+                db=db, current_user=_admin(),
+            )
+        assert exc.value.status_code == 500  # seed pool empty, not a guard 422
+
+    def test_dry_run_exits_before_guards(self):
+        """dry_run=True returns early (line 665) before the participant_type guards — no 422."""
+        result = run_ops_scenario(
+            _req(participant_type="TEAM", tournament_format="INDIVIDUAL_RANKING",
+                 dry_run=True),
+            db=MagicMock(), current_user=_admin(),
+        )
+        assert result.dry_run is True
+        assert result.triggered is False
+
+    def test_guard_a_detail_mentions_head_to_head(self):
+        """Guard A detail is actionable: mentions HEAD_TO_HEAD requirement."""
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="TEAM", tournament_format="INDIVIDUAL_RANKING"),
+                db=MagicMock(), current_user=_admin(),
+            )
+        assert "HEAD_TO_HEAD" in exc.value.detail
+
+    def test_guard_b_detail_mentions_manual(self):
+        """Guard B detail is actionable: mentions manual requirement."""
+        with pytest.raises(Exception) as exc:
+            run_ops_scenario(
+                _req(participant_type="TEAM", tournament_format="HEAD_TO_HEAD",
+                     simulation_mode="accelerated"),
+                db=MagicMock(), current_user=_admin(),
+            )
+        assert "manual" in exc.value.detail
 
 
 # ===========================================================================

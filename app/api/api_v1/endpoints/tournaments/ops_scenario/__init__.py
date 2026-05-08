@@ -690,6 +690,18 @@ def run_ops_scenario(
             ),
         )
 
+    # ── participant_type guards ───────────────────────────────────────────────
+    if request.participant_type == "TEAM" and request.tournament_format == "INDIVIDUAL_RANKING":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="participant_type='TEAM' requires tournament_format='HEAD_TO_HEAD'.",
+        )
+    if request.participant_type == "TEAM" and request.simulation_mode != "manual":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="participant_type='TEAM' requires simulation_mode='manual'.",
+        )
+
     # ── Resolve tournament name ───────────────────────────────────────────────
     ts_label = _dt.utcnow().strftime("%Y%m%d-%H%M%S")
     if request.tournament_name:
@@ -867,7 +879,7 @@ def run_ops_scenario(
         t_cfg = _TCfg(
             semester_id=tournament.id,
             tournament_type_id=tt.id,
-            participant_type="INDIVIDUAL",
+            participant_type=request.participant_type,
             is_multi_day=False,
             max_players=request.max_players or _effective_count,  # Use override if provided
             parallel_fields=1,

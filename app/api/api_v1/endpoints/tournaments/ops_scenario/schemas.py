@@ -118,6 +118,16 @@ class OpsScenarioRequest(BaseModel):
             "Auto-discovery is disabled — campuses must be specified explicitly."
         ),
     )
+    participant_type: Literal["INDIVIDUAL", "TEAM"] = Field(
+        "INDIVIDUAL",
+        description=(
+            "Participant type for the tournament. "
+            "'INDIVIDUAL' (default): players enroll and compete as individuals. "
+            "'TEAM': teams enroll as units — requires tournament_format='HEAD_TO_HEAD' "
+            "and simulation_mode='manual' (TEAM auto-simulation is not implemented). "
+            "'MIXED' is not supported via the ops endpoint."
+        ),
+    )
     auto_generate_sessions: bool = Field(
         True,
         description=(
