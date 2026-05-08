@@ -2,8 +2,10 @@
  * QUIZ-01–13 — Quiz learning flow (HTTP smoke + UI rendering + score grading + robustness)
  *
  * DB scenario  : baseline
- *   - quiz id=1 "Smoke Test Quiz" always present (0 questions) — used by QUIZ-01..05
- *   - "E2E UI Quiz" seeded with 2 real questions — used by QUIZ-06..11
+ *   - "E2E UI Quiz" seeded with 2 real questions — used by QUIZ-01..02, QUIZ-04..11
+ *     (resolved at runtime via cy.task('getE2eQuizId'))
+ *   - QUIZ-03: uses id=9999 (non-existent) to assert 404
+ *   - QUIZ-05: unauthenticated — auth guard redirects before quiz lookup (any id works)
  *
  *   E2E UI Quiz structure (deterministic, used for grading assertions):
  *     Q1: "What colour is the sky on a clear day?"
@@ -27,39 +29,42 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
   });
 
   // ── QUIZ-01 ──────────────────────────────────────────────────────────────
-  it('QUIZ-01: GET /quizzes/1/take → 200, renders quiz page (no 500)', () => {
+  it('QUIZ-01: GET /quizzes/:id/take → 200, renders quiz page (no 500)', () => {
     cy.webLoginAs('student');
-    cy.request({
-      method: 'GET',
-      url: '/quizzes/1/take',
-      failOnStatusCode: false,
-    }).then((resp) => {
-      expect(resp.status).to.equal(200);
-      expect(resp.body).to.not.include('Internal Server Error');
+    cy.task('getE2eQuizId').then((quizId) => {
+      cy.request({
+        method: 'GET',
+        url: `/quizzes/${quizId}/take`,
+        failOnStatusCode: false,
+      }).then((resp) => {
+        expect(resp.status).to.equal(200);
+        expect(resp.body).to.not.include('Internal Server Error');
+      });
     });
   });
 
   // ── QUIZ-02 ──────────────────────────────────────────────────────────────
   it('QUIZ-02: visit quiz page → submit → renders result page (no 500)', () => {
     cy.webLoginAs('student');
+    cy.task('getE2eQuizId').then((quizId) => {
+      cy.visit(`/quizzes/${quizId}/take`);
+      cy.get('[name="attempt_id"]').should('exist').invoke('val').then((attemptId) => {
+        expect(attemptId).to.match(/^\d+$/);
 
-    cy.visit('/quizzes/1/take');
-    cy.get('[name="attempt_id"]').should('exist').invoke('val').then((attemptId) => {
-      expect(attemptId).to.match(/^\d+$/);
-
-      cy.request({
-        method: 'POST',
-        url: '/quizzes/1/submit',
-        form: true,
-        body: {
-          attempt_id: attemptId,
-          time_spent: '5',
-          session_id: '',
-        },
-        failOnStatusCode: false,
-      }).then((resp) => {
-        expect(resp.status).to.equal(200);
-        expect(resp.body).to.not.include('Internal Server Error');
+        cy.request({
+          method: 'POST',
+          url: `/quizzes/${quizId}/submit`,
+          form: true,
+          body: {
+            attempt_id: attemptId,
+            time_spent: '5',
+            session_id: '',
+          },
+          failOnStatusCode: false,
+        }).then((resp) => {
+          expect(resp.status).to.equal(200);
+          expect(resp.body).to.not.include('Internal Server Error');
+        });
       });
     });
   });
@@ -79,22 +84,23 @@ describe('Web Student — Quiz Learning Flow', { tags: ['@web', '@student', '@qu
   // ── QUIZ-04 ──────────────────────────────────────────────────────────────
   it('QUIZ-04: double submit of same attempt → second submit returns 400', () => {
     cy.webLoginAs('student');
+    cy.task('getE2eQuizId').then((quizId) => {
+      cy.visit(`/quizzes/${quizId}/take`);
+      cy.get('[name="attempt_id"]').invoke('val').then((attemptId) => {
+        const body = { attempt_id: attemptId, time_spent: '5', session_id: '' };
 
-    cy.visit('/quizzes/1/take');
-    cy.get('[name="attempt_id"]').invoke('val').then((attemptId) => {
-      const body = { attempt_id: attemptId, time_spent: '5', session_id: '' };
+        // First submit → success
+        cy.request({ method: 'POST', url: `/quizzes/${quizId}/submit`, form: true, body, failOnStatusCode: false })
+          .then((firstResp) => {
+            expect(firstResp.status).to.equal(200);
 
-      // First submit → success
-      cy.request({ method: 'POST', url: '/quizzes/1/submit', form: true, body, failOnStatusCode: false })
-        .then((firstResp) => {
-          expect(firstResp.status).to.equal(200);
-
-          // Second submit (same attempt_id) → 400
-          cy.request({ method: 'POST', url: '/quizzes/1/submit', form: true, body, failOnStatusCode: false })
-            .then((secondResp) => {
-              expect(secondResp.status).to.equal(400);
-            });
-        });
+            // Second submit (same attempt_id) → 400
+            cy.request({ method: 'POST', url: `/quizzes/${quizId}/submit`, form: true, body, failOnStatusCode: false })
+              .then((secondResp) => {
+                expect(secondResp.status).to.equal(400);
+              });
+          });
+      });
     });
   });
 
