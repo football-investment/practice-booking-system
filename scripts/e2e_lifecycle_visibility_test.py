@@ -67,6 +67,7 @@ from app.models.team import Team, TeamMember, TournamentTeamEnrollment  # noqa: 
 from app.models.tournament_achievement import TournamentParticipation  # noqa: E402
 from app.models.tournament_configuration import TournamentConfiguration  # noqa: E402
 from app.models.tournament_ranking import TournamentRanking  # noqa: E402
+from app.models.sponsor import Sponsor  # noqa: E402
 from app.models.tournament_type import TournamentType  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.dependencies import (  # noqa: E402
@@ -167,6 +168,59 @@ def _api_post(url, body):
     resp = _client.post(url, json=body)
     _refresh_csrf(resp)
     return resp
+
+
+def _set_schedule_config(tid):
+    resp = _api_patch(f"/api/v1/tournaments/{tid}/schedule-config", {
+        "match_duration_minutes": 90,
+        "break_duration_minutes": 15,
+        "parallel_fields": 1,
+    })
+    if resp.status_code not in (200, 201):
+        body = {}
+        try:
+            body = resp.json()
+        except Exception:
+            pass
+        detail = body.get("detail", "") if isinstance(body, dict) else resp.text[:150]
+        fail(f"schedule-config: HTTP {resp.status_code} — {detail}")
+    ok("schedule-config set")
+
+
+def _set_reward_config(tid):
+    resp = _api_post(f"/api/v1/tournaments/{tid}/reward-config", {
+        "skill_mappings": [
+            {"skill": "speed", "weight": 1.0, "category": "PHYSICAL", "enabled": True}
+        ],
+    })
+    if resp.status_code not in (200, 201):
+        body = {}
+        try:
+            body = resp.json()
+        except Exception:
+            pass
+        detail = body.get("detail", "") if isinstance(body, dict) else resp.text[:150]
+        fail(f"reward-config: HTTP {resp.status_code} — {detail}")
+    ok("reward-config set")
+
+
+def _prepare_for_check_in(tid, sponsor_id):
+    """Set schedule config, reward config, and organizer sponsor before CHECK_IN_OPEN.
+
+    All three are required by the readiness guards:
+    - SCHEDULE_CONFIG_MISSING: checked at CHECK_IN_OPEN
+    - PROMOTION_SPONSOR_MISSING: checked at CHECK_IN_OPEN for PROMOTION_EVENT
+    - REWARD_CONFIG_MISSING: checked at IN_PROGRESS
+    No official API endpoint exists for organizer_sponsor_id, so it is set directly.
+    """
+    _set_schedule_config(tid)
+    _set_reward_config(tid)
+    _db.expire_all()
+    t_obj = _db.query(Semester).filter(Semester.id == tid).first()
+    t_obj.organizer_sponsor_id = sponsor_id
+    _db.commit()
+    _db.expire_all()
+    ok(f"organizer_sponsor_id = {sponsor_id}")
 
 
 # ── Assertion helpers ─────────────────────────────────────────────────────────
@@ -562,7 +616,7 @@ def test_guard_c_instructor_required(club, campus, tt_id):
 # ══════════════════════════════════════════════════════════════════════════════
 # GUARD D — 0 rankings → COMPLETED rejected
 # ══════════════════════════════════════════════════════════════════════════════
-def test_guard_d_rankings_required(club, campus, tt_id, instructor):
+def test_guard_d_rankings_required(club, campus, tt_id, instructor, sponsor_id):
     """Advance to IN_PROGRESS without rankings; assert COMPLETED fails."""
     prefix = f"Guard-D-{uuid.uuid4().hex[:6]}"
     t = _promotion_wizard(club.id, campus.id, tt_id, "U15", prefix)
@@ -578,6 +632,9 @@ def test_guard_d_rankings_required(club, campus, tt_id, instructor):
     t_obj.master_instructor_id = instructor.id
     _db.commit()
     _db.expire_all()
+
+    # Set schedule config, reward config, and sponsor (PROMOTION_EVENT guard).
+    _prepare_for_check_in(t.id, sponsor_id)
 
     _status_transition(t.id, "CHECK_IN_OPEN")  # sessions generated here
 
@@ -603,7 +660,7 @@ def test_guard_d_rankings_required(club, campus, tt_id, instructor):
 # ══════════════════════════════════════════════════════════════════════════════
 # FULL LIFECYCLE + VISIBILITY + DB INVARIANTS
 # ══════════════════════════════════════════════════════════════════════════════
-def test_full_lifecycle_visibility(club, campus, tt_id, instructor):
+def test_full_lifecycle_visibility(club, campus, tt_id, instructor, sponsor_id):
     """
     Full lifecycle traversal for a U15+U18 TEAM+League tournament.
 
@@ -650,6 +707,9 @@ def test_full_lifecycle_visibility(club, campus, tt_id, instructor):
     _db.commit()
     _db.expire_all()
     ok(f"master_instructor_id = {instructor.id}")
+
+    # Set schedule config, reward config, and sponsor (PROMOTION_EVENT guard).
+    _prepare_for_check_in(t.id, sponsor_id)
 
     # ─── → CHECK_IN_OPEN ──────────────────────────────────────────────────────
     _status_transition(t.id, "CHECK_IN_OPEN")
@@ -763,7 +823,7 @@ def test_frontend_consistency(tid):
 # ══════════════════════════════════════════════════════════════════════════════
 # IDEMPOTENCY — calculate-rankings × 2, distribute-rewards-v2 × 2
 # ══════════════════════════════════════════════════════════════════════════════
-def test_idempotency(club, campus, tt_id, instructor):
+def test_idempotency(club, campus, tt_id, instructor, sponsor_id):
     """
     Prove operations that are expected to be idempotent truly are:
 
@@ -786,6 +846,8 @@ def test_idempotency(club, campus, tt_id, instructor):
     t_obj.master_instructor_id = instructor.id
     _db.commit()
     _db.expire_all()
+    # Set schedule config, reward config, and sponsor (PROMOTION_EVENT guard).
+    _prepare_for_check_in(t.id, sponsor_id)
     _status_transition(t.id, "CHECK_IN_OPEN")
     _status_transition(t.id, "IN_PROGRESS")
 
@@ -868,7 +930,7 @@ def test_idempotency(club, campus, tt_id, instructor):
 # ══════════════════════════════════════════════════════════════════════════════
 # PUBLIC API STRICT — HTML content matches DB state at each step
 # ══════════════════════════════════════════════════════════════════════════════
-def test_public_api_strict(club, campus, tt_id, instructor):
+def test_public_api_strict(club, campus, tt_id, instructor, sponsor_id):
     """
     At each visible status, GET /events/{id} HTML must contain:
       - The tournament name
@@ -932,6 +994,9 @@ def test_public_api_strict(club, campus, tt_id, instructor):
     t_obj.master_instructor_id = instructor.id
     _db.commit()
     _db.expire_all()
+
+    # Set schedule config, reward config, and sponsor (PROMOTION_EVENT guard).
+    _prepare_for_check_in(t.id, sponsor_id)
 
     # CHECK_IN_OPEN
     _status_transition(t.id, "CHECK_IN_OPEN")
@@ -1018,6 +1083,17 @@ def run():
         n = sum(1 for tm in teams if tm.age_group_label == ag)
         info(f"  {ag}: {n} teams")
 
+    # Tests create PROMOTION_EVENT tournaments — organizer_sponsor_id is required
+    # before CHECK_IN_OPEN. No API endpoint exists for this field, so we write
+    # it directly. Create a shared sponsor here and pass it to each test.
+    lc_sponsor = _db.query(Sponsor).filter(Sponsor.code == "LC-VIS-E2E").first()
+    if not lc_sponsor:
+        lc_sponsor = Sponsor(name="Lifecycle Visibility E2E Sponsor", code="LC-VIS-E2E", is_active=True)
+        _db.add(lc_sponsor)
+        _db.commit()
+        _db.refresh(lc_sponsor)
+    ok(f"Shared sponsor: id={lc_sponsor.id}  code={lc_sponsor.code!r}")
+
     # ── Run tests ──────────────────────────────────────────────────────────────
     _run_test(
         "GUARD-A: campus_id=NULL → ENROLLMENT_OPEN rejected (HTTP 400)",
@@ -1034,14 +1110,14 @@ def run():
     _run_test(
         "GUARD-D: 0 rankings → COMPLETED rejected (HTTP 400)",
         test_guard_d_rankings_required,
-        club, campus, tt_league.id, instructor,
+        club, campus, tt_league.id, instructor, lc_sponsor.id,
     )
 
     full_lc_tid = _run_test(
         "FULL-LC: DRAFT→…→REWARDS_DISTRIBUTED "
         "(visibility + DB-invariants + session-correctness + ranking-sanity at each step)",
         test_full_lifecycle_visibility,
-        club, campus, tt_league.id, instructor,
+        club, campus, tt_league.id, instructor, lc_sponsor.id,
     )
 
     _run_test(
@@ -1061,13 +1137,13 @@ def run():
         "IDEMPOTENCY: calculate-rankings × 2 → count unchanged; "
         "distribute-rewards-v2 × 2 → TournamentParticipation unchanged",
         test_idempotency,
-        club, campus, tt_league.id, instructor,
+        club, campus, tt_league.id, instructor, lc_sponsor.id,
     )
 
     _run_test(
         "PUB-STRICT: /events/{id} HTML contains name + status label + rankings at each step",
         test_public_api_strict,
-        club, campus, tt_league.id, instructor,
+        club, campus, tt_league.id, instructor, lc_sponsor.id,
     )
 
     # ── Summary ───────────────────────────────────────────────────────────────

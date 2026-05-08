@@ -393,21 +393,22 @@ class TestTransitionTournamentStatus:
 
     # ── new_status == IN_PROGRESS auto-generate ──────────────────
 
-    def test_in_progress_no_reward_config_skips_snapshot(self):
-        """reward_config=None → reward snapshot block is skipped."""
+    def test_in_progress_without_reward_config_blocks(self):
+        """reward_config=None → REWARD_CONFIG_MISSING blocks IN_PROGRESS with HTTP 400."""
         t = _tournament(reward_config=None, sessions_generated=True)
-        # INDIVIDUAL_RANKING + sessions_generated=True + count matches 1 → no regen
         q_semester = _fq(first=t)
-        q_count = _fq(count=1)     # current_session_count=1, expected=1 → no regen
-        db = _seq_db(q_semester, q_count)
+        db = _seq_db(q_semester)  # no q_count — guard raises before session count query
 
+        from fastapi import HTTPException
         with patch(_PATCH_VST, return_value=(True, None)), \
              patch(_PATCH_GNS, return_value=[]):
-            result = transition_tournament_status(
-                10, _trans_req(new_status="IN_PROGRESS"),
-                db=db, current_user=_user()
-            )
-        assert result.new_status == "IN_PROGRESS"
+            with pytest.raises(HTTPException) as exc:
+                transition_tournament_status(
+                    10, _trans_req(new_status="IN_PROGRESS"),
+                    db=db, current_user=_user()
+                )
+        assert exc.value.status_code == 400
+        assert "REWARD_CONFIG_MISSING" in exc.value.detail
 
     def test_in_progress_reward_snapshot_already_set_skips(self):
         """reward_config set but reward_policy_snapshot already set → skip snapshot."""
