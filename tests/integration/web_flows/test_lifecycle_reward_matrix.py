@@ -76,6 +76,7 @@ from app.models.team import Team, TeamMember, TournamentTeamEnrollment
 from app.models.location import Location
 from app.models.campus import Campus
 from app.models.pitch import Pitch
+from app.models.tournament_reward_config import TournamentRewardConfig
 from app.core.security import get_password_hash
 
 
@@ -197,10 +198,22 @@ def _tournament(
         number_of_rounds=1,
         parallel_fields=1,
         ranking_direction="DESC",
+        match_duration_minutes=60,   # required by readiness_validator (GAP-1 guard)
+        break_duration_minutes=10,
     ))
     db.add(GameConfiguration(
         semester_id=t.id,
         game_preset_id=preset.id,
+    ))
+    db.add(TournamentRewardConfig(
+        semester_id=t.id,
+        reward_policy_name="standard",
+        reward_config={
+            "template_name": "Standard",
+            "skill_mappings": [],
+            "first_place": {"credits": 100, "xp": 500},
+            "participation": {"credits": 10, "xp": 50},
+        },
     ))
     db.flush()
     return t
@@ -989,10 +1002,22 @@ def _ir_tournament(
         parallel_fields=1,
         ranking_direction="DESC",   # higher score = better rank
         scoring_type="SCORE_BASED",
+        match_duration_minutes=60,   # required by readiness_validator (GAP-1 guard)
+        break_duration_minutes=10,
     ))
     db.add(GameConfiguration(
         semester_id=t.id,
         game_preset_id=preset.id,
+    ))
+    db.add(TournamentRewardConfig(
+        semester_id=t.id,
+        reward_policy_name="standard",
+        reward_config={
+            "template_name": "Standard",
+            "skill_mappings": [],
+            "first_place": {"credits": 100, "xp": 500},
+            "participation": {"credits": 10, "xp": 50},
+        },
     ))
     db.flush()
     return t
