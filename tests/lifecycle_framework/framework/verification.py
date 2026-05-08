@@ -245,3 +245,257 @@ class DbVerifier:
             )
         except Exception as exc:
             result.failed.append(f"db:participation_records check raised: {exc}")
+
+
+# ── TEAM tournament verifiers ────────────────────────────────────────────────
+
+class TeamApiVerifier:
+    """API-level verification for TEAM HEAD_TO_HEAD league tournaments.
+
+    Differences from ApiVerifier:
+      - sessions: checks rounds_data.round_results instead of result_submitted
+        (TEAM sessions never set game_results, so result_submitted=False always)
+      - rankings: team_id-keyed entries — checks count >= team_count
+    """
+
+    def __init__(self, base_url: str, admin_token: str, instructor_token: str) -> None:
+        self._base = base_url
+        self._admin_h = {"Authorization": f"Bearer {admin_token}"}
+        self._instr_h = {"Authorization": f"Bearer {instructor_token}"}
+
+    def verify_team_tournament(
+        self,
+        tournament_id: int,
+        team_count: int,
+    ) -> VerificationResult:
+        result = VerificationResult()
+        self._check_tournament_status(tournament_id, result)
+        self._check_team_rankings(tournament_id, team_count, result)
+        self._check_team_sessions_completed(tournament_id, result)
+        return result
+
+    def _check_tournament_status(self, tid: int, result: VerificationResult) -> None:
+        try:
+            resp = requests.get(
+                f"{self._base}/api/v1/tournaments/{tid}",
+                headers=self._admin_h,
+                timeout=15,
+            )
+            data = require_ok(resp, "api:tournament_status")
+            status = data.get("tournament_status") or data.get("status")
+            if status == "REWARDS_DISTRIBUTED":
+                result.passed.append(f"tournament_status = {status}")
+            else:
+                result.failed.append(
+                    f"tournament_status: expected REWARDS_DISTRIBUTED, got {status!r}"
+                )
+        except Exception as exc:
+            result.failed.append(f"tournament_status check raised: {exc}")
+
+    def _check_team_rankings(
+        self, tid: int, team_count: int, result: VerificationResult
+    ) -> None:
+        try:
+            resp = requests.get(
+                f"{self._base}/api/v1/tournaments/{tid}/rankings",
+                headers=self._admin_h,
+                timeout=15,
+            )
+            data = require_ok(resp, "api:rankings")
+            rank_list = data.get("rankings", [])
+            if len(rank_list) >= team_count:
+                result.passed.append(
+                    f"team rankings: {len(rank_list)} entries (≥ teams {team_count})"
+                )
+            else:
+                result.failed.append(
+                    f"team rankings: got {len(rank_list)}, expected ≥ {team_count}"
+                )
+        except Exception as exc:
+            result.failed.append(f"team rankings check raised: {exc}")
+
+    def _check_team_sessions_completed(self, tid: int, result: VerificationResult) -> None:
+        try:
+            resp = requests.get(
+                f"{self._base}/api/v1/tournaments/{tid}/sessions",
+                headers=self._instr_h,
+                timeout=15,
+            )
+            data = require_ok(resp, "api:sessions")
+            sessions: list[dict] = data if isinstance(data, list) else data.get("sessions", [])
+            match_sessions = [s for s in sessions if s.get("is_tournament_game")]
+            completed = sum(
+                1 for s in match_sessions
+                if s.get("rounds_data") and s["rounds_data"].get("round_results")
+            )
+            if match_sessions and completed == len(match_sessions):
+                result.passed.append(
+                    f"team sessions: {completed}/{len(match_sessions)} completed "
+                    "(rounds_data.round_results present)"
+                )
+            elif not match_sessions:
+                result.failed.append("team sessions: no tournament game sessions found")
+            else:
+                result.failed.append(
+                    f"team sessions: {completed}/{len(match_sessions)} have round_results"
+                )
+        except Exception as exc:
+            result.failed.append(f"team sessions check raised: {exc}")
+
+
+class TeamDbVerifier:
+    """DB-level verification for TEAM HEAD_TO_HEAD league tournaments.
+
+    Checks:
+      1. tournament_status = REWARDS_DISTRIBUTED
+      2. reward_policy_snapshot IS NOT NULL
+      3. TournamentTeamEnrollment active count >= team_count
+      4. TournamentRanking count >= team_count
+      5. TournamentParticipation count >= member_count
+    """
+
+    def verify_team_tournament(
+        self,
+        tournament_id: int,
+        team_count: int,
+        member_count: int,
+    ) -> VerificationResult:
+        result = VerificationResult()
+        self._check_tournament_status(tournament_id, result)
+        self._check_reward_snapshot(tournament_id, result)
+        self._check_team_enrollments(tournament_id, team_count, result)
+        self._check_team_rankings(tournament_id, team_count, result)
+        self._check_participation_records(tournament_id, member_count, result)
+        return result
+
+    def _check_tournament_status(self, tid: int, result: VerificationResult) -> None:
+        try:
+            from app.database import SessionLocal
+            from app.models.semester import Semester
+
+            db = SessionLocal()
+            try:
+                t = db.query(Semester).filter(Semester.id == tid).first()
+                if t is None:
+                    result.failed.append(f"tournament {tid} not found in DB")
+                    return
+                if t.tournament_status == "REWARDS_DISTRIBUTED":
+                    result.passed.append(f"db:tournament_status = {t.tournament_status}")
+                else:
+                    result.failed.append(
+                        f"db:tournament_status: expected REWARDS_DISTRIBUTED, "
+                        f"got {t.tournament_status!r}"
+                    )
+            finally:
+                db.close()
+        except Exception as exc:
+            result.failed.append(f"db:tournament_status check raised: {exc}")
+
+    def _check_reward_snapshot(self, tid: int, result: VerificationResult) -> None:
+        try:
+            from app.database import SessionLocal
+            from app.models.semester import Semester
+
+            db = SessionLocal()
+            try:
+                t = db.query(Semester).filter(Semester.id == tid).first()
+                if t is None:
+                    return
+                if t.reward_policy_snapshot is not None:
+                    result.passed.append("db:reward_policy_snapshot IS NOT NULL")
+                else:
+                    result.failed.append(
+                        "db:reward_policy_snapshot IS NULL — SNAPSHOT_MISSING guard applies"
+                    )
+            finally:
+                db.close()
+        except Exception as exc:
+            result.failed.append(f"db:reward_policy_snapshot check raised: {exc}")
+
+    def _check_team_enrollments(
+        self, tid: int, team_count: int, result: VerificationResult
+    ) -> None:
+        try:
+            from app.database import SessionLocal
+            from app.models.team import TournamentTeamEnrollment
+
+            db = SessionLocal()
+            try:
+                count = (
+                    db.query(TournamentTeamEnrollment)
+                    .filter(
+                        TournamentTeamEnrollment.semester_id == tid,
+                        TournamentTeamEnrollment.is_active == True,  # noqa: E712
+                    )
+                    .count()
+                )
+                if count >= team_count:
+                    result.passed.append(
+                        f"db:TournamentTeamEnrollment active count = {count} (≥ teams {team_count})"
+                    )
+                else:
+                    result.failed.append(
+                        f"db:TournamentTeamEnrollment active count {count} < expected {team_count}"
+                    )
+            finally:
+                db.close()
+        except Exception as exc:
+            result.failed.append(f"db:team_enrollments check raised: {exc}")
+
+    def _check_team_rankings(
+        self, tid: int, team_count: int, result: VerificationResult
+    ) -> None:
+        try:
+            from app.database import SessionLocal
+            from app.models.tournament_ranking import TournamentRanking
+
+            db = SessionLocal()
+            try:
+                count = (
+                    db.query(TournamentRanking)
+                    .filter(TournamentRanking.tournament_id == tid)
+                    .count()
+                )
+                if count >= team_count:
+                    result.passed.append(
+                        f"db:TournamentRanking count = {count} (≥ teams {team_count})"
+                    )
+                else:
+                    result.failed.append(
+                        f"db:TournamentRanking count {count} < expected {team_count}"
+                    )
+            finally:
+                db.close()
+        except Exception as exc:
+            result.failed.append(f"db:team_rankings check raised: {exc}")
+
+    def _check_participation_records(
+        self, tid: int, member_count: int, result: VerificationResult
+    ) -> None:
+        try:
+            from app.database import SessionLocal
+            from app.models.tournament_achievement import TournamentParticipation
+
+            db = SessionLocal()
+            try:
+                count = (
+                    db.query(TournamentParticipation)
+                    .filter(TournamentParticipation.semester_id == tid)
+                    .count()
+                )
+                if count >= member_count:
+                    result.passed.append(
+                        f"db:TournamentParticipation count = {count} (≥ members {member_count})"
+                    )
+                else:
+                    result.failed.append(
+                        f"db:TournamentParticipation count {count} < expected members {member_count}"
+                    )
+            except ImportError:
+                result.failed.append(
+                    "db:TournamentParticipation not importable — verify app.models.tournament_achievement"
+                )
+            finally:
+                db.close()
+        except Exception as exc:
+            result.failed.append(f"db:participation_records check raised: {exc}")
