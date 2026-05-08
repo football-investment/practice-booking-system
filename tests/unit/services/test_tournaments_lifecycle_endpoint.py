@@ -506,7 +506,7 @@ class TestTransitionTournamentStatus:
         mock_gen.generate_sessions.assert_called_once()
 
     def test_in_progress_needs_regen_deletes_old_sessions_first(self):
-        """needs_regeneration=True, count>0 → delete old sessions then regenerate."""
+        """needs_regeneration=True, count>0 → delete old sessions then call can_generate (raises 400 if can't generate)."""
         s1 = MagicMock(); s1.id = 55
         t = _tournament(format="INDIVIDUAL_RANKING", sessions_generated=False)
         t.tournament_config_obj = MagicMock()
@@ -516,48 +516,51 @@ class TestTransitionTournamentStatus:
         q_sess_all = _fq(all_=[s1])         # for getting session ids
         q_att_del = _fq(count=1)
         q_sess_del = _fq(count=1)
-        q_enroll = _fq(all_=[])             # enrollment snapshot
 
-        db = _seq_db(q_semester, q_count, q_sess_all, q_att_del, q_sess_del, q_enroll)
+        db = _seq_db(q_semester, q_count, q_sess_all, q_att_del, q_sess_del)
 
         mock_gen = MagicMock()
         mock_gen.can_generate_sessions.return_value = (False, "Not enough players")
 
+        from fastapi import HTTPException
         with patch(_PATCH_VST, return_value=(True, None)), \
              patch(_PATCH_GNS, return_value=[]), \
              patch(_PATCH_TSG, return_value=mock_gen):
-            result = transition_tournament_status(
-                10, _trans_req(new_status="IN_PROGRESS"),
-                db=db, current_user=_user()
-            )
-        assert result.new_status == "IN_PROGRESS"
-        # generator was called with can_generate check
+            with pytest.raises(HTTPException) as exc:
+                transition_tournament_status(
+                    10, _trans_req(new_status="IN_PROGRESS"),
+                    db=db, current_user=_user()
+                )
+        assert exc.value.status_code == 400
+        assert "Cannot regenerate" in exc.value.detail
+        # deletion happened BEFORE can_generate_sessions was called
         mock_gen.can_generate_sessions.assert_called_once()
 
-    def test_in_progress_generator_fails_gracefully(self):
-        """can_generate=True but generate_sessions fails → no exception, status still set."""
+    def test_in_progress_generator_fails_raises_400(self):
+        """can_generate=True but generate_sessions fails → HTTPException 400."""
         t = _tournament(format="INDIVIDUAL_RANKING", sessions_generated=False)
         t.tournament_config_obj = MagicMock()
 
         q_semester = _fq(first=t)
         q_count = _fq(count=0)
-        q_enroll = _fq(all_=[])
 
-        db = _seq_db(q_semester, q_count, q_enroll)
+        db = _seq_db(q_semester, q_count)
 
         mock_gen = MagicMock()
         mock_gen.can_generate_sessions.return_value = (True, None)
         mock_gen.generate_sessions.return_value = (False, "Generation failed", [])
 
+        from fastapi import HTTPException
         with patch(_PATCH_VST, return_value=(True, None)), \
              patch(_PATCH_GNS, return_value=[]), \
              patch(_PATCH_TSG, return_value=mock_gen):
-            result = transition_tournament_status(
-                10, _trans_req(new_status="IN_PROGRESS"),
-                db=db, current_user=_user()
-            )
-        # Function continues even if generation fails (prints warning)
-        assert result.new_status == "IN_PROGRESS"
+            with pytest.raises(HTTPException) as exc:
+                transition_tournament_status(
+                    10, _trans_req(new_status="IN_PROGRESS"),
+                    db=db, current_user=_user()
+                )
+        assert exc.value.status_code == 400
+        assert "Session regeneration failed" in exc.value.detail
 
     def test_in_progress_needs_regen_no_config_obj_still_works(self):
         """needs_regeneration=True, tournament_config_obj=None → skip config reset."""
