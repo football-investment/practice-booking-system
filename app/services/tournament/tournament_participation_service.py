@@ -385,6 +385,7 @@ def record_tournament_participation(
     assessed_by_id: Optional[int] = None,
     team_id: Optional[int] = None,
     foot_context: str = "neutral",
+    field_size: Optional[int] = None,
 ) -> TournamentParticipation:
     """
     Record tournament participation and update player skill assessments.
@@ -451,7 +452,9 @@ def record_tournament_participation(
     # to change even though the underlying placement did not change.
     if participation.skill_rating_delta is None:
         from app.services.skill_progression_service import compute_single_tournament_skill_delta
-        rating_delta = compute_single_tournament_skill_delta(db, user_id, tournament_id) or None
+        rating_delta = compute_single_tournament_skill_delta(
+            db, user_id, tournament_id, field_size=field_size
+        ) or None
         participation.skill_rating_delta = rating_delta
     else:
         rating_delta = participation.skill_rating_delta

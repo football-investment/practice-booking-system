@@ -10,7 +10,7 @@ Layer 3 (DB helpers).
 
 Extracted from skill_progression_service.py (Layer 4).
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -177,6 +177,7 @@ def compute_single_tournament_skill_delta(
     db: Session,
     user_id: int,
     tournament_id: int,
+    field_size: Optional[int] = None,
 ) -> Dict[str, float]:
     """
     Compute the isolated V3 EMA skill delta for ONE specific tournament.
@@ -232,11 +233,20 @@ def compute_single_tournament_skill_delta(
         if not tournament_skills_with_weights:
             continue
 
+        # Hoist is_target before total_players so field_size injection can key off it.
+        _is_target_tournament = (tournament.id == tournament_id)
+
         # For TEAM tournaments: total competitive units = number of distinct team placements
         # (e.g. 3-team tournament → total=3, not 36 individual rows).
         # Using raw row count inflates total_players and collapses the percentile toward 0%,
         # causing even the last-placed team's players to receive large positive deltas.
-        if getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
+        #
+        # field_size: injected by the orchestrator at distribution-time so that the DB count
+        # (which is partial — only k of N TPs committed) is replaced by the true N computed
+        # before sequential distribution begins. Only applied to the target tournament.
+        if _is_target_tournament and field_size is not None:
+            total_players = field_size
+        elif getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
             total_players = (
                 db.query(TournamentParticipation.placement)
                 .filter(TournamentParticipation.semester_id == tournament.id)
@@ -255,7 +265,7 @@ def compute_single_tournament_skill_delta(
         opp_factor = _compute_opponent_factor(db, tournament.id, user_id, player_baseline_avg)
         match_modifier = _compute_match_performance_modifier(db, tournament.id, user_id)
 
-        is_target = (tournament.id == tournament_id)
+        is_target = _is_target_tournament
         target_delta: Dict[str, float] = {}
 
         for skill_key, skill_weight in tournament_skills_with_weights.items():

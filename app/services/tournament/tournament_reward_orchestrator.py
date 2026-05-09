@@ -307,6 +307,7 @@ def distribute_rewards_for_user(
         db, user_id, tournament_id, placement, skill_points, base_xp, credits, distributed_by,
         team_id=team_id,
         foot_context=_foot_ctx,
+        field_size=total_participants,
     )
 
     # ── Monitoring: log dominant/minor delta ratio (sampled: podium placements only) ──
