@@ -430,7 +430,7 @@ html, body {
         {% if player.nationality %}
         <div class="ex-stat-item">
             <span class="ex-stat-label">Nationality</span>
-            <span class="ex-stat-value">{{ player.nationality }}</span>
+            <span class="ex-stat-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</span>
         </div>
         {% endif %}
         <div class="ex-stat-item">

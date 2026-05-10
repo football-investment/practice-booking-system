@@ -246,7 +246,22 @@
 
             <div class="form-group">
                 <label for="nationality">🌍 Nationality</label>
-                <input type="text" id="nationality" name="nationality" value="{{ user.nationality or '' }}">
+                <select id="nationality" name="nationality">
+                    <option value="">— Select nationality —</option>
+                    {% for code, label in country_list %}
+                    <option value="{{ code }}" {% if user.nationality == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="secondary_nationality">🌍 Secondary Nationality <span style="font-weight:400;opacity:0.7;">(optional)</span></label>
+                <select id="secondary_nationality" name="secondary_nationality">
+                    <option value="">No secondary nationality</option>
+                    {% for code, label in country_list %}
+                    <option value="{{ code }}" {% if user.secondary_nationality == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="form-group">
@@ -340,6 +355,30 @@ document.addEventListener('DOMContentLoaded', function() {
             if (warning) warning.remove();
         }
     });
+
+    // Secondary nationality duplicate guard
+    const primarySel = document.getElementById('nationality');
+    const secondarySel = document.getElementById('secondary_nationality');
+    if (primarySel && secondarySel) {
+        function warnIfDuplicate() {
+            const p = primarySel.value;
+            const s = secondarySel.value;
+            let hint = secondarySel.parentElement.querySelector('.dup-hint');
+            if (p && s && p === s) {
+                if (!hint) {
+                    hint = document.createElement('small');
+                    hint.className = 'dup-hint';
+                    hint.style.cssText = 'color:#e74c3c;font-weight:600;display:block;margin-top:0.3rem;';
+                    secondarySel.parentElement.appendChild(hint);
+                }
+                hint.textContent = '⚠️ Secondary nationality must be different from primary.';
+            } else if (hint) {
+                hint.remove();
+            }
+        }
+        primarySel.addEventListener('change', warnIfDuplicate);
+        secondarySel.addEventListener('change', warnIfDuplicate);
+    }
 });
 </script>
 {% endblock %}

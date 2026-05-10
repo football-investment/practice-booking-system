@@ -570,7 +570,7 @@ body.export-mode.platform-instagram-square .skill-bar-bg {
         <div class="atl-stat-strip">
             <div class="atl-stat">
                 <div class="atl-stat-label">Nationality</div>
-                <div class="atl-stat-value">{{ player.nationality or "—" }}</div>
+                <div class="atl-stat-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</div>
             </div>
             <div class="atl-stat">
                 <div class="atl-stat-label">Age Group</div>
@@ -722,7 +722,7 @@ body.export-mode.platform-instagram-square .skill-bar-bg {
             </div>
             <div class="profile-field">
                 <div class="profile-label">Nationality</div>
-                <div class="profile-value">{{ player.nationality or "—" }}</div>
+                <div class="profile-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</div>
             </div>
             <div class="profile-field">
                 <div class="profile-label">Location</div>

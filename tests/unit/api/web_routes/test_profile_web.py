@@ -188,6 +188,9 @@ class TestProfileEditSubmit:
                 request=_req(),
                 name="Test User",
                 date_of_birth=dob_str,
+                nationality=None,
+                secondary_nationality=None,
+                gender=None,
                 db=db,
                 user=user,
             ))

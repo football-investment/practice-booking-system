@@ -486,7 +486,7 @@ html, body {
             {% if player.nationality %}
             <div class="ex-profile-row">
                 <span class="ex-profile-label">Nationality</span>
-                <span class="ex-profile-value">{{ player.nationality }}</span>
+                <span class="ex-profile-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</span>
             </div>
             {% endif %}
             {% if player_age %}

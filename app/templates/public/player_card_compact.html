@@ -258,7 +258,7 @@ body.export-mode .skill-val     { font-size: var(--ex-font-skill); }
             <span class="cmp-pos-badge" style="background: {{ pos_color }};">{{ player.position }}</span>
             {% endif %}
             <div class="cmp-meta-row">
-                {% if player.nationality %}<span>{{ player.nationality }}</span><span class="cmp-meta-sep">·</span>{% endif %}
+                {% if player.nationality %}<span>{{ player.nationality | nationalities_display(player.secondary_nationality) }}</span><span class="cmp-meta-sep">·</span>{% endif %}
                 <span>{{ player.age_group }}</span>
                 <span class="cmp-meta-sep">·</span>
                 <span>{{ player.total_tournaments }} events</span>

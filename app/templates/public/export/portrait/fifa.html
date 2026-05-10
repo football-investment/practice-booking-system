@@ -345,7 +345,7 @@ html, body {
                 {% if player.nationality %}
                 <div class="ex-meta-item">
                     <span class="ex-meta-label">Nationality</span>
-                    <span class="ex-meta-value">{{ player.nationality }}</span>
+                    <span class="ex-meta-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</span>
                 </div>
                 {% endif %}
                 <div class="ex-meta-item">

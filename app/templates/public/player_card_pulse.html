@@ -632,7 +632,7 @@ body.export-mode .pls-skill-val  { font-size: var(--ex-font-skill); }
             {% if player.nationality %}
             <div class="pls-strip-item">
                 <div class="pls-strip-label">NAT</div>
-                <div class="pls-strip-val">{{ player.nationality }}</div>
+                <div class="pls-strip-val">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</div>
             </div>
             {% endif %}
             <div class="pls-strip-item">
@@ -784,7 +784,7 @@ body.export-mode .pls-skill-val  { font-size: var(--ex-font-skill); }
             </div>
             <div class="pls-profile-field">
                 <div class="pls-field-label">NATIONALITY</div>
-                <div class="pls-field-value">{{ player.nationality or "—" }}</div>
+                <div class="pls-field-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</div>
             </div>
             <div class="pls-profile-field">
                 <div class="pls-field-label">LOCATION</div>

@@ -1009,7 +1009,7 @@ def test_invitation_code_registration_grants_credits(test_db: Session, client: T
             "password": "Test123!",
             "phone": "+36201234567",
             "date_of_birth": "2000-01-01",
-            "nationality": "Hungarian",
+            "nationality": "HU",
             "gender": "Male",
             "street_address": "Test Street 1",
             "city": "Budapest",

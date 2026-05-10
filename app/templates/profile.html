@@ -291,7 +291,7 @@
             {% if user.nationality %}
             <div class="info-row">
                 <span class="info-label">🌍 Nationality:</span>
-                <span class="info-value">{{ user.nationality }}</span>
+                <span class="info-value">{{ user.nationality | nationalities_display(user.secondary_nationality) }}</span>
             </div>
             {% endif %}
             {% if user.gender %}

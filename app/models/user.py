@@ -40,8 +40,9 @@ class User(Base):
     position = Column(String, nullable=True)  # Football position (goalkeeper, defender, midfielder, forward, coach)
 
     # 🆕 NEW: Additional profile fields
-    nationality = Column(String, nullable=True, comment="User's nationality (e.g., Hungarian, American)")
-    gender = Column(String, nullable=True, comment="User's gender (Male, Female, Other, Prefer not to say)")
+    nationality = Column(String, nullable=True, comment="Primary nationality ISO 3166-1 alpha-2 (e.g. HU, DE)")
+    secondary_nationality = Column(String, nullable=True, comment="Optional second nationality ISO 3166-1 alpha-2 (e.g. BR)")
+    gender = Column(String, nullable=True, comment="User's gender (Male, Female, Non-binary, Other)")
     current_location = Column(String, nullable=True, comment="User's current location (e.g., Budapest, Hungary)")
 
     # 🆕 NEW: Address fields for invoicing and registration

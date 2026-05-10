@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ player.name }} — LFA Player Card</title>
     <meta property="og:title" content="{{ player.name }} — LFA Player Card">
-    <meta property="og:description" content="{{ player.position }} · {{ player.nationality }} · {{ tier_label }} {{ overall }}">
+    <meta property="og:description" content="{{ player.position }} · {{ player.nationality | nationalities_display(player.secondary_nationality) }} · {{ tier_label }} {{ overall }}">
 <style>
 :root {
     --card-panel-bg: {{ theme.panel_bg if theme is defined else 'linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%)' }};
@@ -311,7 +311,7 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
             <div class="identity-grid">
                 <div class="id-field">
                     <span class="id-label">Nationality</span>
-                    <span class="id-value">{{ player.nationality or "—" }}</span>
+                    <span class="id-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</span>
                 </div>
                 <div class="id-field">
                     <span class="id-label">Age Group</span>

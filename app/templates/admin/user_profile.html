@@ -319,7 +319,7 @@
         <div class="fifa-identity-grid">
             <div class="fifa-field">
                 <span class="fifa-field-label">Nationality</span>
-                <span class="fifa-field-value">{{ target.nationality or "—" }}</span>
+                <span class="fifa-field-value">{{ target.nationality | nationalities_display(target.secondary_nationality) }}</span>
             </div>
             <div class="fifa-field">
                 <span class="fifa-field-label">Gender</span>

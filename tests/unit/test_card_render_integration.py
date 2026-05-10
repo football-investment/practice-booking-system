@@ -18,6 +18,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from app.services.card_theme_service import THEMES, get_theme
 from app.services.card_variant_service import VARIANTS, get_variant
+from app.utils.country_codes import register_filters
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "app", "templates")
 
@@ -245,7 +246,9 @@ class TestVariantRenderSmoke:
 
     @pytest.fixture(scope="class")
     def jinja_env(self):
-        return Environment(loader=FileSystemLoader(_TEMPLATES_DIR))
+        env = Environment(loader=FileSystemLoader(_TEMPLATES_DIR))
+        register_filters(env)
+        return env
 
     @pytest.mark.parametrize("variant_id", ["fifa", "compact", "showcase", "compact_bg", "showcase_bg"])
     def test_variant_renders_without_error(self, jinja_env, variant_id):
@@ -286,7 +289,9 @@ class TestThemeVariantCombinations:
 
     @pytest.fixture(scope="class")
     def jinja_env(self):
-        return Environment(loader=FileSystemLoader(_TEMPLATES_DIR))
+        env = Environment(loader=FileSystemLoader(_TEMPLATES_DIR))
+        register_filters(env)
+        return env
 
     @pytest.mark.parametrize("theme_id,variant_id", [
         (t, v)
@@ -370,7 +375,9 @@ class TestImagePipelineDOMAssertions:
 
     @pytest.fixture(scope="class")
     def jinja_env(self):
-        return Environment(loader=FileSystemLoader(_TEMPLATES_DIR))
+        env = Environment(loader=FileSystemLoader(_TEMPLATES_DIR))
+        register_filters(env)
+        return env
 
     def _ctx(self, **overrides):
         return {

@@ -579,7 +579,7 @@ html, body {
             <div class="ex-mini-grid">
                 <div class="ex-mini-item">
                     <span class="ex-mini-label">NAT.</span>
-                    <span class="ex-mini-value">{{ player.nationality if player.nationality else "—" }}</span>
+                    <span class="ex-mini-value">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</span>
                 </div>
                 <div class="ex-mini-item">
                     <span class="ex-mini-label">AGE</span>

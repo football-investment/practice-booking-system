@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ player.name }} — LFA Player Card</title>
     <meta property="og:title" content="{{ player.name }} — LFA Player Card">
-    <meta property="og:description" content="{{ player.position }} · {{ player.nationality }} · {{ tier_label }} {{ overall }}">
+    <meta property="og:description" content="{{ player.position }} · {{ player.nationality | nationalities_display(player.secondary_nationality) }} · {{ tier_label }} {{ overall }}">
 <style>
 /* ── CSS custom properties (theme defaults = "default" / Slate) ──────────── */
 :root {

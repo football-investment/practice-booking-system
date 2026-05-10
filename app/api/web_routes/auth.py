@@ -19,10 +19,12 @@ from ...models.invitation_code import InvitationCode
 from ...core.auth import create_access_token
 from ...core.security import verify_password, get_password_hash
 from ...config import settings
+from ...utils.country_codes import COUNTRY_CODES, COUNTRY_OPTIONS, register_filters
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+register_filters(templates.env)
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +255,7 @@ async def register_page(request: Request, db: Session = Depends(get_db)):
         pass
     return templates.TemplateResponse(
         "register.html",
-        {"request": request, "today": date.today().isoformat()}
+        {"request": request, "today": date.today().isoformat(), "country_list": COUNTRY_OPTIONS}
     )
 
 
@@ -268,6 +270,7 @@ async def register_submit(
     phone: str = Form(...),
     date_of_birth: str = Form(...),
     nationality: str = Form(...),
+    secondary_nationality: str = Form(None),
     gender: str = Form(...),
     street_address: str = Form(...),
     city: str = Form(...),
@@ -285,6 +288,7 @@ async def register_submit(
         "phone": phone,
         "date_of_birth": date_of_birth,
         "nationality": nationality,
+        "secondary_nationality": secondary_nationality or "",
         "gender": gender,
         "street_address": street_address,
         "city": city,
@@ -296,7 +300,7 @@ async def register_submit(
     def error(msg: str):
         return templates.TemplateResponse(
             "register.html",
-            {"request": request, "error": msg, "today": date.today().isoformat(), **form_data}
+            {"request": request, "error": msg, "today": date.today().isoformat(), "country_list": COUNTRY_OPTIONS, **form_data}
         )
 
     try:
@@ -309,8 +313,15 @@ async def register_submit(
             return error("Last name must be at least 2 characters.")
         if len(nickname.strip()) < 2:
             return error("Nickname must be at least 2 characters.")
-        if gender not in ("Male", "Female", "Other"):
+        if gender not in ("Male", "Female", "Non-binary", "Other"):
             return error("Please select a valid gender.")
+        if nationality not in COUNTRY_CODES:
+            return error("Please select a valid nationality from the list.")
+        if secondary_nationality:
+            if secondary_nationality not in COUNTRY_CODES:
+                return error("Please select a valid secondary nationality from the list.")
+            if secondary_nationality == nationality:
+                return error("Secondary nationality must be different from primary nationality.")
 
         # Parse DOB
         try:
@@ -355,6 +366,7 @@ async def register_submit(
             phone=phone.strip(),
             date_of_birth=dob,
             nationality=nationality.strip(),
+            secondary_nationality=secondary_nationality.strip() if secondary_nationality else None,
             gender=gender,
             street_address=street_address.strip(),
             city=city.strip(),

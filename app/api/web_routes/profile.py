@@ -15,12 +15,14 @@ from ...models.license import UserLicense
 from ...models.semester_enrollment import SemesterEnrollment
 from ...models.semester import Semester, SemesterStatus
 from ...utils.age_requirements import validate_specialization_for_age
+from ...utils.country_codes import COUNTRY_CODES, COUNTRY_OPTIONS, register_filters
 import logging
 import traceback
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+register_filters(templates.env)
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +154,7 @@ async def profile_edit_page(
             "request": request,
             "user": user,
             "user_age": user_age,
+            "country_list": COUNTRY_OPTIONS,
             "spec_header_class": "hdr-hub",
             "show_spec_nav": False,
         }
@@ -166,6 +169,7 @@ async def profile_edit_submit(
     date_of_birth: str = Form(...),
     phone: str = Form(None),
     nationality: str = Form(None),
+    secondary_nationality: str = Form(None),
     gender: str = Form(None),
     current_location: str = Form(None),
     emergency_contact: str = Form(None),
@@ -259,12 +263,64 @@ async def profile_edit_submit(
                     }
                 )
 
+        # Validate gender and nationality
+        if gender and gender not in ("Male", "Female", "Non-binary", "Other"):
+            return templates.TemplateResponse(
+                "profile_edit.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "error": "Please select a valid gender.",
+                    "country_list": COUNTRY_OPTIONS,
+                    "spec_header_class": "hdr-hub",
+                    "show_spec_nav": False,
+                }
+            )
+        if nationality and nationality not in COUNTRY_CODES:
+            return templates.TemplateResponse(
+                "profile_edit.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "error": "Please select a valid nationality from the list.",
+                    "country_list": COUNTRY_OPTIONS,
+                    "spec_header_class": "hdr-hub",
+                    "show_spec_nav": False,
+                }
+            )
+        if secondary_nationality:
+            if secondary_nationality not in COUNTRY_CODES:
+                return templates.TemplateResponse(
+                    "profile_edit.html",
+                    {
+                        "request": request,
+                        "user": user,
+                        "error": "Please select a valid secondary nationality from the list.",
+                        "country_list": COUNTRY_OPTIONS,
+                        "spec_header_class": "hdr-hub",
+                        "show_spec_nav": False,
+                    }
+                )
+            if secondary_nationality == nationality:
+                return templates.TemplateResponse(
+                    "profile_edit.html",
+                    {
+                        "request": request,
+                        "user": user,
+                        "error": "Secondary nationality must be different from primary nationality.",
+                        "country_list": COUNTRY_OPTIONS,
+                        "spec_header_class": "hdr-hub",
+                        "show_spec_nav": False,
+                    }
+                )
+
         # Update user profile
         user.name = name
         user.nickname = nickname if nickname else None
         user.date_of_birth = dob
         user.phone = phone if phone else None
         user.nationality = nationality if nationality else None
+        user.secondary_nationality = secondary_nationality if secondary_nationality else None
         user.gender = gender if gender else None
         user.current_location = current_location if current_location else None
         user.emergency_contact = emergency_contact if emergency_contact else None
@@ -290,6 +346,7 @@ async def profile_edit_submit(
                 "request": request,
                 "user": user,
                 "error": f"Failed to update profile: {str(e)}",
+                "country_list": COUNTRY_OPTIONS,
                 "spec_header_class": "hdr-hub",
                 "show_spec_nav": False,
             }

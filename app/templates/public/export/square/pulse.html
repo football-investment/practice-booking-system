@@ -531,7 +531,7 @@ html, body {
             {% if player.nationality %}
             <div class="pex-strip-item">
                 <div class="pex-strip-label">NAT</div>
-                <div class="pex-strip-val">{{ player.nationality }}</div>
+                <div class="pex-strip-val">{{ player.nationality | nationalities_display(player.secondary_nationality) }}</div>
             </div>
             {% endif %}
             <div class="pex-strip-item">

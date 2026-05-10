@@ -25,9 +25,11 @@ from app.models.club import Club
 from app.services import card_export_service as _export_svc
 from app.skills_config import SKILL_CATEGORIES
 from app.utils.dominant_foot import calculate_dominant_badge
+from app.utils.country_codes import register_filters as _register_country_filters
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+_register_country_filters(templates.env)
 
 _POS_COLORS = {
     "STRIKER": "#e53e3e",
