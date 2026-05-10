@@ -390,7 +390,7 @@ def transition_tournament_status(
             from app.services.tournament_session_generator import TournamentSessionGenerator
 
             generator = TournamentSessionGenerator(db)
-            can_generate, reason = generator.can_generate_sessions(tournament_id)
+            can_generate, reason = generator.can_generate_sessions(tournament_id, skip_instructor_check=True)
 
             if can_generate:
                 session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else 90
@@ -409,6 +409,7 @@ def transition_tournament_status(
                     number_of_rounds=number_of_rounds,
                     number_of_legs=number_of_legs,
                     track_home_away=track_home_away,
+                    skip_instructor_check=True,
                 )
 
                 if success:
@@ -504,7 +505,7 @@ def transition_tournament_status(
             from app.services.tournament_session_generator import TournamentSessionGenerator
 
             generator = TournamentSessionGenerator(db)
-            can_generate, reason = generator.can_generate_sessions(tournament_id)
+            can_generate, reason = generator.can_generate_sessions(tournament_id, skip_instructor_check=True)
 
             if can_generate:
                 session_duration = tournament.match_duration_minutes if tournament.match_duration_minutes else 90
@@ -523,6 +524,7 @@ def transition_tournament_status(
                     number_of_rounds=number_of_rounds,
                     number_of_legs=number_of_legs,
                     track_home_away=track_home_away,
+                    skip_instructor_check=True,
                 )
 
                 if success:
