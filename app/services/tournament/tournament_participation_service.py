@@ -451,15 +451,19 @@ def record_tournament_participation(
     # because new tournaments may have committed since the first run, causing the delta
     # to change even though the underlying placement did not change.
     if participation.skill_rating_delta is None:
-        from app.services.skill_progression_service import compute_single_tournament_skill_delta
-        # Use {} (not None) when the EMA returns no deltas (saturated skills).
-        # {} stores as a non-NULL JSONB row, marking the record as processed.
-        # `or None` would convert {} → None, making it appear unprocessed and
-        # causing distribute-rewards to skip the player on the next call.
-        rating_delta = compute_single_tournament_skill_delta(
-            db, user_id, tournament_id, field_size=field_size
-        ) or {}
-        participation.skill_rating_delta = rating_delta
+        if placement is None:
+            # Participant-only (no ranked placement) → EMA not applicable; leave NULL.
+            rating_delta = {}
+        else:
+            from app.services.skill_progression_service import compute_single_tournament_skill_delta
+            # Use {} (not None) when the EMA returns no deltas (saturated skills).
+            # {} stores as a non-NULL JSONB row, marking the record as processed.
+            # `or None` would convert {} → None, making it appear unprocessed and
+            # causing distribute-rewards to skip the player on the next call.
+            rating_delta = compute_single_tournament_skill_delta(
+                db, user_id, tournament_id, field_size=field_size
+            ) or {}
+            participation.skill_rating_delta = rating_delta
     else:
         rating_delta = participation.skill_rating_delta
 
