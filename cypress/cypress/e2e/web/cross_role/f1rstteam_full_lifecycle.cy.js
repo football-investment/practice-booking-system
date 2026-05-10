@@ -15,7 +15,7 @@
  *   Phase 6 — LFA Football Player onboarding: 6 lépéses DOM form
  *             Step 1: pozíció kártya kattintás
  *             Steps 2-5: 29 skill slider (0-100, step=5) — Streamlit parítás
- *             Step 6: célok dropdown (goals) → AJAX submit → onboarding_completed=True
+ *             Step 6: height_cm + weight_kg + preferred_foot + goals dropdown → AJAX submit → onboarding_completed=True
  *   Phase 7 — Dashboard betöltés — onboarding_completed = true ✅
  *
  * ── FUTTATÁS VIZUÁLISAN (headed, lassú) ──────────────────────────────────────
@@ -319,10 +319,17 @@ describe('F1rstTeam — Teljes Business Lifecycle (vizuális)', {
     // ── STEP 6: Célok → AJAX submit ───────────────────────────────────
     // NOTE: motivation textarea removed — Streamlit parity: csak goals dropdown,
     //       motivation="" üres stringként kerül a backendbe (Streamlit is így küldte).
-    cy.log('💬 6. lépés: Célok kiválasztása');
+    cy.log('💬 6. lépés: Fizikai adatok + Célok kiválasztása');
     cy.get('#step-6').should('be.visible');
     // Skill summary should be visible (populated by JS when navigating to step 6)
     cy.get('#skill-summary').should('be.visible').and('contain.text', '📊');
+    // P1: new required fields — height_cm, weight_kg, preferred_foot
+    cy.get('#height-cm').clear().type('178');
+    cy.wait(200);
+    cy.get('#weight-kg').clear().type('74');
+    cy.wait(200);
+    cy.get('input[name="preferred_foot"][value="right"]').check();
+    cy.wait(200);
     cy.get('#goals').select('become_professional');
     cy.wait(600);
 
