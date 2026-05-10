@@ -166,7 +166,7 @@ class TestPromotionEventEnrolledPlayersSection:
             assert resp.status_code == 200
 
             html = resp.text
-            assert 'id="section-campaign-audience-placeholder"' in html
+            assert 'id="section-campaign-audience"' in html
             assert 'id="section-checkin"' not in html
         finally:
             app.dependency_overrides.clear()
@@ -190,6 +190,6 @@ class TestNonPromotionEventEnrolledPlayersSection:
 
             html = resp.text
             assert 'id="section-checkin"' in html
-            assert 'id="section-campaign-audience-placeholder"' not in html
+            assert 'id="section-campaign-audience"' not in html
         finally:
             app.dependency_overrides.clear()
