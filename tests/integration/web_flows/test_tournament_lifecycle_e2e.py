@@ -1978,12 +1978,13 @@ class TestTeamTournamentLifecycle:
         self,
         test_db: Session,
         admin_client: TestClient,
+        admin_user: User,
     ):
         """
         TEAM-BC-01: participant_team_ids column exists but INDIVIDUAL session
         still sets participant_user_ids and leaves participant_team_ids NULL.
         """
-        t = TestMultiRoundSessionGeneration._make_ir_tournament(test_db, number_of_rounds=1)
+        t = TestMultiRoundSessionGeneration._make_ir_tournament(test_db, number_of_rounds=1, instructor_id=admin_user.id)
         players = [PlayerFactory.create_lfa_player(test_db) for _ in range(3)]
         TestMultiRoundSessionGeneration._enroll_players(test_db, t, players)
 
