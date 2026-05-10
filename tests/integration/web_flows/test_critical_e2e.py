@@ -908,6 +908,19 @@ def test_instructor_slot_duplicate_rejected(test_db: Session, client: TestClient
     instructor = _make_user(test_db, role=UserRole.INSTRUCTOR)
     tourn = _make_tournament(test_db)
 
+    # Instructor must have an active LFA_COACH UserLicense for eligibility check
+    coach_lic = UserLicense(
+        user_id=instructor.id,
+        specialization_type="LFA_COACH",
+        current_level=5,
+        max_achieved_level=5,
+        is_active=True,
+        expires_at=None,
+        started_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+    )
+    test_db.add(coach_lic)
+    test_db.flush()
+
     app.dependency_overrides[get_current_user_web] = lambda: admin
 
     # Step 1: Add instructor as MASTER → must succeed
