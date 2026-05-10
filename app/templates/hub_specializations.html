@@ -13,15 +13,15 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f7fa;
+            background: var(--hub-bg);
             min-height: 100vh;
         }
 
         /* ── Hub Header ─────────────────────────────────────────────── */
         .hub-header.site-header {
-            background: linear-gradient(135deg, #553c9a 0%, #764ba2 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            background: var(--hub-nav-bg);
+            color: var(--hub-nav-text);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -34,11 +34,12 @@
             align-items: center;
             padding: 0.85rem 1.5rem;
         }
-        .hub-brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; }
+        .hub-brand-name { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em; color: var(--hub-nav-text); }
         .hub-top-actions { display: flex; align-items: center; gap: 0.5rem; }
         .hub-credit-pill {
-            background: rgba(255,255,255,0.2);
-            border: 1.5px solid rgba(255,255,255,0.55);
+            background: var(--hub-credit-pill-bg);
+            border: 1.5px solid var(--hub-credit-pill-border);
+            color: var(--hub-nav-text);
             padding: 0.28rem 0.85rem;
             border-radius: 20px;
             font-weight: 700;
@@ -47,14 +48,14 @@
         .hub-action-btn {
             padding: 0.32rem 0.85rem;
             border-radius: 6px;
-            background: rgba(255,255,255,0.15);
-            color: white;
+            background: var(--hub-nav-btn-bg);
+            color: var(--hub-nav-text);
             text-decoration: none;
             font-size: 0.82rem;
             font-weight: 600;
             transition: background 0.15s;
         }
-        .hub-action-btn:hover { background: rgba(255,255,255,0.28); color: white; }
+        .hub-action-btn:hover { background: var(--hub-nav-btn-hover); color: var(--hub-nav-text); }
         .hub-action-logout { background: rgba(231,76,60,0.45); }
         .hub-action-logout:hover { background: rgba(231,76,60,0.75); }
 
@@ -75,41 +76,75 @@
 
         .page-title {
             font-size: 2rem;
-            color: #2d3748 !important;
+            color: var(--hub-text-primary) !important;
             margin-bottom: 1rem;
         }
 
         .page-subtitle {
-            color: #718096 !important;
+            color: var(--hub-text-muted) !important;
             font-size: 1.1rem;
             margin-bottom: 2rem;
         }
 
         .info-banner {
-            background: #e6f7ff;
-            border-left: 4px solid #1890ff;
+            background: var(--hub-info-bg);
+            border-left: 4px solid var(--hub-info-border);
             padding: 1rem 1.5rem;
             border-radius: 8px;
             margin-bottom: 2rem;
         }
 
         .info-banner p {
-            color: #0050b3 !important;
+            color: var(--hub-info-text) !important;
             margin: 0;
+        }
+
+        .info-banner.warn-banner {
+            background: var(--hub-warn-bg);
+            border-color: var(--hub-warn-border);
+        }
+
+        .info-banner.warn-banner p {
+            color: var(--hub-warn-text) !important;
+        }
+
+        .info-banner.warn-banner a {
+            color: var(--hub-warn-text) !important;
+            text-decoration: underline;
         }
 
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 2rem;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
             margin-bottom: 2rem;
         }
 
+        @media (max-width: 1023px) {
+            .cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 599px) {
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .spec-card {
+                padding: 1.5rem;
+            }
+        }
+
         .spec-card {
-            background: white;
+            background: var(--hub-card-bg);
+            border: 1px solid var(--hub-card-border);
             border-radius: 16px;
             padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-shadow: var(--hub-card-shadow);
             transition: transform 0.3s, box-shadow 0.3s;
             position: relative;
             overflow: hidden;
@@ -117,7 +152,7 @@
 
         .spec-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.14);
         }
 
         .spec-card.locked {
@@ -130,7 +165,7 @@
         }
 
         .spec-card.unlocked {
-            border: 3px solid #52c41a;
+            border: 3px solid var(--hub-unlocked-border);
         }
 
         .spec-icon {
@@ -142,20 +177,20 @@
         .spec-title {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #2d3748 !important;
+            color: var(--hub-text-primary) !important;
             text-align: center;
             margin-bottom: 0.5rem;
         }
 
         .spec-age {
             text-align: center;
-            color: #718096 !important;
+            color: var(--hub-text-muted) !important;
             font-size: 0.9rem;
             margin-bottom: 1rem;
         }
 
         .spec-description {
-            color: #4a5568 !important;
+            color: var(--hub-text-secondary) !important;
             font-size: 0.95rem;
             line-height: 1.6;
             margin-bottom: 1.5rem;
@@ -169,12 +204,12 @@
         .unlock-btn {
             width: 100%;
             padding: 1rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--hub-btn-bg);
+            color: var(--hub-btn-text);
             border: none;
             border-radius: 10px;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
             text-decoration: none;
@@ -183,11 +218,13 @@
 
         .unlock-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px var(--hub-btn-shadow);
+            color: var(--hub-btn-text);
         }
 
         .unlock-btn:disabled {
-            background: #cbd5e0;
+            background: var(--hub-btn-disabled-bg);
+            color: var(--hub-btn-disabled-text);
             cursor: not-allowed;
         }
 
@@ -196,8 +233,13 @@
             box-shadow: none;
         }
 
+        .unlock-btn.setup-btn {
+            background: var(--hub-btn-setup-bg);
+            color: var(--hub-btn-text);
+        }
+
         .unlocked-badge {
-            background: #52c41a;
+            background: #27ae60;
             color: white !important;
             padding: 0.5rem 1rem;
             border-radius: 8px;
@@ -206,8 +248,13 @@
             margin-bottom: 1rem;
         }
 
+        .unlocked-badge.setup-pending {
+            background: var(--hub-badge-age-bg);
+            color: var(--hub-btn-text) !important;
+        }
+
         .locked-badge {
-            background: #ff4d4f;
+            background: #e74c3c;
             color: white !important;
             padding: 0.5rem 1rem;
             border-radius: 8px;
@@ -217,8 +264,8 @@
         }
 
         .age-locked-badge {
-            background: #faad14;
-            color: white !important;
+            background: var(--hub-badge-age-bg);
+            color: var(--hub-btn-text) !important;
             padding: 0.5rem 1rem;
             border-radius: 8px;
             font-weight: 600;
@@ -230,8 +277,8 @@
             position: absolute;
             top: 1rem;
             right: 1rem;
-            background: #ffd700;
-            color: #2d3748 !important;
+            background: var(--hub-cost-bg);
+            color: var(--hub-cost-text) !important;
             padding: 0.5rem 1rem;
             border-radius: 8px;
             font-weight: 700;
@@ -239,15 +286,26 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
+        .spec-small-note {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--hub-text-muted);
+        }
+
+        .spec-small-note a {
+            color: var(--hub-link);
+            font-weight: 600;
+        }
+
         .footer-links {
             text-align: center;
             margin-top: 3rem;
             padding-top: 2rem;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid var(--hub-divider);
         }
 
         .footer-links a {
-            color: #667eea !important;
+            color: var(--hub-link) !important;
             text-decoration: none;
             margin: 0 1rem;
             font-weight: 600;
@@ -279,9 +337,9 @@
         <p class="page-subtitle">Unlock specializations to access training programs and semesters. Each specialization costs 100 credits.</p>
 
         {% if available_specializations|length == 0 %}
-        <div class="info-banner" style="background: #fff7e6; border-color: #faad14;">
-            <p style="color: #ad6800;">⚠️ <strong>No specializations available for your age group yet.</strong><br>
-            You can update your age in your <a href="/profile" style="color: #ad6800; text-decoration: underline;">profile settings</a> if needed.</p>
+        <div class="info-banner warn-banner">
+            <p>⚠️ <strong>No specializations available for your age group yet.</strong><br>
+            You can update your age in your <a href="/profile">profile settings</a> if needed.</p>
         </div>
         {% else %}
         <div class="info-banner">
@@ -310,21 +368,19 @@
                             🚀 Enter
                         </a>
                     {% elif spec.is_unlocked %}
-                        <div class="unlocked-badge" style="background:#ed8936;">⚙️ Setup Pending</div>
-                        <a href="/dashboard/{{ spec.type | lower | replace('_', '-') }}" class="unlock-btn" style="background:linear-gradient(135deg,#ed8936 0%,#dd6b20 100%);margin-top:0.75rem;">
+                        <div class="unlocked-badge setup-pending">⚙️ Setup Pending</div>
+                        <a href="/dashboard/{{ spec.type | lower | replace('_', '-') }}" class="unlock-btn setup-btn" style="margin-top:0.75rem;">
                             ⚙️ Continue Setup
                         </a>
                     {% elif not spec.is_available %}
                         <div class="age-locked-badge">🔒 Age Requirement Not Met</div>
-                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #718096;">
-                            {{ spec.age_requirement }}
-                        </p>
+                        <p class="spec-small-note">{{ spec.age_requirement }}</p>
                     {% elif user.credit_balance < 100 %}
                         <button class="unlock-btn" disabled>
                             ❌ Insufficient Credits (Need 100)
                         </button>
-                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #718096;">
-                            <a href="/credits" style="color: #667eea; font-weight: 600;">Purchase credits →</a>
+                        <p class="spec-small-note">
+                            <a href="/credits">Purchase credits →</a>
                         </p>
                     {% else %}
                         <form method="POST" action="/specialization/select">
