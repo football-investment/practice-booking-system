@@ -78,6 +78,19 @@ def _user(db: Session, role: UserRole = UserRole.INSTRUCTOR) -> User:
     )
     db.add(u)
     db.flush()
+    # FIELD slot assignment requires an active LFA_COACH license for INSTRUCTOR users.
+    # Use raw SQL to bypass ORM column mapping (local DB may be behind on migrations).
+    if role == UserRole.INSTRUCTOR:
+        from sqlalchemy import text
+        db.execute(text(
+            "INSERT INTO user_licenses"
+            " (user_id, specialization_type, current_level, max_achieved_level, started_at,"
+            "  payment_verified, onboarding_completed, is_active, renewal_cost,"
+            "  credit_balance, credit_purchased)"
+            " VALUES (:uid, 'LFA_COACH', 1, 1, '2025-01-01',"
+            "         TRUE, TRUE, TRUE, 0, 0, 0)"
+        ), {"uid": u.id})
+        db.flush()
     return u
 
 
