@@ -3006,7 +3006,8 @@ class TestSmoke24SessionGenWizard:
         test_db.add(camp)
         test_db.flush()
         # Session generation requires ≥1 active pitch on the campus (domain invariant)
-        test_db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
+        pitch = Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True)
+        test_db.add(pitch)
         test_db.flush()
         tourn = Semester(
             code=f"S24{suffix}-{uuid.uuid4().hex[:6]}",
@@ -3027,6 +3028,16 @@ class TestSmoke24SessionGenWizard:
         test_db.add(tourn)
         test_db.commit()
         test_db.refresh(tourn)
+        # GenerationValidator requires ≥ parallel_fields CHECKED_IN FIELD slots.
+        test_db.add(TournamentInstructorSlot(
+            semester_id=tourn.id,
+            instructor_id=admin_user.id,
+            role="FIELD",
+            status="CHECKED_IN",
+            pitch_id=pitch.id,
+            assigned_by=admin_user.id,
+        ))
+        test_db.commit()
         return tourn
 
     def _attach_preset(
