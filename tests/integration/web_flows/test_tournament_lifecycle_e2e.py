@@ -73,6 +73,7 @@ from app.models.semester_enrollment import SemesterEnrollment, EnrollmentStatus
 from app.models.location import Location, LocationType
 from app.models.campus import Campus
 from app.models.pitch import Pitch
+from app.models.tournament_instructor_slot import TournamentInstructorSlot
 from tests.factories.game_factory import PlayerFactory, TournamentFactory
 
 
@@ -1596,6 +1597,7 @@ class TestMultiRoundSessionGeneration:
     def _make_ir_tournament(
         db: Session,
         number_of_rounds: int = 1,
+        instructor_id: int = None,
     ) -> Semester:
         """IN_PROGRESS INDIVIDUAL_RANKING tournament with TournamentConfiguration.
 
@@ -1616,7 +1618,8 @@ class TestMultiRoundSessionGeneration:
         db.add(camp)
         db.flush()
         # Session generation requires ≥1 active pitch on the campus (domain invariant)
-        db.add(Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True))
+        pitch = Pitch(campus_id=camp.id, pitch_number=1, name="Pálya A", capacity=22, is_active=True)
+        db.add(pitch)
         db.flush()
 
         code = f"SESS-{uuid.uuid4().hex[:8].upper()}"
@@ -1651,6 +1654,18 @@ class TestMultiRoundSessionGeneration:
             sessions_generated=False,
         ))
         db.flush()
+
+        if instructor_id is not None:
+            db.add(TournamentInstructorSlot(
+                semester_id=t.id,
+                instructor_id=instructor_id,
+                role="FIELD",
+                status="CHECKED_IN",
+                pitch_id=pitch.id,
+                assigned_by=instructor_id,
+            ))
+            db.flush()
+
         return t
 
     @staticmethod
@@ -1674,6 +1689,7 @@ class TestMultiRoundSessionGeneration:
         self,
         test_db: Session,
         admin_client: TestClient,
+        admin_user: User,
     ):
         """
         SESS-01: number_of_rounds=3 → session has:
@@ -1684,7 +1700,7 @@ class TestMultiRoundSessionGeneration:
         Proves number_of_rounds actually controls the generated session structure
         for INDIVIDUAL_RANKING tournaments.
         """
-        t = self._make_ir_tournament(test_db, number_of_rounds=3)
+        t = self._make_ir_tournament(test_db, number_of_rounds=3, instructor_id=admin_user.id)
 
         # Enroll 4 players (well above min_players=2)
         players = [PlayerFactory.create_lfa_player(test_db) for _ in range(4)]
@@ -1738,6 +1754,7 @@ class TestMultiRoundSessionGeneration:
         self,
         test_db: Session,
         admin_client: TestClient,
+        admin_user: User,
     ):
         """
         SESS-02: number_of_rounds=1 (default) → session has:
@@ -1747,7 +1764,7 @@ class TestMultiRoundSessionGeneration:
 
         Contrast with SESS-01: single-round must NOT activate ROUNDS_BASED mode.
         """
-        t = self._make_ir_tournament(test_db, number_of_rounds=1)
+        t = self._make_ir_tournament(test_db, number_of_rounds=1, instructor_id=admin_user.id)
 
         players = [PlayerFactory.create_lfa_player(test_db) for _ in range(4)]
         self._enroll_players(test_db, t, players)
