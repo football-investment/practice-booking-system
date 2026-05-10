@@ -356,6 +356,33 @@
         </div>
 
         <div class="form-group">
+            <label for="height-cm">Height (cm) *</label>
+            <input type="number" id="height-cm" name="height_cm"
+                   min="120" max="230" placeholder="e.g. 178" required>
+        </div>
+
+        <div class="form-group">
+            <label for="weight-kg">Weight (kg) *</label>
+            <input type="number" id="weight-kg" name="weight_kg"
+                   min="35" max="160" placeholder="e.g. 75" required>
+        </div>
+
+        <div class="form-group">
+            <label>Preferred foot *</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="preferred_foot" value="right" required> Right
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="preferred_foot" value="left"> Left
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="preferred_foot" value="both"> Both
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
             <label for="goals">What is your primary goal?</label>
             <select id="goals" name="goals" required>
                 <option value="">Select your goal...</option>
@@ -475,6 +502,10 @@
         const goals  = document.getElementById('goals').value;
         const status = document.getElementById('submit-status');
 
+        const heightCm = parseInt(document.getElementById('height-cm').value, 10);
+        const weightKg = parseInt(document.getElementById('weight-kg').value, 10);
+        const preferredFootEl = document.querySelector('input[name="preferred_foot"]:checked');
+
         if (!selectedPosition) {
             status.className = 'error'; status.style.display = 'block';
             status.textContent = '❌ Please select a position in step 1!';
@@ -483,6 +514,21 @@
         if (!goals) {
             status.className = 'error'; status.style.display = 'block';
             status.textContent = '❌ Please select a goal from the dropdown!';
+            return;
+        }
+        if (isNaN(heightCm) || heightCm < 120 || heightCm > 230) {
+            status.className = 'error'; status.style.display = 'block';
+            status.textContent = '❌ Please enter a valid height (120–230 cm).';
+            return;
+        }
+        if (isNaN(weightKg) || weightKg < 35 || weightKg > 160) {
+            status.className = 'error'; status.style.display = 'block';
+            status.textContent = '❌ Please enter a valid weight (35–160 kg).';
+            return;
+        }
+        if (!preferredFootEl) {
+            status.className = 'error'; status.style.display = 'block';
+            status.textContent = '❌ Please select your preferred foot.';
             return;
         }
 
@@ -508,7 +554,16 @@
                 },
                 credentials: 'include',
                 // motivation: "" — Streamlit parity: goals dropdown only, no free text
-                body: JSON.stringify({ position: selectedPosition, goals, motivation: '', skills, foot_dominance: footDominance }),
+                body: JSON.stringify({
+                    position: selectedPosition,
+                    goals,
+                    motivation: '',
+                    skills,
+                    foot_dominance: footDominance,
+                    height_cm:      heightCm,
+                    weight_kg:      weightKg,
+                    preferred_foot: preferredFootEl.value,
+                }),
             });
 
             const data = await response.json();

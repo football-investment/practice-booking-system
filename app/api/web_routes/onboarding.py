@@ -229,6 +229,9 @@ async def lfa_player_onboarding_web_submit(
         skills        = body.get("skills", {})
         # foot_dominance: 0 = fully left, 50 = balanced, 100 = fully right. Default: 50.
         foot_dominance = body.get("foot_dominance", 50)
+        height_cm      = body.get("height_cm")
+        weight_kg      = body.get("weight_kg")
+        preferred_foot = body.get("preferred_foot")
 
         logger.info("onboarding_submit_received", extra={"user": user.email, "skill_count": len(skills)})
 
@@ -236,6 +239,32 @@ async def lfa_player_onboarding_web_submit(
         valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
         if position not in valid_positions:
             return JSONResponse(status_code=400, content={"error": f"Invalid position: {position}"})
+
+        # Validate height_cm
+        if height_cm is None:
+            return JSONResponse(status_code=422, content={"error": "height_cm is required"})
+        try:
+            height_cm = int(height_cm)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=422, content={"error": "height_cm must be an integer"})
+        if not (120 <= height_cm <= 230):
+            return JSONResponse(status_code=422, content={"error": "height_cm must be 120–230"})
+
+        # Validate weight_kg
+        if weight_kg is None:
+            return JSONResponse(status_code=422, content={"error": "weight_kg is required"})
+        try:
+            weight_kg = int(weight_kg)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=422, content={"error": "weight_kg must be an integer"})
+        if not (35 <= weight_kg <= 160):
+            return JSONResponse(status_code=422, content={"error": "weight_kg must be 35–160"})
+
+        # Validate preferred_foot
+        if preferred_foot is None:
+            return JSONResponse(status_code=422, content={"error": "preferred_foot is required"})
+        if preferred_foot not in ("left", "right", "both"):
+            return JSONResponse(status_code=422, content={"error": "preferred_foot must be left|right|both"})
 
         # Validate foot_dominance
         try:
@@ -297,6 +326,9 @@ async def lfa_player_onboarding_web_submit(
             "motivation":            motivation,
             "average_skill_level":   round(average_skill, 1),
             "onboarding_completed_at": datetime.now(timezone.utc).isoformat(),
+            "height_cm":             height_cm,
+            "weight_kg":             weight_kg,
+            "preferred_foot":        preferred_foot,
         }
         license.average_motivation_score  = average_skill
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
@@ -393,6 +425,11 @@ async def lfa_player_onboarding_submit(
         skills        = body.get("skills", {})  # NEW: All 36 skills, 0-100 scale
         # foot_dominance: 0 = fully left, 50 = balanced, 100 = fully right. Default: 50.
         foot_dominance = body.get("foot_dominance", 50)
+        # Optional physical fields — accepted here for parity with web handler.
+        # Defaults used for legacy API callers that pre-date P1.
+        height_cm      = body.get("height_cm", 175)
+        weight_kg      = body.get("weight_kg", 72)
+        preferred_foot = body.get("preferred_foot", "right")
 
         logger.info("onboarding_full_submit_received", extra={"user": user.email, "skill_count": len(skills)})
 
@@ -455,11 +492,14 @@ async def lfa_player_onboarding_submit(
         # Store metadata in motivation_scores for backward compatibility
         average_skill = sum(skills.values()) / len(skills) if skills else SYSTEM_BASELINE
         license.motivation_scores = {
-            "position": position,
-            "goals": goals,
-            "motivation": motivation,
-            "average_skill_level": round(average_skill, 1),
-            "onboarding_completed_at": datetime.now(timezone.utc).isoformat()
+            "position":              position,
+            "goals":                 goals,
+            "motivation":            motivation,
+            "average_skill_level":   round(average_skill, 1),
+            "onboarding_completed_at": datetime.now(timezone.utc).isoformat(),
+            "height_cm":             height_cm,
+            "weight_kg":             weight_kg,
+            "preferred_foot":        preferred_foot,
         }
         license.average_motivation_score = average_skill
         license.motivation_last_assessed_at = datetime.now(timezone.utc)

@@ -49,7 +49,19 @@ def complete_lfa_player_onboarding(
 
     The football_skills dict must already be in rich format
     (keys = all 29 skill keys, values = dicts with baseline/current_level/…).
+
+    Completion gate: license.motivation_scores must contain height_cm, weight_kg,
+    and preferred_foot before onboarding_completed can be set to True.
+    The caller (handler) validates these before calling this function; this guard
+    is defence-in-depth for direct service calls (e.g. admin utilities, tests).
     """
+    ms = license.motivation_scores or {}
+    missing = [k for k in ("height_cm", "weight_kg", "preferred_foot") if not ms.get(k)]
+    if missing:
+        raise ValueError(
+            f"Cannot complete onboarding: motivation_scores missing required field(s): {missing}"
+        )
+
     now = datetime.now(timezone.utc)
     license.football_skills = football_skills
     license.onboarding_completed = True

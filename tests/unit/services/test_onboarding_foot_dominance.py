@@ -73,6 +73,9 @@ class TestOnboardingWebFootDominance:
             "goals":         "improve_skills",
             "motivation":    "",
             "skills":        _valid_skills(),
+            "height_cm":     175,
+            "weight_kg":     72,
+            "preferred_foot": "right",
         }
         if foot_dominance is not None:
             body["foot_dominance"] = foot_dominance
