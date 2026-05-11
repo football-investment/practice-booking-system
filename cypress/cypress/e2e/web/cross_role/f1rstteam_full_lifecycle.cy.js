@@ -257,7 +257,7 @@ describe('F1rstTeam — Teljes Business Lifecycle (vizuális)', {
 
     // ── STEP 1: Pozíció — Striker ──────────────────────────────────────
     cy.log('🎯 1. lépés: Pozíció — Striker');
-    cy.get('.position-card[data-position="STRIKER"]').click();
+    cy.get('.position-card[data-value="striker"]').click();
     cy.wait(600);
     cy.get('#btn-step1-next').should('not.be.disabled').click();
     cy.wait(700);

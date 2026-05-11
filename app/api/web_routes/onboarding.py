@@ -18,6 +18,7 @@ from ...models.license import UserLicense
 from ...models.specialization import SpecializationType
 from ...models.credit_transaction import CreditTransaction, TransactionType
 from ...utils.age_requirements import get_available_specializations
+from ...utils.football_positions import normalize_position, normalize_positions, VALID_POSITION_VALUES
 from ...skills_config import SKILL_CATEGORIES, get_all_skill_keys
 from ...services.skill_progression import SYSTEM_BASELINE
 import logging
@@ -223,10 +224,11 @@ async def lfa_player_onboarding_web_submit(
     try:
         body = await request.json()
 
-        position      = body.get("position", "")
-        goals         = body.get("goals", "")
-        motivation    = body.get("motivation", "")
-        skills        = body.get("skills", {})
+        raw_position   = body.get("position", "")
+        raw_positions  = body.get("positions", [])   # full list: [primary, ...secondaries]
+        goals          = body.get("goals", "")
+        motivation     = body.get("motivation", "")
+        skills         = body.get("skills", {})
         # foot_dominance: 0 = fully left, 50 = balanced, 100 = fully right. Default: 50.
         foot_dominance = body.get("foot_dominance", 50)
         height_cm      = body.get("height_cm")
@@ -235,10 +237,21 @@ async def lfa_player_onboarding_web_submit(
 
         logger.info("onboarding_submit_received", extra={"user": user.email, "skill_count": len(skills)})
 
-        # Validate position
-        valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
-        if position not in valid_positions:
-            return JSONResponse(status_code=400, content={"error": f"Invalid position: {position}"})
+        # Validate primary position
+        position = normalize_position(raw_position)
+        if not position:
+            return JSONResponse(status_code=400, content={"error": f"Invalid position: {raw_position!r}"})
+
+        # Validate positions list (primary + secondaries)
+        if not raw_positions:
+            raw_positions = [raw_position]
+        if not isinstance(raw_positions, list) or len(raw_positions) > 4:
+            return JSONResponse(status_code=400, content={"error": "positions must be a list of 1–4 values"})
+        positions = normalize_positions(raw_positions)
+        if positions is None:
+            return JSONResponse(status_code=400, content={"error": f"Invalid value in positions list: {raw_positions}"})
+        if positions[0] != position:
+            return JSONResponse(status_code=400, content={"error": "positions[0] must match the primary position field"})
 
         # Validate height_cm
         if height_cm is None:
@@ -321,7 +334,8 @@ async def lfa_player_onboarding_web_submit(
         license.right_foot_score     = foot_dominance
         license.left_foot_score      = 100.0 - foot_dominance
         license.motivation_scores    = {
-            "position":              position,
+            "position":              position,           # primary (snake_case)
+            "positions":             positions,          # [primary, ...secondaries]
             "goals":                 goals,
             "motivation":            motivation,
             "average_skill_level":   round(average_skill, 1),
@@ -333,6 +347,9 @@ async def lfa_player_onboarding_web_submit(
         license.average_motivation_score  = average_skill
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
         license.motivation_assessed_by    = user.id
+
+        # Update user's primary position (snake_case canonical value)
+        user.position = position
 
         # Mark onboarding complete via unified service
         from ...services.onboarding_service import complete_lfa_player_onboarding
@@ -346,7 +363,7 @@ async def lfa_player_onboarding_web_submit(
         db.refresh(user)
         db.refresh(license)
 
-        logger.info("onboarding_complete", extra={"user": user.email, "position": position, "skill_count": len(skills), "avg_skill": round(average_skill, 1), "foot_dominance": foot_dominance})
+        logger.info("onboarding_complete", extra={"user": user.email, "position": position, "positions": positions, "skill_count": len(skills), "avg_skill": round(average_skill, 1), "foot_dominance": foot_dominance})
 
         return {"success": True, "redirect": "/dashboard/lfa-football-player"}
 
@@ -420,10 +437,11 @@ async def lfa_player_onboarding_submit(
         body = await request.json()
 
         # Get form data
-        position      = body.get("position")
-        goals         = body.get("goals", "")
-        motivation    = body.get("motivation", "")
-        skills        = body.get("skills", {})  # NEW: All 36 skills, 0-100 scale
+        raw_position   = body.get("position")
+        raw_positions  = body.get("positions", [])  # full list; legacy callers may omit this
+        goals          = body.get("goals", "")
+        motivation     = body.get("motivation", "")
+        skills         = body.get("skills", {})  # All skills, 0-100 scale
         # foot_dominance: 0 = fully left, 50 = balanced, 100 = fully right. Default: 50.
         foot_dominance = body.get("foot_dominance", 50)
         # Optional physical fields — accepted here for parity with web handler.
@@ -434,10 +452,21 @@ async def lfa_player_onboarding_submit(
 
         logger.info("onboarding_full_submit_received", extra={"user": user.email, "skill_count": len(skills)})
 
-        # Validate position
-        valid_positions = ["STRIKER", "MIDFIELDER", "DEFENDER", "GOALKEEPER"]
-        if position not in valid_positions:
-            raise ValueError(f"Invalid position: {position}")
+        # Validate primary position (accepts legacy UPPERCASE or canonical snake_case)
+        position = normalize_position(raw_position or "")
+        if not position:
+            raise ValueError(f"Invalid position: {raw_position!r}")
+
+        # Validate positions list — legacy callers may only send `position`
+        if not raw_positions:
+            raw_positions = [raw_position]
+        if not isinstance(raw_positions, list) or len(raw_positions) > 4:
+            raise ValueError("positions must be a list of 1–4 values")
+        positions = normalize_positions(raw_positions)
+        if positions is None:
+            raise ValueError(f"Invalid value in positions list: {raw_positions}")
+        if positions[0] != position:
+            raise ValueError("positions[0] must match the primary position field")
 
         # Validate foot_dominance
         try:
@@ -490,10 +519,10 @@ async def lfa_player_onboarding_submit(
         license.right_foot_score = foot_dominance
         license.left_foot_score  = 100.0 - foot_dominance
 
-        # Store metadata in motivation_scores for backward compatibility
         average_skill = sum(skills.values()) / len(skills) if skills else SYSTEM_BASELINE
         license.motivation_scores = {
-            "position":              position,
+            "position":              position,           # primary (snake_case)
+            "positions":             positions,          # [primary, ...secondaries]
             "goals":                 goals,
             "motivation":            motivation,
             "average_skill_level":   round(average_skill, 1),
@@ -505,6 +534,9 @@ async def lfa_player_onboarding_submit(
         license.average_motivation_score = average_skill
         license.motivation_last_assessed_at = datetime.now(timezone.utc)
         license.motivation_assessed_by = user.id
+
+        # Update user's primary position (snake_case canonical value)
+        user.position = position
 
         # Mark onboarding as completed via unified service
         from ...services.onboarding_service import complete_lfa_player_onboarding
@@ -519,7 +551,7 @@ async def lfa_player_onboarding_submit(
         db.refresh(user)
         db.refresh(license)
 
-        logger.info("onboarding_full_complete", extra={"user": user.email, "position": position, "skill_count": len(skills), "avg_skill": round(average_skill, 1)})
+        logger.info("onboarding_full_complete", extra={"user": user.email, "position": position, "positions": positions, "skill_count": len(skills), "avg_skill": round(average_skill, 1)})
 
         # Return JSON response for Streamlit API call
         return {"success": True, "message": "Onboarding completed successfully"}
