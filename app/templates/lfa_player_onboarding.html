@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LFA Football Player Onboarding | LFA Practice Booking</title>
+    <link rel="stylesheet" href="/static/css/theme.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--onboarding-bg);
             min-height: 100vh;
             display: flex;
             align-items: flex-start;
@@ -18,9 +19,10 @@
         }
 
         .container {
-            background: white;
+            background: var(--onboarding-card-bg);
+            border: 1px solid var(--onboarding-card-border);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: var(--onboarding-card-shadow);
             max-width: 820px;
             width: 100%;
             overflow: hidden;
@@ -28,13 +30,13 @@
 
         /* ── Header ── */
         .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-            color: white;
+            background: var(--onboarding-header-bg);
+            color: var(--onboarding-header-text);
             padding: 2rem;
             text-align: center;
         }
-        .header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
-        .header p  { opacity: 0.85; font-size: 0.95rem; }
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; color: var(--onboarding-header-text); }
+        .header p  { color: var(--onboarding-header-sub); font-size: 0.95rem; }
 
         /* ── Progress bar ── */
         .progress-section {
@@ -48,22 +50,22 @@
         .step-dot {
             width: 32px; height: 32px;
             border-radius: 50%;
-            background: #e0e0e0;
+            background: var(--onboarding-step-inactive);
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.75rem; font-weight: 700; color: #888;
+            font-size: 0.75rem; font-weight: 700; color: var(--onboarding-step-inactive-text);
             transition: all 0.3s;
         }
-        .step-dot.active   { background: #667eea; color: white; }
-        .step-dot.complete { background: #27ae60; color: white; }
+        .step-dot.active   { background: var(--onboarding-step-active);   color: var(--onboarding-step-active-text); }
+        .step-dot.complete { background: var(--onboarding-step-complete);  color: var(--onboarding-step-complete-text); }
         .progress-bar-bg {
-            height: 6px; background: #e0e0e0; border-radius: 3px; margin-bottom: 0.4rem;
+            height: 6px; background: var(--onboarding-progress-track); border-radius: 3px; margin-bottom: 0.4rem;
         }
         .progress-bar-fill {
-            height: 100%; background: #667eea; border-radius: 3px;
+            height: 100%; background: var(--onboarding-progress); border-radius: 3px;
             transition: width 0.4s ease;
         }
         .progress-label {
-            text-align: center; font-size: 0.8rem; color: #888; margin-bottom: 1rem;
+            text-align: center; font-size: 0.8rem; color: var(--onboarding-text-muted); margin-bottom: 1rem;
         }
 
         /* ── Step panels ── */
@@ -72,14 +74,14 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
         .step-title {
-            font-size: 1.25rem; font-weight: 700; color: #2c3e50;
+            font-size: 1.25rem; font-weight: 700; color: var(--onboarding-text-primary);
             margin-bottom: 0.4rem;
         }
         .step-subtitle {
-            color: #666; font-size: 0.9rem; margin-bottom: 1.5rem;
+            color: var(--onboarding-text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;
         }
 
-        /* ── Position cards (Step 1) ── */
+        /* ── Position cards (Step 1) — rebuilt in Phase 2; minimal placeholder here ── */
         .position-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -89,50 +91,51 @@
         @media (min-width: 500px) { .position-grid { grid-template-columns: repeat(4, 1fr); } }
 
         .position-card {
-            border: 2px solid #e0e0e0;
+            border: 2px solid var(--onboarding-option-border);
             border-radius: 12px;
             padding: 1.2rem 0.8rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
+            background: var(--onboarding-option-bg);
             user-select: none;
         }
-        .position-card:hover    { border-color: #667eea; background: #f0f3ff; }
-        .position-card.selected { border-color: #667eea; background: #667eea; color: white; }
+        .position-card:hover    { border-color: var(--onboarding-option-hover-border); background: var(--onboarding-option-hover-bg); }
+        .position-card.selected { border-color: var(--onboarding-option-selected-border); background: var(--onboarding-option-selected-bg); color: var(--onboarding-option-selected-text); }
         .position-icon { font-size: 2rem; margin-bottom: 0.4rem; }
         .position-name { font-weight: 700; font-size: 0.9rem; }
         .position-desc { font-size: 0.75rem; opacity: 0.7; margin-top: 0.2rem; }
 
         /* ── Foot dominance slider (Step 6) ── */
         .foot-slider-wrap {
-            border: 1px solid #e8eaf6;
+            border: 1px solid var(--onboarding-foot-border);
             border-radius: 12px;
             padding: 1.2rem 1.2rem 1rem;
-            background: #f7f8ff;
+            background: var(--onboarding-foot-bg);
             margin-bottom: 1.2rem;
         }
         .foot-slider-title {
-            font-weight: 700; font-size: 0.95rem; color: #2c3e50; margin-bottom: 0.3rem;
+            font-weight: 700; font-size: 0.95rem; color: var(--onboarding-text-primary); margin-bottom: 0.3rem;
         }
         .foot-slider-subtitle {
-            font-size: 0.8rem; color: #7f8c8d; margin-bottom: 1rem;
+            font-size: 0.8rem; color: var(--onboarding-text-muted); margin-bottom: 1rem;
         }
         .foot-labels {
             display: flex; justify-content: space-between;
-            font-size: 0.78rem; font-weight: 600; color: #667eea; margin-top: 0.4rem;
+            font-size: 0.78rem; font-weight: 600; color: var(--onboarding-foot-label); margin-top: 0.4rem;
         }
         .foot-value-display {
             text-align: center; font-size: 0.9rem; font-weight: 700;
-            color: #667eea; margin-top: 0.5rem; min-height: 1.4em;
+            color: var(--onboarding-foot-value); margin-top: 0.5rem; min-height: 1.4em;
         }
 
         /* ── Skill sliders (Steps 2-5) ── */
         .skill-item {
-            border: 1px solid #f0f0f0;
+            border: 1px solid var(--onboarding-skill-item-border);
             border-radius: 10px;
             padding: 0.9rem 1rem;
             margin-bottom: 0.8rem;
-            background: #fafafa;
+            background: var(--onboarding-skill-item-bg);
         }
         .skill-header {
             display: flex;
@@ -140,29 +143,29 @@
             align-items: center;
             margin-bottom: 0.5rem;
         }
-        .skill-name  { font-weight: 600; font-size: 0.9rem; color: #2c3e50; }
+        .skill-name  { font-weight: 600; font-size: 0.9rem; color: var(--onboarding-skill-name); }
         .skill-value {
-            font-weight: 700; font-size: 1rem; color: #667eea;
+            font-weight: 700; font-size: 1rem; color: var(--onboarding-skill-value);
             min-width: 42px; text-align: right;
         }
 
         input[type="range"] {
             width: 100%; height: 6px;
             -webkit-appearance: none; appearance: none;
-            background: #e0e0e0; border-radius: 3px; outline: none; cursor: pointer;
+            background: var(--onboarding-skill-track-bg); border-radius: 3px; outline: none; cursor: pointer;
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 20px; height: 20px;
             border-radius: 50%;
-            background: #667eea;
+            background: var(--onboarding-skill-thumb);
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(102,126,234,0.5);
+            box-shadow: 0 2px 6px var(--onboarding-skill-thumb-shadow);
         }
         input[type="range"]::-moz-range-thumb {
             width: 20px; height: 20px;
             border-radius: 50%;
-            background: #667eea;
+            background: var(--onboarding-skill-thumb);
             cursor: pointer; border: none;
         }
 
@@ -170,35 +173,42 @@
         .form-group { margin-bottom: 1.2rem; }
         .form-group label {
             display: block; font-weight: 600; font-size: 0.9rem;
-            color: #2c3e50; margin-bottom: 0.4rem;
+            color: var(--onboarding-text-primary); margin-bottom: 0.4rem;
         }
-        .form-group select {
-            width: 100%; padding: 0.8rem; border: 2px solid #e0e0e0;
+        .form-group select, .form-group input[type="number"] {
+            width: 100%; padding: 0.8rem; border: 2px solid var(--onboarding-input-border);
             border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+            background: var(--onboarding-option-bg); color: var(--onboarding-text-primary);
             transition: border-color 0.2s; outline: none;
         }
-        .form-group select:focus { border-color: #667eea; }
+        .form-group select:focus,
+        .form-group input[type="number"]:focus { border-color: var(--onboarding-input-focus); }
+
+        /* ── Radio group ── */
+        .radio-group { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+        .radio-label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer;
+                       font-size: 0.95rem; color: var(--onboarding-text-primary); }
 
         /* ── Skill Summary (Step 6) ── */
         .skill-summary {
-            background: #f8f9ff;
-            border: 1px solid #dee2ff;
+            background: var(--onboarding-summary-bg);
+            border: 1px solid var(--onboarding-summary-border);
             border-radius: 10px;
             padding: 1rem 1.2rem;
             margin-bottom: 1.5rem;
         }
         .summary-title {
-            font-weight: 700; font-size: 0.95rem; color: #2c3e50; margin-bottom: 0.7rem;
+            font-weight: 700; font-size: 0.95rem; color: var(--onboarding-summary-text); margin-bottom: 0.7rem;
         }
         .summary-row {
             display: flex; justify-content: space-between;
-            font-size: 0.88rem; color: #555; padding: 0.22rem 0;
+            font-size: 0.88rem; color: var(--onboarding-text-muted); padding: 0.22rem 0;
         }
-        .summary-avg { font-weight: 600; color: #667eea; }
+        .summary-avg { font-weight: 600; color: var(--onboarding-summary-avg); }
         .summary-overall {
             margin-top: 0.7rem; padding-top: 0.7rem;
-            border-top: 1px solid #dee2ff;
-            font-size: 0.9rem; color: #2c3e50;
+            border-top: 1px solid var(--onboarding-summary-border);
+            font-size: 0.9rem; color: var(--onboarding-summary-text);
             text-align: right;
         }
 
@@ -217,13 +227,13 @@
             font-size: 0.95rem; font-weight: 600;
             transition: all 0.2s;
         }
-        .btn-primary  { background: #667eea; color: white; }
-        .btn-primary:hover  { background: #5a71d6; }
-        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-secondary { background: #f0f3ff; color: #667eea; border: 2px solid #667eea; }
-        .btn-secondary:hover { background: #e0e8ff; }
-        .btn-danger   { background: #fff0f0; color: #e74c3c; border: 2px solid #e74c3c; }
-        .btn-danger:hover { background: #ffe0e0; }
+        .btn-primary  { background: var(--onboarding-btn-primary-bg); color: var(--onboarding-btn-primary-text); border: none; }
+        .btn-primary:hover  { background: var(--onboarding-btn-primary-hover); }
+        .btn-primary:disabled { background: var(--onboarding-btn-disabled-bg); color: var(--onboarding-btn-disabled-text); cursor: not-allowed; }
+        .btn-secondary { background: var(--onboarding-btn-secondary-bg); color: var(--onboarding-btn-secondary-text); border: 2px solid var(--onboarding-btn-secondary-border); }
+        .btn-secondary:hover { filter: brightness(0.96); }
+        .btn-danger   { background: var(--onboarding-danger-bg); color: var(--onboarding-danger-text); border: 2px solid var(--onboarding-danger-border); }
+        .btn-danger:hover { background: var(--onboarding-danger-hover-bg); }
 
         /* ── Submit status ── */
         #submit-status {
@@ -233,8 +243,8 @@
             display: none;
             font-weight: 600;
         }
-        #submit-status.error   { background: #ffe8e8; color: #e74c3c; border: 1px solid #f5c6c6; }
-        #submit-status.loading { background: #f0f3ff; color: #667eea; border: 1px solid #c5d0f5; }
+        #submit-status.error   { background: var(--onboarding-status-error-bg);   color: var(--onboarding-status-error-text);   border: 1px solid var(--onboarding-status-error-border); }
+        #submit-status.loading { background: var(--onboarding-status-loading-bg); color: var(--onboarding-status-loading-text); border: 1px solid var(--onboarding-status-loading-border); }
     </style>
 </head>
 <body>
