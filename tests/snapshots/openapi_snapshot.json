@@ -59816,8 +59816,36 @@
     },
     "/profile/onboarding-card": {
       "get": {
-        "description": "Welcome Card \u2014 private self-assessment preview (Phase C).\n\nData source: football_skills[*].self_assessment ONLY.\nNEVER reads current_level, baseline, system_baseline, tournament_delta,\nassessment_delta, or any EMA output.\n\nAuth: own card only (get_current_user_web enforces login; ownership is\nimplicit because we query by user.id).\nVisibility: private, no-index (meta tag in template).",
+        "description": "Welcome Card preview \u2014 private self-assessment view.\n\nData source: football_skills[*].self_assessment ONLY.\nNEVER reads current_level, baseline, system_baseline, tournament_delta,\nassessment_delta, or any EMA output.\n\nWithout ?platform=: renders the gallery hub (iframe + download buttons).\nWith ?platform=X:   renders the FIFA Classic card for that platform size.\nWith ?export=1:     switches the FIFA template to export-mode (Playwright use).\n\nAuth: own card only (get_current_user_web enforces login; ownership is\nimplicit because we query by user.id).\nVisibility: private, no-index (meta tag in template).",
         "operationId": "onboarding_welcome_card_profile_onboarding_card_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Platform"
+            }
+          },
+          {
+            "in": "query",
+            "name": "export",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Export",
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -59828,9 +59856,61 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Onboarding Welcome Card",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/profile/onboarding-card/export": {
+      "get": {
+        "description": "Export the Welcome Card as a PNG at a social-media canvas size.\n\nAuth: own card only. Rate limit: 5 exports per 60 s per user+IP.\nData source: self_assessment only (same contract as the preview route).",
+        "operationId": "export_onboarding_welcome_card_profile_onboarding_card_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "default": "instagram_square",
+              "title": "Platform",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Onboarding Welcome Card",
         "tags": [
           "web"
         ]
