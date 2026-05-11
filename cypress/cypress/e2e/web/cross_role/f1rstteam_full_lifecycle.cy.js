@@ -12,10 +12,11 @@
  *   Phase 4 — Bonus invitation code beváltása /credits oldalon (DOM)
  *   Phase 5 — Specialization hub megtekintése → LFA Football Player unlock gomb (DOM form)
  *             POST /specialization/select → cookie auth ✅ → redirect onboarding oldalra
- *   Phase 6 — LFA Football Player onboarding: 6 lépéses DOM form
+ *   Phase 6 — LFA Football Player onboarding: 7 lépéses DOM form
  *             Step 1: pozíció kártya kattintás
- *             Steps 2-5: 29 skill slider (0-100, step=5) — Streamlit parítás
+ *             Steps 2-5: 44 skill slider (0-100, step=5) — Streamlit parítás
  *             Step 6: height_cm + weight_kg + preferred_foot + goals dropdown → AJAX submit → onboarding_completed=True
+ *             Step 7: success screen → "Continue to Dashboard" gomb kattintás (Phase B, nincs auto-redirect)
  *   Phase 7 — Dashboard betöltés — onboarding_completed = true ✅
  *
  * ── FUTTATÁS VIZUÁLISAN (headed, lassú) ──────────────────────────────────────
@@ -44,7 +45,7 @@ describe('F1rstTeam — Teljes Business Lifecycle (vizuális)', {
     cy.setupCsrf();
   });
 
-  it('F1RST-LIFE: admin invite → regisztráció → bonus kredit → unlock (DOM) → onboarding (29 skill) → dashboard', () => {
+  it('F1RST-LIFE: admin invite → regisztráció → bonus kredit → unlock (DOM) → onboarding (44 skill) → step-7 → dashboard', () => {
 
     cy.resetDb('baseline');
 
@@ -250,7 +251,7 @@ describe('F1rstTeam — Teljes Business Lifecycle (vizuális)', {
     // FIX: A korábbi teszt 6 wrong-key skill-t küldött 0-10 skálán.
     //      Most a teljes 29 skill DOM slider-ből, 0-100 skálán, AJAX submit.
     // ═════════════════════════════════════════════════════════════════════
-    cy.log('═══ PHASE 6 — LFA Football Player onboarding (6 lépés, 29 skill) ═══');
+    cy.log('═══ PHASE 6 — LFA Football Player onboarding (7 lépés, 44 skill) ═══');
 
     // Az oldal már betöltve (redirect Phase 5-ből). Ellenőrzés:
     cy.get('.position-card').should('be.visible');
@@ -334,15 +335,22 @@ describe('F1rstTeam — Teljes Business Lifecycle (vizuális)', {
     cy.wait(600);
 
     // AJAX fetch → POST /specialization/lfa-player/onboarding-web
-    // (cookie auth ✅, X-CSRF-Token ✅, 29 skill JSON ✅)
-    cy.log('🚀 Onboarding AJAX submit (29 skill, cookie auth)');
+    // (cookie auth ✅, X-CSRF-Token ✅, 44 skill JSON ✅)
+    // Phase B: nincs auto-redirect — goTo(7) hívódik, step-7 success screen jelenik meg
+    cy.log('🚀 Onboarding AJAX submit (44 skill, cookie auth)');
     cy.get('#btn-submit').click();
 
-    // Sikeres submit → #submit-status zöld → window.location.href = /dashboard
+    // Phase B: step-7 success screen jelenik meg, NEM redirect /dashboard-ra
+    cy.get('#step-7', { timeout: 15000 }).should('be.visible');
+    cy.get('body').should('not.contain.text', 'Internal Server Error');
+    cy.log('✅ Onboarding kész — step-7 success screen látható');
+
+    // "⚽ Continue to Dashboard" gomb → /dashboard/lfa-football-player
+    cy.get('#btn-go-dashboard').click();
     cy.url().should('include', '/dashboard', { timeout: 10000 });
     cy.get('body').should('not.contain.text', 'Internal Server Error');
     cy.wait(1500);
-    cy.log('✅ Onboarding kész — redirect /dashboard');
+    cy.log('✅ Dashboard betöltve — CTA gomb navigált');
 
     // ═════════════════════════════════════════════════════════════════════
     // PHASE 7 — Dashboard — teljes lifecycle KÉSZ
@@ -357,7 +365,8 @@ describe('F1rstTeam — Teljes Business Lifecycle (vizuális)', {
     cy.log('🏆 F1rstTeam teljes lifecycle sikeresen befejezve!');
     cy.log(`   Játékos: ${PLAYER_EMAIL}`);
     cy.log('   Kredit: 0 → 150 (reg) → 250 (bonus) → 150 (unlock −100)');
-    cy.log('   29 skill: 0-100 skálán mentve a football_skills JSONB-be');
+    cy.log('   44 skill: 0-100 skálán mentve a football_skills JSONB-be');
     cy.log('   onboarding_completed = true (user + license)');
+    cy.log('   Phase B: step-7 success screen → CTA gomb → dashboard ✅');
   });
 });
