@@ -377,12 +377,13 @@ async def lfa_player_onboarding_cancel(
         # Refund the credits
         user.credit_balance += REFUND_AMOUNT
 
-        # Log the refund transaction
+        # Log the refund transaction — must use user_id, NOT user_license_id,
+        # because db.delete(license) below triggers CASCADE on user_license_id FK.
         refund_transaction = CreditTransaction(
-            user_license_id=license.id,
+            user_id=user.id,
             amount=REFUND_AMOUNT,
             transaction_type=TransactionType.REFUND.value,
-            description=f"Refund for cancelled LFA Football Player onboarding",
+            description="Refund for cancelled LFA Football Player onboarding",
             balance_after=user.credit_balance,
             idempotency_key=str(uuid.uuid4()),
             created_at=datetime.now()
