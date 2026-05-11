@@ -1,6 +1,12 @@
 """
 Football Skills Configuration
 Unified skill structure for onboarding, skill progression engine, and dashboard
+
+Skill count: 44 (expanded from 29 in Phase 3 — 2026-05-11)
+  outfield:   19 skills (11 original + 8 new)
+  set_pieces:  3 skills (unchanged)
+  mental:     14 skills (8 original + 6 new)
+  physical:    8 skills (7 original + 1 new)
 """
 
 from typing import Dict, List, TypedDict
@@ -96,6 +102,54 @@ SKILL_CATEGORIES: List[SkillCategory] = [
                 "name_en": "Marking",
                 "name_hu": "Emberfogás",
                 "description_hu": "Ellenfél követése, leválás megakadályozása."
+            },
+            {
+                "key": "shooting",
+                "name_en": "Shooting",
+                "name_hu": "Lövések",
+                "description_hu": "Általános lövéskészség és pontosság különböző szituációkban."
+            },
+            {
+                "key": "technique",
+                "name_en": "Technique",
+                "name_hu": "Technika",
+                "description_hu": "Labdakezelési technika és mozdulatok finomsága és pontossága."
+            },
+            {
+                "key": "creativity",
+                "name_en": "Creativity",
+                "name_hu": "Kreativitás",
+                "description_hu": "Szokatlan, váratlan megoldások és játékvariációk alkalmazása."
+            },
+            {
+                "key": "long_passing",
+                "name_en": "Long Passing",
+                "name_hu": "Hosszú passzok",
+                "description_hu": "Pontos hosszú passzok és mélységi indítások."
+            },
+            {
+                "key": "flair",
+                "name_en": "Flair",
+                "name_hu": "Zseniális megoldások",
+                "description_hu": "Egyedi, látványos technikai elemek és improvizált megoldások."
+            },
+            {
+                "key": "touch",
+                "name_en": "Touch",
+                "name_hu": "Labdaérintés",
+                "description_hu": "Első érintés minősége, labda leállításának finomsága."
+            },
+            {
+                "key": "forward_runs",
+                "name_en": "Forward Runs",
+                "name_hu": "Előretörések",
+                "description_hu": "Offenzív lefutások időzítése és hatékonysága mélységi labdáknál."
+            },
+            {
+                "key": "throwing",
+                "name_en": "Throwing",
+                "name_hu": "Dobáskészség",
+                "description_hu": "Általános dobáskészség és pontosság — bedobásoknál és kapusnál egyaránt."
             }
         ]
     },
@@ -178,6 +232,42 @@ SKILL_CATEGORIES: List[SkillCategory] = [
                 "name_en": "Tactical Awareness",
                 "name_hu": "Taktikai tudatosság",
                 "description_hu": "Csapatstruktúra és játékelvek megértése."
+            },
+            {
+                "key": "anticipation",
+                "name_en": "Anticipation",
+                "name_hu": "Helyzetfelismerés",
+                "description_hu": "Játékhelyzetek és ellenfél szándékának előre jelzése."
+            },
+            {
+                "key": "concentration",
+                "name_en": "Concentration",
+                "name_hu": "Koncentráció",
+                "description_hu": "Figyelmi fókusz fenntartása a mérkőzés teljes ideje alatt."
+            },
+            {
+                "key": "decisions",
+                "name_en": "Decisions",
+                "name_hu": "Döntéshozatal",
+                "description_hu": "Gyors és helyes döntések labdánál és labda nélkül egyaránt."
+            },
+            {
+                "key": "determination",
+                "name_en": "Determination",
+                "name_hu": "Elszántság",
+                "description_hu": "Kitartás és belső motiváció nehéz helyzetekben és lemaradásban."
+            },
+            {
+                "key": "teamwork",
+                "name_en": "Teamwork",
+                "name_hu": "Csapatmunka",
+                "description_hu": "Együttműködési képesség csapattársakkal, önzetlenség a pályán."
+            },
+            {
+                "key": "leadership",
+                "name_en": "Leadership",
+                "name_hu": "Vezetői képesség",
+                "description_hu": "Csapat irányítása, motiválása és hangolása mérkőzés közben."
             }
         ]
     },
@@ -228,6 +318,12 @@ SKILL_CATEGORIES: List[SkillCategory] = [
                 "name_en": "Balance",
                 "name_hu": "Egyensúly",
                 "description_hu": "Stabilitás mozgás és kontakt közben."
+            },
+            {
+                "key": "work_rate",
+                "name_en": "Work Rate",
+                "name_hu": "Munkabírás",
+                "description_hu": "Lefutott távolság és aktivitás mérkőzésen — védekezésben és támadásban egyaránt."
             }
         ]
     }
@@ -242,6 +338,8 @@ for category in SKILL_CATEGORIES:
 
 
 # Default baseline for new skills (existing players migration)
+# NOTE: The EMA engine uses DEFAULT_BASELINE = 60.0 (from skill_progression/_formulas.py).
+# This legacy constant predates the SYSTEM_BASELINE = 60.0 correction — do not use for new code.
 DEFAULT_SKILL_BASELINE = 50.0
 
 
