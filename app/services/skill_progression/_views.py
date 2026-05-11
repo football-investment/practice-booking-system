@@ -70,7 +70,7 @@ def get_skill_profile(db: Session, user_id: int) -> Dict[str, any]:
     all_skill_keys = get_all_skill_keys()
 
     # Batch-load FootballSkillAssessment rows for the player's active license.
-    # One query for all 29 skills (avoids N+1).
+    # One query for all 44 skills (avoids N+1).
     active_license = (
         db.query(UserLicense)
         .filter(

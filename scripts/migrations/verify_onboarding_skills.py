@@ -15,7 +15,7 @@ import json
 from app.skills_config import get_all_skill_keys
 
 def verify_onboarding_skills(user_email: str):
-    """Verify that user has all 29 skills saved after onboarding"""
+    """Verify that user has all 44 skills saved after onboarding"""
 
     conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/lfa_intern_system")
     cur = conn.cursor()

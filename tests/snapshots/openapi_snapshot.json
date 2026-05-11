@@ -43895,7 +43895,7 @@
     },
     "/api/v1/licenses/{license_id}/football-skills": {
       "get": {
-        "description": "Get football skills for a specific license (LFA Player specializations only)\n\nReturns 6 skill percentages: heading, shooting, crossing, passing, dribbling, ball_control\n\n- **license_id**: UserLicense ID",
+        "description": "Get football skills for a specific license (LFA Player specializations only).\n\nReturns the raw football_skills JSONB for the license. Each skill entry contains:\n- `current_level`   \u2014 EMA-updated visible skill level (starts at SYSTEM_BASELINE = 60.0)\n- `system_baseline` \u2014 fixed EMA anchor, always 60.0 for post-onboarding players\n- `baseline`        \u2014 backward-compatible alias for system_baseline (60.0)\n- `self_assessment` \u2014 onboarding self-evaluation entered by the player (0-100 scale).\n                      **Motivational reference only. Not a skill level. Never used\n                      as input by EMA, baseline extraction, or any calculation service.**\n- `assessment_delta`\u2014 computed from FootballSkillAssessment rows (coach evaluations),\n                      NOT from self_assessment\n- `tournament_delta`\u2014 cumulative EMA delta from tournament placements\n\n- **license_id**: UserLicense ID",
         "operationId": "get_football_skills_api_v1_licenses__license_id__football_skills_get",
         "parameters": [
           {
@@ -60739,7 +60739,7 @@
     },
     "/specialization/lfa-player/onboarding-web": {
       "post": {
-        "description": "Web-compatible LFA Player onboarding submit.\nCalled via AJAX fetch from lfa_player_onboarding.html (cookie session auth).\n\nAccepts the same JSON body as /specialization/lfa-player/onboarding-submit\n(Bearer JWT endpoint for Streamlit) but uses get_current_user_web so that\nbrowser-session users can submit the 6-step onboarding form.\n\nRequest body (JSON):\n    position   : str  \u2014 STRIKER | MIDFIELDER | DEFENDER | GOALKEEPER\n    goals      : str  \u2014 dropdown value\n    motivation : str  \u2014 free text\n    skills     : dict \u2014 all 29 skill keys (0-100 scale, step=5)\n\nReturns JSON {\"success\": true} on success; {\"error\": \"...\"} on failure.",
+        "description": "Web-compatible LFA Player onboarding submit.\nCalled via AJAX fetch from lfa_player_onboarding.html (cookie session auth).\n\nAccepts the same JSON body as /specialization/lfa-player/onboarding-submit\n(Bearer JWT endpoint for Streamlit) but uses get_current_user_web so that\nbrowser-session users can submit the 6-step onboarding form.\n\nRequest body (JSON):\n    position   : str  \u2014 STRIKER | MIDFIELDER | DEFENDER | GOALKEEPER\n    goals      : str  \u2014 dropdown value\n    motivation : str  \u2014 free text\n    skills     : dict \u2014 all 44 skill keys (0-100 scale, step=5)\n\nReturns JSON {\"success\": true} on success; {\"error\": \"...\"} on failure.",
         "operationId": "lfa_player_onboarding_web_submit_specialization_lfa_player_onboarding_web_post",
         "responses": {
           "200": {

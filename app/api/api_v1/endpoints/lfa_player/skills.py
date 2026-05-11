@@ -1,7 +1,7 @@
 """
 LFA Player skill management — legacy endpoint (deprecated)
 
-The skill update endpoint has been superseded by the 29-skill system
+The skill update endpoint has been superseded by the 44-skill system
 stored in UserLicense.football_skills JSONB and updated via
 app/api/api_v1/endpoints/licenses/skills.py.
 """
@@ -25,7 +25,7 @@ def update_skill(
     """
     Update a skill average — **DEPRECATED (410 Gone)**
 
-    Skill updates are now handled via the 29-skill system.
+    Skill updates are now handled via the 44-skill system.
     Use PUT /licenses/{license_id}/football-skills instead.
     """
     raise HTTPException(

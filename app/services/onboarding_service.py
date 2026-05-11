@@ -9,7 +9,7 @@ Per-spec completion definition
 LFA_FOOTBALL_PLAYER:
     Completed by POST /specialization/lfa-player/onboarding-web (cookie auth)
     or POST /specialization/lfa-player/onboarding-submit (Bearer auth).
-    Requires: position, goals, motivation, all 29 skill values (0–100).
+    Requires: position, goals, motivation, all 44 skill values (0–100).
     Effect: populates license.football_skills in rich format,
             sets license.onboarding_completed + onboarding_completed_at,
             sets user.onboarding_completed.
@@ -48,7 +48,7 @@ def complete_lfa_player_onboarding(
     - POST /specialization/lfa-player/onboarding-submit  (Bearer auth)
 
     The football_skills dict must already be in rich format
-    (keys = all 29 skill keys, values = dicts with baseline/current_level/…).
+    (keys = all 44 skill keys, values = dicts with baseline/current_level/…).
 
     Completion gate: license.motivation_scores must contain height_cm, weight_kg,
     and preferred_foot before onboarding_completed can be set to True.

@@ -52,7 +52,7 @@ def list_all_licenses(
     Get all LFA Player licenses (Admin only)
 
     Returns a list of all active LFA_FOOTBALL_PLAYER licenses in the system.
-    Skills are stored in UserLicense.football_skills JSONB (29 skills, baseline 50.0).
+    Skills are stored in UserLicense.football_skills JSONB (44 skills, baseline 60.0).
     """
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(

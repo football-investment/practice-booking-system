@@ -51,7 +51,7 @@ class FootballSkillAssessment(Base):
     # Which license/student?
     user_license_id = Column(Integer, ForeignKey("user_licenses.id", ondelete="CASCADE"), nullable=False)
 
-    # Which skill? (29 skills from skills_config.py)
+    # Which skill? (44 skills from skills_config.py — Phase 3 expansion)
     skill_name = Column(String(50), nullable=False)
 
     # Assessment scores

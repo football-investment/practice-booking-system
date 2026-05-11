@@ -579,7 +579,7 @@ async def skills_page(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Student skill progression page — all 29 skills, lazy-loaded."""
+    """Student skill progression page — all 44 skills, lazy-loaded."""
     guard = require_student_onboarding(user)
     if guard:
         return guard

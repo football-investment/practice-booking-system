@@ -82,7 +82,7 @@ class LFAPlayerService(BaseSpecializationService):
         }
     }
 
-    # ✅ CONSOLIDATED: Use central skill list from skills_config.py (29 skills)
+    # ✅ CONSOLIDATED: Use central skill list from skills_config.py (44 skills)
     # Old hardcoded list (7 skills) is deprecated
     @property
     def VALID_SKILLS(self) -> List[str]:

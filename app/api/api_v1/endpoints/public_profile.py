@@ -26,8 +26,8 @@ def get_lfa_player_profile(
     **Returns:**
     - User basic info (name, email)
     - Position preference
-    - 29 football skills with tier data (from UserLicense.football_skills JSONB)
-    - Overall rating (0-100, average of 29 skills)
+    - 44 football skills with tier data (from UserLicense.football_skills JSONB)
+    - Overall rating (0-100, average of 44 skills)
     - Level & progress
     - Recent assessments
     """
@@ -49,7 +49,7 @@ def get_lfa_player_profile(
             )
 
         # 2. Get LFA Player license via UserLicense ORM
-        #    football_skills JSONB column holds all 29 skills (SYSTEM_BASELINE=60.0 each)
+        #    football_skills JSONB column holds all 44 skills (SYSTEM_BASELINE=60.0 each)
         lfa_license = db.query(UserLicense).filter(
             UserLicense.user_id == user_id,
             UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
@@ -62,7 +62,7 @@ def get_lfa_player_profile(
                 detail=f"User {user_id} does not have an active LFA Player license"
             )
 
-        # 3. Get 29-skill profile (EMA-updated values + tier info)
+        # 3. Get 44-skill profile (EMA-updated values + tier info)
         #    Only meaningful after onboarding_completed=True; otherwise skills stay at SYSTEM_BASELINE=60.0
         from app.services.skill_progression_service import get_skill_profile
         skill_profile = None
@@ -110,7 +110,7 @@ def get_lfa_player_profile(
             {"user_id": user_id}
         ).fetchall()
 
-        # 7. Build FIFA-style profile (29-skill system)
+        # 7. Build FIFA-style profile (44-skill system)
         profile = {
             # Basic Info
             "user_id": user_result[0],
@@ -126,10 +126,10 @@ def get_lfa_player_profile(
             "max_level_achieved": lfa_license.max_achieved_level,
             "onboarding_completed": lfa_license.onboarding_completed,
 
-            # Overall Rating — average of all 29 skills (0-100)
+            # Overall Rating — average of all 44 skills (0-100)
             "overall_rating": round(skill_profile["average_level"], 1) if skill_profile else 0.0,
 
-            # 29 Football Skills: {skill_key: {"current_level", "tier", "tier_emoji", "total_delta", ...}}
+            # 44 Football Skills: {skill_key: {"current_level", "tier", "tier_emoji", "total_delta", ...}}
             # Empty dict when onboarding not yet completed (all skills at 50.0 baseline)
             "skills": skill_profile["skills"] if skill_profile else {},
 

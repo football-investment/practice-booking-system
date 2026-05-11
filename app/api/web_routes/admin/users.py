@@ -394,21 +394,21 @@ async def admin_user_profile(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Admin: FIFA EA Sports-style user profile page (29-skill system)."""
+    """Admin: FIFA EA Sports-style user profile page (44-skill system)."""
     _admin_guard(user)
 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # LFA Player license — 29-skill system via UserLicense.football_skills JSONB
+    # LFA Player license — 44-skill system via UserLicense.football_skills JSONB
     lfa_license = db.query(UserLicense).filter(
         UserLicense.user_id == user_id,
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
         UserLicense.is_active == True,
     ).first()
 
-    # 29-skill profile — only meaningful when onboarding_completed=True
+    # 44-skill profile — only meaningful when onboarding_completed=True
     lfa_skill_profile = None
     if lfa_license and lfa_license.onboarding_completed:
         from ....services.skill_progression_service import get_skill_profile

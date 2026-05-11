@@ -374,7 +374,7 @@ def _run_assertions(
             (ms.get("preferred_foot") is not None,         f"{u.email}: motivation_scores.preferred_foot NULL"),
             (ul is not None and ul.right_foot_score is not None, f"{u.email}: right_foot_score NULL"),
             (ul is not None and ul.left_foot_score  is not None, f"{u.email}: left_foot_score NULL"),
-            (ul is not None and len(ul.football_skills or {}) == 29,
+            (ul is not None and len(ul.football_skills or {}) == 44,
              f"{u.email}: football_skills tampered (keys={len(ul.football_skills or {})})"),
             (u.xp_balance == before_xp[u.id],
              f"{u.email}: xp_balance changed {before_xp[u.id]} → {u.xp_balance}"),

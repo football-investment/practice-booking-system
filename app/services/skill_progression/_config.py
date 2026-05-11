@@ -36,7 +36,7 @@ def get_all_skill_keys() -> List[str]:
 
 def get_baseline_skills(db: Session, user_id: int) -> Dict[str, float]:
     """
-    Get EMA anchor baseline values for all 29 skills (used by the EMA calculation engine).
+    Get EMA anchor baseline values for all 44 skills (used by the EMA calculation engine).
 
     This function reads `system_baseline` (60.0) from the football_skills JSONB column.
     The `self_assessment` field present in the same JSONB is intentionally ignored —
@@ -54,7 +54,7 @@ def get_baseline_skills(db: Session, user_id: int) -> Dict[str, float]:
     ⚠️ FALLBACK BEHAVIOR FOR MISSING SKILLS:
         If a skill is NOT found in UserLicense.football_skills, it defaults to DEFAULT_BASELINE (60.0).
         This is INTENTIONAL and handles cases where:
-        - User completed onboarding with old skill set (before migration to 29 skills)
+        - User completed onboarding with old skill set (before Phase 3 expansion to 44 skills)
         - User's onboarding data is incomplete
         - New skills were added to system after user onboarding
 

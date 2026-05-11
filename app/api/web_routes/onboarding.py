@@ -194,7 +194,7 @@ async def lfa_player_onboarding_page(
             "request": request,
             "user": user,
             "license": license,
-            "skill_categories": SKILL_CATEGORIES,   # 29 skills across 4 categories
+            "skill_categories": SKILL_CATEGORIES,   # 44 skills across 4 categories
         }
     )
 
@@ -217,7 +217,7 @@ async def lfa_player_onboarding_web_submit(
         position   : str  — STRIKER | MIDFIELDER | DEFENDER | GOALKEEPER
         goals      : str  — dropdown value
         motivation : str  — free text
-        skills     : dict — all 29 skill keys (0-100 scale, step=5)
+        skills     : dict — all 44 skill keys (0-100 scale, step=5)
 
     Returns JSON {"success": true} on success; {"error": "..."} on failure.
     """
@@ -287,7 +287,7 @@ async def lfa_player_onboarding_web_submit(
         if not (0.0 <= foot_dominance <= 100.0):
             return JSONResponse(status_code=400, content={"error": "foot_dominance out of range (0–100)"})
 
-        # Validate all 29 skills present
+        # Validate all 44 skills present
         expected_skills = set(get_all_skill_keys())
         received_skills = set(skills.keys())
         missing = expected_skills - received_skills
