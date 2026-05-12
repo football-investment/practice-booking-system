@@ -186,9 +186,16 @@ body.native-export-mode .events-section { display: none !important; }
     margin-bottom: 0.8rem;
 }
 .skill-cats {
-    display: grid; grid-template-columns: repeat(4, 1fr);
+    display: grid; grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
 }
+/* Visual order: Outfield (DOM 1st) → top-left,   Mental (DOM 3rd) → top-right,
+   Set Pieces (DOM 2nd) → bottom-left, Physical Fitness (DOM 4th) → bottom-right.
+   Long columns pair together (top row), short columns pair together (bottom row). */
+.skill-cat:nth-child(1) { order: 1; }
+.skill-cat:nth-child(2) { order: 3; }
+.skill-cat:nth-child(3) { order: 2; }
+.skill-cat:nth-child(4) { order: 4; }
 .skill-cat { background: var(--card-cat-bg); border-radius: 9px; padding: 0.6rem; min-width: 0; }
 .skill-cat-name {
     font-size: 0.58rem; font-weight: 800; text-transform: uppercase;
@@ -310,6 +317,8 @@ body.native-export-mode .events-section { display: none !important; }
     .skill-name { white-space: normal; overflow-wrap: break-word; overflow: visible; text-overflow: clip; }
     .skill-cats { grid-template-columns: 1fr 1fr; }
     .skills-panel { padding: 0.9rem; }
+    /* Portrait pitch: cap height when stacked full-width (landscape would be ~260px tall at card width) */
+    .pitch-svg { max-height: 200px; width: auto; display: block; margin: 0 auto; }
 }
 @media (max-width: 440px) {
     .fifa-header { grid-template-columns: 1fr; }
@@ -494,64 +503,80 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
         <!-- Right: position mini-pitch -->
         <div class="position-panel">
             <div class="pos-panel-title">Position</div>
-            <svg class="pitch-svg" viewBox="0 0 100 65" xmlns="http://www.w3.org/2000/svg" aria-label="Pitch position map">
+            <svg class="pitch-svg" viewBox="0 0 65 100" xmlns="http://www.w3.org/2000/svg" aria-label="Pitch position map">
+                <!-- Portrait pitch: ST at top, GK at bottom.
+                     Coordinate transform from landscape node data (x=longitudinal 0→1 GK→ST, y=lateral 0→1):
+                       cx_svg = node.y × 65   (lateral → horizontal)
+                       cy_svg = (1 − node.x) × 100   (longitudinal → vertical, inverted so GK=bottom) -->
                 <!-- Pitch background -->
-                <rect width="100" height="65" fill="#1a5c2a"/>
+                <rect width="65" height="100" fill="#1a5c2a"/>
                 <!-- Field border -->
-                <rect x="0.5" y="0.5" width="99" height="64" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.45"/>
-                <!-- Center line -->
-                <line x1="50" y1="0" x2="50" y2="65" stroke="rgba(255,255,255,0.22)" stroke-width="0.4"/>
+                <rect x="0.5" y="0.5" width="64" height="99" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.45"/>
+                <!-- Center line (horizontal) -->
+                <line x1="0" y1="50" x2="65" y2="50" stroke="rgba(255,255,255,0.22)" stroke-width="0.4"/>
                 <!-- Center circle -->
-                <circle cx="50" cy="32.5" r="9" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.4"/>
-                <circle cx="50" cy="32.5" r="0.8" fill="rgba(255,255,255,0.35)"/>
-                <!-- Left penalty area -->
-                <rect x="0" y="16" width="17" height="33" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.35"/>
-                <!-- Right penalty area -->
-                <rect x="83" y="16" width="17" height="33" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.35"/>
-                <!-- Left 6-yard box -->
-                <rect x="0" y="24" width="6" height="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
-                <!-- Right 6-yard box -->
-                <rect x="94" y="24" width="6" height="17" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
+                <circle cx="32.5" cy="50" r="9" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.4"/>
+                <circle cx="32.5" cy="50" r="0.8" fill="rgba(255,255,255,0.35)"/>
+                <!-- ST penalty area (top) -->
+                <rect x="16" y="0" width="33" height="17" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.35"/>
+                <!-- GK penalty area (bottom) -->
+                <rect x="16" y="83" width="33" height="17" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.35"/>
+                <!-- ST 6-yard box (top) -->
+                <rect x="24" y="0" width="17" height="6" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
+                <!-- GK 6-yard box (bottom) -->
+                <rect x="24" y="94" width="17" height="6" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
                 <!-- Direction labels -->
-                <text x="2" y="4.5" font-size="3" fill="rgba(255,255,255,0.22)" font-family="sans-serif" font-weight="700">GK</text>
-                <text x="91" y="4.5" font-size="3" fill="rgba(255,255,255,0.22)" font-family="sans-serif" font-weight="700">ST</text>
-                <!-- Position nodes — inactive (faint role dots) -->
+                <text x="32.5" y="3.5" font-size="3" fill="rgba(255,255,255,0.22)" font-family="sans-serif" font-weight="700" text-anchor="middle">ST</text>
+                <text x="32.5" y="98.5" font-size="3" fill="rgba(255,255,255,0.22)" font-family="sans-serif" font-weight="700" text-anchor="middle">GK</text>
+                <!-- Pass 1: inactive nodes (faint dots, no label) -->
                 {% for node in position_nodes %}
                 {% if not node.is_selected and not node.is_primary %}
-                <circle cx="{{ (node.x * 100) | round(1) }}" cy="{{ (node.y * 65) | round(1) }}"
+                <circle cx="{{ (node.y * 65) | round(1) }}" cy="{{ ((1 - node.x) * 100) | round(1) }}"
                         r="1.8" fill="rgba(255,255,255,0.13)"/>
                 {% endif %}
                 {% endfor %}
-                <!-- Secondary selected positions -->
+                <!-- Pass 2: secondary selected positions -->
                 {% for node in position_nodes %}
                 {% if node.is_selected and not node.is_primary %}
-                <circle cx="{{ (node.x * 100) | round(1) }}" cy="{{ (node.y * 65) | round(1) }}"
+                <circle cx="{{ (node.y * 65) | round(1) }}" cy="{{ ((1 - node.x) * 100) | round(1) }}"
                         r="3.2" fill="rgba(255,255,255,0.70)"/>
-                <circle cx="{{ (node.x * 100) | round(1) }}" cy="{{ (node.y * 65) | round(1) }}"
+                <circle cx="{{ (node.y * 65) | round(1) }}" cy="{{ ((1 - node.x) * 100) | round(1) }}"
                         r="4.6" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="0.65"/>
                 {% endif %}
                 {% endfor %}
-                <!-- Primary position — gold, rendered last (topmost) -->
+                <!-- Pass 3: primary position — gold, topmost -->
                 {% for node in position_nodes %}
                 {% if node.is_primary %}
-                <circle cx="{{ (node.x * 100) | round(1) }}" cy="{{ (node.y * 65) | round(1) }}"
+                <circle cx="{{ (node.y * 65) | round(1) }}" cy="{{ ((1 - node.x) * 100) | round(1) }}"
                         r="4.2" fill="#ECC94B" opacity="0.95"/>
-                <circle cx="{{ (node.x * 100) | round(1) }}" cy="{{ (node.y * 65) | round(1) }}"
+                <circle cx="{{ (node.y * 65) | round(1) }}" cy="{{ ((1 - node.x) * 100) | round(1) }}"
                         r="6" fill="none" stroke="#ECC94B" stroke-width="0.85" opacity="0.45"/>
                 {% endif %}
                 {% endfor %}
+                <!-- Pass 4: abbreviated labels on selected + primary nodes only -->
+                {% for node in position_nodes %}
+                {% if node.is_primary or node.is_selected %}
+                <text x="{{ (node.y * 65) | round(1) }}" y="{{ ((1 - node.x) * 100) | round(1) }}"
+                      font-size="3" font-family="sans-serif" font-weight="800"
+                      fill="rgba(0,0,0,0.72)" text-anchor="middle" dominant-baseline="middle">{{ node.label }}</text>
+                {% endif %}
+                {% endfor %}
             </svg>
-            <!-- Primary position name -->
-            {% if player.position and player.position != "Unknown" %}
-            <div class="pos-primary-label">
-                ★ {{ player.position | replace('_', ' ') | title }}
-            </div>
+            <!-- Primary position: abbreviated label · full name -->
+            {% set _prim_nodes = position_nodes | selectattr('is_primary', 'equalto', true) | list %}
+            {% set primary_node = _prim_nodes[0] if _prim_nodes else none %}
+            {% if primary_node %}
+            <div class="pos-primary-label">★ {{ primary_node.label }} · {{ primary_node.name }}</div>
+            {% elif player.position and player.position != "Unknown" %}
+            <div class="pos-primary-label">★ {{ player.position | replace('_', ' ') | title }}</div>
             {% endif %}
-            <!-- Secondary positions -->
+            <!-- Secondary positions: abbreviated -->
             {% if player_positions and player_positions | length > 1 %}
             <div class="pos-secondary-chips">
                 {% for pos in player_positions[1:] %}
-                <span class="pos-chip">{{ pos | replace('_', ' ') | title }}</span>
+                {% set _sec_nodes = position_nodes | selectattr('canonical', 'equalto', pos) | list %}
+                {% set sec_node = _sec_nodes[0] if _sec_nodes else none %}
+                <span class="pos-chip">{{ sec_node.label if sec_node else pos | replace('_', ' ') | title }}</span>
                 {% endfor %}
             </div>
             {% endif %}

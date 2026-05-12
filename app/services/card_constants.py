@@ -13,17 +13,18 @@ from __future__ import annotations
 # ── Canvas dimensions ─────────────────────────────────────────────────────────
 # Social canvas sizes keyed by platform preset id.
 #
-# "default" export canvas — measured 2026-05-12 via Playwright at 820px viewport
-# using ?native_export=1 (native-export-mode CSS: card fills width at auto height).
-# Conditions: FIFA Classic card, 4 SKILL_CATEGORIES (Outfield 19, Set Pieces 3,
-# Mental 14, Physical Fitness 8 skills), lower-section split layout (3fr skills /
-# 2fr position panel).  card-wrap.getBoundingClientRect() = 820×613 px.
+# "default" export canvas — original measurement 2026-05-12 via Playwright at 820px
+# viewport using ?native_export=1.  Layout since changed: skills panel is now a 2×2
+# grid (Outfield+Mental top row / Set Pieces+Physical bottom row) and the position
+# panel uses a portrait SVG pitch (viewBox "0 0 65 100", GK bottom, ST top).
+# CSS-derived estimate: header≈170px + tab-bar≈33px + card-body≈590px ≈ 793px →
+# rounded to 800px.  Re-measure with Playwright after deploying the new layout to
+# confirm; update this value and the comment date if the live clip differs.
 # Export path: render_url uses ?native_export=1; _sync_take_screenshot clips
-# to the card-wrap bounding rect — height is content-determined at render time.
-# The 613 here is a documented baseline; the clip always uses the live bounding
-# rect so new skills or theme changes never produce a truncated export.
+# to the card-wrap bounding rect — height is content-determined at render time,
+# so the export is never truncated regardless of what this constant says.
 CANVAS_SIZES: dict[str, tuple[int, int]] = {
-    "default":            ( 820,  613),   # native FIFA Classic; clip = card-wrap bbox
+    "default":            ( 820,  800),   # native FIFA Classic; clip = card-wrap bbox (est. 2026-05-12)
     "instagram_square":   (1080, 1080),
     "instagram_portrait": (1080, 1350),
     "instagram_story":    (1080, 1920),

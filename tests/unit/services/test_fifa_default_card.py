@@ -5,7 +5,7 @@ Test IDs and what they cover:
 
 Download PNG (DL-*)
   DL-01  CANVAS_SIZES contains "default" → export route accepts it (no 422)
-  DL-02  default canvas is (820, 613) — the measured baseline
+  DL-02  default canvas width is 820; height reflects current layout estimate
   DL-03  export route rejects unknown platform (422 guard still works)
   DL-04  "default" export render URL uses ?native_export=1, NOT instagram_square
   DL-05  "default" export render URL does NOT contain &export=1
@@ -38,6 +38,12 @@ Template (TPL-*)
   TPL-07 tab-btn still references switchTab (regression guard)
   TPL-08 native-export-mode CSS class defined in the template
   TPL-09 skills-section class is ABSENT (replaced by card-body)
+  TPL-10 skill-cats CSS uses repeat(2, 1fr) — 2-column 2×2 grid, not 4-column
+  TPL-11 skill-cat nth-child order rules present for Outfield/Mental/SetPieces/Physical reorder
+  TPL-12 pitch SVG viewBox is portrait "0 0 65 100" (not landscape "0 0 100 65")
+  TPL-13 selected/primary nodes have <text> labels in SVG (pass 4 present)
+  TPL-14 primary label uses "·" separator format (abbreviation · full name)
+  TPL-15 secondary chip template uses sec_node.label (abbreviated, not full canonical)
 
 Editor (ED-*)
   ED-01  Download PNG button has no "disabled" attribute in the default-platform branch
@@ -82,10 +88,14 @@ def test_dl01_canvas_sizes_contains_default():
 def test_dl02_default_canvas_baseline_820():
     from app.services.card_constants import CANVAS_SIZES
     w, h = CANVAS_SIZES["default"]
-    assert w == 820, f"default canvas width must be 820, got {w}"
-    assert h == 613, (
-        f"default canvas height must be 613 (measured 2026-05-12 via Playwright "
-        f"at native-export-mode, FIFA Classic with 4 skill categories), got {h}"
+    assert w == 820, f"default canvas width must be 820, got {h}"
+    # Height reflects the current layout estimate (CSS-derived, ~800px after 2×2 skills +
+    # portrait pitch change; re-measure with Playwright after deploying to confirm).
+    # The exact value here is a documentation guard — export clipping uses live
+    # BoundingClientRect so the actual PNG is never truncated regardless of this value.
+    assert 700 <= h <= 1000, (
+        f"default canvas height should be in the plausible range 700–1000px "
+        f"(current layout: 2×2 skills grid + portrait pitch); got {h}"
     )
 
 
@@ -316,10 +326,88 @@ def test_tpl08_native_export_mode_css_defined():
 def test_tpl09_skills_section_class_absent():
     """The old .skills-section class is replaced by .card-body — must not appear."""
     html = _fifa_html()
-    # Allow the class name to appear ONLY in CSS comments or not at all
-    # The key check: no HTML element uses class="skills-section"
     assert 'class="skills-section"' not in html, (
         "skills-section HTML class attribute must be gone — replaced by card-body"
+    )
+
+
+def test_tpl10_skill_cats_two_column_grid():
+    """skills-panel must use a 2-column grid (2×2 layout), not the old 4-column layout."""
+    html = _fifa_html()
+    assert "repeat(2, 1fr)" in html, (
+        ".skill-cats must use grid-template-columns: repeat(2, 1fr) for the 2×2 layout"
+    )
+    assert "repeat(4, 1fr)" not in html, (
+        ".skill-cats must NOT use 4-column grid — old layout removed"
+    )
+
+
+def test_tpl11_skill_cat_order_rules_present():
+    """CSS nth-child order rules must be present to reorder Outfield/Mental/SetPieces/Physical."""
+    html = _fifa_html()
+    # All 4 order rules must be present
+    for rule in [
+        "nth-child(1) { order: 1; }",
+        "nth-child(2) { order: 3; }",
+        "nth-child(3) { order: 2; }",
+        "nth-child(4) { order: 4; }",
+    ]:
+        assert rule in html, (
+            f"CSS rule '.skill-cat:{rule}' must be in the template for 2×2 category reorder"
+        )
+
+
+def test_tpl12_pitch_svg_is_portrait_viewbox():
+    """Portrait pitch must use viewBox '0 0 65 100' (not landscape '0 0 100 65')."""
+    html = _fifa_html()
+    assert 'viewBox="0 0 65 100"' in html, (
+        "pitch-svg must use portrait viewBox '0 0 65 100' — GK at bottom, ST at top"
+    )
+    assert 'viewBox="0 0 100 65"' not in html, (
+        "landscape viewBox '0 0 100 65' must be gone — replaced by portrait orientation"
+    )
+
+
+def test_tpl13_svg_text_labels_on_selected_nodes():
+    """Pass 4: <text> elements must be rendered for selected/primary nodes in the SVG."""
+    html = _fifa_html()
+    # The pass-4 block uses node.label in a <text> element inside the Jinja2 loop
+    assert "node.label" in html, (
+        "SVG must render node.label as <text> elements for selected/primary nodes (pass 4)"
+    )
+    # The text element must include dominant-baseline="middle" for vertical centering
+    assert "dominant-baseline" in html, (
+        "<text> labels must use dominant-baseline for vertical centering on circles"
+    )
+
+
+def test_tpl14_primary_label_abbreviated_format():
+    """Primary position label must use '·' separator: abbreviated label · full name."""
+    html = _fifa_html()
+    # Check the primary_node.label and primary_node.name are both referenced
+    assert "primary_node.label" in html, (
+        "pos-primary-label must use primary_node.label (abbreviated form, e.g. CM)"
+    )
+    assert "primary_node.name" in html, (
+        "pos-primary-label must use primary_node.name (full name, e.g. Centre Midfield)"
+    )
+    # The separator · must be present in the label template
+    assert "·" in html, (
+        "pos-primary-label must use '·' separator between abbreviated and full name"
+    )
+
+
+def test_tpl15_secondary_chip_abbreviated():
+    """Secondary chips must use sec_node.label (abbreviated) not full canonical names."""
+    html = _fifa_html()
+    # The chip template must use sec_node.label
+    assert "sec_node.label" in html, (
+        "pos-chip must use sec_node.label for abbreviated secondary position chips"
+    )
+    # Must NOT fall back to raw `pos | replace('_', ' ') | title` for ALL chips —
+    # the fallback may exist as a `else` branch, but the primary path must be abbreviated.
+    assert "sec_node" in html, (
+        "secondary chip Jinja2 variable 'sec_node' must be used to look up abbreviation"
     )
 
 
