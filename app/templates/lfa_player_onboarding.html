@@ -480,7 +480,7 @@
             </div>
 
             <div class="welcome-cta-row">
-                <a id="btn-go-profile"        href="/profile"                       class="btn btn-secondary">👤 Go to Profile</a>
+                <a id="btn-go-profile"        href="/profile/lfa-football-player"   class="btn btn-secondary">🪪 Go to Profile</a>
                 <a id="btn-go-dashboard"      href="/dashboard/lfa-football-player" class="btn btn-primary">⚽ Continue to Dashboard</a>
                 <a id="btn-view-welcome-card" href="/profile/onboarding-card"        class="btn btn-secondary" target="_blank">🎴 View Welcome Card</a>
                 <a id="btn-download-welcome-card" href="/profile/onboarding-card/export?platform=instagram_square" class="btn btn-secondary">⬇️ Download Welcome Card</a>
@@ -787,7 +787,11 @@
         const statusEl = document.getElementById('step7-photo-status');
         statusEl.textContent = 'Uploading…';
         try {
-            const resp = await fetch('/dashboard/lfa-player-photo', { method: 'POST', body: formData });
+            const resp = await fetch('/dashboard/lfa-player-photo', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': getCsrfToken() },
+                body: formData,
+            });
             const data = await resp.json();
             if (data.ok) {
                 const preview = document.getElementById('step7-photo-preview');
@@ -796,7 +800,7 @@
                 document.getElementById('step7-photo-placeholder').style.display = 'none';
                 statusEl.textContent = '✅ Photo saved.';
             } else {
-                statusEl.textContent = '❌ Upload failed: ' + (data.error || 'unknown error');
+                statusEl.textContent = '❌ Upload failed: ' + (data.error || data.detail || 'unknown error');
             }
         } catch {
             statusEl.textContent = '❌ Upload failed.';

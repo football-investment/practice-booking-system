@@ -154,6 +154,241 @@ async def profile_page(
     )
 
 
+# ── LFA Football Player profile constants ─────────────────────────────────────
+
+_VALID_POSITIONS: frozenset[str] = frozenset({
+    "striker", "centre_forward", "left_wing", "right_wing", "second_striker",
+    "attacking_midfield", "centre_midfield", "defensive_midfield",
+    "left_midfield", "right_midfield",
+    "centre_back", "left_back", "right_back", "left_wing_back", "right_wing_back",
+    "goalkeeper", "sweeper_keeper",
+})
+
+_VALID_GOALS: frozenset[str] = frozenset({
+    "improve_skills", "play_higher_level", "become_professional",
+    "team_football", "fitness_health", "enjoy_game",
+})
+
+_VALID_PREFERRED_FOOT: frozenset[str] = frozenset({"right", "left", "both"})
+
+_GOAL_LABELS: dict[str, str] = {
+    "improve_skills":      "Improve technical skills",
+    "play_higher_level":   "Play at a higher competitive level",
+    "become_professional": "Become a professional player",
+    "team_football":       "Join a football team",
+    "fitness_health":      "Stay fit through football",
+    "enjoy_game":          "Enjoy the game",
+}
+
+_POSITION_LABELS: dict[str, str] = {
+    "striker":            "Striker (ST)",
+    "centre_forward":     "Centre Forward (CF)",
+    "left_wing":          "Left Wing (LW)",
+    "right_wing":         "Right Wing (RW)",
+    "second_striker":     "Second Striker (SS)",
+    "attacking_midfield": "Attacking Midfielder (AM)",
+    "centre_midfield":    "Central Midfielder (CM)",
+    "defensive_midfield": "Defensive Midfielder (DM)",
+    "left_midfield":      "Left Midfielder (LM)",
+    "right_midfield":     "Right Midfielder (RM)",
+    "centre_back":        "Centre Back (CB)",
+    "left_back":          "Left Back (LB)",
+    "right_back":         "Right Back (RB)",
+    "left_wing_back":     "Left Wing-Back (LWB)",
+    "right_wing_back":    "Right Wing-Back (RWB)",
+    "goalkeeper":         "Goalkeeper (GK)",
+    "sweeper_keeper":     "Sweeper Keeper (SK)",
+}
+
+_POSITION_GROUPS: list[dict] = [
+    {"label": "Forwards",    "positions": ["striker", "centre_forward", "left_wing", "right_wing", "second_striker"]},
+    {"label": "Midfielders", "positions": ["attacking_midfield", "centre_midfield", "defensive_midfield", "left_midfield", "right_midfield"]},
+    {"label": "Defenders",   "positions": ["centre_back", "left_back", "right_back", "left_wing_back", "right_wing_back"]},
+    {"label": "Goalkeepers", "positions": ["goalkeeper", "sweeper_keeper"]},
+]
+
+
+def _lfa_license_or_redirect(
+    user_id: int, db: Session
+) -> "tuple[UserLicense, None] | tuple[None, RedirectResponse]":
+    """Return (license, None) or (None, redirect) for LFA Football Player guard."""
+    lic = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+    ).first()
+    if not lic:
+        return None, RedirectResponse(url="/dashboard?info=no_lfa_license", status_code=303)
+    if not lic.onboarding_completed:
+        return None, RedirectResponse(url="/specialization/lfa-player/onboarding", status_code=303)
+    return lic, None
+
+
+def _lfa_profile_ctx(request, user, license, error=None) -> dict:
+    """Shared context for lfa_player_profile_edit.html GET and POST (error re-render)."""
+    ms           = license.motivation_scores or {}
+    primary_pos  = ms.get("position", "")
+    all_pos      = ms.get("positions", [primary_pos] if primary_pos else [])
+    secondary_pos = [p for p in all_pos if p != primary_pos]
+    return {
+        "request":            request,
+        "user":               user,
+        "license":            license,
+        "ms":                 ms,
+        "primary_pos":        primary_pos,
+        "secondary_pos":      secondary_pos,
+        "position_labels":    _POSITION_LABELS,
+        "position_groups":    _POSITION_GROUPS,
+        "goal_labels":        _GOAL_LABELS,
+        "valid_preferred_foot": sorted(_VALID_PREFERRED_FOOT),
+        "error":              error,
+        "spec_dashboard_url":  "/dashboard/lfa-football-player",
+        "spec_dashboard_icon": "⚽",
+        "show_spec_nav":      True,
+    }
+
+
+@router.get("/profile/lfa-football-player", response_class=HTMLResponse)
+async def lfa_player_profile_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """
+    LFA Football Player specialization profile hub.
+
+    Requires a completed LFA_FOOTBALL_PLAYER license.
+    Displays spec-specific data from motivation_scores and UserLicense fields.
+    football_skills (EMA-computed) are not exposed or editable here.
+    """
+    license, redirect = _lfa_license_or_redirect(user.id, db)
+    if redirect:
+        return redirect
+
+    ms            = license.motivation_scores or {}
+    primary_pos   = ms.get("position", "")
+    all_pos       = ms.get("positions", [primary_pos] if primary_pos else [])
+    secondary_pos = [p for p in all_pos if p != primary_pos]
+
+    return templates.TemplateResponse(
+        "lfa_player_profile.html",
+        {
+            "request":                request,
+            "user":                   user,
+            "license":                license,
+            "ms":                     ms,
+            "primary_pos":            primary_pos,
+            "secondary_pos":          secondary_pos,
+            "position_labels":        _POSITION_LABELS,
+            "goal_label":             _GOAL_LABELS.get(ms.get("goals", ""), ms.get("goals", "")),
+            "average_skill_level":    ms.get("average_skill_level"),
+            "onboarding_completed_at":ms.get("onboarding_completed_at"),
+            "spec_dashboard_url":     "/dashboard/lfa-football-player",
+            "spec_dashboard_icon":    "⚽",
+            "show_spec_nav":          True,
+        },
+    )
+
+
+@router.get("/profile/lfa-football-player/edit", response_class=HTMLResponse)
+async def lfa_player_profile_edit_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    """Show the LFA Football Player spec-profile edit form."""
+    license, redirect = _lfa_license_or_redirect(user.id, db)
+    if redirect:
+        return redirect
+    return templates.TemplateResponse(
+        "lfa_player_profile_edit.html",
+        _lfa_profile_ctx(request, user, license),
+    )
+
+
+@router.post("/profile/lfa-football-player/edit")
+async def lfa_player_profile_edit_submit(
+    request: Request,
+    position: str          = Form(...),
+    secondary_positions: list[str] = Form(default=[]),
+    preferred_foot: str    = Form(...),
+    goals: str             = Form(...),
+    height_cm_raw: str     = Form(default=""),
+    weight_kg_raw: str     = Form(default=""),
+    db: Session            = Depends(get_db),
+    user: User             = Depends(get_current_user_web),
+):
+    """Validate and save LFA Football Player spec-profile fields (motivation_scores only)."""
+    license, redirect = _lfa_license_or_redirect(user.id, db)
+    if redirect:
+        return redirect
+
+    errors: list[str] = []
+
+    # ── Validate categorical fields ───────────────────────────────────────────
+    if position not in _VALID_POSITIONS:
+        errors.append(f"Invalid primary position: {position!r}")
+    clean_secondary = []
+    for sp in secondary_positions:
+        if not sp:
+            continue
+        if sp not in _VALID_POSITIONS:
+            errors.append(f"Invalid secondary position: {sp!r}")
+        elif sp != position:
+            clean_secondary.append(sp)
+    if len(clean_secondary) > 3:
+        errors.append("Maximum 3 secondary positions allowed (excluding primary)")
+    if preferred_foot not in _VALID_PREFERRED_FOOT:
+        errors.append(
+            f"Preferred foot must be one of: {', '.join(sorted(_VALID_PREFERRED_FOOT))}"
+        )
+    if goals not in _VALID_GOALS:
+        errors.append(f"Invalid goal value: {goals!r}")
+
+    # ── Validate optional numeric fields ──────────────────────────────────────
+    height_cm: int | None = None
+    if height_cm_raw.strip():
+        try:
+            height_cm = int(height_cm_raw.strip())
+            if not (100 <= height_cm <= 250):
+                errors.append("Height must be between 100 and 250 cm")
+        except ValueError:
+            errors.append("Height must be a whole number")
+
+    weight_kg: int | None = None
+    if weight_kg_raw.strip():
+        try:
+            weight_kg = int(weight_kg_raw.strip())
+            if not (30 <= weight_kg <= 200):
+                errors.append("Weight must be between 30 and 200 kg")
+        except ValueError:
+            errors.append("Weight must be a whole number")
+
+    # ── Re-render form on validation error (no DB write) ──────────────────────
+    if errors:
+        return templates.TemplateResponse(
+            "lfa_player_profile_edit.html",
+            _lfa_profile_ctx(request, user, license, error="; ".join(errors)),
+            status_code=422,
+        )
+
+    ms = dict(license.motivation_scores or {})
+    ms["position"]       = position
+    ms["positions"]      = [position] + clean_secondary
+    ms["preferred_foot"] = preferred_foot
+    ms["goals"]          = goals
+    if height_cm is not None:
+        ms["height_cm"] = height_cm
+    if weight_kg is not None:
+        ms["weight_kg"] = weight_kg
+    license.motivation_scores = ms
+
+    # Backward-compat: sync primary position to User.position global field
+    user.position = position
+
+    db.commit()
+    return RedirectResponse(url="/profile/lfa-football-player?updated=true", status_code=303)
+
+
 @router.get("/profile/edit", response_class=HTMLResponse)
 async def profile_edit_page(
     request: Request,
