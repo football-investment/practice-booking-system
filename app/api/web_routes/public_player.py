@@ -45,17 +45,7 @@ _FALLBACK_TEMPLATE = "public/player_card.html"
 # Export render layer: platform → format bucket for dedicated export templates.
 # Template path resolved as: public/export/{bucket}/{card_variant_id}.html
 # Falls back to existing editor template + export-mode class if no file found.
-_EXPORT_FORMAT_BUCKETS: dict[str, str] = {
-    "instagram_square":   "square",
-    "facebook_square":    "square",
-    "instagram_portrait": "portrait",
-    "instagram_story":    "story",
-    "tiktok":             "tiktok",
-    "facebook_landscape": "landscape",
-    "og":                 "landscape",
-    "banner_custom":      "banner",
-    "facebook_post":      "landscape",
-}
+from app.services.card_constants import EXPORT_FORMAT_BUCKETS as _EXPORT_FORMAT_BUCKETS
 
 
 @router.get("/players/{user_id}/card", response_class=HTMLResponse)

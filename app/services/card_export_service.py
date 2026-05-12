@@ -11,34 +11,15 @@ from threading import Lock
 
 logger = logging.getLogger(__name__)
 
-# Social canvas sizes — keyed by platform preset id.
-# "default" is intentionally absent (not an export target).
-# Dimensions match each platform's recommended export resolution.
-CANVAS_SIZES: dict[str, tuple[int, int]] = {
-    "instagram_square":   (1080, 1080),
-    "instagram_portrait": (1080, 1350),
-    "instagram_story":    (1080, 1920),
-    "tiktok":             (1080, 1920),
-    "facebook_square":    (1080, 1080),
-    "facebook_landscape": (1200,  630),
-    "og":                 (1200,  630),
-    "banner_custom":      (1500,  500),
-    "facebook_post":      (1200,  630),
-}
-
-# ── Animated video export capability registry ─────────────────────────────────
-# Central source of truth: (variant_id, platform_id) pairs that have a
-# dedicated animated export template.  All other combinations are unsupported
-# and the video endpoint returns 422 — no fallback, no silent degradation.
-ANIMATED_EXPORT_CAPABLE: frozenset[tuple[str, str]] = frozenset({
-    ("fifa",  "instagram_square"),
-    ("pulse", "instagram_square"),
-})
-
-
-def is_animated_capable(variant_id: str, platform_id: str) -> bool:
-    """Return True if (variant_id, platform_id) supports animated video export."""
-    return (variant_id, platform_id) in ANIMATED_EXPORT_CAPABLE
+# Re-exported from card_constants — the authoritative source for all
+# platform dimensions and animated-capability declarations.
+# External callers that already reference _export_svc.CANVAS_SIZES or
+# _export_svc.is_animated_capable() continue to work without change.
+from .card_constants import (  # noqa: E402
+    CANVAS_SIZES,
+    ANIMATED_EXPORT_CAPABLE,
+    is_animated_capable,
+)
 
 
 _GOTO_TIMEOUT_MS  = 10_000  # 10 s — generous vs. measured 0.6 s

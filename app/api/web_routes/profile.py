@@ -583,29 +583,22 @@ async def profile_edit_submit(
         )
 
 
-# Export format buckets — mirrors public_player.py so Welcome Card uses the
-# same export templates as Player Card without importing from that module.
-_WC_EXPORT_BUCKETS: dict[str, str] = {
-    "instagram_square":   "square",
-    "facebook_square":    "square",
-    "instagram_portrait": "portrait",
-    "instagram_story":    "story",
-    "tiktok":             "tiktok",
-    "facebook_landscape": "landscape",
-    "og":                 "landscape",
-    "banner_custom":      "banner",
-    "facebook_post":      "landscape",
-}
+# Export format buckets — sourced from the authoritative card_constants module.
+from ...services.card_constants import (
+    CANVAS_SIZES as _WC_CANVAS_SIZES,
+    EXPORT_FORMAT_BUCKETS as _WC_EXPORT_BUCKETS,
+    WC_GALLERY_PLATFORM_IDS as _WC_GALLERY_PLATFORM_IDS,
+)
+from ...services.card_platform_service import build_platform_list as _build_platform_list
 
-# Platforms exposed in the Welcome Card gallery (subset that has FIFA export templates)
-_WC_GALLERY_PLATFORMS: list[dict] = [
-    {"id": "instagram_square",   "label": "Instagram Square",   "dims": "1080 × 1080"},
-    {"id": "instagram_portrait", "label": "Instagram Portrait", "dims": "1080 × 1350"},
-    {"id": "instagram_story",    "label": "Instagram Story",    "dims": "1080 × 1920"},
-    {"id": "tiktok",             "label": "TikTok",             "dims": "1080 × 1920"},
-    {"id": "facebook_landscape", "label": "Facebook Landscape", "dims": "1200 × 630"},
-    {"id": "banner_custom",      "label": "Banner",             "dims": "1500 × 500"},
-]
+# Platforms exposed in the Welcome Card gallery — derived from authoritative sources.
+_WC_GALLERY_PLATFORMS: list[dict] = _build_platform_list(_WC_GALLERY_PLATFORM_IDS)
+
+# JSON-serialisable canvas_sizes dict passed to the gallery template so the
+# JS CANVAS_SIZES object is server-rendered instead of hardcoded.
+_WC_CANVAS_SIZES_JSON: dict = {
+    pid: {"w": w, "h": h} for pid, (w, h) in _WC_CANVAS_SIZES.items()
+}
 
 _WC_APP_LOGO_URL = "/static/images/logo-dark.png"
 _TEMPLATES_DIR   = str(BASE_DIR / "templates")
@@ -785,6 +778,7 @@ async def onboarding_welcome_card(
                 "platforms":        _WC_GALLERY_PLATFORMS,
                 "default_platform": "instagram_square",
                 "photo_url":        license.player_card_photo_url,
+                "canvas_sizes":     _WC_CANVAS_SIZES_JSON,
             },
         )
 
