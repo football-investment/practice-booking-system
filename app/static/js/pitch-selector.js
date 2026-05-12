@@ -186,6 +186,19 @@
     this._onChange(null, []);
   };
 
+  /**
+   * Pre-populate the selector with an existing positions array.
+   * all[0] is treated as primary; all[1..3] as secondaries (max MAX_TOTAL total).
+   * Fires onChange so that any bound hidden inputs are updated immediately.
+   */
+  PitchSelector.prototype.setPositions = function (all) {
+    if (!Array.isArray(all) || all.length === 0) return;
+    this._primary     = all[0] || null;
+    this._secondaries = all.slice(1, MAX_TOTAL);
+    this._render();
+    this._onChange(this._primary, this.getAll());
+  };
+
   // ── DOM construction (once) ──────────────────────────────────────────────────
   PitchSelector.prototype._build = function () {
     this._root = document.createElement('div');

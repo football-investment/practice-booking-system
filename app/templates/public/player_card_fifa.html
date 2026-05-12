@@ -122,35 +122,27 @@ body.native-export-mode .events-section { display: none !important; }
     grid-template-columns: 170px 1fr;
 }
 .fifa-left {
-    background: var(--card-panel-bg);
-    padding: 1.5rem 1rem;
-    display: flex; flex-direction: column;
-    align-items: center; gap: 0.5rem; text-align: center;
+    position: relative; overflow: hidden;
+    min-height: 200px;
 }
-.fifa-avatar {
-    width: 68px; height: 68px; border-radius: 50%;
+.fifa-avatar { border-radius: 0; flex-shrink: 0; font-size: 2rem; font-weight: 900; color: white; }
+img.fifa-avatar {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+}
+div.fifa-avatar {
+    position: absolute; inset: 0; width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.55rem; font-weight: 900; color: white;
-    border: 3px solid rgba(255,255,255,0.18); flex-shrink: 0;
 }
-.fifa-overall { font-size: 2.8rem; font-weight: 900; color: white; line-height: 1; margin-top: 0.15rem; }
-.fifa-tier {
-    font-size: 0.58rem; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.12em; padding: 3px 10px; border-radius: 99px; color: white;
-    white-space: nowrap;
-}
+.fifa-overall { font-size: 2.5rem; font-weight: 900; color: var(--card-accent); line-height: 1; flex-shrink: 0; }
+.fifa-name-row { display: flex; align-items: flex-start; gap: 0.65rem; }
 .fifa-right {
     background: var(--card-right-bg);
     padding: 1.25rem 1.25rem 1rem;
     display: flex; flex-direction: column; gap: 0;
     min-width: 0; /* prevent grid blowout */
     position: relative; overflow: hidden;
-}
-.card-watermark {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: contain; opacity: 0.18;
-    pointer-events: none; z-index: 0;
 }
 .fifa-right-body {
     position: relative; z-index: 1;
@@ -166,6 +158,13 @@ body.native-export-mode .events-section { display: none !important; }
     font-size: 0.7rem; font-weight: 800; color: white;
     text-transform: uppercase; letter-spacing: 0.08em;
 }
+.fifa-pos-secondary-badges { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.fifa-pos-secondary-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 0.62rem; font-weight: 700; color: var(--card-right-subtext);
+    background: var(--card-pill-bg); border: 1px solid var(--card-pill-border);
+    text-transform: uppercase; letter-spacing: 0.06em;
+}
 .identity-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem 0.75rem;
@@ -179,6 +178,22 @@ body.native-export-mode .events-section { display: none !important; }
     background: var(--card-pill-bg); border: 1px solid var(--card-pill-border);
     border-radius: 99px; padding: 3px 9px;
     overflow-wrap: anywhere;
+}
+
+/* ── Sponsor logo bar — below skills+position panel, above events ── */
+.card-logo-bar {
+    background: var(--card-body-bg);
+    padding: 0.6rem 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.card-logo-bar-img {
+    max-height: 40px;
+    max-width: 160px;
+    object-fit: contain;
+    opacity: 0.75;
 }
 
 /* ── Card body: skills (left ~60%) + position panel (right ~40%) ── */
@@ -298,9 +313,7 @@ body.native-export-mode .events-section { display: none !important; }
 @media (max-width: 560px) {
     body { padding: 1rem 0.5rem 3rem; }
     .fifa-header { grid-template-columns: 130px 1fr; }
-    .fifa-left { padding: 1.1rem 0.75rem; }
-    .fifa-avatar { width: 58px; height: 58px; font-size: 1.3rem; }
-    .fifa-overall { font-size: 2.3rem; }
+    .fifa-overall { font-size: 2rem; }
     .fifa-right { padding: 1rem; gap: 0.6rem; }
     .fifa-name { font-size: 1.2rem; }
     .identity-grid { grid-template-columns: 1fr 1fr; }
@@ -315,12 +328,8 @@ body.native-export-mode .events-section { display: none !important; }
 }
 @media (max-width: 440px) {
     .fifa-header { grid-template-columns: 1fr; }
-    .fifa-left {
-        flex-direction: row; justify-content: center;
-        align-items: center; flex-wrap: wrap;
-        gap: 0.6rem 1rem; padding: 1rem 1.25rem;
-    }
-    .fifa-overall { font-size: 2.4rem; }
+    .fifa-left { min-height: 260px; }
+    .fifa-overall { font-size: 2.1rem; }
     .fifa-right { padding: 1rem; }
     .identity-grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -403,24 +412,28 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
     <div class="fifa-header">
         <div class="fifa-left">
             {% if photo_url %}
-            <img class="fifa-avatar" src="{{ photo_url }}" alt="{{ initials }}"
-                 style="background: {{ avatar_bg }}; object-fit: cover;">
+            <img class="fifa-avatar" src="{{ photo_url }}" alt="{{ initials }}">
             {% else %}
             <div class="fifa-avatar" style="background: {{ avatar_bg }};">{{ initials }}</div>
             {% endif %}
-            <div class="fifa-overall">{{ overall | round(0) | int }}</div>
-            <span class="fifa-tier" style="background: {{ tier_color }};">{{ tier_label }}</span>
         </div>
         <div class="fifa-right">
-            {% if sponsor_logo_url %}
-            <img class="card-watermark" src="{{ sponsor_logo_url }}" alt="">
-            {% endif %}
             <div class="fifa-right-body">
-            <div>
-                <h2 class="fifa-name">{{ player.name }}</h2>
-                {% if player.position and player.position != "Unknown" %}
-                <span class="fifa-pos-badge" style="background: {{ pos_color }};">{{ player.position }}</span>
-                {% endif %}
+            <div class="fifa-name-row">
+                <div class="fifa-overall">{{ overall | round(0) | int }}</div>
+                <div>
+                    <h2 class="fifa-name">{{ player.name }}</h2>
+                    {% if primary_pos_label %}
+                    <span class="fifa-pos-badge" style="background: {{ pos_color }};">{{ primary_pos_label }}</span>
+                    {% endif %}
+                    {% if secondary_pos_labels %}
+                    <div class="fifa-pos-secondary-badges">
+                        {% for lbl in secondary_pos_labels %}
+                        <span class="fifa-pos-secondary-badge">{{ lbl }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="identity-grid">
@@ -570,9 +583,6 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
                 <rect x="24" y="0" width="17" height="6" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
                 <!-- GK 6-yard box (bottom) -->
                 <rect x="24" y="94" width="17" height="6" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
-                <!-- Direction labels -->
-                <text x="32.5" y="3.5" font-size="3" fill="rgba(255,255,255,0.22)" font-family="sans-serif" font-weight="700" text-anchor="middle">ST</text>
-                <text x="32.5" y="98.5" font-size="3" fill="rgba(255,255,255,0.22)" font-family="sans-serif" font-weight="700" text-anchor="middle">GK</text>
                 <!-- Pass 1: inactive nodes (faint dots, no label) -->
                 {% for node in position_nodes %}
                 {% if not node.is_selected and not node.is_primary %}
@@ -610,6 +620,12 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
         </div>
 
     </div>
+
+    {% if sponsor_logo_url %}
+    <div class="card-logo-bar">
+        <img class="card-logo-bar-img" src="{{ sponsor_logo_url }}" alt="">
+    </div>
+    {% endif %}
 
     <!-- Events tab -->
     <div class="events-section" id="tab-events" style="display:none;">

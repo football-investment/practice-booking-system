@@ -15,6 +15,7 @@ Test groups:
   TestLfaDesignIntegration        — header pattern, icon, theme token regression (design fix)
   TestLfaViewDataCompleteness     — old-license compatibility (missing avg_skill/joined_at)
   TestLfaEditFormScope            — foot scores excluded, max-3 enforced, handler source check
+  TestLfaPositionsEndpoint        — POST /positions: save, validation, backward-compat, template
 """
 import asyncio
 import inspect
@@ -28,6 +29,7 @@ from app.api.web_routes.profile import (
     lfa_player_profile_page,
     lfa_player_profile_edit_page,
     lfa_player_profile_edit_submit,
+    lfa_player_profile_positions_submit,
     profile_page,
     _VALID_POSITIONS,
     _VALID_GOALS,
@@ -1165,3 +1167,228 @@ class TestLfaEditFormScope:
         src = _EDIT_TPL_PATH.read_text()
         assert "sec-pos-counter" in src
         assert "MAX_SEC" in src
+
+
+# ── 14. POST /profile/lfa-football-player/positions ──────────────────────────
+
+import json as _json_mod
+import pathlib as _pathlib
+
+_PITCH_SEL_PATH = (
+    pathlib.Path(__file__).resolve().parents[4]
+    / "app" / "static" / "js" / "pitch-selector.js"
+)
+
+
+def _pos_post(
+    position="striker",
+    positions_raw=None,
+    lic=None,
+    user=None,
+):
+    """Call lfa_player_profile_positions_submit with controllable parameters."""
+    if positions_raw is None:
+        positions_raw = _json_mod.dumps([position])
+    if lic is None:
+        lic = _lfa_lic()
+    if user is None:
+        user = _user()
+    db = _mock_db(lic)
+    req = _req()
+    req.query_params = {}
+    result = _run(lfa_player_profile_positions_submit(
+        req,
+        position=position,
+        positions_raw=positions_raw,
+        db=db,
+        user=user,
+    ))
+    return result, db, lic, user
+
+
+class TestLfaPositionsEndpoint:
+    """POST /profile/lfa-football-player/positions — save, validation, backward-compat, template."""
+
+    # ── Valid submit ──────────────────────────────────────────────────────────
+
+    def test_valid_single_position_redirects_with_updated(self):
+        result, *_ = _pos_post(position="striker", positions_raw='["striker"]')
+        assert isinstance(result, RedirectResponse)
+        assert "updated=positions" in result.headers["location"]
+
+    def test_valid_four_positions_redirects(self):
+        raw = _json_mod.dumps(["striker", "centre_forward", "left_wing", "right_wing"])
+        result, db, lic, _ = _pos_post(position="striker", positions_raw=raw)
+        assert isinstance(result, RedirectResponse)
+        assert db.commit.call_count == 1
+        assert lic.motivation_scores["positions"] == [
+            "striker", "centre_forward", "left_wing", "right_wing"
+        ]
+
+    def test_valid_save_syncs_user_position(self):
+        user = _user()
+        raw = _json_mod.dumps(["goalkeeper"])
+        result, _, lic, u = _pos_post(position="goalkeeper", positions_raw=raw, user=user)
+        assert isinstance(result, RedirectResponse)
+        assert u.position == "goalkeeper"
+
+    def test_valid_save_updates_motivation_scores_position_key(self):
+        raw = _json_mod.dumps(["centre_back", "left_back"])
+        _, _, lic, _ = _pos_post(position="centre_back", positions_raw=raw)
+        assert lic.motivation_scores["position"] == "centre_back"
+        assert lic.motivation_scores["positions"][0] == "centre_back"
+
+    def test_valid_save_does_not_touch_foot_scores(self):
+        lic = _lfa_lic(right=80.0, left=20.0)
+        _pos_post(lic=lic)
+        assert lic.right_foot_score == 80.0
+        assert lic.left_foot_score == 20.0
+
+    # ── Validation errors — no DB write ──────────────────────────────────────
+
+    def test_five_positions_rejected(self):
+        raw = _json_mod.dumps([
+            "striker", "centre_forward", "left_wing", "right_wing", "second_striker"
+        ])
+        result, db, _, _ = _pos_post(position="striker", positions_raw=raw)
+        assert isinstance(result, RedirectResponse)
+        assert "pos_error=invalid_count" in result.headers["location"]
+        db.commit.assert_not_called()
+
+    def test_empty_positions_list_rejected(self):
+        result, db, _, _ = _pos_post(position="striker", positions_raw="[]")
+        assert isinstance(result, RedirectResponse)
+        assert "pos_error=invalid_count" in result.headers["location"]
+        db.commit.assert_not_called()
+
+    def test_invalid_primary_rejected(self):
+        result, db, _, _ = _pos_post(
+            position="quarterback",
+            positions_raw='["quarterback"]',
+        )
+        assert "pos_error=invalid_primary" in result.headers["location"]
+        db.commit.assert_not_called()
+
+    def test_empty_primary_rejected(self):
+        result, db, _, _ = _pos_post(position="", positions_raw='[""]')
+        assert "pos_error=invalid_primary" in result.headers["location"]
+        db.commit.assert_not_called()
+
+    def test_invalid_position_in_list_rejected(self):
+        raw = _json_mod.dumps(["striker", "not_a_real_position"])
+        result, db, _, _ = _pos_post(position="striker", positions_raw=raw)
+        assert "pos_error=invalid_position" in result.headers["location"]
+        db.commit.assert_not_called()
+
+    def test_primary_not_first_rejected(self):
+        raw = _json_mod.dumps(["centre_forward", "striker"])
+        result, db, _, _ = _pos_post(position="striker", positions_raw=raw)
+        assert "pos_error=primary_not_first" in result.headers["location"]
+        db.commit.assert_not_called()
+
+    def test_malformed_json_rejected(self):
+        result, db, _, _ = _pos_post(position="striker", positions_raw="not-json")
+        assert "pos_error=invalid_format" in result.headers["location"]
+        db.commit.assert_not_called()
+
+    def test_no_license_redirects(self):
+        db = _mock_db(None)
+        req = _req()
+        req.query_params = {}
+        result = _run(lfa_player_profile_positions_submit(
+            req,
+            position="striker",
+            positions_raw='["striker"]',
+            db=db,
+            user=_user(),
+        ))
+        assert isinstance(result, RedirectResponse)
+        assert "dashboard" in result.headers["location"] or "no_lfa_license" in result.headers["location"]
+
+    # ── Template static assertions ────────────────────────────────────────────
+
+    def test_profile_template_has_positions_mount(self):
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "ps-profile-mount" in src
+
+    def test_profile_template_positions_form_action(self):
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert 'action="/profile/lfa-football-player/positions"' in src
+
+    def test_profile_template_references_player_positions(self):
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "player_positions" in src
+
+    # ── UX-fix: P0 — no duplicate counter ────────────────────────────────────
+
+    def test_no_external_counter_element_in_template(self):
+        """External #pos-counter removed — pitch-selector internal counter is the sole source."""
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert 'id="pos-counter"' not in src
+
+    def test_update_inputs_js_no_counter_reference(self):
+        """_updateInputs must not touch the (now-removed) #pos-counter DOM element."""
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "pos-counter" not in src
+
+    # ── UX-fix: P1 — cancel/reopen resets selector state ─────────────────────
+
+    def test_hidePosEdit_resets_ps_instance(self):
+        """hidePosEdit must null _ps so re-open always reinitialises from saved DB state."""
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        hide_start = src.find("hidePosEdit")
+        assert hide_start != -1, "hidePosEdit not found in template"
+        fn_brace = src.find("{", hide_start)
+        fn_end   = src.find("};", fn_brace)
+        fn_body  = src[fn_brace:fn_end]
+        assert "_ps = null" in fn_body
+
+    # ── UX-fix: P1 — profile theme scoped, not global ────────────────────────
+
+    def test_profile_theme_css_scoped_to_mount(self):
+        """Info-panel + counter overrides must be scoped to #ps-profile-mount, not global."""
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "#ps-profile-mount .ps-info-panel" in src
+        assert "#ps-profile-mount .ps-counter" in src
+
+    # ── UX-fix: P1 — toggle reveal animation present ─────────────────────────
+
+    def test_edit_mode_reveal_animation_present(self):
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "pos-edit-entering" in src
+        assert "pos-edit-reveal" in src
+
+    # ── UX-fix: P0 — mobile sticky action row ────────────────────────────────
+
+    def test_mobile_action_row_is_sticky(self):
+        """pos-action-row must use position:sticky in a max-width media query."""
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "sticky" in src
+        assert "pos-action-row" in src
+
+    # ── UX-fix: P2 — emoji and badge clarity ─────────────────────────────────
+
+    def test_positions_card_icon_not_football_emoji(self):
+        """Positions card must not reuse the ⚽ emoji (clashes with Player Profile card)."""
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "⚽ Positions" not in src
+
+    def test_positions_card_has_pin_icon(self):
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "📍 Positions" in src
+
+    def test_positions_card_has_primary_group_label(self):
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert "pos-section-label" in src
+        assert ">Primary<" in src
+
+    def test_positions_card_has_also_group_label(self):
+        src = _TPL_PATH.read_text(encoding="utf-8")
+        assert ">Also<" in src
+
+    # ── JS static assertion ───────────────────────────────────────────────────
+
+    def test_pitch_selector_has_set_positions_method(self):
+        src = _PITCH_SEL_PATH.read_text(encoding="utf-8")
+        assert "setPositions" in src
+        assert "PitchSelector.prototype.setPositions" in src

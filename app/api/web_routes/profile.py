@@ -254,15 +254,80 @@ async def lfa_player_profile_page(
             "ms":                     ms,
             "primary_pos":            primary_pos,
             "secondary_pos":          secondary_pos,
+            "player_positions":       all_pos,
             "position_labels":        _POSITION_LABELS,
             "goal_label":             _GOAL_LABELS.get(ms.get("goals", ""), ms.get("goals", "")),
             "average_skill_level":    ms.get("average_skill_level"),
             "onboarding_completed_at":ms.get("onboarding_completed_at"),
+            "pos_updated":            request.query_params.get("updated") == "positions",
+            "pos_error":              request.query_params.get("pos_error", ""),
             "spec_dashboard_url":     "/dashboard/lfa-football-player",
             "spec_dashboard_icon":    "⚽",
             "show_spec_nav":          True,
         },
     )
+
+
+@router.post("/profile/lfa-football-player/positions", response_class=HTMLResponse)
+async def lfa_player_profile_positions_submit(
+    request: Request,
+    position: str     = Form(default=""),
+    positions_raw: str = Form(default="[]"),
+    db: Session       = Depends(get_db),
+    user: User        = Depends(get_current_user_web),
+):
+    """Update only the player's positions (primary + secondaries, max 4 total).
+
+    Accepts:
+      position      — canonical primary position (snake_case)
+      positions_raw — JSON array of all positions including primary, e.g. '["striker","left_wing"]'
+
+    Validates: canonical values, 1–4 count, primary is first element.
+    Never touches foot scores, goals, height, weight, or any other field.
+    """
+    import json as _json
+
+    license, redirect = _lfa_license_or_redirect(user.id, db)
+    if redirect:
+        return redirect
+
+    _base_url = "/profile/lfa-football-player"
+
+    # ── Parse positions JSON ──────────────────────────────────────────────────
+    try:
+        all_positions: list = _json.loads(positions_raw)
+        if not isinstance(all_positions, list):
+            raise ValueError
+    except Exception:
+        return RedirectResponse(url=f"{_base_url}?pos_error=invalid_format", status_code=303)
+
+    # ── Validate primary ──────────────────────────────────────────────────────
+    position = position.strip()
+    if not position or position not in _VALID_POSITIONS:
+        return RedirectResponse(url=f"{_base_url}?pos_error=invalid_primary", status_code=303)
+
+    # ── Validate count (1–4 total) ────────────────────────────────────────────
+    if not (1 <= len(all_positions) <= 4):
+        return RedirectResponse(url=f"{_base_url}?pos_error=invalid_count", status_code=303)
+
+    # ── Validate each canonical value ─────────────────────────────────────────
+    for p in all_positions:
+        if p not in _VALID_POSITIONS:
+            return RedirectResponse(url=f"{_base_url}?pos_error=invalid_position", status_code=303)
+
+    # ── Primary must be first in the list (enforced by JS, verified server-side) ──
+    if all_positions[0] != position:
+        return RedirectResponse(url=f"{_base_url}?pos_error=primary_not_first", status_code=303)
+
+    # ── Save — only positions keys touched ───────────────────────────────────
+    ms = dict(license.motivation_scores or {})
+    ms["position"]  = position
+    ms["positions"] = all_positions
+    license.motivation_scores = ms
+    user.position = position          # backward-compat: User.position global field
+    db.commit()
+
+    return RedirectResponse(url=f"{_base_url}?updated=positions", status_code=303)
 
 
 @router.get("/profile/lfa-football-player/edit", response_class=HTMLResponse)

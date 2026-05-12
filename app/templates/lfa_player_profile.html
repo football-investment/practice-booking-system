@@ -224,9 +224,72 @@
 
     .back-link:hover { color: var(--hub-text-secondary); }
 
+    /* ── Positions card — view / edit modes ───────────────────────────────── */
+    .pos-view-badges  { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+    .pos-view-section { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+    .pos-section-label {
+        font-size: 0.7rem; font-weight: 700; color: var(--hub-text-muted);
+        text-transform: uppercase; letter-spacing: 0.06em;
+        width: 44px; flex-shrink: 0;
+    }
+    .pos-badge-primary {
+        display: inline-block; padding: 0.35rem 0.85rem; border-radius: 7px;
+        font-size: 0.88rem; font-weight: 800;
+        background: var(--hub-btn-bg); color: var(--hub-btn-text);
+    }
+    .pos-badge-secondary {
+        display: inline-block; padding: 0.3rem 0.7rem; border-radius: 6px;
+        font-size: 0.8rem; font-weight: 600;
+        background: #e9f5ff; color: #2b6cb0; border: 1px solid #bee3f8;
+    }
+    .pos-empty { color: var(--hub-text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    .pos-alert {
+        padding: 0.65rem 0.9rem; border-radius: 8px;
+        font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;
+    }
+    .pos-alert-success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+    .pos-alert-error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+    .pos-action-row    { display: flex; gap: 0.6rem; margin-top: 0.75rem; flex-wrap: wrap; }
+
+    /* Profile-scoped: override onboarding yellow tokens in the pitch selector */
+    #ps-profile-mount .ps-info-panel {
+        background: #f8fafc;
+        border-color: var(--hub-divider, #e2e8f0);
+    }
+    #ps-profile-mount .ps-counter {
+        background: #f0f4f8;
+        border-color: var(--hub-divider, #e2e8f0);
+        color: var(--hub-text-primary, #1a202c);
+    }
+    #ps-profile-mount .ps-chip {
+        background: #e9f5ff; border-color: #bee3f8; color: #2b6cb0;
+    }
+    #ps-profile-mount .ps-primary-label { color: var(--hub-text-secondary, #4a5568); }
+    #ps-profile-mount .ps-primary-value { color: var(--hub-text-primary, #1a202c); }
+
+    /* Edit mode reveal animation */
+    @keyframes pos-edit-reveal {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .pos-edit-entering { animation: pos-edit-reveal 0.18s ease-out; }
+
     @media (max-width: 700px) {
         .cards-grid { grid-template-columns: 1fr; }
         .page-header { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* Mobile: sticky Save/Cancel so buttons stay visible on tall portrait pitch */
+    @media (max-width: 640px) {
+        .pos-action-row {
+            position: sticky;
+            bottom: 0;
+            background: var(--hub-card-bg, #fff);
+            padding: 0.5rem 0 0.25rem;
+            border-top: 1px solid var(--hub-divider, #e2e8f0);
+            z-index: 5;
+            margin-top: 0.5rem;
+        }
     }
 </style>
 {% endblock %}
@@ -333,6 +396,68 @@
             </div>
         </div>
 
+        <!-- 📍 Positions (editable via pitch selector) -->
+        <div class="card" id="card-positions">
+            <h2>📍 Positions</h2>
+
+            {% if pos_updated %}
+            <div class="pos-alert pos-alert-success">✓ Positions updated successfully.</div>
+            {% endif %}
+
+            <!-- View mode (default) -->
+            <div id="pos-view-mode">
+                {% if primary_pos %}
+                <div class="pos-view-badges">
+                    <div class="pos-view-section">
+                        <span class="pos-section-label">Primary</span>
+                        <span class="pos-badge-primary">
+                            {{ position_labels.get(primary_pos, primary_pos.replace('_', ' ').title()) }}
+                        </span>
+                    </div>
+                    {% if secondary_pos %}
+                    <div class="pos-view-section">
+                        <span class="pos-section-label">Also</span>
+                        {% for sp in secondary_pos %}
+                        <span class="pos-badge-secondary">
+                            {{ position_labels.get(sp, sp.replace('_', ' ').title()) }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="pos-empty">No positions set yet.</p>
+                {% endif %}
+                <button class="btn btn-secondary btn-sm" onclick="showPosEdit()">✏️ Edit Positions</button>
+            </div>
+
+            <!-- Edit mode (hidden until toggled) -->
+            <div id="pos-edit-mode" style="display:none;">
+                {% if pos_error %}
+                <div class="pos-alert pos-alert-error">
+                    {% if pos_error == "invalid_primary" %}Invalid primary position selected.
+                    {% elif pos_error == "invalid_count" %}Select between 1 and 4 positions total.
+                    {% elif pos_error == "invalid_format" %}Invalid form data — please try again.
+                    {% elif pos_error == "invalid_position" %}One or more positions are not recognised.
+                    {% elif pos_error == "primary_not_first" %}Primary position must be selected first.
+                    {% else %}Something went wrong — please try again.
+                    {% endif %}
+                </div>
+                {% endif %}
+                <form method="post" action="/profile/lfa-football-player/positions" id="pos-form">
+                    <input type="hidden" name="position"     id="ps-input-primary" value="">
+                    <input type="hidden" name="positions_raw" id="ps-input-raw"    value="[]">
+                    <div id="ps-profile-mount"></div>
+                    <div class="pos-action-row">
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                id="pos-save-btn" disabled>💾 Save Changes</button>
+                        <button type="button" class="btn btn-secondary btn-sm"
+                                onclick="hidePosEdit()">✕ Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Foot Assessment (read-only) -->
         <div class="card">
             <h2>🦶 Foot Assessment</h2>
@@ -402,4 +527,49 @@
 
     </div>
 </div>
+
+<script src="/static/js/pitch-selector.js"></script>
+<script>
+(function () {
+    'use strict';
+    var _ps = null;
+    var _currentPositions = {{ player_positions | tojson }};
+
+    function _updateInputs(primary, all) {
+        document.getElementById('ps-input-primary').value = primary || '';
+        document.getElementById('ps-input-raw').value     = JSON.stringify(all || []);
+        document.getElementById('pos-save-btn').disabled  = !primary;
+    }
+
+    window.showPosEdit = function () {
+        var editMode = document.getElementById('pos-edit-mode');
+        document.getElementById('pos-view-mode').style.display = 'none';
+        editMode.style.display = '';
+        editMode.classList.add('pos-edit-entering');
+        setTimeout(function () { editMode.classList.remove('pos-edit-entering'); }, 220);
+        if (!_ps) {
+            _ps = new PitchSelector('ps-profile-mount', function (primary, all) {
+                _updateInputs(primary, all);
+            });
+            if (_currentPositions.length > 0) {
+                _ps.setPositions(_currentPositions);
+            }
+        }
+    };
+
+    window.hidePosEdit = function () {
+        document.getElementById('pos-view-mode').style.display = '';
+        document.getElementById('pos-edit-mode').style.display = 'none';
+        if (_ps) {
+            document.getElementById('ps-profile-mount').innerHTML = '';
+            _ps = null;
+        }
+    };
+
+    {% if pos_error %}
+    /* Auto-open edit mode when returning from a validation error */
+    document.addEventListener('DOMContentLoaded', function () { showPosEdit(); });
+    {% endif %}
+}());
+</script>
 {% endblock %}

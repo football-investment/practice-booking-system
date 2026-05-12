@@ -127,8 +127,13 @@ def public_player_card(
             player_positions = [position]
 
     # Pitch display nodes for the position panel (FIFA card lower-right section).
-    from app.utils.football_positions import get_pitch_display_nodes as _get_pitch_nodes
+    from app.utils.football_positions import (
+        get_pitch_display_nodes as _get_pitch_nodes,
+        position_label as _position_label,
+    )
     position_nodes = _get_pitch_nodes(position if position != "Unknown" else "", player_positions)
+    primary_pos_label = _position_label(position) if position != "Unknown" else None
+    secondary_pos_labels = [_position_label(p) for p in player_positions if p != position]
 
     # Age group from date_of_birth
     age_group = "AMATEUR"
@@ -320,8 +325,10 @@ def public_player_card(
             lfa_license.left_foot_score,
         ),
         # Position panel (FIFA Default lower-right section)
-        "player_positions": player_positions,
-        "position_nodes":   position_nodes,
+        "player_positions":     player_positions,
+        "position_nodes":       position_nodes,
+        "primary_pos_label":    primary_pos_label,
+        "secondary_pos_labels": secondary_pos_labels,
     })
 
 

@@ -44,14 +44,18 @@ Template (TPL-*)
   TPL-13 selected/primary nodes have <text> labels in SVG (pass 4 present)
   TPL-14 pos-primary-label div is ABSENT (removed — SVG node labels are sufficient)
   TPL-15 pos-secondary-chips div is ABSENT (removed — position text cleaned up)
-  TPL-16 card-watermark CSS defined; card-logo CSS ABSENT
-  TPL-17 card-watermark img inside .fifa-right (NOT .fifa-left); card-logo markup ABSENT
+  TPL-16 card-logo-bar + card-logo-bar-img CSS defined; card-watermark + card-logo CSS ABSENT
+  TPL-17 card-logo-bar HTML present after .card-body; card-watermark + card-logo markup ABSENT
   TPL-18 identity-grid has Height, Weight, Foot fields (second row)
   TPL-19 skill_categories[:2] slice used for left column (Outfield + Set Pieces)
   TPL-20 skill_categories[2:] slice used for right column (Mental + Physical)
   TPL-21 app_logo_url is None in public_player.py Default card context (Phase 4 regression guard)
-  TPL-22 sponsor_logo_url is the watermark source (template uses sponsor_logo_url, not app_logo_url)
+  TPL-22 sponsor_logo_url is the card-logo-bar-img source (not app_logo_url, not card-watermark)
   TPL-23 fifa-right-body wrapper present; z-index:1 ensures content above watermark
+  TPL-24 img.fifa-avatar has no background inline style (avatar_bg must not leak behind photo)
+  TPL-25 primary pos badge uses primary_pos_label (display label), not player.position (canonical)
+  TPL-26 secondary pos badge CSS + markup present; secondary_pos_labels referenced
+  TPL-27 no ST/GK orientation text labels in SVG; node.label render still present
 
 Editor (ED-*)
   ED-01  Download PNG button has no "disabled" attribute in the default-platform branch
@@ -414,52 +418,52 @@ def test_tpl15_pos_secondary_chips_absent():
     )
 
 
-def test_tpl16_card_watermark_css_defined_card_logo_absent():
-    """card-watermark CSS must define full-panel layout; old card-logo CSS must be gone."""
+def test_tpl16_card_logo_bar_css_defined_watermark_absent():
+    """card-logo-bar + card-logo-bar-img CSS must be defined; card-watermark + card-logo CSS must be gone."""
     html = _fifa_html()
-    assert ".card-watermark" in html, (
-        ".card-watermark CSS class must be defined — full-panel sponsor logo inside .fifa-right"
+    assert ".card-logo-bar" in html, (
+        ".card-logo-bar CSS class must be defined — sponsor logo bar at bottom of card"
     )
-    # Full-panel layout properties
-    assert "inset: 0" in html, (
-        ".card-watermark must use inset:0 to fill the entire .fifa-right panel"
+    assert ".card-logo-bar-img" in html, (
+        ".card-logo-bar-img CSS class must be defined — sizes the sponsor logo tastefully"
     )
-    assert "width: 100%" in html, (
-        ".card-watermark must use width:100% for full-panel coverage"
+    assert "max-height: 40px" in html, (
+        ".card-logo-bar-img must set max-height: 40px"
     )
-    assert "height: 100%" in html, (
-        ".card-watermark must use height:100% for full-panel coverage"
+    assert "opacity: 0.75" in html, (
+        ".card-logo-bar-img opacity must be 0.75"
     )
-    assert "opacity: 0.18" in html, (
-        ".card-watermark opacity must be 0.18 — characterful branding, not a faint corner hint"
+    assert ".card-watermark" not in html, (
+        ".card-watermark CSS must be removed — sponsor logo moved to .card-logo-bar at card bottom"
     )
-    # Removed corner-position properties must be absent from the watermark rule
-    assert ".card-logo" not in html, (
-        ".card-logo CSS must be removed — replaced by .card-watermark in .fifa-right"
+    assert ".card-logo {" not in html, (
+        ".card-logo CSS must be removed — replaced by .card-logo-bar"
     )
     assert "filter: brightness(0) invert(1)" not in html, (
         "brightness/invert filter must be gone — user-uploaded sponsor logos must not be colour-mangled"
     )
 
 
-def test_tpl17_card_watermark_inside_fifa_right_card_logo_absent():
-    """card-watermark must be inside .fifa-right; card-logo markup must be absent."""
+def test_tpl17_card_logo_bar_html_present_watermark_absent():
+    """card-logo-bar must appear in HTML after .card-body; card-watermark + card-logo markup must be absent."""
     html = _fifa_html()
-    assert 'class="card-watermark"' in html, (
-        "An <img class='card-watermark'> element must be present for sponsor logo watermark"
+    assert 'class="card-logo-bar"' in html, (
+        "<div class='card-logo-bar'> must be present — sponsor logo bar below skills+position panel"
+    )
+    assert 'class="card-logo-bar-img"' in html, (
+        "<img class='card-logo-bar-img'> must be present inside .card-logo-bar"
+    )
+    assert 'class="card-watermark"' not in html, (
+        "<img class='card-watermark'> must be removed — sponsor logo moved to .card-logo-bar"
     )
     assert 'class="card-logo"' not in html, (
         "<img class='card-logo'> must be removed — Phase 4 mistake cleaned up"
     )
-    # Watermark must be inside .fifa-right (appear after .fifa-right, after .fifa-left in file)
-    watermark_pos   = html.find('class="card-watermark"')
-    fifa_right_pos  = html.find('class="fifa-right"')
-    fifa_left_pos   = html.find('class="fifa-left"')
-    assert watermark_pos > fifa_right_pos, (
-        "card-watermark must appear inside .fifa-right (after .fifa-right opening tag)"
-    )
-    assert watermark_pos > fifa_left_pos, (
-        "card-watermark must NOT be inside .fifa-left — it belongs in .fifa-right"
+    # Logo bar must appear after .card-body (below skills and position panel)
+    logo_bar_pos  = html.find('class="card-logo-bar"')
+    card_body_pos = html.find('class="card-body"')
+    assert logo_bar_pos > card_body_pos, (
+        ".card-logo-bar must appear after .card-body — sponsor logo at bottom of card"
     )
 
 
@@ -516,20 +520,19 @@ def test_tpl21_app_logo_url_is_none_in_default_context():
     )
 
 
-def test_tpl22_sponsor_logo_url_is_watermark_source():
-    """Template must use sponsor_logo_url for the watermark, not app_logo_url."""
+def test_tpl22_sponsor_logo_url_in_logo_bar():
+    """Template must use sponsor_logo_url in .card-logo-bar-img, not app_logo_url or card-watermark."""
     html = _fifa_html()
-    # sponsor_logo_url must be referenced in the watermark conditional block
     assert "sponsor_logo_url" in html, (
         "sponsor_logo_url must be referenced in player_card_fifa.html — "
-        "it is the user-uploaded logo and the correct source for the .card-watermark element"
+        "it is the user-uploaded logo and the correct source for .card-logo-bar-img"
     )
-    # The watermark img src must come from sponsor_logo_url
-    watermark_block_start = html.find('class="card-watermark"')
-    assert watermark_block_start != -1
-    context_around = html[max(0, watermark_block_start - 200):watermark_block_start + 50]
+    # sponsor_logo_url must appear near .card-logo-bar-img
+    logo_bar_img_pos = html.find('class="card-logo-bar-img"')
+    assert logo_bar_img_pos != -1
+    context_around = html[max(0, logo_bar_img_pos - 200):logo_bar_img_pos + 50]
     assert "sponsor_logo_url" in context_around, (
-        "card-watermark img src must reference sponsor_logo_url (not app_logo_url)"
+        ".card-logo-bar-img src must reference sponsor_logo_url (not app_logo_url)"
     )
 
 
@@ -543,6 +546,82 @@ def test_tpl23_fifa_right_body_wrapper_present():
     # CSS must define the class with position:relative and z-index
     assert ".fifa-right-body" in html, (
         ".fifa-right-body CSS class must be defined in the template"
+    )
+
+
+def test_tpl24_photo_img_has_no_background_style():
+    """img.fifa-avatar must carry no background inline style — avatar_bg must not leak behind photo."""
+    html = _fifa_html()
+    img_match = re.search(r'<img class="fifa-avatar"[^>]*>', html)
+    assert img_match, "img.fifa-avatar element must be present in the template"
+    img_tag = img_match.group(0)
+    assert "background" not in img_tag, (
+        "img.fifa-avatar must NOT have a 'background' inline style. "
+        "The avatar_bg colour was showing as a gradient/solid behind the player photo. "
+        "background belongs only on the div.fifa-avatar fallback (no-photo state)."
+    )
+
+
+def test_tpl25_primary_pos_badge_uses_display_label():
+    """Primary pos badge must render primary_pos_label (display label), not player.position (canonical)."""
+    html = _fifa_html()
+    badge_pos = html.find('class="fifa-pos-badge"')
+    assert badge_pos != -1, "fifa-pos-badge class must be present"
+    context = html[badge_pos: badge_pos + 150]
+    assert "primary_pos_label" in context, (
+        "fifa-pos-badge must render {{ primary_pos_label }} — the human-readable display label "
+        "from position_label(). Rendering player.position directly produces CENTRE_MIDFIELD "
+        "(with underscore), which is not acceptable."
+    )
+    assert "player.position" not in context, (
+        "fifa-pos-badge must NOT render {{ player.position }} directly — "
+        "it is the raw canonical key and contains underscores."
+    )
+
+
+def test_tpl25b_position_label_has_no_underscore():
+    """position_label() output for all canonical values must contain no underscore."""
+    from app.utils.football_positions import position_label, POSITIONS_21
+    for p in POSITIONS_21:
+        lbl = position_label(p["value"])
+        assert "_" not in lbl, (
+            f"position_label('{p['value']}') returned '{lbl}' which contains an underscore. "
+            "All display labels must be human-readable (spaces, no underscores)."
+        )
+
+
+def test_tpl26_secondary_pos_badge_markup_present():
+    """Secondary pos badge CSS and Jinja markup must be present; secondary_pos_labels must be referenced."""
+    html = _fifa_html()
+    assert ".fifa-pos-secondary-badge" in html, (
+        ".fifa-pos-secondary-badge CSS class must be defined"
+    )
+    assert "fifa-pos-secondary-badges" in html, (
+        ".fifa-pos-secondary-badges wrapper CSS must be defined"
+    )
+    assert "secondary_pos_labels" in html, (
+        "secondary_pos_labels variable must be referenced in the template "
+        "to render secondary position badges"
+    )
+    assert 'class="fifa-pos-secondary-badge"' in html, (
+        "<span class='fifa-pos-secondary-badge'> HTML markup must be present"
+    )
+
+
+def test_tpl27_no_st_gk_orientation_labels_in_svg():
+    """ST and GK orientation text labels must be removed from the pitch SVG."""
+    html = _fifa_html()
+    assert ">ST<" not in html, (
+        "ST orientation label must be removed from the pitch SVG — "
+        "it is a layout guide, not a selected position node"
+    )
+    assert ">GK<" not in html, (
+        "GK orientation label must be removed from the pitch SVG — "
+        "it is a layout guide, not a selected position node"
+    )
+    # Regression guard: node.label (Pass 4) must still render for selected/primary positions
+    assert "node.label" in html, (
+        "node.label must still be rendered in SVG Pass 4 for selected/primary positions"
     )
 
 
