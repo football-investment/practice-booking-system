@@ -30,7 +30,7 @@ Coverage:
          Old "0 0 100 24" aspect-squashed viewBox must be absent
   SQ-19  position_nodes Jinja2 variable referenced in SVG rendering
          Coordinate transform: cx = node.x * 105, cy = node.y * 68 (v8 real geometry)
-  SQ-20  Landscape panel appears BEFORE .ex-skill-cats (v10 — full-width strip above columns)
+  SQ-20  Landscape panel appears INSIDE .ex-skill-cats, after skill_categories[2] (v11)
   SQ-21  Column count unchanged: still exactly 3 .ex-skill-col divs with panel added
   SQ-22  Position panel gated by {% if position_nodes %} — graceful empty state
   SQ-23  .ex-pos-svg-landscape CSS defines flex or dimension (fills container)
@@ -44,6 +44,8 @@ Coverage:
          .ex-sec-pos-chips absent from photo column (chips moved to pos panel)
   SQ-31  No PRIMARY/SECONDARY/OTHER legend in Position Map panel — v9
   SQ-32  v10 flat layout: .ex-col-right and .ex-col-right-skills absent from HTML body
+  SQ-33  v11 column modifiers: ex-col-outfield, ex-col-mental-pos, ex-col-sets-phys present
+         Position Map inside ex-col-mental-pos; panel height 160px; info col 140px
 """
 from __future__ import annotations
 
@@ -81,8 +83,8 @@ class TestHeroZone:
 
 class TestThreeColumnLayout:
     def test_sq02_three_skill_col_divs(self, tpl):
-        """Exactly 3 <div class="ex-skill-col"> present in the skills section."""
-        matches = re.findall(r'class="ex-skill-col"', tpl)
+        """Exactly 3 .ex-skill-col divs present (may carry modifier classes in v11)."""
+        matches = re.findall(r'class="ex-skill-col[^"]*"', tpl)
         assert len(matches) == 3, f"Expected 3 ex-skill-col divs, found {len(matches)}"
 
     def test_sq03_col1_outfield_index_0(self, tpl):
@@ -332,14 +334,17 @@ class TestPositionMiniPanel:
             "SVG coordinate transform must use node.y * 68 (68m pitch height), not node.y * 24"
         )
 
-    def test_sq20_pos_panel_before_skill_cats(self, tpl):
-        """v10: landscape panel must appear BEFORE .ex-skill-cats (full-width strip above columns)."""
+    def test_sq20_pos_panel_inside_skill_col(self, tpl):
+        """v11: panel is INSIDE .ex-skill-cats and appears after skill_categories[2] (Mental)."""
         html_body      = tpl[tpl.rfind("</style>"):]
-        idx_panel      = html_body.find('class="ex-pos-panel-landscape"')
         idx_skill_cats = html_body.find('class="ex-skill-cats"')
-        assert idx_panel > 0 and idx_skill_cats > 0, "Both ex-pos-panel-landscape and ex-skill-cats must be present"
-        assert idx_panel < idx_skill_cats, (
-            "v10: ex-pos-panel-landscape must appear BEFORE ex-skill-cats"
+        idx_mental     = html_body.find("skill_categories[2]", idx_skill_cats)
+        idx_panel      = html_body.find('class="ex-pos-panel-landscape"', idx_mental)
+        assert idx_skill_cats > 0 and idx_mental > idx_skill_cats, (
+            "skill_categories[2] (Mental) must appear inside ex-skill-cats"
+        )
+        assert idx_panel > idx_mental, (
+            "v11: ex-pos-panel-landscape must appear after Mental cat (skill_categories[2])"
         )
 
 
@@ -347,10 +352,10 @@ class TestPositionMiniPanel:
 
 class TestPositionPanelIntegrity:
     def test_sq21_column_count_unchanged(self, tpl):
-        """Adding landscape panel must not change column count — still exactly 3 ex-skill-col divs."""
-        matches = re.findall(r'class="ex-skill-col"', tpl)
+        """Panel inside Col 2 must not add a 4th column — still exactly 3 ex-skill-col divs."""
+        matches = re.findall(r'class="ex-skill-col[^"]*"', tpl)
         assert len(matches) == 3, (
-            f"Landscape panel must not add a 4th column; found {len(matches)} ex-skill-col divs"
+            f"Position Map must not add a 4th column; found {len(matches)} ex-skill-col divs"
         )
 
     def test_sq22_pos_panel_gated_by_position_nodes(self, tpl):
@@ -525,3 +530,65 @@ class TestV10FlatLayout:
         assert 'class="ex-col-right-skills"' not in html_body, (
             ".ex-col-right-skills inner wrapper must be absent in v10"
         )
+
+
+# ── SQ-33: v11 column modifier classes + Position Map placement ───────────────
+
+class TestV11ColumnModifiers:
+    def test_sq33_col_outfield_class_present(self, tpl):
+        """v11: Col 1 must carry ex-col-outfield modifier class."""
+        html_body = tpl[tpl.rfind("</style>"):]
+        assert 'ex-col-outfield' in html_body, (
+            "ex-col-outfield modifier class must be present on Col 1 (Outfield)"
+        )
+
+    def test_sq33_col_mental_pos_class_present(self, tpl):
+        """v11: Col 2 must carry ex-col-mental-pos modifier class."""
+        html_body = tpl[tpl.rfind("</style>"):]
+        assert 'ex-col-mental-pos' in html_body, (
+            "ex-col-mental-pos modifier class must be present on Col 2 (Mental + PosMap)"
+        )
+
+    def test_sq33_col_sets_phys_class_present(self, tpl):
+        """v11: Col 3 must carry ex-col-sets-phys modifier class."""
+        html_body = tpl[tpl.rfind("</style>"):]
+        assert 'ex-col-sets-phys' in html_body, (
+            "ex-col-sets-phys modifier class must be present on Col 3 (Set Pieces + Physical)"
+        )
+
+    def test_sq33_panel_inside_col_mental_pos(self, tpl):
+        """v11: Position Map panel must be inside .ex-col-mental-pos column."""
+        html_body   = tpl[tpl.rfind("</style>"):]
+        col2_start  = html_body.find('ex-col-mental-pos')
+        col3_start  = html_body.find('ex-col-sets-phys')
+        panel_idx   = html_body.find('class="ex-pos-panel-landscape"')
+        assert col2_start > 0 and col3_start > 0 and panel_idx > 0
+        assert col2_start < panel_idx < col3_start, (
+            "v11: ex-pos-panel-landscape must be inside ex-col-mental-pos (after Mental, before Col 3)"
+        )
+
+    def test_sq33_panel_height_160px(self, tpl):
+        """v11: .ex-pos-panel-landscape CSS must declare height: 160px."""
+        panel_css_start = tpl.find(".ex-pos-panel-landscape {")
+        assert panel_css_start != -1
+        panel_css_end = tpl.find("}", panel_css_start)
+        panel_css = tpl[panel_css_start: panel_css_end + 1]
+        assert "height: 160px" in panel_css, (
+            ".ex-pos-panel-landscape must be 160px tall in v11 for legible pitch rendering"
+        )
+
+    def test_sq33_info_col_140px(self, tpl):
+        """v11: .ex-pos-info CSS must declare flex: 0 0 140px (narrowed to widen SVG area)."""
+        info_css_start = tpl.find(".ex-pos-info {")
+        assert info_css_start != -1
+        info_css_end = tpl.find("}", info_css_start)
+        info_css = tpl[info_css_start: info_css_end + 1]
+        assert "140px" in info_css, (
+            ".ex-pos-info must be 140px wide in v11 — wider SVG area for legible pitch"
+        )
+
+    def test_sq33_flex_fill_css_rules_present(self, tpl):
+        """v11: column flex-fill CSS rules must be defined for all three modifier classes."""
+        assert ".ex-col-outfield .ex-cat" in tpl, "flex-fill rule for ex-col-outfield missing"
+        assert ".ex-col-mental-pos .ex-cat" in tpl, "flex-fill rule for ex-col-mental-pos missing"
+        assert ".ex-col-sets-phys .ex-cat:last-child" in tpl, "flex-fill rule for ex-col-sets-phys missing"
