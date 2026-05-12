@@ -30,12 +30,12 @@ Coverage:
          Old "0 0 100 24" aspect-squashed viewBox must be absent
   SQ-19  position_nodes Jinja2 variable referenced in SVG rendering
          Coordinate transform: cx = node.x * 105, cy = node.y * 68 (v8 real geometry)
-  SQ-20  Landscape panel appears after skill_categories[3] reference
+  SQ-20  Landscape panel appears BEFORE .ex-skill-cats (v10 — full-width strip above columns)
   SQ-21  Column count unchanged: still exactly 3 .ex-skill-col divs with panel added
   SQ-22  Position panel gated by {% if position_nodes %} — graceful empty state
   SQ-23  .ex-pos-svg-landscape CSS defines flex or dimension (fills container)
   SQ-24  Position panel does NOT use .ex-cat class — immune to cat fade-slide animation
-  SQ-25  .ex-col-right container present in HTML body, contains skill_categories[2]
+  SQ-25  REMOVED — .ex-col-right wrapper eliminated in v10 (flat sibling columns)
   SQ-27  Landscape SVG has no {{ node.label }} text — no labels per user request
   SQ-28  preserveAspectRatio="xMidYMid meet" on landscape SVG — no stretch, no crop (v8)
   SQ-29  Position Map panel has info column: .ex-pos-info div present — v9
@@ -43,6 +43,7 @@ Coverage:
   SQ-30  .ex-pos-badge absent from HTML body (photo is clean portrait block) — v9
          .ex-sec-pos-chips absent from photo column (chips moved to pos panel)
   SQ-31  No PRIMARY/SECONDARY/OTHER legend in Position Map panel — v9
+  SQ-32  v10 flat layout: .ex-col-right and .ex-col-right-skills absent from HTML body
 """
 from __future__ import annotations
 
@@ -89,11 +90,11 @@ class TestThreeColumnLayout:
         assert "skill_categories[0]" in tpl
 
     def test_sq04_col2_mental_index_2(self, tpl):
-        """ex-col-right (right panel): uses skill_categories[2] for Mental column."""
+        """Col 2 (Mental): uses skill_categories[2]."""
         assert "skill_categories[2]" in tpl
 
     def test_sq05_col3_set_pieces_physical(self, tpl):
-        """ex-col-right stacks Set Pieces [1] + Physical [3] via a for loop."""
+        """Col 3 stacks Set Pieces [1] + Physical [3] via a for loop."""
         assert "skill_categories[1]" in tpl
         assert "skill_categories[3]" in tpl
         # Both must appear together in the right panel
@@ -331,13 +332,14 @@ class TestPositionMiniPanel:
             "SVG coordinate transform must use node.y * 68 (68m pitch height), not node.y * 24"
         )
 
-    def test_sq20_pos_panel_after_skill_categories_3(self, tpl):
-        """Landscape panel must appear after skill_categories[3] (Physical)."""
-        idx_phys  = tpl.rfind("skill_categories[3]")
-        idx_panel = tpl.find('class="ex-pos-panel-landscape"')
-        assert idx_phys > 0 and idx_panel > 0, "Both skill_categories[3] and ex-pos-panel-landscape must be present"
-        assert idx_panel > idx_phys, (
-            "ex-pos-panel-landscape must appear after skill_categories[3]"
+    def test_sq20_pos_panel_before_skill_cats(self, tpl):
+        """v10: landscape panel must appear BEFORE .ex-skill-cats (full-width strip above columns)."""
+        html_body      = tpl[tpl.rfind("</style>"):]
+        idx_panel      = html_body.find('class="ex-pos-panel-landscape"')
+        idx_skill_cats = html_body.find('class="ex-skill-cats"')
+        assert idx_panel > 0 and idx_skill_cats > 0, "Both ex-pos-panel-landscape and ex-skill-cats must be present"
+        assert idx_panel < idx_skill_cats, (
+            "v10: ex-pos-panel-landscape must appear BEFORE ex-skill-cats"
         )
 
 
@@ -388,16 +390,6 @@ class TestPositionPanelIntegrity:
         ex_cat_anim    = anim_block.find(".ex-cat {")
         assert pos_panel_anim != ex_cat_anim, (
             ".ex-pos-panel-landscape and .ex-cat must have separate animation rules"
-        )
-
-    def test_sq25_ex_col_right_container_in_html(self, tpl):
-        """v7: .ex-col-right container must be present in HTML body and wrap skill_categories[2]."""
-        html_body = tpl[tpl.rfind("</style>"):]
-        assert 'class="ex-col-right"' in html_body
-        col_right_idx = html_body.find('class="ex-col-right"')
-        cat2_idx      = html_body.find("skill_categories[2]", col_right_idx)
-        assert cat2_idx > col_right_idx, (
-            "skill_categories[2] (Mental) must appear inside .ex-col-right"
         )
 
     def test_sq27_no_node_label_in_landscape_svg(self, tpl):
@@ -515,3 +507,21 @@ class TestNoPositionLegend:
         legend_classes = [".ex-pos-legend", ".ex-legend-item", ".ex-legend-marker"]
         for cls in legend_classes:
             assert cls not in tpl, f"Legend CSS class {cls} must not be defined in v9"
+
+
+# ── SQ-32: v10 flat layout — panel above columns, no ex-col-right ─────────────
+
+class TestV10FlatLayout:
+    def test_sq32_no_ex_col_right_in_html(self, tpl):
+        """v10: .ex-col-right wrapper removed — Mental and Set Pieces are flat siblings."""
+        html_body = tpl[tpl.rfind("</style>"):]
+        assert 'class="ex-col-right"' not in html_body, (
+            ".ex-col-right wrapper must be absent in v10 — all three skill columns are flat siblings"
+        )
+
+    def test_sq32_no_ex_col_right_skills_in_html(self, tpl):
+        """v10: .ex-col-right-skills inner wrapper also removed."""
+        html_body = tpl[tpl.rfind("</style>"):]
+        assert 'class="ex-col-right-skills"' not in html_body, (
+            ".ex-col-right-skills inner wrapper must be absent in v10"
+        )
