@@ -44,11 +44,14 @@ Template (TPL-*)
   TPL-13 selected/primary nodes have <text> labels in SVG (pass 4 present)
   TPL-14 pos-primary-label div is ABSENT (removed — SVG node labels are sufficient)
   TPL-15 pos-secondary-chips div is ABSENT (removed — position text cleaned up)
-  TPL-16 card-logo CSS class defined in the template
-  TPL-17 card-logo img element present inside .fifa-left (above avatar)
+  TPL-16 card-watermark CSS defined; card-logo CSS ABSENT
+  TPL-17 card-watermark img inside .fifa-right (NOT .fifa-left); card-logo markup ABSENT
   TPL-18 identity-grid has Height, Weight, Foot fields (second row)
   TPL-19 skill_categories[:2] slice used for left column (Outfield + Set Pieces)
   TPL-20 skill_categories[2:] slice used for right column (Mental + Physical)
+  TPL-21 app_logo_url is None in public_player.py Default card context (Phase 4 regression guard)
+  TPL-22 sponsor_logo_url is the watermark source (template uses sponsor_logo_url, not app_logo_url)
+  TPL-23 fifa-right-body wrapper present; z-index:1 ensures content above watermark
 
 Editor (ED-*)
   ED-01  Download PNG button has no "disabled" attribute in the default-platform branch
@@ -411,30 +414,38 @@ def test_tpl15_pos_secondary_chips_absent():
     )
 
 
-def test_tpl16_card_logo_css_defined():
-    """card-logo CSS class must be defined in the template."""
+def test_tpl16_card_watermark_css_defined_card_logo_absent():
+    """card-watermark CSS must be defined; old card-logo CSS must be gone."""
     html = _fifa_html()
-    assert ".card-logo" in html, (
-        ".card-logo CSS class must be defined — used for the LFA logo inside .fifa-left"
+    assert ".card-watermark" in html, (
+        ".card-watermark CSS class must be defined — sponsor logo watermark inside .fifa-right"
     )
-    assert "filter: brightness(0) invert(1)" in html, (
-        "card-logo must apply filter:brightness(0)invert(1) to convert dark PNG to white"
+    assert ".card-logo" not in html, (
+        ".card-logo CSS must be removed — replaced by .card-watermark in .fifa-right"
+    )
+    assert "filter: brightness(0) invert(1)" not in html, (
+        "brightness/invert filter must be gone — user-uploaded sponsor logos must not be colour-mangled"
     )
 
 
-def test_tpl17_card_logo_img_inside_fifa_left():
-    """card-logo img element must appear inside .fifa-left, before the avatar."""
+def test_tpl17_card_watermark_inside_fifa_right_card_logo_absent():
+    """card-watermark must be inside .fifa-right; card-logo markup must be absent."""
     html = _fifa_html()
-    # Both the img with class card-logo and the condition block must be present
-    assert 'class="card-logo"' in html, (
-        "An <img class='card-logo'> element must be present inside .fifa-left"
+    assert 'class="card-watermark"' in html, (
+        "An <img class='card-watermark'> element must be present for sponsor logo watermark"
     )
-    # Card logo must appear before the avatar HTML element (earlier in the file).
-    # Use class="..." form to skip CSS selector occurrences.
-    logo_pos = html.find('class="card-logo"')
-    avatar_pos = html.find('class="fifa-avatar"')
-    assert logo_pos < avatar_pos, (
-        "card-logo img must appear before fifa-avatar in the template (logo above avatar)"
+    assert 'class="card-logo"' not in html, (
+        "<img class='card-logo'> must be removed — Phase 4 mistake cleaned up"
+    )
+    # Watermark must be inside .fifa-right (appear after .fifa-right, after .fifa-left in file)
+    watermark_pos   = html.find('class="card-watermark"')
+    fifa_right_pos  = html.find('class="fifa-right"')
+    fifa_left_pos   = html.find('class="fifa-left"')
+    assert watermark_pos > fifa_right_pos, (
+        "card-watermark must appear inside .fifa-right (after .fifa-right opening tag)"
+    )
+    assert watermark_pos > fifa_left_pos, (
+        "card-watermark must NOT be inside .fifa-left — it belongs in .fifa-right"
     )
 
 
@@ -464,6 +475,60 @@ def test_tpl20_right_skill_column_uses_last_two_categories():
     html = _fifa_html()
     assert "skill_categories[2:]" in html, (
         "Right .skill-col must use skill_categories[2:] to render Mental + Physical Fitness"
+    )
+
+
+def test_tpl21_app_logo_url_is_none_in_default_context():
+    """public_player.py Default card context must have app_logo_url = None.
+
+    Phase 4 mistakenly hardcoded '/static/images/logo-dark.png' here.
+    The Default FIFA card's logo source is sponsor_logo_url (user-uploaded),
+    not the LFA app logo.
+    """
+    src = _read(_ROOT / "app/api/web_routes/public_player.py")
+    # Find the app_logo_url assignment line in the context dict
+    lines = src.splitlines()
+    app_logo_lines = [l for l in lines if '"app_logo_url"' in l and "None" in l]
+    assert app_logo_lines, (
+        "public_player.py must set 'app_logo_url': None in the Default card context. "
+        "The hardcoded LFA logo path must be removed — sponsor_logo_url is the card logo source."
+    )
+    # Must NOT contain the hardcoded logo path
+    assert "/static/images/logo-dark.png" not in src or all(
+        l.strip().startswith("#") for l in lines if "/static/images/logo-dark.png" in l
+    ), (
+        "'/static/images/logo-dark.png' must not appear as a non-comment value in public_player.py "
+        "Default card context. The LFA app logo must not be injected into the FIFA card."
+    )
+
+
+def test_tpl22_sponsor_logo_url_is_watermark_source():
+    """Template must use sponsor_logo_url for the watermark, not app_logo_url."""
+    html = _fifa_html()
+    # sponsor_logo_url must be referenced in the watermark conditional block
+    assert "sponsor_logo_url" in html, (
+        "sponsor_logo_url must be referenced in player_card_fifa.html — "
+        "it is the user-uploaded logo and the correct source for the .card-watermark element"
+    )
+    # The watermark img src must come from sponsor_logo_url
+    watermark_block_start = html.find('class="card-watermark"')
+    assert watermark_block_start != -1
+    context_around = html[max(0, watermark_block_start - 200):watermark_block_start + 50]
+    assert "sponsor_logo_url" in context_around, (
+        "card-watermark img src must reference sponsor_logo_url (not app_logo_url)"
+    )
+
+
+def test_tpl23_fifa_right_body_wrapper_present():
+    """fifa-right-body wrapper must be present to stack content above watermark (z-index:1)."""
+    html = _fifa_html()
+    assert "fifa-right-body" in html, (
+        ".fifa-right-body wrapper div must be present — it carries z-index:1 "
+        "so the name/identity-grid/clubs render above the z-index:0 .card-watermark"
+    )
+    # CSS must define the class with position:relative and z-index
+    assert ".fifa-right-body" in html, (
+        ".fifa-right-body CSS class must be defined in the template"
     )
 
 
