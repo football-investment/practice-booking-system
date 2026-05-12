@@ -56,6 +56,7 @@ def public_player_card(
     platform: Optional[str] = Query(None),
     export: Optional[bool] = Query(default=False),
     animated: Optional[bool] = Query(default=False),
+    native_export: Optional[bool] = Query(default=False),
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(
@@ -115,9 +116,19 @@ def public_player_card(
 
     # Position from motivation_scores
     position = "Unknown"
+    player_positions: list[str] = []   # [primary, ...secondaries], empty if not onboarded
     ms = lfa_license.motivation_scores
     if ms and isinstance(ms, dict):
         position = ms.get("position", "Unknown")
+        _raw_positions = ms.get("positions", [])
+        if _raw_positions and isinstance(_raw_positions, list):
+            player_positions = _raw_positions
+        elif position != "Unknown":
+            player_positions = [position]
+
+    # Pitch display nodes for the position panel (FIFA card lower-right section).
+    from app.utils.football_positions import get_pitch_display_nodes as _get_pitch_nodes
+    position_nodes = _get_pitch_nodes(position if position != "Unknown" else "", player_positions)
 
     # Age group from date_of_birth
     age_group = "AMATEUR"
@@ -252,6 +263,7 @@ def public_player_card(
     # animated_mode: True only when both export=1 AND animated=1 are present.
     # The PNG endpoint never passes animated=1 → this is always False for PNG renders.
     animated_mode = bool(export) and bool(animated)
+    native_export_mode = bool(native_export)
 
     return templates.TemplateResponse(request, template_path, {
         "player": player,
@@ -276,7 +288,8 @@ def public_player_card(
         "card_variant_id": variant.id,
         "platform_class": platform_preset.css_class,
         "platform_id":    platform_preset.id,
-        "export_mode":    bool(export),
+        "export_mode":        bool(export),
+        "native_export_mode": native_export_mode,
         # variant-specific context
         "compact_bg_url": lfa_license.card_bg_compact_url,
         "showcase_bg_url": lfa_license.card_bg_showcase_url,
@@ -306,6 +319,9 @@ def public_player_card(
             lfa_license.right_foot_score,
             lfa_license.left_foot_score,
         ),
+        # Position panel (FIFA Default lower-right section)
+        "player_positions": player_positions,
+        "position_nodes":   position_nodes,
     })
 
 
@@ -363,11 +379,15 @@ async def export_player_card(
     if not target_license:
         raise HTTPException(status_code=404, detail="No active LFA Player license")
 
-    # Render URL — constructed server-side only; no user-controlled string
-    render_url = (
-        f"http://127.0.0.1:{settings.APP_INTERNAL_PORT}"
-        f"/players/{user_id}/card?platform={platform}&export=1"
-    )
+    # Render URL — constructed server-side only; no user-controlled string.
+    # "default" platform: use ?native_export=1 so the template applies
+    # native-export-mode CSS (card fills 820px width at natural auto height).
+    # All other platforms: standard export render with ?platform=…&export=1.
+    _base = f"http://127.0.0.1:{settings.APP_INTERNAL_PORT}/players/{user_id}/card"
+    if platform == "default":
+        render_url = f"{_base}?native_export=1"
+    else:
+        render_url = f"{_base}?platform={platform}&export=1"
 
     # Screenshot runs in a thread so it does not block the event loop
     try:

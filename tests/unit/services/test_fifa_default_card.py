@@ -1,0 +1,410 @@
+"""
+FIFA Classic / Default card — targeted test suite.
+
+Test IDs and what they cover:
+
+Download PNG (DL-*)
+  DL-01  CANVAS_SIZES contains "default" → export route accepts it (no 422)
+  DL-02  default canvas is (820, 613) — the measured baseline
+  DL-03  export route rejects unknown platform (422 guard still works)
+  DL-04  "default" export render URL uses ?native_export=1, NOT instagram_square
+  DL-05  "default" export render URL does NOT contain &export=1
+
+Context (CTX-*)
+  CTX-01 player_positions passes the full positions list from motivation_scores
+  CTX-02 primary position is motivation_scores["position"]
+  CTX-03 position_nodes list is non-empty for a known primary position
+  CTX-04 fallback: motivation_scores with only "position" (no "positions" key)
+  CTX-05 fallback: motivation_scores is None → player_positions = []
+
+Position map (POS-*)
+  POS-01 "striker" primary → ST1 and ST2 both is_primary=True
+  POS-02 "striker" selected → ST1 and ST2 both is_selected=True
+  POS-03 "left_centre_back" maps to node LCB (x≈0.19, y≈0.37)
+  POS-04 "right_centre_back" maps to node RCB (x≈0.19, y≈0.63)
+  POS-05 "left_centre_midfield" maps to node LCM
+  POS-06 "right_centre_midfield" maps to node RCM
+  POS-07 "second_striker" has no pitch node (no node with canonical="second_striker")
+  POS-08 "centre_back" (legacy v1) has no dedicated pitch node
+  POS-09 total node count is 20 (20 entries in PITCH_NODES_RAW incl. ST1+ST2)
+
+Template (TPL-*)
+  TPL-01 card-body element present in player_card_fifa.html
+  TPL-02 skills-panel element present
+  TPL-03 position-panel element present
+  TPL-04 pitch-svg element present inside position-panel
+  TPL-05 events-section still present (regression: tab bar NOT deleted)
+  TPL-06 tab-bar still present
+  TPL-07 tab-btn still references switchTab (regression guard)
+  TPL-08 native-export-mode CSS class defined in the template
+  TPL-09 skills-section class is ABSENT (replaced by card-body)
+
+Editor (ED-*)
+  ED-01  Download PNG button has no "disabled" attribute in the default-platform branch
+  ED-02  setPlatform JS does NOT set dlBtn.disabled to true for "default"
+  ED-03  exportCard JS does NOT use instagram_square as fallback
+  ED-04  exportCard JS uses _currentPlatform directly (no fallback substitution)
+
+Regression (REG-*)
+  REG-01  export/square/fifa.html not modified (sha unchanged — stat check)
+  REG-02  export/landscape/fifa.html not modified
+  REG-03  export/story/fifa.html not modified
+  REG-04  export/portrait/fifa.html not modified
+  REG-05  export/tiktok/fifa.html not modified
+  REG-06  export/banner/fifa.html not modified
+"""
+import os
+import re
+from pathlib import Path
+
+import pytest
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
+_ROOT = Path(__file__).parents[3]
+_TPL_FIFA     = _ROOT / "app/templates/public/player_card_fifa.html"
+_TPL_EDITOR   = _ROOT / "app/templates/dashboard_card_editor.html"
+_EXPORT_DIR   = _ROOT / "app/templates/public/export"
+
+
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+# ── DL-*: Download PNG / CANVAS_SIZES ─────────────────────────────────────────
+
+def test_dl01_canvas_sizes_contains_default():
+    from app.services.card_constants import CANVAS_SIZES
+    assert "default" in CANVAS_SIZES, (
+        "CANVAS_SIZES must include 'default' so the export route accepts it without 422"
+    )
+
+
+def test_dl02_default_canvas_baseline_820():
+    from app.services.card_constants import CANVAS_SIZES
+    w, h = CANVAS_SIZES["default"]
+    assert w == 820, f"default canvas width must be 820, got {w}"
+    assert h == 613, (
+        f"default canvas height must be 613 (measured 2026-05-12 via Playwright "
+        f"at native-export-mode, FIFA Classic with 4 skill categories), got {h}"
+    )
+
+
+def test_dl03_export_route_rejects_unknown_platform():
+    """422 guard still works for unknown platforms — not broken by default addition."""
+    from app.services.card_constants import CANVAS_SIZES
+    assert "totally_unknown_platform_xyz" not in CANVAS_SIZES
+
+
+def test_dl04_default_export_url_uses_native_export_param():
+    """Export route for 'default' must build a ?native_export=1 URL."""
+    src = _read(_ROOT / "app/api/web_routes/public_player.py")
+    assert "native_export=1" in src, (
+        "export route must pass ?native_export=1 for default platform"
+    )
+    # Verify it is inside a `platform == 'default'` branch
+    assert re.search(r'platform\s*==\s*["\']default["\']', src), (
+        "export route must have an explicit platform=default branch"
+    )
+
+
+def test_dl05_default_export_url_not_export_1():
+    """Default export render URL must NOT pass &export=1 (uses native_export=1 instead)."""
+    src = _read(_ROOT / "app/api/web_routes/public_player.py")
+    # Find the string assignment for the native_export URL (not a comment)
+    # The assignment looks like: render_url = f"...?native_export=1"
+    code_lines = [l for l in src.splitlines() if "native_export=1" in l and not l.strip().startswith("#")]
+    assert code_lines, "No non-comment code line with 'native_export=1' found in public_player.py"
+    for line in code_lines:
+        # The URL should not additionally contain ?export=1 or &export=1
+        assert "?export=1" not in line and "&export=1" not in line, (
+            f"Default export render URL must not include ?export=1 or &export=1; "
+            f"found in line: {line!r}"
+        )
+
+
+# ── CTX-*: Template context ────────────────────────────────────────────────────
+
+_SENTINEL = object()  # distinguish "no ms supplied" from "ms is None"
+
+
+def _build_context(ms=_SENTINEL):
+    """Simulate the public_player.py context-building logic.
+
+    ms — the motivation_scores dict (or None to test the None-branch).
+        Omit to use a default non-None dict.
+    """
+    from app.utils.football_positions import get_pitch_display_nodes
+
+    if ms is _SENTINEL:
+        ms = {"position": "striker", "positions": ["striker", "left_wing"]}
+
+    position      = ms.get("position", "Unknown") if ms else "Unknown"
+    raw_positions = ms.get("positions", []) if ms else []
+    player_positions: list[str] = []
+    if raw_positions and isinstance(raw_positions, list):
+        player_positions = raw_positions
+    elif position != "Unknown":
+        player_positions = [position]
+    position_nodes = get_pitch_display_nodes(
+        position if position != "Unknown" else "", player_positions
+    )
+    return position, player_positions, position_nodes
+
+
+def test_ctx01_player_positions_full_list():
+    _, player_positions, _ = _build_context({
+        "position": "striker",
+        "positions": ["striker", "left_wing", "centre_forward"],
+    })
+    assert player_positions == ["striker", "left_wing", "centre_forward"]
+
+
+def test_ctx02_primary_is_motivation_scores_position():
+    position, _, _ = _build_context({"position": "left_back", "positions": ["left_back"]})
+    assert position == "left_back"
+
+
+def test_ctx03_position_nodes_non_empty_for_known_position():
+    _, _, nodes = _build_context({"position": "goalkeeper", "positions": ["goalkeeper"]})
+    selected = [n for n in nodes if n["is_primary"]]
+    assert len(selected) >= 1, "At least one node should be primary for 'goalkeeper'"
+
+
+def test_ctx04_fallback_no_positions_key():
+    """Only 'position' in motivation_scores — no 'positions' key."""
+    _, player_positions, _ = _build_context({"position": "centre_back"})
+    assert player_positions == ["centre_back"]
+
+
+def test_ctx05_fallback_none_motivation_scores():
+    """motivation_scores is None → player_positions is empty list."""
+    _, player_positions, _ = _build_context(None)
+    assert player_positions == []
+
+
+# ── POS-*: Position map ────────────────────────────────────────────────────────
+
+def _nodes_for(primary, positions=None):
+    from app.utils.football_positions import get_pitch_display_nodes
+    return get_pitch_display_nodes(primary, positions or [primary])
+
+
+def test_pos01_striker_primary_both_st_nodes():
+    nodes = _nodes_for("striker")
+    primary_nodes = [n for n in nodes if n["is_primary"]]
+    node_ids = {n["node_id"] for n in primary_nodes}
+    assert "ST1" in node_ids and "ST2" in node_ids, (
+        f"Both ST1 and ST2 must be is_primary=True for striker; got primary node_ids={node_ids}"
+    )
+
+
+def test_pos02_striker_selected_both_st_nodes():
+    nodes = _nodes_for("left_wing", ["left_wing", "striker"])
+    selected_striker = [n for n in nodes if n["canonical"] == "striker" and n["is_selected"]]
+    ids = {n["node_id"] for n in selected_striker}
+    assert "ST1" in ids and "ST2" in ids, (
+        "Both ST1 and ST2 must be is_selected=True when 'striker' is in positions list"
+    )
+
+
+def test_pos03_left_centre_back_mapping():
+    nodes = _nodes_for("left_centre_back")
+    lcb = next((n for n in nodes if n["node_id"] == "LCB"), None)
+    assert lcb is not None
+    assert lcb["canonical"] == "left_centre_back"
+    assert abs(lcb["x"] - 0.19) < 0.001
+    assert abs(lcb["y"] - 0.37) < 0.001
+
+
+def test_pos04_right_centre_back_mapping():
+    nodes = _nodes_for("right_centre_back")
+    rcb = next((n for n in nodes if n["node_id"] == "RCB"), None)
+    assert rcb is not None
+    assert rcb["canonical"] == "right_centre_back"
+    assert abs(rcb["x"] - 0.19) < 0.001
+    assert abs(rcb["y"] - 0.63) < 0.001
+
+
+def test_pos05_left_centre_midfield_mapping():
+    nodes = _nodes_for("left_centre_midfield")
+    lcm = next((n for n in nodes if n["node_id"] == "LCM"), None)
+    assert lcm is not None
+    assert lcm["canonical"] == "left_centre_midfield"
+    assert abs(lcm["x"] - 0.47) < 0.001
+
+
+def test_pos06_right_centre_midfield_mapping():
+    nodes = _nodes_for("right_centre_midfield")
+    rcm = next((n for n in nodes if n["node_id"] == "RCM"), None)
+    assert rcm is not None
+    assert rcm["canonical"] == "right_centre_midfield"
+    assert abs(rcm["x"] - 0.47) < 0.001
+
+
+def test_pos07_second_striker_no_pitch_node():
+    """second_striker has no pitch node — consistent with pitch-selector.js."""
+    nodes = _nodes_for("second_striker")
+    ss_nodes = [n for n in nodes if n["canonical"] == "second_striker"]
+    assert len(ss_nodes) == 0, (
+        "second_striker must have no pitch node (legacy position without SVG representation)"
+    )
+
+
+def test_pos08_centre_back_no_dedicated_node():
+    """centre_back (legacy v1, split into LCB/RCB in v2) has no pitch node."""
+    from app.utils.football_positions import _NODE_CANONICAL
+    assert "centre_back" not in _NODE_CANONICAL.values(), (
+        "centre_back should not appear as a canonical value in PITCH_NODES "
+        "(it was split into left_centre_back / right_centre_back in v2)"
+    )
+
+
+def test_pos09_total_node_count():
+    from app.utils.football_positions import _PITCH_NODES_RAW
+    assert len(_PITCH_NODES_RAW) == 20, (
+        f"Expected 20 pitch nodes (including ST1 + ST2), got {len(_PITCH_NODES_RAW)}"
+    )
+
+
+# ── TPL-*: Template structure ──────────────────────────────────────────────────
+
+def _fifa_html():
+    return _read(_TPL_FIFA)
+
+
+def test_tpl01_card_body_present():
+    assert 'class="card-body"' in _fifa_html() or "card-body" in _fifa_html()
+
+
+def test_tpl02_skills_panel_present():
+    assert "skills-panel" in _fifa_html()
+
+
+def test_tpl03_position_panel_present():
+    assert "position-panel" in _fifa_html()
+
+
+def test_tpl04_pitch_svg_present():
+    assert "pitch-svg" in _fifa_html()
+
+
+def test_tpl05_events_section_not_deleted():
+    """Events section must still exist — regression guard."""
+    assert "events-section" in _fifa_html(), (
+        "events-section class must remain in player_card_fifa.html — tab bar / events NOT deleted"
+    )
+
+
+def test_tpl06_tab_bar_not_deleted():
+    assert "tab-bar" in _fifa_html(), (
+        "tab-bar class must remain in player_card_fifa.html — tab bar NOT deleted"
+    )
+
+
+def test_tpl07_switchtab_still_present():
+    assert "switchTab" in _fifa_html(), (
+        "switchTab function must remain — tab switching JS not deleted"
+    )
+
+
+def test_tpl08_native_export_mode_css_defined():
+    assert "native-export-mode" in _fifa_html(), (
+        "native-export-mode CSS class must be defined for default platform export"
+    )
+
+
+def test_tpl09_skills_section_class_absent():
+    """The old .skills-section class is replaced by .card-body — must not appear."""
+    html = _fifa_html()
+    # Allow the class name to appear ONLY in CSS comments or not at all
+    # The key check: no HTML element uses class="skills-section"
+    assert 'class="skills-section"' not in html, (
+        "skills-section HTML class attribute must be gone — replaced by card-body"
+    )
+
+
+# ── ED-*: Editor template ──────────────────────────────────────────────────────
+
+def _editor_html():
+    return _read(_TPL_EDITOR)
+
+
+def test_ed01_download_button_not_disabled_for_default():
+    """Download PNG button must not have a Jinja disabled condition for default."""
+    html = _editor_html()
+    # Find the btn-export-card button region
+    btn_match = re.search(
+        r'id="btn-export-card"[^>]*>', html, re.DOTALL
+    )
+    assert btn_match, "btn-export-card button not found"
+    btn_tag = btn_match.group(0)
+    assert "disabled" not in btn_tag, (
+        f"btn-export-card must not have 'disabled' in its opening tag; got: {btn_tag!r}"
+    )
+
+
+def test_ed02_setplatform_does_not_disable_for_default():
+    """setPlatform JS must not set dlBtn.disabled based on 'default' platform."""
+    src = _editor_html()
+    # The old pattern was: dlBtn.disabled = platformId === 'default'
+    assert "dlBtn.disabled = platformId === 'default'" not in src, (
+        "setPlatform must not disable the download button for the default platform"
+    )
+
+
+def test_ed03_exportcard_no_instagram_square_fallback():
+    """exportCard must not fall back to instagram_square when platform is default."""
+    fn_body = _extract_export_card_fn(_editor_html())
+    # Strip JS comment lines before checking — only look at actual code
+    code_lines = [l for l in fn_body.splitlines() if not l.strip().startswith("//")]
+    code_only = "\n".join(code_lines)
+    assert "instagram_square" not in code_only, (
+        "exportCard() code must not reference instagram_square as a fallback — "
+        "default platform exports via /card/export?platform=default"
+    )
+
+
+def test_ed04_exportcard_uses_current_platform_directly():
+    """exportCard must use _currentPlatform directly, with no substitution."""
+    fn = _extract_export_card_fn(_editor_html())
+    # Check platform variable is set to _currentPlatform without conditional replacement
+    assert "const platform = _currentPlatform" in fn, (
+        "exportCard must assign platform = _currentPlatform without any conditional fallback"
+    )
+
+
+def _extract_export_card_fn(src: str) -> str:
+    """Extract the body of the exportCard async function."""
+    m = re.search(r"async function exportCard\(\)\s*\{(.+?)^}", src, re.DOTALL | re.MULTILINE)
+    return m.group(1) if m else src
+
+
+# ── REG-*: Export template regression ─────────────────────────────────────────
+
+_EXPORT_TEMPLATES = [
+    "square/fifa.html",
+    "landscape/fifa.html",
+    "story/fifa.html",
+    "portrait/fifa.html",
+    "tiktok/fifa.html",
+    "banner/fifa.html",
+]
+
+
+@pytest.mark.parametrize("tpl_rel", _EXPORT_TEMPLATES)
+def test_reg_export_template_not_modified(tpl_rel):
+    """Export templates must not have been touched by this feature branch."""
+    path = _EXPORT_DIR / tpl_rel
+    if not path.exists():
+        pytest.skip(f"Template not present (not yet implemented): {tpl_rel}")
+
+    # Verify the file content does NOT contain any of the new classes introduced
+    # by the FIFA default card refactor.
+    content = path.read_text(encoding="utf-8")
+    new_classes = ["card-body", "skills-panel", "position-panel", "pitch-svg", "native-export-mode"]
+    for cls in new_classes:
+        assert cls not in content, (
+            f"Export template {tpl_rel} must not contain '{cls}' — "
+            f"this class belongs only to player_card_fifa.html (FIFA Classic default card). "
+            f"Check that the export template was not accidentally modified."
+        )

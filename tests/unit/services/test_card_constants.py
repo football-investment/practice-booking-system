@@ -8,9 +8,9 @@ Verifies:
   - is_animated_capable(): helper semantics
   - Re-export identity: card_export_service re-exports same objects (not copies)
 
-CC-01: CANVAS_SIZES has exactly 9 platforms
+CC-01: CANVAS_SIZES has exactly 10 platforms (9 social + "default" native export)
 CC-02: every CANVAS_SIZES value is a (int, int) tuple
-CC-03: EXPORT_FORMAT_BUCKETS keys == CANVAS_SIZES keys (invariant)
+CC-03: EXPORT_FORMAT_BUCKETS keys == CANVAS_SIZES keys − {"default"} (invariant; "default" is native export, no bucket)
 CC-04: EXPORT_FORMAT_BUCKETS value set is the expected bucket set
 CC-05: ANIMATED_EXPORT_CAPABLE is a frozenset of 2-tuples
 CC-06: every platform_id in ANIMATED_EXPORT_CAPABLE exists in CANVAS_SIZES
@@ -34,7 +34,7 @@ import app.services.card_export_service as _export_svc
 # ── CC-01 / CC-02: CANVAS_SIZES structure ────────────────────────────────────
 
 def test_cc01_canvas_sizes_has_9_platforms():
-    assert len(CANVAS_SIZES) == 9
+    assert len(CANVAS_SIZES) == 10  # 9 social + "default" native FIFA Classic export
 
 
 def test_cc02_canvas_sizes_values_are_int_tuples():
@@ -51,10 +51,13 @@ def test_cc02_canvas_sizes_values_are_int_tuples():
 # ── CC-03 / CC-04: EXPORT_FORMAT_BUCKETS ─────────────────────────────────────
 
 def test_cc03_export_format_buckets_keys_match_canvas_sizes():
-    assert EXPORT_FORMAT_BUCKETS.keys() == CANVAS_SIZES.keys(), (
-        "EXPORT_FORMAT_BUCKETS and CANVAS_SIZES must cover identical platform keys. "
-        f"Extra in buckets: {EXPORT_FORMAT_BUCKETS.keys() - CANVAS_SIZES.keys()}. "
-        f"Extra in canvas:  {CANVAS_SIZES.keys() - EXPORT_FORMAT_BUCKETS.keys()}."
+    # "default" is the native FIFA Classic export path — it uses a dynamic clip
+    # against card-wrap BoundingClientRect, not a template bucket directory.
+    social_canvas_keys = CANVAS_SIZES.keys() - {"default"}
+    assert EXPORT_FORMAT_BUCKETS.keys() == social_canvas_keys, (
+        "EXPORT_FORMAT_BUCKETS must cover all CANVAS_SIZES platforms except 'default'. "
+        f"Extra in buckets: {EXPORT_FORMAT_BUCKETS.keys() - social_canvas_keys}. "
+        f"Extra in canvas:  {social_canvas_keys - EXPORT_FORMAT_BUCKETS.keys()}."
     )
 
 

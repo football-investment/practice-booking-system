@@ -131,3 +131,94 @@ def positions_grouped() -> List[Dict]:
         {"key": key, "label": _GROUP_LABELS[key], "positions": groups[key]}
         for key in _GROUP_ORDER
     ]
+
+
+# ── Pitch display nodes ────────────────────────────────────────────────────────
+# Coordinates are the authoritative values from pitch-selector.js PITCH_NODES.
+# x/y are fractions of the landscape SVG canvas (GK on left, ST on right).
+# "striker" has two visual nodes (ST1 at y≈0.34, ST2 at y≈0.66) so both
+# halves of the dual-node highlight when "striker" is the selected value.
+# "second_striker" and "centre_back" have no dedicated pitch node (legacy
+# taxonomy gap — consistent with interactive pitch-selector.js behaviour).
+
+_PITCH_NODES_RAW: List[Tuple[str, str, str, str, float, float]] = [
+    # (node_id, label, name, role, x, y)  — x/y from pitch-selector.js
+    ("GK",  "GK",  "Goalkeeper",             "goalkeeper", 0.02, 0.50),
+    ("SK",  "SK",  "Sweeper Keeper",          "goalkeeper", 0.10, 0.50),
+    ("LB",  "LB",  "Left Back",               "defender",   0.19, 0.15),
+    ("LCB", "LCB", "Left Centre-Back",        "defender",   0.19, 0.37),
+    ("RCB", "RCB", "Right Centre-Back",       "defender",   0.19, 0.63),
+    ("RB",  "RB",  "Right Back",              "defender",   0.19, 0.85),
+    ("LWB", "LWB", "Left Wing-Back",          "defender",   0.28, 0.10),
+    ("RWB", "RWB", "Right Wing-Back",         "defender",   0.28, 0.90),
+    ("DM",  "DM",  "Defensive Mid",           "midfielder", 0.37, 0.50),
+    ("LCM", "LCM", "Left Centre Mid",         "midfielder", 0.47, 0.33),
+    ("CM",  "CM",  "Centre Mid",              "midfielder", 0.50, 0.50),
+    ("RCM", "RCM", "Right Centre Mid",        "midfielder", 0.47, 0.67),
+    ("LM",  "LM",  "Left Midfielder",         "midfielder", 0.55, 0.17),
+    ("RM",  "RM",  "Right Midfielder",        "midfielder", 0.55, 0.83),
+    ("AM",  "AM",  "Att. Midfielder",         "midfielder", 0.68, 0.50),
+    ("LW",  "LW",  "Left Winger",             "forward",    0.73, 0.07),
+    ("RW",  "RW",  "Right Winger",            "forward",    0.73, 0.93),
+    ("CF",  "CF",  "Centre Forward",          "forward",    0.83, 0.50),
+    ("ST1", "ST",  "Striker",                 "forward",    0.88, 0.34),
+    ("ST2", "ST",  "Striker",                 "forward",    0.88, 0.66),
+]
+
+# Canonical value for each node — mirrors pitch-selector.js PITCH_NODES[i].canonical.
+_NODE_CANONICAL: Dict[str, str] = {
+    "GK":  "goalkeeper",
+    "SK":  "sweeper_keeper",
+    "LB":  "left_back",
+    "LCB": "left_centre_back",
+    "RCB": "right_centre_back",
+    "RB":  "right_back",
+    "LWB": "left_wing_back",
+    "RWB": "right_wing_back",
+    "DM":  "defensive_midfield",
+    "LCM": "left_centre_midfield",
+    "CM":  "centre_midfield",
+    "RCM": "right_centre_midfield",
+    "LM":  "left_midfield",
+    "RM":  "right_midfield",
+    "AM":  "attacking_midfield",
+    "LW":  "left_wing",
+    "RW":  "right_wing",
+    "CF":  "centre_forward",
+    "ST1": "striker",
+    "ST2": "striker",
+}
+
+
+def get_pitch_display_nodes(
+    primary_position: str,
+    all_positions: List[str],
+) -> List[Dict]:
+    """Build annotated pitch node list for the FIFA card position panel.
+
+    Each entry mirrors a node from pitch-selector.js PITCH_NODES.
+    is_primary  — True for the primary position (one node, or both ST nodes).
+    is_selected — True if the node's canonical value appears in all_positions.
+
+    ST1 and ST2 share canonical="striker"; both are marked is_selected when
+    "striker" appears in all_positions, and both is_primary when "striker" is
+    the primary position — preserving pitch-selector.js dual-node behaviour.
+
+    Positions without a pitch node (second_striker, centre_back legacy) are
+    silently absent — consistent with the interactive selector.
+    """
+    selected_set = frozenset(all_positions)
+    return [
+        {
+            "node_id":    node_id,
+            "label":      label,
+            "name":       name,
+            "role":       role,
+            "x":          x,
+            "y":          y,
+            "canonical":  _NODE_CANONICAL[node_id],
+            "is_primary": _NODE_CANONICAL[node_id] == primary_position,
+            "is_selected": _NODE_CANONICAL[node_id] in selected_set,
+        }
+        for node_id, label, name, role, x, y in _PITCH_NODES_RAW
+    ]

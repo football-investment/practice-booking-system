@@ -133,6 +133,18 @@ def _sync_take_screenshot(render_url: str, platform: str) -> bytes:  # pragma: n
     Called via asyncio.to_thread from the async export endpoint so it does
     not block the event loop.
 
+    For platform=="default" (FIFA Classic native export):
+      - render_url uses ?native_export=1 so body gets native-export-mode CSS
+        (card fills 820px width at auto height, logo hidden, tab bar hidden).
+      - Viewport is set tall (2000px) to avoid content clipping during render.
+      - Clip is derived at runtime from .card-wrap getBoundingClientRect().
+        This guarantees full capture even if content height changes with new
+        skills or theme updates — 820×613 is the measured baseline, not a hard
+        constraint.
+
+    For all other platforms:
+      - Viewport = canvas size; clip = full viewport (standard path).
+
     Raises:
         CardExportTimeoutError: if page.goto exceeds _GOTO_TIMEOUT_MS
         ValueError: if platform has no registered canvas size
@@ -140,7 +152,7 @@ def _sync_take_screenshot(render_url: str, platform: str) -> bytes:  # pragma: n
     canvas = CANVAS_SIZES.get(platform)
     if canvas is None:
         raise ValueError(f"No canvas size for platform: {platform!r}")
-    w, h = canvas
+    w, _ = canvas
 
     from playwright.sync_api import sync_playwright
     from playwright.sync_api import TimeoutError as _PWTimeout
@@ -149,12 +161,41 @@ def _sync_take_screenshot(render_url: str, platform: str) -> bytes:  # pragma: n
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             try:
-                page = browser.new_page(viewport={"width": w, "height": h})
-                page.goto(render_url, wait_until="networkidle", timeout=_GOTO_TIMEOUT_MS)
-                png = page.screenshot(
-                    clip={"x": 0, "y": 0, "width": w, "height": h},
-                    type="png",
-                )
+                if platform == "default":
+                    # Native export: let the card render at its natural height.
+                    # Use a tall viewport so content is not clipped during layout.
+                    page = browser.new_page(viewport={"width": w, "height": 2000})
+                    page.goto(render_url, wait_until="networkidle", timeout=_GOTO_TIMEOUT_MS)
+                    card_rect = page.evaluate("""() => {
+                        const el = document.querySelector('.card-wrap');
+                        if (!el) return null;
+                        const r = el.getBoundingClientRect();
+                        return {
+                            x: Math.round(r.left),
+                            y: Math.round(r.top),
+                            w: Math.round(r.width),
+                            h: Math.round(r.height),
+                        };
+                    }""")
+                    if card_rect is None:
+                        raise ValueError("card-wrap element not found in default export render")
+                    png = page.screenshot(
+                        clip={
+                            "x": card_rect["x"],
+                            "y": card_rect["y"],
+                            "width":  card_rect["w"],
+                            "height": card_rect["h"],
+                        },
+                        type="png",
+                    )
+                else:
+                    h = CANVAS_SIZES[platform][1]
+                    page = browser.new_page(viewport={"width": w, "height": h})
+                    page.goto(render_url, wait_until="networkidle", timeout=_GOTO_TIMEOUT_MS)
+                    png = page.screenshot(
+                        clip={"x": 0, "y": 0, "width": w, "height": h},
+                        type="png",
+                    )
             finally:
                 browser.close()
     except _PWTimeout as exc:

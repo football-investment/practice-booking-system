@@ -5,15 +5,25 @@ declarations live here.  Every other module imports from this file — never
 defines its own copy.
 
 Invariants enforced by tests/unit/services/test_card_constants.py:
-  - EXPORT_FORMAT_BUCKETS.keys() == CANVAS_SIZES.keys()
+  - EXPORT_FORMAT_BUCKETS.keys() == CANVAS_SIZES.keys() − {"default"}
   - Every platform_id in ANIMATED_EXPORT_CAPABLE exists in CANVAS_SIZES
 """
 from __future__ import annotations
 
 # ── Canvas dimensions ─────────────────────────────────────────────────────────
 # Social canvas sizes keyed by platform preset id.
-# "default" is intentionally absent (not an export target).
+#
+# "default" export canvas — measured 2026-05-12 via Playwright at 820px viewport
+# using ?native_export=1 (native-export-mode CSS: card fills width at auto height).
+# Conditions: FIFA Classic card, 4 SKILL_CATEGORIES (Outfield 19, Set Pieces 3,
+# Mental 14, Physical Fitness 8 skills), lower-section split layout (3fr skills /
+# 2fr position panel).  card-wrap.getBoundingClientRect() = 820×613 px.
+# Export path: render_url uses ?native_export=1; _sync_take_screenshot clips
+# to the card-wrap bounding rect — height is content-determined at render time.
+# The 613 here is a documented baseline; the clip always uses the live bounding
+# rect so new skills or theme changes never produce a truncated export.
 CANVAS_SIZES: dict[str, tuple[int, int]] = {
+    "default":            ( 820,  613),   # native FIFA Classic; clip = card-wrap bbox
     "instagram_square":   (1080, 1080),
     "instagram_portrait": (1080, 1350),
     "instagram_story":    (1080, 1920),
