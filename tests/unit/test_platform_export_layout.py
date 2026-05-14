@@ -636,11 +636,23 @@ class TestExportRenderLayerStatic:
         assert "ex-skill-cats" in html, ".ex-skill-cats not found in portrait export HTML"
 
     def test_ex10_portrait_photo_url_used_in_portrait(self, client):
-        """Portrait export template must reference portrait_photo_url (portrait crop)."""
-        html = self._get_fifa_export_html(client, "instagram_portrait")
+        """Portrait export must render portrait_photo_url into the avatar img src."""
+        from app.main import app
+        from app.dependencies import get_db
+
+        lic = _make_license(card_variant="fifa")
+        lic.card_photo_portrait_url = "/static/test-portrait.jpg"
+        db = _mock_db(user=_make_user(), license_=lic)
+        app.dependency_overrides[get_db] = lambda: db
+        try:
+            r = client.get("/players/7/card?platform=instagram_portrait&export=1")
+            html = r.text if r.status_code == 200 else ""
+        finally:
+            app.dependency_overrides.pop(get_db, None)
         assert html, "Export returned empty response for instagram_portrait"
-        assert "portrait_photo_url" in html, (
-            "portrait_photo_url not referenced in portrait export template"
+        assert "/static/test-portrait.jpg" in html, (
+            "portrait_photo_url not rendered in portrait export avatar img src — "
+            "expected portrait crop URL to appear in rendered HTML"
         )
 
 
