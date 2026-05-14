@@ -6,8 +6,8 @@
    ───────────────────────────────────────────────────────────────────────────── #}
 
 {% macro export_skill_rows(cat, skills_dict, delta_dict,
-                           neutral_bar='rgba(255,255,255,0.20)',
-                           neutral_val='rgba(255,255,255,0.85)') %}
+                           neutral_bar='var(--ex-text-secondary)',
+                           neutral_val='var(--ex-text-strong)') %}
 <div class="ex-skill-rows">
     {% for skill in cat.skills %}
     {% set sdata = skills_dict.get(skill.key, {}) %}

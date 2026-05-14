@@ -31,6 +31,8 @@ class ThemeDefinition:
     accent: str         # --card-accent    (active tab underline, badge tints)
     # Dot colour shown in the dashboard theme picker
     dot_color: str
+    # True when body_bg is light-coloured — export macro emits dark text tokens
+    is_light_body_bg: bool = False
 
 
 # ── Theme registry ────────────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ THEMES: dict[str, ThemeDefinition] = {
         panel_bg="linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%)",
         body_bg="#f7fafc", tab_bg="#edf2f7", accent="#4299e1",
         dot_color="#4299e1",
+        is_light_body_bg=True,
     ),
     "gold": ThemeDefinition(
         id="gold", label="Gold", is_premium=True, credit_cost=500,

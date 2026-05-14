@@ -110,8 +110,8 @@ class TestExportSkillRowsMacro:
         cat = _make_cat(skills=[_make_skill("passing", "Passing")])
         html = self._render(cat, {"passing": {"current_level": 65}}, {"passing": 0})
         assert "visibility:hidden" in html
-        assert "rgba(255,255,255,0.20)" in html
-        assert "rgba(255,255,255,0.85)" in html
+        assert "var(--ex-text-secondary)" in html
+        assert "var(--ex-text-strong)" in html
 
     def test_MR_export_custom_neutral_bar_and_val_colors(self):
         cat = _make_cat(skills=[_make_skill("passing", "Passing")])
@@ -315,3 +315,148 @@ class TestExportRootVarsMacro:
         assert "--ex-accent" in html
         assert "--ex-bar-bg" in html
         assert "--ex-cat-bg" in html
+
+
+# ---------------------------------------------------------------------------
+# TestExportRootVarsDarkLight  (Phase 2b — arctic / light-theme token system)
+# ---------------------------------------------------------------------------
+
+class TestExportRootVarsDarkLight:
+    """MR_ prefix — light/dark text token behaviour in export_root_vars."""
+
+    MACRO_PATH = "macros/card_theme_root.html"
+    MACRO_NAME = "export_root_vars"
+
+    def _dark_theme(self):
+        return SimpleNamespace(
+            panel_bg="linear-gradient(155deg, #0d0d0d 0%, #1a1a2e 60%, #16213e 100%)",
+            body_bg="#0f0f0f",
+            accent="#00d4ff",
+            is_light_body_bg=False,
+        )
+
+    def _light_theme(self):
+        """Simulates arctic: near-white body_bg, is_light_body_bg=True."""
+        return SimpleNamespace(
+            panel_bg="linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%)",
+            body_bg="#f7fafc",
+            accent="#4299e1",
+            is_light_body_bg=True,
+        )
+
+    def _render(self, theme, **kw):
+        return _render_macro(self.MACRO_PATH, self.MACRO_NAME, theme, **kw)
+
+    # -- dark theme emits white text tokens -----------------------------------
+
+    def test_MR_dark_theme_emits_white_text_strong(self):
+        html = self._render(self._dark_theme())
+        assert "rgba(255,255,255,0.85)" in html
+
+    def test_MR_dark_theme_emits_white_text_body(self):
+        html = self._render(self._dark_theme())
+        assert "rgba(255,255,255,0.72)" in html
+
+    def test_MR_dark_theme_emits_white_text_secondary(self):
+        html = self._render(self._dark_theme())
+        assert "rgba(255,255,255,0.48)" in html
+
+    def test_MR_dark_theme_emits_white_text_muted(self):
+        html = self._render(self._dark_theme())
+        assert "rgba(255,255,255,0.30)" in html
+
+    def test_MR_dark_theme_preserves_white_bar_bg(self):
+        html = self._render(self._dark_theme())
+        assert "rgba(255,255,255,0.10)" in html
+
+    # -- light theme emits dark text tokens -----------------------------------
+
+    def test_MR_light_theme_emits_dark_text_strong(self):
+        html = self._render(self._light_theme())
+        assert "rgba(0,0,0,0.87)" in html
+
+    def test_MR_light_theme_emits_dark_text_body(self):
+        html = self._render(self._light_theme())
+        assert "rgba(0,0,0,0.75)" in html
+
+    def test_MR_light_theme_emits_dark_text_secondary(self):
+        html = self._render(self._light_theme())
+        assert "rgba(0,0,0,0.55)" in html
+
+    def test_MR_light_theme_emits_dark_text_muted(self):
+        html = self._render(self._light_theme())
+        assert "rgba(0,0,0,0.38)" in html
+
+    def test_MR_light_theme_emits_dark_bar_bg(self):
+        html = self._render(self._light_theme())
+        assert "rgba(0,0,0,0.08)" in html
+
+    def test_MR_light_theme_emits_dark_cat_bg(self):
+        html = self._render(self._light_theme())
+        assert "rgba(0,0,0,0.06)" in html
+
+    def test_MR_light_theme_ignores_platform_cat_bg_param(self):
+        """Platform cat_bg param is ignored for light themes — dark value used."""
+        html = self._render(self._light_theme(), cat_bg='rgba(255,255,255,0.06)')
+        assert "rgba(0,0,0,0.06)" in html
+        assert "--ex-cat-bg:         rgba(0,0,0,0.06)" in html
+
+    def test_MR_light_theme_no_white_text_tokens_emitted(self):
+        """Light theme must not emit any of the dark-theme white text token values."""
+        html = self._render(self._light_theme())
+        assert "--ex-text-strong:    rgba(255,255,255" not in html
+        assert "--ex-text-body:      rgba(255,255,255" not in html
+        assert "--ex-text-secondary: rgba(255,255,255" not in html
+        assert "--ex-text-muted:     rgba(255,255,255" not in html
+
+    # -- skill row macro uses CSS vars ----------------------------------------
+
+    def test_MR_skill_row_neutral_val_is_css_var(self):
+        """export_skill_rows zero-delta neutral_val must be var(--ex-text-strong)."""
+        import os, app as _app_pkg
+        tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
+        with open(os.path.join(tpl_dir, "macros/card_skill_row.html")) as f:
+            src = f.read()
+        assert "neutral_val='var(--ex-text-strong)'" in src
+
+    def test_MR_skill_row_neutral_bar_is_css_var(self):
+        """export_skill_rows zero-delta neutral_bar must be var(--ex-text-secondary)."""
+        import os, app as _app_pkg
+        tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
+        with open(os.path.join(tpl_dir, "macros/card_skill_row.html")) as f:
+            src = f.read()
+        assert "neutral_bar='var(--ex-text-secondary)'" in src
+
+    # -- template CSS: no hardcoded white RGBA for tokenised body classes ------
+
+    def test_MR_template_square_no_hardcoded_white_text_color_in_tokenised_classes(self):
+        """Verify text color (not border/background) is tokenised in body-section classes."""
+        import os, app as _app_pkg, re
+        tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
+        with open(os.path.join(tpl_dir, "public/export/square/fifa.html")) as f:
+            src = f.read()
+        tokenised = [".ex-skills-title", ".ex-cat-name", ".ex-sname",
+                     ".ex-pos-panel-title", ".ex-pos-primary-label", ".ex-pos-secondary-label"]
+        for cls in tokenised:
+            block = re.search(rf'{re.escape(cls)}\s*{{([^}}]+)}}', src)
+            if block:
+                # Only check the `color:` property, not borders/backgrounds
+                color_lines = [l for l in block.group(1).splitlines()
+                               if re.search(r'\bcolor:', l) and 'border' not in l]
+                for line in color_lines:
+                    assert "rgba(255,255,255" not in line, \
+                        f"Hardcoded white RGBA in `color:` property of {cls} in square template: {line.strip()}"
+
+    def test_MR_template_story_no_hardcoded_white_text_color_in_tokenised_classes(self):
+        import os, app as _app_pkg, re
+        tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
+        with open(os.path.join(tpl_dir, "public/export/story/fifa.html")) as f:
+            src = f.read()
+        for cls in [".ex-skills-title", ".ex-cat-name", ".ex-sname"]:
+            block = re.search(rf'{re.escape(cls)}\s*{{([^}}]+)}}', src)
+            if block:
+                color_lines = [l for l in block.group(1).splitlines()
+                               if re.search(r'\bcolor:', l) and 'border' not in l]
+                for line in color_lines:
+                    assert "rgba(255,255,255" not in line, \
+                        f"Hardcoded white RGBA in `color:` property of {cls} in story template: {line.strip()}"
