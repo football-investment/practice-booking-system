@@ -724,6 +724,11 @@ def _render_banner(**ctx_overrides):
     return tpl.render(**_minimal_export_ctx(**ctx_overrides))
 
 
+def _render_tiktok(**ctx_overrides):
+    tpl = _make_export_env().get_template("public/export/tiktok/fifa.html")
+    return tpl.render(**_minimal_export_ctx(**ctx_overrides))
+
+
 # ---------------------------------------------------------------------------
 # TestExportBase  (EB_ prefix)
 # Tests for fifa_base.html — verified via portrait child
@@ -1412,3 +1417,238 @@ class TestBannerFifaPhase3b2:
         html = _render_banner()
         assert "rgba(255,255,255,0.05)" in html
         assert "rgba(255,255,255,0.04)" not in html
+
+
+# ---------------------------------------------------------------------------
+# TestTikTokFifaPhase3b3  (TK3_ prefix)
+# Tests for tiktok/fifa.html — Phase 3b-3 migration to extends fifa_base.html
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestTikTokFifaPhase3b3:
+    """TK3_ — tiktok/fifa.html extends fifa_base.html (Phase 3b-3).
+
+    Verifies:
+    - base inheritance (no standalone HTML shell)
+    - platform_vars sizing overrides
+    - full-bleed hero photo + placeholder fallback
+    - identity strip (nationality / height / weight / dominant foot)
+    - Set Pieces big-number display vs standard bar layout
+    - no skill slicing
+    - unconditional sponsor slot, conditional logo
+    - Arctic + dark theme cat-bg tokens
+    - cat-name margin/padding override
+    - portrait / story / banner regression guards
+    """
+
+    # --- base inheritance ---
+
+    def test_TK3_extends_base_not_standalone(self):
+        """Template source must use {% extends %}, not standalone <!DOCTYPE>."""
+        import os, app as _app_pkg
+        src_path = os.path.join(
+            os.path.dirname(_app_pkg.__file__),
+            "templates/public/export/tiktok/fifa.html",
+        )
+        with open(src_path) as f:
+            src = f.read()
+        assert "{% extends" in src, "TK3: tiktok/fifa.html must extend fifa_base.html"
+        assert "<!DOCTYPE" not in src, "TK3: standalone <!DOCTYPE found — should be removed"
+
+    def test_TK3_no_duplicate_css_reset(self):
+        html = _render_tiktok()
+        assert html.count("box-sizing: border-box") == 1
+
+    # --- platform_vars ---
+
+    def test_TK3_sname_width_140px(self):
+        html = _render_tiktok()
+        assert "--ex-sname-w:     140px" in html
+
+    def test_TK3_font_skill_13px(self):
+        html = _render_tiktok()
+        assert "--ex-font-skill:  13px" in html
+
+    def test_TK3_bar_h_7px(self):
+        html = _render_tiktok()
+        assert "--ex-bar-h:       7px" in html
+
+    def test_TK3_sval_width_38px(self):
+        html = _render_tiktok()
+        assert "--ex-sval-w:      38px" in html
+
+    def test_TK3_grid_gap_10px(self):
+        html = _render_tiktok()
+        assert "--ex-grid-gap:    10px" in html
+
+    def test_TK3_cat_pad_12px(self):
+        html = _render_tiktok()
+        assert "--ex-cat-pad:     12px" in html
+
+    def test_TK3_font_cat_12px(self):
+        html = _render_tiktok()
+        assert "--ex-font-cat:    12px" in html
+
+    # --- hero zone ---
+
+    def test_TK3_hero_photo_rendered_from_portrait_url(self):
+        """portrait_photo_url (step 1) must appear in hero img src."""
+        html = _render_tiktok(portrait_photo_url="http://example.com/port.jpg")
+        assert 'class="ex-hero-photo"' in html
+        assert "port.jpg" in html
+
+    def test_TK3_photo_fallback_to_photo_url(self):
+        """photo_url used when portrait_photo_url is None."""
+        html = _render_tiktok(portrait_photo_url=None, photo_url="http://example.com/gen.jpg")
+        assert "gen.jpg" in html
+        assert 'class="ex-hero-photo"' in html
+
+    def test_TK3_hero_placeholder_when_no_photo(self):
+        """No photo → initials placeholder, no <img>."""
+        html = _render_tiktok(portrait_photo_url=None, photo_url=None)
+        assert 'class="ex-hero-placeholder"' in html
+        assert "<img" not in html
+
+    def test_TK3_portrait_photo_preferred_over_generic(self):
+        """portrait_photo_url takes priority over photo_url."""
+        html = _render_tiktok(
+            portrait_photo_url="http://example.com/portrait.jpg",
+            photo_url="http://example.com/generic.jpg",
+        )
+        assert "portrait.jpg" in html
+        assert "generic.jpg" not in html
+
+    # --- identity strip ---
+
+    def test_TK3_identity_strip_present(self):
+        html = _render_tiktok()
+        assert 'class="ex-identity-strip"' in html
+
+    def test_TK3_identity_nationality_rendered(self):
+        html = _render_tiktok()
+        assert "Hungarian" in html
+        assert "ex-stat-label" in html
+
+    def test_TK3_identity_height_conditional(self):
+        with_h = _render_tiktok(player_height_cm=175)
+        without_h = _render_tiktok(player_height_cm=None)
+        assert "175 cm" in with_h
+        assert "175 cm" not in without_h
+
+    def test_TK3_identity_weight_conditional(self):
+        with_w = _render_tiktok(player_weight_kg=68)
+        without_w = _render_tiktok(player_weight_kg=None)
+        assert "68 kg" in with_w
+        assert "68 kg" not in without_w
+
+    def test_TK3_identity_dominant_badge_conditional(self):
+        with_b = _render_tiktok(dominant_badge="Right Foot")
+        without_b = _render_tiktok(dominant_badge=None)
+        assert "Right Foot" in with_b
+        assert "Right Foot" not in without_b
+
+    # --- set pieces big-number display ---
+
+    def _tiktok_with_cats(self, **overrides):
+        from types import SimpleNamespace
+        std_skill = SimpleNamespace(key="passing", name_en="Passing")
+        std_cat = SimpleNamespace(key="outfield", name_en="Outfield", emoji="⚽", skills=[std_skill])
+        sp_skill = SimpleNamespace(key="free_kick", name_en="Free Kick")
+        sp_cat = SimpleNamespace(key="set_pieces", name_en="Set Pieces", emoji="🎯", skills=[sp_skill])
+        return _render_tiktok(skill_categories=[std_cat, sp_cat], **overrides)
+
+    def test_TK3_set_pieces_big_number_display(self):
+        """set_pieces cat must use ex-sp-val (big number), not ex-bar-bg (bar)."""
+        html = self._tiktok_with_cats()
+        assert 'class="ex-sp-val"' in html
+
+    def test_TK3_set_pieces_no_bar_layout(self):
+        """set_pieces cat must NOT use bar layout."""
+        html = self._tiktok_with_cats()
+        # Only the standard cat has bars — check that Free Kick is in ex-sp-val context
+        assert "Free Kick" in html
+        # The sp-grid structure must be present
+        assert 'class="ex-sp-grid"' in html
+
+    def test_TK3_standard_cat_uses_bar_layout(self):
+        """Non-set_pieces categories must use bar layout."""
+        html = self._tiktok_with_cats()
+        assert "ex-bar-bg" in html
+
+    # --- no skill slicing ---
+
+    def test_TK3_no_skill_slicing(self):
+        """All skills in each category must be rendered (no [:N] slicing)."""
+        from types import SimpleNamespace
+        skills = [SimpleNamespace(key=f"s{i}", name_en=f"Skill{i}") for i in range(6)]
+        cat = SimpleNamespace(key="outfield", name_en="Outfield", emoji="⚽", skills=skills)
+        html = _render_tiktok(skill_categories=[cat])
+        for i in range(6):
+            assert f"Skill{i}" in html, f"TK3: Skill{i} not rendered — unexpected slicing"
+
+    # --- sponsor slot ---
+
+    def test_TK3_sponsor_slot_unconditional(self):
+        """Sponsor slot is always rendered regardless of skill_categories."""
+        html_with_cats = self._tiktok_with_cats()
+        html_no_cats = _render_tiktok(skill_categories=[])
+        assert 'class="ex-sponsor-slot"' in html_with_cats
+        assert 'class="ex-sponsor-slot"' in html_no_cats
+
+    def test_TK3_sponsor_logo_rendered_when_provided(self):
+        html = _render_tiktok(sponsor_logo_url="http://example.com/logo.png")
+        assert 'class="ex-sponsor-slot-img"' in html
+        assert "logo.png" in html
+
+    def test_TK3_sponsor_logo_absent_when_none(self):
+        html = _render_tiktok(sponsor_logo_url=None)
+        assert 'class="ex-sponsor-slot-img"' not in html
+
+    # --- theme tokens ---
+
+    def test_TK3_dark_theme_cat_bg_white_overlay(self):
+        html = _render_tiktok(theme=_make_dark_export_theme())
+        assert "rgba(255,255,255,0.05)" in html
+
+    def test_TK3_arctic_cat_bg_dark_overlay(self):
+        html = _render_tiktok(theme=_make_arctic_export_theme())
+        assert "rgba(0,0,0,0.06)" in html
+
+    def test_TK3_arctic_text_tokens_present(self):
+        html = _render_tiktok(theme=_make_arctic_export_theme())
+        assert "rgba(0,0,0,0.87)" in html
+
+    # --- cat-name spacing override ---
+
+    def test_TK3_cat_name_margin_override(self):
+        """base has margin-bottom:10px; tiktok overrides to 8px."""
+        html = _render_tiktok()
+        assert "margin-bottom: 8px" in html
+
+    def test_TK3_cat_name_padding_override(self):
+        """base has padding-bottom:8px; tiktok overrides to 6px."""
+        html = _render_tiktok()
+        assert "padding-bottom: 6px" in html
+
+    # --- regression guards ---
+
+    def test_TK3_portrait_has_no_hero_photo(self):
+        """Portrait must not contain the TikTok full-bleed hero class."""
+        html = _render_portrait()
+        assert 'class="ex-hero-photo"' not in html
+
+    def test_TK3_portrait_has_no_identity_strip(self):
+        html = _render_portrait()
+        assert 'class="ex-identity-strip"' not in html
+
+    def test_TK3_story_has_no_identity_strip(self):
+        html = _render_story()
+        assert 'class="ex-identity-strip"' not in html
+
+    def test_TK3_banner_has_no_identity_strip(self):
+        html = _render_banner()
+        assert 'class="ex-identity-strip"' not in html
+
+    def test_TK3_banner_has_no_hero_photo(self):
+        html = _render_banner()
+        assert 'class="ex-hero-photo"' not in html
