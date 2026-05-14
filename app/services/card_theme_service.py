@@ -8,7 +8,7 @@ Premium themes (gold, emerald, crimson) require credit purchase.
 
 Adding a new theme requires only:
   1. A new entry in THEMES below
-  2. A new .theme-<id> CSS block in player_card.html
+  2. A new .theme-<id> CSS block in player_card_base.html
 """
 from __future__ import annotations
 

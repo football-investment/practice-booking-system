@@ -247,3 +247,71 @@ class TestSponsorSlotMacro:
     def test_MR_renders_ex_sponsor_slot_wrapper_div(self):
         html = self._render(None, None)
         assert 'class="ex-sponsor-slot"' in html
+
+
+# ---------------------------------------------------------------------------
+# TestExportRootVarsMacro
+# ---------------------------------------------------------------------------
+
+class TestExportRootVarsMacro:
+    """MR_ prefix — export_root_vars macro from macros/card_theme_root.html"""
+
+    MACRO_PATH = "macros/card_theme_root.html"
+    MACRO_NAME = "export_root_vars"
+
+    def _render(self, theme, **kw):
+        return _render_macro(self.MACRO_PATH, self.MACRO_NAME, theme, **kw)
+
+    def _make_theme(self):
+        return SimpleNamespace(
+            panel_bg="linear-gradient(155deg, #0d0d0d 0%, #1a1a2e 60%, #16213e 100%)",
+            body_bg="#0f0f0f",
+            accent="#00d4ff",
+        )
+
+    def test_MR_root_panel_bg_injected(self):
+        html = self._render(self._make_theme())
+        assert "--ex-panel-bg" in html
+        assert "#0d0d0d" in html
+
+    def test_MR_root_body_bg_injected(self):
+        html = self._render(self._make_theme())
+        assert "--ex-body-bg" in html
+        assert "#0f0f0f" in html
+
+    def test_MR_root_accent_injected(self):
+        html = self._render(self._make_theme())
+        assert "--ex-accent" in html
+        assert "#00d4ff" in html
+
+    def test_MR_root_default_cat_bg_is_005(self):
+        html = self._render(self._make_theme())
+        assert "rgba(255,255,255,0.05)" in html
+
+    def test_MR_root_default_bar_bg_is_010(self):
+        html = self._render(self._make_theme())
+        assert "rgba(255,255,255,0.10)" in html
+
+    def test_MR_root_custom_cat_bg_square(self):
+        html = self._render(self._make_theme(), cat_bg='rgba(255,255,255,0.06)')
+        assert "rgba(255,255,255,0.06)" in html
+
+    def test_MR_root_custom_cat_bg_landscape(self):
+        html = self._render(self._make_theme(), cat_bg='rgba(255,255,255,0.04)')
+        assert "rgba(255,255,255,0.04)" in html
+
+    def test_MR_root_undefined_theme_uses_defaults(self):
+        html = _render_macro(self.MACRO_PATH, self.MACRO_NAME)
+        assert "--ex-panel-bg" in html
+        assert "#1a2744" in html
+        assert "#1a202c" in html
+        assert "#667eea" in html
+
+    def test_MR_root_outputs_root_block(self):
+        html = self._render(self._make_theme())
+        assert ":root" in html
+        assert "--ex-panel-bg" in html
+        assert "--ex-body-bg" in html
+        assert "--ex-accent" in html
+        assert "--ex-bar-bg" in html
+        assert "--ex-cat-bg" in html

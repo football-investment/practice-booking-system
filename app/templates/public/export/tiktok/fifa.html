@@ -1,3 +1,4 @@
+{%- from "macros/card_theme_root.html" import export_root_vars -%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,13 +22,7 @@
  * Sponsor slot is always rendered; logo appears only when sponsor_logo_url is set.
  */
 
-:root {
-    --ex-panel-bg: {{ theme.panel_bg if theme is defined else 'linear-gradient(155deg, #1a2744 0%, #2a3a5c 60%, #1e3a4a 100%)' }};
-    --ex-body-bg:  {{ theme.body_bg  if theme is defined else '#1a202c' }};
-    --ex-accent:   {{ theme.accent   if theme is defined else '#667eea' }};
-    --ex-bar-bg:      rgba(255,255,255,0.10);
-    --ex-cat-bg:      rgba(255,255,255,0.05);
-}
+{{ export_root_vars(theme) }}
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
