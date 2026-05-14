@@ -460,3 +460,178 @@ class TestExportRootVarsDarkLight:
                 for line in color_lines:
                     assert "rgba(255,255,255" not in line, \
                         f"Hardcoded white RGBA in `color:` property of {cls} in story template: {line.strip()}"
+
+
+# ---------------------------------------------------------------------------
+# TestPlayerCardFifaPhase2b  (Phase 2b — player_card_fifa.html child migration)
+# ---------------------------------------------------------------------------
+
+class TestPlayerCardFifaPhase2b:
+    """PB_ prefix — player_card_fifa.html extends player_card_base.html."""
+
+    @classmethod
+    def _fifa_env(cls):
+        """Jinja2 env with nationalities_display filter registered (no server needed)."""
+        e = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(TEMPLATES_DIR),
+            autoescape=False,
+        )
+        e.filters["nationalities_display"] = lambda v, secondary=None: v or ""
+        return e
+
+    @classmethod
+    def _minimal_ctx(cls, **overrides):
+        from types import SimpleNamespace
+        player = SimpleNamespace(
+            name="Test Player",
+            position="CM",
+            nationality="Hungarian",
+            secondary_nationality=None,
+            age_group="U17",
+            total_tournaments=5,
+            skills={},
+        )
+        ctx = dict(
+            player=player,
+            card_theme="slate",
+            theme=None,
+            platform_class=None,
+            export_mode=False,
+            native_export_mode=False,
+            app_logo_url=None,
+            sponsor_logo_url=None,
+            photo_url=None,
+            portrait_photo_url=None,
+            landscape_photo_url=None,
+            initials="TP",
+            avatar_bg="#1a2744",
+            overall=75,
+            tier_label="Silver",
+            tier_color="#718096",
+            pos_color="#667eea",
+            primary_pos_label="CM",
+            secondary_pos_labels=[],
+            teams_info=[],
+            player_height_cm=None,
+            player_weight_kg=None,
+            player_preferred_foot=None,
+            skill_categories=[],
+            last_skill_delta={},
+            participations_history=[],
+            position_nodes=[],
+            dominant_badge=None,
+        )
+        ctx.update(overrides)
+        return ctx
+
+    def _render_fifa(self, **ctx_overrides):
+        tpl = self._fifa_env().get_template("public/player_card_fifa.html")
+        return tpl.render(**self._minimal_ctx(**ctx_overrides))
+
+    def _source(self):
+        import os, app as _app_pkg
+        tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
+        with open(os.path.join(tpl_dir, "public/player_card_fifa.html")) as f:
+            return f.read()
+
+    # --- template structure ---
+
+    def test_PB_fifa_extends_base(self):
+        assert '{% extends "public/player_card_base.html" %}' in self._source()
+
+    # --- theme body class (added by base, was missing in old standalone FIFA) ---
+
+    def test_PB_slate_body_has_theme_class(self):
+        html = self._render_fifa(card_theme="slate")
+        assert 'theme-slate' in html
+
+    def test_PB_arctic_body_has_theme_arctic_class(self):
+        html = self._render_fifa(card_theme="arctic")
+        assert 'theme-arctic' in html
+
+    def test_PB_midnight_body_has_theme_midnight_class(self):
+        html = self._render_fifa(card_theme="midnight")
+        assert 'theme-midnight' in html
+
+    # --- extra_body_classes block ---
+
+    def test_PB_native_export_mode_adds_class(self):
+        html = self._render_fifa(native_export_mode=True, export_mode=False)
+        assert "native-export-mode" in html
+
+    def test_PB_export_mode_adds_export_class(self):
+        html = self._render_fifa(export_mode=True, native_export_mode=False)
+        assert "export-mode" in html
+
+    def test_PB_default_no_export_classes(self):
+        import re
+        html = self._render_fifa(export_mode=False, native_export_mode=False)
+        body_class = re.search(r'<body class="([^"]*)"', html)
+        assert body_class is not None
+        cls = body_class.group(1)
+        assert "export-mode" not in cls
+        assert "native-export-mode" not in cls
+
+    # --- page_header block ---
+
+    def test_PB_with_logo_renders_page_logo_img(self):
+        html = self._render_fifa(app_logo_url="https://cdn.example.com/logo.png")
+        assert 'class="page-logo"' in html
+        assert "https://cdn.example.com/logo.png" in html
+
+    def test_PB_with_logo_suppresses_page_brand_div(self):
+        html = self._render_fifa(app_logo_url="https://cdn.example.com/logo.png")
+        assert 'class="page-brand"' not in html
+
+    def test_PB_without_logo_renders_page_brand(self):
+        html = self._render_fifa(app_logo_url=None)
+        assert 'class="page-brand"' in html
+
+    # --- lavender right-panel contract ---
+
+    def test_PB_source_has_lavender_root_overrides(self):
+        src = self._source()
+        assert "--card-right-bg:    #eef2ff" in src
+        assert "--card-pill-bg:     #dde4ff" in src
+        assert "--card-pill-border: #c7d2fe" in src
+
+    def test_PB_source_has_dark_theme_lavender_reset_for_all_four_themes(self):
+        src = self._source()
+        assert ".theme-midnight" in src
+        assert ".theme-gold" in src
+        assert ".theme-emerald" in src
+        assert ".theme-crimson" in src
+
+    def test_PB_rendered_output_contains_lavender_right_bg(self):
+        """Lavender :root override is present in rendered CSS for any theme."""
+        html = self._render_fifa(card_theme="midnight")
+        assert "--card-right-bg:    #eef2ff" in html
+
+    def test_PB_rendered_output_contains_lavender_pill_bg(self):
+        html = self._render_fifa(card_theme="gold")
+        assert "--card-pill-bg:     #dde4ff" in html
+
+    # --- arctic dark text token activation ---
+
+    def test_PB_rendered_arctic_contains_theme_arctic_css_block(self):
+        """Base .theme-arctic block is present in rendered output."""
+        html = self._render_fifa(card_theme="arctic")
+        assert ".theme-arctic" in html
+
+    def test_PB_rendered_arctic_contains_dark_text_token(self):
+        """Arctic theme activates dark text tokens (rgba(0,0,0,...)) from base."""
+        html = self._render_fifa(card_theme="arctic")
+        assert "rgba(0,0,0,0.85)" in html
+
+    # --- base page_header default still works ---
+
+    def test_PB_base_template_page_brand_default_still_renders(self):
+        """A minimal child that only overrides content still gets the base page-brand."""
+        e = self._fifa_env()
+        tpl_src = (
+            '{% extends "public/player_card_base.html" %}'
+            '{% block content %}CONTENT{% endblock %}'
+        )
+        tpl = e.from_string(tpl_src)
+        html = tpl.render(**self._minimal_ctx(card_theme="slate"))
+        assert 'class="page-brand"' in html
