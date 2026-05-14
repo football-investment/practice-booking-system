@@ -595,29 +595,43 @@ html, body {
 {% if not export_mode %}
 /* ── Human-browseable public page shell ──────────────────────────────────────
  * Active ONLY when export_mode=False (i.e. ?export=1 absent).
- * Playwright PNG/WebM export always uses ?export=1, so this block is
- * completely absent from every screenshot render — raw canvas contract intact.
+ * Playwright PNG/WebM export always uses ?export=1, so this entire block —
+ * including the JS below the card — is absent from every screenshot render.
  *
- * Overrides the raw-canvas html/body rules above (later in cascade wins):
- *   height: auto   → overrides height: 100% so body can grow
- *   overflow: auto → overrides overflow: hidden so page is scrollable
- *   align-items    → center for vertical centering
- *   padding        → breathing room around the card
- * .ex-card shrinks slightly (90vw/90vh) so it never bleeds to the edge.
+ * Strategy: render .ex-card always at its native 1080×1080px canvas size.
+ * A wrapper div (.ex-card-viewport) is sized by JS to the available viewport.
+ * transform: scale() shrinks the whole canvas into it atomically — no
+ * internal reflowing, no flex-budget collapse, no Position Map overlap.
+ * Every internal px measurement remains calibrated for 1080px exactly.
  * ─────────────────────────────────────────────────────────────────────────── */
 html { background: #0f1923; }
 body {
     background: #0f1923;
     height: auto;
+    min-height: 100vh;
     overflow: auto;
+    justify-content: center;
     align-items: center;
-    padding: 2rem 1rem;
+    padding: 2rem;
+    box-sizing: border-box;
 }
-.ex-card {
-    width:  min(90vw, 90vh);
-    height: min(90vw, 90vh);
+/* Viewport wrapper — JS sizes this to (1080 × scale)² so it occupies the
+ * correct layout space after the card's transform: scale() is applied. */
+.ex-card-viewport {
+    position: relative;
+    overflow: hidden;
     border-radius: 12px;
     box-shadow: 0 16px 64px rgba(0,0,0,0.60);
+    flex-shrink: 0;
+}
+/* Card always at native 1080px canvas; JS injects transform: scale(N). */
+.ex-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1080px;
+    height: 1080px;
+    transform-origin: top left;
 }
 {% endif %}
 </style>
@@ -690,6 +704,7 @@ body {
 {% endif %}
 </head>
 <body>
+{% if not export_mode %}<div class="ex-card-viewport" id="ex-card-viewport">{% endif %}
 <div class="ex-card">
 
     <!-- ── HERO ──────────────────────────────────────────────────────────────
@@ -1081,5 +1096,38 @@ body {
     {% endif %}
 
 </div>
+{% if not export_mode %}
+</div>
+<script>
+/* ── Square card scale engine ────────────────────────────────────────────────
+ * Renders the 1080×1080 native canvas then scales it to fit the browser window.
+ * transform-origin: top left ensures the wrapper clips the card correctly.
+ * The wrapper (.ex-card-viewport) is resized in layout space to match the
+ * scaled dimensions so the body's flex layout centres it correctly.
+ * NOT injected when export_mode=True (Playwright always passes ?export=1).
+ * ─────────────────────────────────────────────────────────────────────────── */
+(function () {
+    var CANVAS  = 1080;
+    var PADDING = 32;   /* 2rem body padding consumed on each axis */
+    var vp   = document.getElementById('ex-card-viewport');
+    var card = vp ? vp.querySelector('.ex-card') : null;
+    if (!vp || !card) return;
+
+    function applyScale() {
+        var availW  = window.innerWidth  - PADDING * 2;
+        var availH  = window.innerHeight - PADDING * 2;
+        var factor  = Math.min(availW / CANVAS, availH / CANVAS, 1.0);
+        factor      = Math.max(factor, 0.15);   /* floor: never collapse below 15% */
+        var scaled  = Math.round(CANVAS * factor);
+        card.style.transform = 'scale(' + factor.toFixed(5) + ')';
+        vp.style.width       = scaled + 'px';
+        vp.style.height      = scaled + 'px';
+    }
+
+    applyScale();
+    window.addEventListener('resize', applyScale);
+})();
+</script>
+{% endif %}
 </body>
 </html>

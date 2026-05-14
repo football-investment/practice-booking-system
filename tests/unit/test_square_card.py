@@ -49,8 +49,16 @@ Coverage:
          panel height 200px; info col 140px; panel NOT inside Col 2 or Col 3
   SQ-35  Human-view page shell gated by {% if not export_mode %} Jinja2 block
          — background #0f1923 present in human block; base html/body has no background
-         — human-view .ex-card uses min(90vw, 90vh) for breathing room
+         — human-view .ex-card override: fixed 1080px canvas (wrapper+scale strategy)
          — Playwright base .ex-card still uses min(100vw, 100vh) unchanged
+  SQ-36  Human-view wrapper + scale engine contract (Opció C — transform: scale)
+         — .ex-card-viewport CSS defined in human-view block
+         — .ex-card fixed 1080×1080px in human-view block
+         — transform-origin: top left present in human-view CSS
+         — .ex-card-viewport HTML wrapper present in template body
+         — HTML wrapper gated by {% if not export_mode %}
+         — applyScale JS function present and gated by {% if not export_mode %}
+         — base .ex-card uses min(100vw, 100vh) — not 1080px — export unchanged
 """
 from __future__ import annotations
 
@@ -838,12 +846,17 @@ class TestHumanViewPageShell:
             "background must only appear inside {% if not export_mode %} block"
         )
 
-    def test_sq35d_human_view_card_uses_90_sizing(self, tpl):
-        """SQ-35d: Human-view .ex-card override uses min(90vw, 90vh) for breathing room."""
+    def test_sq35d_human_view_card_uses_fixed_canvas(self, tpl):
+        """SQ-35d: Human-view overrides .ex-card to fixed 1080px canvas (wrapper+scale strategy).
+
+        Opció C replaces the old min(90vw, 90vh) approach: the card always renders at its
+        native 1080px calibration and is scaled atomically via transform: scale(), preventing
+        the internal flex-budget collapse that caused Position Map overlap.
+        """
         human = self._human_block(tpl)
-        assert "min(90vw, 90vh)" in human, (
-            "SQ-35d: human-view .ex-card does not use min(90vw, 90vh) — "
-            "card will bleed to screen edge without a margin in human browser view"
+        assert "width: 1080px" in human and "height: 1080px" in human, (
+            "SQ-35d: human-view .ex-card CSS override does not set fixed 1080×1080px canvas — "
+            "scale-down strategy requires the card to render at its native 1080px calibration"
         )
 
     def test_sq35e_playwright_base_card_still_100vw_vh(self, tpl):
@@ -852,4 +865,113 @@ class TestHumanViewPageShell:
         assert "min(100vw, 100vh)" in before_gate, (
             "SQ-35e: Playwright base .ex-card sizing min(100vw, 100vh) not found before the "
             "{% if not export_mode %} block — PNG/WebM export canvas contract broken"
+        )
+
+
+# ── SQ-36: Human-view wrapper + scale engine (Opció C) ───────────────────────
+
+class TestHumanViewScaleEngine:
+    """SQ-36 — transform: scale() wrapper strategy for human-browseable Square card.
+
+    Opció C: .ex-card always renders at its native 1080×1080px canvas.
+    A .ex-card-viewport wrapper is sized by JS, and transform: scale() shrinks
+    the canvas to fit the browser window without triggering internal reflowing.
+
+    SQ-36a  .ex-card-viewport CSS class defined in the human-view CSS block
+    SQ-36b  .ex-card fixed 1080×1080px in the human-view CSS block
+    SQ-36c  transform-origin: top left present in the human-view CSS block
+    SQ-36d  .ex-card-viewport HTML wrapper div present in the template body
+    SQ-36e  HTML wrapper is guarded by {% if not export_mode %}
+    SQ-36f  applyScale JS function present and guarded by {% if not export_mode %}
+    SQ-36g  base .ex-card (before the gate) uses min(100vw, 100vh) — not 1080px
+    SQ-36h  1080px override does NOT appear in the base CSS (before the gate)
+    """
+
+    def _css_block(self, tpl: str) -> str:
+        """Content of the FIRST {% if not export_mode %} block (CSS overrides)."""
+        start = tpl.find("{% if not export_mode %}")
+        end   = tpl.find("{% endif %}", start)
+        assert start != -1 and end != -1, "First {% if not export_mode %} block not found"
+        return tpl[start:end]
+
+    def _base_css(self, tpl: str) -> str:
+        """CSS content before the first human-view gate."""
+        return tpl[:tpl.find("{% if not export_mode %}")]
+
+    def test_sq36a_viewport_css_defined(self, tpl):
+        """SQ-36a: .ex-card-viewport CSS class must be defined in the human-view CSS block."""
+        human = self._css_block(tpl)
+        assert ".ex-card-viewport" in human, (
+            "SQ-36a: .ex-card-viewport CSS class not found in {% if not export_mode %} block — "
+            "wrapper has no CSS rules; layout will be broken in human-view mode"
+        )
+
+    def test_sq36b_card_fixed_1080px(self, tpl):
+        """SQ-36b: Human-view CSS block must override .ex-card to fixed 1080×1080px."""
+        human = self._css_block(tpl)
+        assert "width: 1080px" in human, (
+            "SQ-36b: 'width: 1080px' not in human-view CSS block — "
+            ".ex-card must be fixed at native canvas size for scale strategy to work"
+        )
+        assert "height: 1080px" in human, (
+            "SQ-36b: 'height: 1080px' not in human-view CSS block — "
+            ".ex-card must be fixed at native canvas size for scale strategy to work"
+        )
+
+    def test_sq36c_transform_origin_top_left(self, tpl):
+        """SQ-36c: transform-origin: top left must be in the human-view CSS block."""
+        human = self._css_block(tpl)
+        assert "transform-origin: top left" in human, (
+            "SQ-36c: 'transform-origin: top left' not in human-view CSS — "
+            "without this, scale() will offset the card inside the viewport wrapper"
+        )
+
+    def test_sq36d_html_wrapper_present(self, tpl):
+        """SQ-36d: .ex-card-viewport HTML wrapper div must be present in the template body."""
+        assert 'class="ex-card-viewport"' in tpl or "ex-card-viewport" in tpl, (
+            "SQ-36d: .ex-card-viewport wrapper div not found in template — "
+            "scale engine needs the wrapper to constrain layout space"
+        )
+
+    def test_sq36e_html_wrapper_gated(self, tpl):
+        """SQ-36e: HTML wrapper div must be guarded by {% if not export_mode %}."""
+        idx = tpl.find("ex-card-viewport", tpl.find("<body>"))
+        assert idx != -1, "ex-card-viewport not found in HTML body section"
+        gate = tpl.rfind("{% if not export_mode %}", 0, idx)
+        assert gate != -1, (
+            "SQ-36e: ex-card-viewport HTML wrapper is NOT inside {% if not export_mode %} — "
+            "wrapper div would appear in Playwright export HTML, breaking the raw canvas contract"
+        )
+
+    def test_sq36f_js_apply_scale_gated(self, tpl):
+        """SQ-36f: applyScale JS function must be present and inside {% if not export_mode %}."""
+        idx = tpl.find("applyScale")
+        assert idx != -1, (
+            "SQ-36f: applyScale function not found in template — "
+            "JS scale engine missing; human-view card will render at 1080px unscaled"
+        )
+        gate = tpl.rfind("{% if not export_mode %}", 0, idx)
+        assert gate != -1, (
+            "SQ-36f: applyScale JS not inside {% if not export_mode %} — "
+            "scale script would be injected into Playwright export HTML"
+        )
+
+    def test_sq36g_base_card_not_1080px(self, tpl):
+        """SQ-36g: Base .ex-card (before the gate) must NOT declare 1080px dimensions."""
+        base = self._base_css(tpl)
+        assert "width: 1080px" not in base, (
+            "SQ-36g: 'width: 1080px' found in base CSS (before {% if not export_mode %}) — "
+            "this would override the Playwright canvas size from min(100vw,100vh) to 1080px"
+        )
+        assert "height: 1080px" not in base, (
+            "SQ-36g: 'height: 1080px' found in base CSS (before {% if not export_mode %}) — "
+            "Playwright export canvas contract would be broken"
+        )
+
+    def test_sq36h_base_card_uses_min_vw_vh(self, tpl):
+        """SQ-36h: Base .ex-card must still use min(100vw, 100vh) for Playwright export."""
+        base = self._base_css(tpl)
+        assert "min(100vw, 100vh)" in base, (
+            "SQ-36h: min(100vw, 100vh) not found in base .ex-card CSS — "
+            "Playwright 1080×1080 export canvas contract is broken"
         )
