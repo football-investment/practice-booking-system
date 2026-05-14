@@ -58583,6 +58583,26 @@
         ]
       }
     },
+    "/dashboard/publish-card": {
+      "post": {
+        "description": "Copy the current editor draft state to the published public card state.\n\nIdempotent: calling it multiple times with the same draft produces the same result.\nThe public card route (/players/{id}/card) reads published_card_* fields only,\nso a user's public card is frozen until they explicitly call this endpoint.",
+        "operationId": "student_publish_card_dashboard_publish_card_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Student Publish Card",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/dashboard/unlock-theme": {
       "post": {
         "description": "Unlock a premium card theme by spending credits.",
