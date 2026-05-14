@@ -777,17 +777,27 @@ class TestFifaStoryOptionA:
         )
 
     def test_ex48_story_sponsor_slot_element_present(self):
-        """EX-48: story/fifa.html must contain the unconditional ex-sponsor-slot HTML element."""
+        """EX-48: sponsor slot must be present in story rendering pipeline.
+
+        After Phase 1 macro extraction the class lives in macros/card_sponsor_block.html,
+        not inline in story/fifa.html. We verify:
+          (a) story/fifa.html imports and calls the sponsor_slot macro
+          (b) the macro itself contains class="ex-sponsor-slot"
+        """
         import os, app as _app_pkg
-        tpl_path = os.path.join(
-            os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/story/fifa.html",
+        tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
+
+        with open(os.path.join(tpl_dir, "public/export/story/fifa.html")) as f:
+            story_src = f.read()
+        with open(os.path.join(tpl_dir, "macros/card_sponsor_block.html")) as f:
+            macro_src = f.read()
+
+        assert "sponsor_slot" in story_src, (
+            "EX-48: story/fifa.html must import and call sponsor_slot macro"
         )
-        with open(tpl_path) as f:
-            src = f.read()
-        assert 'class="ex-sponsor-slot"' in src, (
-            "EX-48: ex-sponsor-slot element not found in story/fifa.html — "
-            "sponsor slot must be unconditional"
+        assert 'class="ex-sponsor-slot"' in macro_src, (
+            "EX-48: ex-sponsor-slot class not found in macros/card_sponsor_block.html — "
+            "sponsor slot must be defined in the macro"
         )
 
     def test_ex49_story_sponsor_logo_conditional(self, client):

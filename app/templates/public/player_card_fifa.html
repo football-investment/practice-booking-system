@@ -399,6 +399,7 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
 </style>
 </head>
 <body class="{% if platform_class %}{{ platform_class }}{% endif %}{% if native_export_mode %} native-export-mode{% elif export_mode %} export-mode{% endif %}">
+{% from "macros/card_skill_row.html" import card_skill_rows %}
 
 {% if app_logo_url %}
 <img class="page-logo" src="{{ app_logo_url }}" alt="LFA">
@@ -493,31 +494,7 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
                 {% for cat in skill_categories[:2] %}
                 <div class="skill-cat">
                     <div class="skill-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
-                    {% for skill in cat.skills %}
-                    {% set sdata = player.skills.get(skill.key, {}) %}
-                    {% set sval = sdata.get('current_level', 50) | round(1) %}
-                    {% set fill_pct = [sval, 100] | min %}
-                    {% set sdelta = last_skill_delta.get(skill.key, 0) %}
-                    {# Color driven solely by last-tournament delta, not by level tier. #}
-                    {% if sdelta > 0 %}
-                        {% set bar_color = '#48bb78' %}
-                        {% set val_color = '#48bb78' %}
-                    {% elif sdelta < 0 %}
-                        {% set bar_color = '#fc8181' %}
-                        {% set val_color = '#fc8181' %}
-                    {% else %}
-                        {% set bar_color = 'var(--card-bar-neutral)' %}
-                        {% set val_color = 'var(--card-val-neutral)' %}
-                    {% endif %}
-                    <div class="skill-row">
-                        <span class="skill-name" title="{{ skill.name_en }}">{{ skill.name_en }}</span>
-                        <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{{ fill_pct }}%; background:{{ bar_color }};"></div></div>
-                        <span class="skill-val" style="color:{{ val_color }};">{{ sval }}</span>
-                        {% if sdelta > 0 %}<span class="skill-up">↑</span>
-                        {% elif sdelta < 0 %}<span class="skill-up" style="color:#fc8181;">↓</span>
-                        {% else %}<span class="skill-up" style="visibility:hidden">↑</span>{% endif %}
-                    </div>
-                    {% endfor %}
+                    {{ card_skill_rows(cat, player.skills, last_skill_delta) }}
                 </div>
                 {% endfor %}
                 </div>
@@ -526,31 +503,7 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
                 {% for cat in skill_categories[2:] %}
                 <div class="skill-cat">
                     <div class="skill-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
-                    {% for skill in cat.skills %}
-                    {% set sdata = player.skills.get(skill.key, {}) %}
-                    {% set sval = sdata.get('current_level', 50) | round(1) %}
-                    {% set fill_pct = [sval, 100] | min %}
-                    {% set sdelta = last_skill_delta.get(skill.key, 0) %}
-                    {# Color driven solely by last-tournament delta, not by level tier. #}
-                    {% if sdelta > 0 %}
-                        {% set bar_color = '#48bb78' %}
-                        {% set val_color = '#48bb78' %}
-                    {% elif sdelta < 0 %}
-                        {% set bar_color = '#fc8181' %}
-                        {% set val_color = '#fc8181' %}
-                    {% else %}
-                        {% set bar_color = 'var(--card-bar-neutral)' %}
-                        {% set val_color = 'var(--card-val-neutral)' %}
-                    {% endif %}
-                    <div class="skill-row">
-                        <span class="skill-name" title="{{ skill.name_en }}">{{ skill.name_en }}</span>
-                        <div class="skill-bar-bg"><div class="skill-bar-fill" style="width:{{ fill_pct }}%; background:{{ bar_color }};"></div></div>
-                        <span class="skill-val" style="color:{{ val_color }};">{{ sval }}</span>
-                        {% if sdelta > 0 %}<span class="skill-up">↑</span>
-                        {% elif sdelta < 0 %}<span class="skill-up" style="color:#fc8181;">↓</span>
-                        {% else %}<span class="skill-up" style="visibility:hidden">↑</span>{% endif %}
-                    </div>
-                    {% endfor %}
+                    {{ card_skill_rows(cat, player.skills, last_skill_delta) }}
                 </div>
                 {% endfor %}
                 </div>

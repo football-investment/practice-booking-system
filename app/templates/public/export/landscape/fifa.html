@@ -422,6 +422,7 @@ html, body {
 </style>
 </head>
 <body>
+{% from "macros/card_skill_row.html" import export_skill_rows %}
 <div class="ex-card">
 
     <!-- ── LEFT PANEL — photo zone (58%) + OVR zone (42%) ────────────────── -->
@@ -551,38 +552,7 @@ html, body {
                     {{ cat.emoji }} {{ cat.name_en }}
                     <span class="ex-cat-avg">{{ cat_avg }}</span>
                 </div>
-                <div class="ex-skill-rows">
-                    {% for skill in cat.skills %}
-                    {% set sdata = player.skills.get(skill.key, {}) %}
-                    {% set sval  = sdata.get('current_level', 50) | round(0) | int %}
-                    {% set fill  = [sval, 100] | min %}
-                    {% set delta = last_skill_delta.get(skill.key, 0) %}
-                    {% if delta > 0 %}
-                        {% set bar_clr   = '#48bb78' %}
-                        {% set val_clr   = '#48bb78' %}
-                        {% set trend_chr = '↑' %}
-                        {% set trend_vis = 'visible' %}
-                    {% elif delta < 0 %}
-                        {% set bar_clr   = '#fc8181' %}
-                        {% set val_clr   = '#fc8181' %}
-                        {% set trend_chr = '↓' %}
-                        {% set trend_vis = 'visible' %}
-                    {% else %}
-                        {% set bar_clr   = 'rgba(255,255,255,0.18)' %}
-                        {% set val_clr   = 'rgba(255,255,255,0.80)' %}
-                        {% set trend_chr = '↑' %}
-                        {% set trend_vis = 'hidden' %}
-                    {% endif %}
-                    <div class="ex-row">
-                        <span class="ex-sname">{{ skill.name_en }}</span>
-                        <div class="ex-bar-bg">
-                            <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
-                        </div>
-                        <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
-                        <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend_chr }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
+                {{ export_skill_rows(cat, player.skills, last_skill_delta, neutral_bar='rgba(255,255,255,0.18)', neutral_val='rgba(255,255,255,0.80)') }}
             </div>
             {% endfor %}
         </div>

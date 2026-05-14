@@ -704,6 +704,7 @@ body {
 {% endif %}
 </head>
 <body>
+{% from "macros/card_skill_row.html" import export_skill_rows %}
 {% if not export_mode %}<div class="ex-card-viewport" id="ex-card-viewport">{% endif %}
 <div class="ex-card">
 
@@ -859,38 +860,7 @@ body {
                 {% set cat = skill_categories[0] %}
                 <div class="ex-cat">
                     <div class="ex-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
-                    <div class="ex-skill-rows">
-                        {% for skill in cat.skills %}
-                        {% set sdata = player.skills.get(skill.key, {}) %}
-                        {% set sval  = sdata.get('current_level', 50) | round(0) | int %}
-                        {% set fill  = [sval, 100] | min %}
-                        {% set delta = last_skill_delta.get(skill.key, 0) %}
-                        {% if delta > 0 %}
-                            {% set bar_clr  = '#48bb78' %}
-                            {% set val_clr  = '#48bb78' %}
-                            {% set trend    = '↑' %}
-                            {% set trend_vis = 'visible' %}
-                        {% elif delta < 0 %}
-                            {% set bar_clr  = '#fc8181' %}
-                            {% set val_clr  = '#fc8181' %}
-                            {% set trend    = '↓' %}
-                            {% set trend_vis = 'visible' %}
-                        {% else %}
-                            {% set bar_clr  = 'rgba(255,255,255,0.20)' %}
-                            {% set val_clr  = 'rgba(255,255,255,0.85)' %}
-                            {% set trend    = '↑' %}
-                            {% set trend_vis = 'hidden' %}
-                        {% endif %}
-                        <div class="ex-row">
-                            <span class="ex-sname">{{ skill.name_en }}</span>
-                            <div class="ex-bar-bg">
-                                <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
-                            </div>
-                            <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
-                            <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
+                    {{ export_skill_rows(cat, player.skills, last_skill_delta) }}
                     {% if sponsor_logo_url or app_logo_url %}
                     <div class="ex-outfield-logo">
                         <img src="{{ sponsor_logo_url or app_logo_url }}" alt="" class="ex-outfield-logo-img"
@@ -911,38 +881,7 @@ body {
                         {% set cat = skill_categories[2] %}
                         <div class="ex-cat">
                             <div class="ex-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
-                            <div class="ex-skill-rows">
-                                {% for skill in cat.skills %}
-                                {% set sdata = player.skills.get(skill.key, {}) %}
-                                {% set sval  = sdata.get('current_level', 50) | round(0) | int %}
-                                {% set fill  = [sval, 100] | min %}
-                                {% set delta = last_skill_delta.get(skill.key, 0) %}
-                                {% if delta > 0 %}
-                                    {% set bar_clr  = '#48bb78' %}
-                                    {% set val_clr  = '#48bb78' %}
-                                    {% set trend    = '↑' %}
-                                    {% set trend_vis = 'visible' %}
-                                {% elif delta < 0 %}
-                                    {% set bar_clr  = '#fc8181' %}
-                                    {% set val_clr  = '#fc8181' %}
-                                    {% set trend    = '↓' %}
-                                    {% set trend_vis = 'visible' %}
-                                {% else %}
-                                    {% set bar_clr  = 'rgba(255,255,255,0.20)' %}
-                                    {% set val_clr  = 'rgba(255,255,255,0.85)' %}
-                                    {% set trend    = '↑' %}
-                                    {% set trend_vis = 'hidden' %}
-                                {% endif %}
-                                <div class="ex-row">
-                                    <span class="ex-sname">{{ skill.name_en }}</span>
-                                    <div class="ex-bar-bg">
-                                        <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
-                                    </div>
-                                    <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
-                                    <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
-                                </div>
-                                {% endfor %}
-                            </div>
+                            {{ export_skill_rows(cat, player.skills, last_skill_delta) }}
                         </div>
                     </div>
 
@@ -951,38 +890,7 @@ body {
                         {% for cat in [skill_categories[1], skill_categories[3]] %}
                         <div class="ex-cat">
                             <div class="ex-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
-                            <div class="ex-skill-rows">
-                                {% for skill in cat.skills %}
-                                {% set sdata = player.skills.get(skill.key, {}) %}
-                                {% set sval  = sdata.get('current_level', 50) | round(0) | int %}
-                                {% set fill  = [sval, 100] | min %}
-                                {% set delta = last_skill_delta.get(skill.key, 0) %}
-                                {% if delta > 0 %}
-                                    {% set bar_clr  = '#48bb78' %}
-                                    {% set val_clr  = '#48bb78' %}
-                                    {% set trend    = '↑' %}
-                                    {% set trend_vis = 'visible' %}
-                                {% elif delta < 0 %}
-                                    {% set bar_clr  = '#fc8181' %}
-                                    {% set val_clr  = '#fc8181' %}
-                                    {% set trend    = '↓' %}
-                                    {% set trend_vis = 'visible' %}
-                                {% else %}
-                                    {% set bar_clr  = 'rgba(255,255,255,0.20)' %}
-                                    {% set val_clr  = 'rgba(255,255,255,0.85)' %}
-                                    {% set trend    = '↑' %}
-                                    {% set trend_vis = 'hidden' %}
-                                {% endif %}
-                                <div class="ex-row">
-                                    <span class="ex-sname">{{ skill.name_en }}</span>
-                                    <div class="ex-bar-bg">
-                                        <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
-                                    </div>
-                                    <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
-                                    <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
-                                </div>
-                                {% endfor %}
-                            </div>
+                            {{ export_skill_rows(cat, player.skills, last_skill_delta) }}
                         </div>
                         {% endfor %}
                     </div>

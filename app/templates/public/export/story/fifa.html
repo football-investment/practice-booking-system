@@ -353,6 +353,7 @@ html, body {
 </style>
 </head>
 <body>
+{% from "macros/card_sponsor_block.html" import sponsor_slot %}
 <div class="ex-card">
 
     <!-- ── HERO ────────────────────────────────────────────────────────────── -->
@@ -469,13 +470,7 @@ html, body {
         </div>
 
         <!-- Sponsor slot — unconditional 70px zone; logo renders only if provided -->
-        <div class="ex-sponsor-slot">
-            {% if sponsor_logo_url %}
-            <img class="ex-sponsor-slot-img" src="{{ sponsor_logo_url }}" alt="Sponsor">
-            {% elif app_logo_url %}
-            <img class="ex-sponsor-slot-img" src="{{ app_logo_url }}" alt="LFA">
-            {% endif %}
-        </div>
+        {{ sponsor_slot(sponsor_logo_url, app_logo_url) }}
     </div>
     {% endif %}
 
