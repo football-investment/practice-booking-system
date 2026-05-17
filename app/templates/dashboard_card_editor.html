@@ -491,11 +491,15 @@ const _CANVAS_SIZES = (function () {
 }());
 
 function _cardIframeSrc() {
+    // Always pass &theme= so the preview reflects the draft theme immediately
+    // (the public route reads published_theme by default — ?theme= overrides it).
+    // Always pass &animated=1 on export platforms so every platform preview
+    // shows entrance animations. MP4 video export capability is still governed
+    // separately by _isVideoCapable() / _ANIMATED_CAPABLE_PLATFORMS.
     if (_currentPlatform === 'default') {
-        return `/players/${_cardUserId}/card?_t=${Date.now()}`;
+        return `/players/${_cardUserId}/card?theme=${_currentTheme}&_t=${Date.now()}`;
     }
-    const animParam = _isVideoCapable() ? '&animated=1' : '';
-    return `/players/${_cardUserId}/card?platform=${_currentPlatform}&export=1${animParam}&_t=${Date.now()}`;
+    return `/players/${_cardUserId}/card?platform=${_currentPlatform}&export=1&animated=1&theme=${_currentTheme}&_t=${Date.now()}`;
 }
 
 function _applyIframeSize() {
