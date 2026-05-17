@@ -7,18 +7,10 @@
  #}
 
 {% block extra_styles %}
-/* ── FIFA lavender right-panel defaults (overrides base :root #ffffff) ────── */
+/* ── FIFA lavender right-panel (all themes) ──────────────────────────────── */
+/* Base :root default is #ffffff; this overrides to the lavender identity panel.
+   No .theme-* class selectors needed — base now injects theme vars via :root. */
 :root {
-    --card-right-bg:    #eef2ff;
-    --card-pill-bg:     #dde4ff;
-    --card-pill-border: #c7d2fe;
-}
-/* Dark themes would otherwise override right-panel tokens via base .theme-* classes;
-   reset them to lavender so FIFA card always shows the accent-aligned right panel. */
-.theme-midnight,
-.theme-gold,
-.theme-emerald,
-.theme-crimson {
     --card-right-bg:    #eef2ff;
     --card-pill-bg:     #dde4ff;
     --card-pill-border: #c7d2fe;

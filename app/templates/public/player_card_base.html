@@ -92,131 +92,19 @@
     }
 }
 
-/* ── Theme overrides ─────────────────────────────────────────────────────── */
-.theme-midnight {
-    --card-panel-bg:  linear-gradient(155deg, #0d0d0d 0%, #1a1a2e 60%, #16213e 100%);
-    --card-body-bg:   #0f0f0f;
-    --card-tab-bg:    #1a1a1a;
-    --card-accent:    #00d4ff;
-    --card-page-bg:   #050505;
-    --card-right-bg:      #0d1117;
-    --card-right-text:    rgba(255,255,255,0.90);
-    --card-right-subtext: rgba(0,212,255,0.55);
-    --card-right-value:   rgba(255,255,255,0.80);
-    --card-pill-bg:       rgba(0,212,255,0.08);
-    --card-pill-border:   rgba(0,212,255,0.18);
-    --card-pill-text:     rgba(0,212,255,0.80);
-    /* Force dark text palette — overrides @media light :root so this theme
-       stays readable on dark backgrounds in light system mode */
-    --card-text-primary:   rgba(255,255,255,0.88);
-    --card-text-secondary: rgba(255,255,255,0.60);
-    --card-text-muted:     rgba(255,255,255,0.40);
-    --card-text-faint:     rgba(255,255,255,0.35);
-    --card-text-tab:       rgba(255,255,255,0.50);
-    --card-val-neutral:    rgba(255,255,255,0.85);
-    --card-badge-xp-bg:    rgba(102,126,234,0.20);
-    --card-badge-xp-text:  #a3bffa;
-    --card-badge-cr-bg:    rgba(72,187,120,0.15);
-    --card-badge-cr-text:  #9ae6b4;
-    --card-pill-up-bg:     rgba(72,187,120,0.15);
-    --card-pill-up-text:   #9ae6b4;
-    --card-pill-dn-bg:     rgba(252,129,129,0.15);
-    --card-pill-dn-text:   #feb2b2;
-}
-.theme-gold {
-    --card-panel-bg:  linear-gradient(155deg, #3d2200 0%, #5c3500 60%, #3d2200 100%);
-    --card-body-bg:   #1e1500;
-    --card-tab-bg:    #2d1f00;
-    --card-accent:    #f6ad3c;
-    --card-page-bg:   #120d00;
-    --card-right-bg:      #2d1e05;
-    --card-right-text:    rgba(255,255,255,0.92);
-    --card-right-subtext: rgba(246,173,60,0.65);
-    --card-right-value:   rgba(255,255,255,0.82);
-    --card-pill-bg:       rgba(246,173,60,0.10);
-    --card-pill-border:   rgba(246,173,60,0.25);
-    --card-pill-text:     rgba(246,173,60,0.90);
-    /* Force dark text palette — immune to @media light :root */
-    --card-text-primary:   rgba(255,255,255,0.88);
-    --card-text-secondary: rgba(255,255,255,0.60);
-    --card-text-muted:     rgba(255,255,255,0.40);
-    --card-text-faint:     rgba(255,255,255,0.48);
-    --card-text-tab:       rgba(255,255,255,0.50);
-    --card-val-neutral:    rgba(255,255,255,0.68);
-    --card-badge-xp-bg:    rgba(102,126,234,0.20);
-    --card-badge-xp-text:  #a3bffa;
-    --card-badge-cr-bg:    rgba(72,187,120,0.15);
-    --card-badge-cr-text:  #9ae6b4;
-    --card-pill-up-bg:     rgba(72,187,120,0.15);
-    --card-pill-up-text:   #9ae6b4;
-    --card-pill-dn-bg:     rgba(252,129,129,0.15);
-    --card-pill-dn-text:   #feb2b2;
-}
-.theme-emerald {
-    --card-panel-bg:  linear-gradient(155deg, #0a2d0a 0%, #144d1e 60%, #0a2d14 100%);
-    --card-body-bg:   #0d1f0d;
-    --card-tab-bg:    #142b14;
-    --card-accent:    #4cde82;
-    --card-page-bg:   #060f06;
-    --card-right-bg:      #0d2010;
-    --card-right-text:    rgba(255,255,255,0.92);
-    --card-right-subtext: rgba(76,222,130,0.60);
-    --card-right-value:   rgba(255,255,255,0.82);
-    --card-pill-bg:       rgba(76,222,130,0.08);
-    --card-pill-border:   rgba(76,222,130,0.22);
-    --card-pill-text:     rgba(76,222,130,0.85);
-    /* Force dark text palette — immune to @media light :root */
-    --card-text-primary:   rgba(255,255,255,0.88);
-    --card-text-secondary: rgba(255,255,255,0.60);
-    --card-text-muted:     rgba(255,255,255,0.40);
-    --card-text-faint:     rgba(255,255,255,0.48);
-    --card-text-tab:       rgba(255,255,255,0.50);
-    --card-val-neutral:    rgba(255,255,255,0.68);
-    --card-badge-xp-bg:    rgba(102,126,234,0.20);
-    --card-badge-xp-text:  #a3bffa;
-    --card-badge-cr-bg:    rgba(72,187,120,0.15);
-    --card-badge-cr-text:  #9ae6b4;
-    --card-pill-up-bg:     rgba(72,187,120,0.15);
-    --card-pill-up-text:   #9ae6b4;
-    --card-pill-dn-bg:     rgba(252,129,129,0.15);
-    --card-pill-dn-text:   #feb2b2;
-}
-.theme-crimson {
-    --card-panel-bg:  linear-gradient(155deg, #3d0a0a 0%, #5c1414 60%, #3d0a14 100%);
-    --card-body-bg:   #1e0d0d;
-    --card-tab-bg:    #2d1010;
-    --card-accent:    #ff6b6b;
-    --card-page-bg:   #120404;
-    --card-right-bg:      #200a0a;
-    --card-right-text:    rgba(255,255,255,0.92);
-    --card-right-subtext: rgba(255,107,107,0.60);
-    --card-right-value:   rgba(255,255,255,0.82);
-    --card-pill-bg:       rgba(255,107,107,0.08);
-    --card-pill-border:   rgba(255,107,107,0.22);
-    --card-pill-text:     rgba(255,107,107,0.85);
-    /* Force dark text palette — immune to @media light :root */
-    --card-text-primary:   rgba(255,255,255,0.88);
-    --card-text-secondary: rgba(255,255,255,0.60);
-    --card-text-muted:     rgba(255,255,255,0.40);
-    --card-text-faint:     rgba(255,255,255,0.38);
-    --card-text-tab:       rgba(255,255,255,0.50);
-    --card-skill-dn:       #ffb3b3;
-    --card-skill-up:       #68d391;
-    --card-val-neutral:    rgba(255,255,255,0.65);
-    --card-badge-xp-bg:    rgba(102,126,234,0.20);
-    --card-badge-xp-text:  #a3bffa;
-    --card-badge-cr-bg:    rgba(72,187,120,0.15);
-    --card-badge-cr-text:  #9ae6b4;
-    --card-pill-up-bg:     rgba(72,187,120,0.15);
-    --card-pill-up-text:   #9ae6b4;
-    --card-pill-dn-bg:     rgba(252,129,129,0.15);
-    --card-pill-dn-text:   #feb2b2;
-}
-.theme-arctic {
-    --card-body-bg:        #f7fafc;
-    --card-tab-bg:         #edf2f7;
-    --card-accent:         #4299e1;
-    --card-page-bg:        #e2e8f0;
+/* ── Theme injection: dynamic :root override via Jinja2 below ─────────────
+   Hardcoded .theme-* CSS classes removed — theme vars are now injected
+   inline from ThemeDefinition fields (same data-driven model as export
+   templates). See player_card_base.html Jinja2 block below this <style>.
+   ─────────────────────────────────────────────────────────────────────── */
+{% if theme is defined and theme and theme.id != 'default' %}
+{% if theme.is_light_body_bg %}
+/* ── Light theme (arctic) — always-on light tokens, not @media-gated ─────── */
+:root {
+    --card-body-bg:        {{ theme.body_bg }};
+    --card-tab-bg:         {{ theme.tab_bg }};
+    --card-accent:         {{ theme.accent }};
+    --card-page-bg:        {{ theme.page_bg }};
     --card-border:         rgba(0,0,0,0.08);
     --card-bar-bg:         rgba(0,0,0,0.06);
     --card-bar-neutral:    rgba(0,0,0,0.10);
@@ -226,21 +114,47 @@
     --card-text-primary:   rgba(0,0,0,0.85);
     --card-text-secondary: rgba(0,0,0,0.72);
     --card-text-muted:     rgba(0,0,0,0.40);
-    --card-text-faint:     rgba(0,0,0,0.30);
+    --card-text-faint:     {{ theme.text_faint }};
     --card-text-tab:       rgba(0,0,0,0.45);
-    /* Light-mode skill + badge overrides */
-    --card-skill-up:      #276749;
-    --card-skill-dn:      #c53030;
-    --card-val-neutral:   rgba(0,0,0,0.70);
-    --card-badge-xp-bg:   rgba(102,126,234,0.12);
-    --card-badge-xp-text: #4c63b6;
-    --card-badge-cr-bg:   rgba(56,161,105,0.12);
-    --card-badge-cr-text: #276749;
-    --card-pill-up-bg:    rgba(56,161,105,0.12);
-    --card-pill-up-text:  #276749;
-    --card-pill-dn-bg:    rgba(229,62,62,0.12);
-    --card-pill-dn-text:  #c53030;
+    --card-val-neutral:    {{ theme.val_neutral }};
+    --card-skill-up:       {{ theme.skill_up }};
+    --card-skill-dn:       {{ theme.skill_dn }};
+    --card-badge-xp-bg:    rgba(102,126,234,0.12);
+    --card-badge-xp-text:  #4c63b6;
+    --card-badge-cr-bg:    rgba(56,161,105,0.12);
+    --card-badge-cr-text:  #276749;
+    --card-pill-up-bg:     rgba(56,161,105,0.12);
+    --card-pill-up-text:   #276749;
+    --card-pill-dn-bg:     rgba(229,62,62,0.12);
+    --card-pill-dn-text:   #c53030;
 }
+{% else %}
+/* ── Dark theme — inject vars + force dark palette over @media light ─────── */
+:root {
+    --card-panel-bg:       {{ theme.panel_bg }};
+    --card-body-bg:        {{ theme.body_bg }};
+    --card-tab-bg:         {{ theme.tab_bg }};
+    --card-accent:         {{ theme.accent }};
+    --card-page-bg:        {{ theme.page_bg }};
+    --card-text-primary:   rgba(255,255,255,0.88);
+    --card-text-secondary: rgba(255,255,255,0.60);
+    --card-text-muted:     rgba(255,255,255,0.40);
+    --card-text-faint:     {{ theme.text_faint }};
+    --card-text-tab:       rgba(255,255,255,0.50);
+    --card-val-neutral:    {{ theme.val_neutral }};
+    --card-skill-up:       {{ theme.skill_up }};
+    --card-skill-dn:       {{ theme.skill_dn }};
+    --card-badge-xp-bg:    rgba(102,126,234,0.20);
+    --card-badge-xp-text:  #a3bffa;
+    --card-badge-cr-bg:    rgba(72,187,120,0.15);
+    --card-badge-cr-text:  #9ae6b4;
+    --card-pill-up-bg:     rgba(72,187,120,0.15);
+    --card-pill-up-text:   #9ae6b4;
+    --card-pill-dn-bg:     rgba(252,129,129,0.15);
+    --card-pill-dn-text:   #feb2b2;
+}
+{% endif %}
+{% endif %}
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { overflow-x: hidden; }
@@ -361,7 +275,7 @@ body.export-mode .skill-bar-bg { max-width: none !important; }
 {% block extra_styles %}{% endblock %}
 </style>
 </head>
-<body class="theme-{{ card_theme }}{% if platform_class %} {{ platform_class }}{% endif %}{% if export_mode %} export-mode{% endif %}{% block extra_body_classes %}{% endblock %}">
+<body class="{% if platform_class %}{{ platform_class }}{% endif %}{% if export_mode %} export-mode{% endif %}{% block extra_body_classes %}{% endblock %}">
 
 {% block page_header %}<div class="page-brand">⚽ LFA Education Center — Player Card</div>{% endblock %}
 

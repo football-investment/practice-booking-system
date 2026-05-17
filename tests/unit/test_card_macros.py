@@ -525,8 +525,13 @@ class TestPlayerCardFifaPhase2b:
         return ctx
 
     def _render_fifa(self, **ctx_overrides):
+        from app.services.card_theme_service import get_theme as _gt
         tpl = self._fifa_env().get_template("public/player_card_fifa.html")
-        return tpl.render(**self._minimal_ctx(**ctx_overrides))
+        ctx = self._minimal_ctx(**ctx_overrides)
+        # F-THEME-1: auto-resolve ThemeDefinition when only card_theme string is given
+        if ctx.get('theme') is None:
+            ctx['theme'] = _gt(ctx.get('card_theme', 'default'))
+        return tpl.render(**ctx)
 
     def _source(self):
         import os, app as _app_pkg
@@ -539,19 +544,24 @@ class TestPlayerCardFifaPhase2b:
     def test_PB_fifa_extends_base(self):
         assert '{% extends "public/player_card_base.html" %}' in self._source()
 
-    # --- theme body class (added by base, was missing in old standalone FIFA) ---
+    # --- F-THEME-1: :root injection replaces .theme-* CSS class mechanism ---
 
-    def test_PB_slate_body_has_theme_class(self):
-        html = self._render_fifa(card_theme="slate")
-        assert 'theme-slate' in html
+    def test_PB_body_carries_no_theme_class(self):
+        """F-THEME-1: body must not carry theme-* class — vars injected via :root."""
+        html = self._render_fifa(card_theme="default")
+        assert 'class="theme-' not in html
 
-    def test_PB_arctic_body_has_theme_arctic_class(self):
-        html = self._render_fifa(card_theme="arctic")
-        assert 'theme-arctic' in html
-
-    def test_PB_midnight_body_has_theme_midnight_class(self):
+    def test_PB_dark_theme_injects_root_vars_not_body_class(self):
+        """Midnight theme vars injected via :root; no theme-midnight body class."""
         html = self._render_fifa(card_theme="midnight")
-        assert 'theme-midnight' in html
+        assert 'theme-midnight' not in html
+        assert '--card-body-bg:        #0f0f0f' in html
+
+    def test_PB_arctic_theme_injects_light_tokens_via_root(self):
+        """Arctic injects light text tokens via :root; no theme-arctic body class."""
+        html = self._render_fifa(card_theme="arctic")
+        assert 'theme-arctic' not in html
+        assert 'rgba(0,0,0,0.85)' in html
 
     # --- extra_body_classes block ---
 
@@ -595,12 +605,13 @@ class TestPlayerCardFifaPhase2b:
         assert "--card-pill-bg:     #dde4ff" in src
         assert "--card-pill-border: #c7d2fe" in src
 
-    def test_PB_source_has_dark_theme_lavender_reset_for_all_four_themes(self):
+    def test_PB_source_has_no_hardcoded_theme_class_selectors(self):
+        """F-THEME-1: .theme-* CSS selectors removed from player_card_fifa.html source."""
         src = self._source()
-        assert ".theme-midnight" in src
-        assert ".theme-gold" in src
-        assert ".theme-emerald" in src
-        assert ".theme-crimson" in src
+        assert ".theme-midnight" not in src
+        assert ".theme-gold" not in src
+        assert ".theme-emerald" not in src
+        assert ".theme-crimson" not in src
 
     def test_PB_rendered_output_contains_lavender_right_bg(self):
         """Lavender :root override is present in rendered CSS for any theme."""
@@ -613,10 +624,11 @@ class TestPlayerCardFifaPhase2b:
 
     # --- arctic dark text token activation ---
 
-    def test_PB_rendered_arctic_contains_theme_arctic_css_block(self):
-        """Base .theme-arctic block is present in rendered output."""
+    def test_PB_rendered_arctic_has_light_body_bg_injected(self):
+        """F-THEME-1: arctic :root injection emits body_bg — no .theme-arctic CSS class."""
         html = self._render_fifa(card_theme="arctic")
-        assert ".theme-arctic" in html
+        assert ".theme-arctic" not in html
+        assert "#f7fafc" in html
 
     def test_PB_rendered_arctic_contains_dark_text_token(self):
         """Arctic theme activates dark text tokens (rgba(0,0,0,...)) from base."""
