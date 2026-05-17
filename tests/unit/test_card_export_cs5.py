@@ -321,21 +321,48 @@ class TestCS5SkillSlice:
         )
 
 
-# ── CS5-07: Unsupported bucket → 422 logical proof ────────────────────────────
+# ── CS5-07 / CS5-07b: Unsupported bucket → 422 ────────────────────────────────
+
+def _mock_db_for_export(user_id: int = 7, card_variant: str = "classic_lite"):
+    """Minimal DB mock for the /card/export endpoint (model-type dispatch, no counter)."""
+    from app.models.user import User as _User
+    from app.models.license import UserLicense as _UserLicense
+
+    _user = MagicMock()
+    _user.id = user_id
+    _user.is_active = True
+
+    _lic = MagicMock()
+    _lic.card_variant = card_variant
+
+    db = MagicMock()
+
+    def _side_effect(*args):
+        q = MagicMock()
+        if args and args[0] is _User:
+            q.filter.return_value.first.return_value = _user
+        elif args and args[0] is _UserLicense:
+            q.filter.return_value.first.return_value = _lic
+        else:
+            q.filter.return_value.first.return_value = None
+            q.all.return_value = []
+        return q
+
+    db.query.side_effect = _side_effect
+    return db
+
 
 @pytest.mark.unit
 class TestCS5UnsupportedBucket:
-    """'square' bucket not in classic_lite supported_export_buckets → 422 would be raised.
+    """'square' bucket not in classic_lite supported_export_buckets → 422.
 
-    The HTTP-layer 422 gate (export_player_card endpoint) requires full auth mocking
-    and is outside the scope of this unit suite.  This test proves the triggering condition:
-    EXPORT_FORMAT_BUCKETS["instagram_square"] == "square" AND
-    "square" not in classic_lite.supported_export_buckets.
-    The route handler at public_player.py:415 raises HTTPException(422) on this condition.
+    CS5-07:  logical/condition proof — fast, no server required.
+    CS5-07b: route-level HTTP 422 — exercises the actual export_player_card endpoint
+             with auth + rate-limit dependencies overridden.
     """
 
-    def test_cs5_07_square_bucket_not_supported(self):
-        """classic_lite does not support the 'square' bucket — 422 would be raised by the route."""
+    def test_cs5_07_square_bucket_condition(self):
+        """Logical proof: EXPORT_FORMAT_BUCKETS['instagram_square']=='square' not in classic_lite."""
         from app.services.card_constants import EXPORT_FORMAT_BUCKETS
 
         cl_def = _make_classic_lite_def()
@@ -348,9 +375,39 @@ class TestCS5UnsupportedBucket:
             f"classic_lite declares 'square' as supported — expected only portrait + story. "
             f"supported_export_buckets={cl_def.supported_export_buckets}"
         )
-        assert "portrait" in cl_def.supported_export_buckets, (
-            "Sanity: classic_lite should support 'portrait'"
-        )
-        assert "story" in cl_def.supported_export_buckets, (
-            "Sanity: classic_lite should support 'story'"
-        )
+        assert "portrait" in cl_def.supported_export_buckets
+        assert "story" in cl_def.supported_export_buckets
+
+    def test_cs5_07b_route_level_422_for_instagram_square(self, client):
+        """HTTP 422 from /players/{id}/card/export?platform=instagram_square for classic_lite.
+
+        Auth and rate-limit are overridden; _get_supported_buckets is patched to return
+        classic_lite's actual supported buckets — proving the route raises 422 at line 415-418
+        of public_player.py when the requested bucket is absent from supported_export_buckets.
+        """
+        from app.main import app
+        from app.dependencies import get_db, get_current_user_web
+        from app.api.web_routes import public_player as _pp
+        from app.services import card_export_service as _export_svc
+
+        _mock_current_user = MagicMock()
+        _mock_current_user.id = 7   # matches user_id in URL → ownership check passes
+
+        db = _mock_db_for_export(user_id=7, card_variant="classic_lite")
+        app.dependency_overrides[get_db] = lambda: db
+        app.dependency_overrides[get_current_user_web] = lambda: _mock_current_user
+
+        with (
+            patch.object(_pp, "_get_supported_buckets", return_value=("portrait", "story")),
+            patch.object(_export_svc, "check_export_rate_limit", return_value=True),
+        ):
+            try:
+                r = client.get("/players/7/card/export?platform=instagram_square")
+                assert r.status_code == 422, (
+                    f"Expected HTTP 422 for classic_lite + instagram_square "
+                    f"(unsupported bucket 'square'), got {r.status_code}. "
+                    f"Body: {r.text[:300]}"
+                )
+            finally:
+                app.dependency_overrides.pop(get_db, None)
+                app.dependency_overrides.pop(get_current_user_web, None)
