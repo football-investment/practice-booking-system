@@ -14,14 +14,15 @@ Security rules enforced here (not in routes):
   - is_premium=True requires credit_cost > 0; False requires credit_cost == 0
   - supported_export_buckets: only known bucket names accepted
   - animated_platforms: only known platform IDs (CANVAS_SIZES keys) accepted
-  - component_config: CS-2 scope — only portrait/story column-driver buckets allowed;
-    each config key must be in supported_export_buckets
+  - component_config: keys must be in the archetype's allowed buckets (CS-6 A-model);
+    each config key must also be in supported_export_buckets
   - browser_template: must point to an existing file under app/templates/
   - apply_manifest runs in a single DB transaction; _invalidate_cache() called
     only after a successful commit
 
-Scope note (CS-2):
-  portrait/story export designs can now be created via admin manifest.
+Scope note (CS-6):
+  portrait/story (column archetype) and square (pulse archetype) export designs
+  can now be created via admin manifest.
   browser_template still references an already-deployed template file on disk —
   the browser-side card design layer is not yet manifest-only. That is a separate,
   later architectural phase.
@@ -43,7 +44,14 @@ MAX_MANIFEST_BYTES  = 32 * 1024   # 32 KB
 _PROTECTED_IDS      = frozenset({"fifa"})
 _SLUG_RE            = re.compile(r'^[a-z][a-z0-9_-]*$')
 _VALID_BUCKETS      = frozenset({"square", "portrait", "story", "tiktok", "landscape", "banner"})
-_COLUMN_DRIVER_BUCKETS = frozenset({"portrait", "story"})  # CS-2 driver scope
+# CS-6 A-model: archetype_id → set of driver-eligible buckets.
+# Designs with component_config must declare a known archetype_id and may only
+# use buckets that belong to that archetype's driver family.
+_ARCHETYPE_ALLOWED_BUCKETS: dict[str, frozenset] = {
+    "column": frozenset({"portrait", "story"}),
+    "pulse":  frozenset({"square"}),
+}
+_KNOWN_ARCHETYPES   = frozenset(_ARCHETYPE_ALLOWED_BUCKETS)
 _TEMPLATES_ROOT     = Path(__file__).resolve().parent.parent / "templates"
 
 
@@ -85,6 +93,7 @@ class DesignManifestItem(BaseModel):
     credit_cost:              int                          = Field(..., ge=0, le=9999)
     sort_order:               int                          = Field(..., ge=0, le=999)
     browser_template:         str                          = Field(..., max_length=300)
+    archetype_id:             Optional[str]                = Field(None, max_length=50)
     supported_export_buckets: list[str]                    = Field(default_factory=list)
     animated_platforms:       list[str]                    = Field(default_factory=list)
     component_config:         dict[str, BucketDriverConfig] = Field(default_factory=dict)
@@ -149,21 +158,35 @@ class DesignManifestItem(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def component_config_consistency(self) -> "DesignManifestItem":
+    def archetype_and_component_config_consistency(self) -> "DesignManifestItem":
         bucket_set = set(self.supported_export_buckets)
-        for bucket_key in self.component_config:
-            if bucket_key not in _COLUMN_DRIVER_BUCKETS:
+
+        if self.component_config:
+            # archetype_id is required when component_config is non-empty
+            if not self.archetype_id:
                 raise ValueError(
-                    f"component_config key '{bucket_key}' is not a supported column-driver "
-                    f"bucket. CS-2 supports only: {sorted(_COLUMN_DRIVER_BUCKETS)}. "
-                    "Additional archetype drivers are a separate future phase."
+                    "archetype_id is required when component_config is set. "
+                    f"Known archetypes: {sorted(_KNOWN_ARCHETYPES)}"
                 )
-            if bucket_key not in bucket_set:
+            if self.archetype_id not in _KNOWN_ARCHETYPES:
                 raise ValueError(
-                    f"component_config has key '{bucket_key}' but '{bucket_key}' is not in "
-                    "supported_export_buckets — either add it to supported_export_buckets "
-                    "or remove the component_config entry."
+                    f"archetype_id '{self.archetype_id}' is unknown. "
+                    f"Known archetypes: {sorted(_KNOWN_ARCHETYPES)}"
                 )
+            allowed = _ARCHETYPE_ALLOWED_BUCKETS[self.archetype_id]
+            for bucket_key in self.component_config:
+                if bucket_key not in allowed:
+                    raise ValueError(
+                        f"component_config key '{bucket_key}' is not a valid bucket for "
+                        f"archetype '{self.archetype_id}'. "
+                        f"Allowed buckets: {sorted(allowed)}"
+                    )
+                if bucket_key not in bucket_set:
+                    raise ValueError(
+                        f"component_config has key '{bucket_key}' but '{bucket_key}' is not in "
+                        "supported_export_buckets — either add it to supported_export_buckets "
+                        "or remove the component_config entry."
+                    )
         return self
 
 
@@ -248,7 +271,7 @@ def validate_manifest(raw_bytes: bytes, db) -> DesignManifestResult:
     db_map: dict[str, _CardDesign] = {r.id: r for r in all_rows}
 
     # ── Build preview rows ────────────────────────────────────────────────────
-    _FLAT_FIELDS = ("label", "description", "is_premium", "credit_cost", "sort_order", "browser_template")
+    _FLAT_FIELDS = ("label", "description", "is_premium", "credit_cost", "sort_order", "browser_template", "archetype_id")
     _JSONB_FIELDS = ("supported_export_buckets", "animated_platforms", "component_config")
     _ALL_FIELDS = _FLAT_FIELDS + _JSONB_FIELDS
 
@@ -298,6 +321,7 @@ def apply_manifest(db, preview_rows: list[DesignPreviewRow]) -> list[str]:
                     credit_cost=item.credit_cost,
                     sort_order=item.sort_order,
                     browser_template=item.browser_template,
+                    archetype_id=item.archetype_id,
                     supported_export_buckets=list(item.supported_export_buckets),
                     animated_platforms=list(item.animated_platforms),
                     component_config=cc_raw,
@@ -312,6 +336,7 @@ def apply_manifest(db, preview_rows: list[DesignPreviewRow]) -> list[str]:
                 existing.credit_cost              = item.credit_cost
                 existing.sort_order               = item.sort_order
                 existing.browser_template         = item.browser_template
+                existing.archetype_id             = item.archetype_id
                 existing.supported_export_buckets = list(item.supported_export_buckets)
                 existing.animated_platforms       = list(item.animated_platforms)
                 existing.component_config         = cc_raw

@@ -51,11 +51,18 @@ from app.services.card_design_service import (
     get_design as _get_design,
 )
 
-# CS-4c: bucket → driver filename; presence signals driver routing is supported.
-# Absence → file-based Level C fallback applies (unchanged behaviour).
-_ARCHETYPE_DRIVERS: dict[str, str] = {
-    "portrait": "column_driver.html",
-    "story":    "column_driver.html",
+# CS-6 A-model: archetype_id → {bucket → driver filename}.
+# archetype_id identifies the driver family for component_config-backed exports only.
+# File-based exports (no component_config entry for that bucket) are unaffected.
+# Absence of archetype_id or unknown archetype → file-based Level C fallback.
+_ARCHETYPE_DRIVERS: dict[str, dict[str, str]] = {
+    "column": {
+        "portrait": "column_driver.html",
+        "story":    "column_driver.html",
+    },
+    "pulse": {
+        "square":   "pulse_driver.html",
+    },
 }
 
 
@@ -275,8 +282,10 @@ def public_player_card(
         _fmt = _EXPORT_FORMAT_BUCKETS[platform_preset.id]
         _design_def = _get_design(card_variant_id, db)
         _bucket_cfg = _design_def.component_config.get(_fmt)
-        if _bucket_cfg and _fmt in _ARCHETYPE_DRIVERS:
-            template_path = f"public/export/shared/drivers/{_ARCHETYPE_DRIVERS[_fmt]}"
+        _archetype  = _design_def.archetype_id or ""
+        _driver_tpl = _ARCHETYPE_DRIVERS.get(_archetype, {}).get(_fmt)
+        if _bucket_cfg and _driver_tpl:
+            template_path = f"public/export/shared/drivers/{_driver_tpl}"
             _driver_config = _bucket_cfg
         else:
             _tpl = f"public/export/{_fmt}/{card_variant_id}.html"

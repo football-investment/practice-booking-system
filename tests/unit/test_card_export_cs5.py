@@ -83,6 +83,7 @@ def _make_classic_lite_def():
         credit_cost=0,
         template="public/player_card_fifa.html",
         sort_order=1,
+        archetype_id="column",   # CS-6 A-model: required for driver routing
         supported_export_buckets=("portrait", "story"),
         animated_platforms=(),
         component_config=_CLASSIC_LITE_CONFIG,

@@ -51,6 +51,7 @@ def _make_valid_item(**overrides) -> dict:
         "credit_cost":              0,
         "sort_order":               5,
         "browser_template":         _REAL_TEMPLATE,
+        "archetype_id":             "column",
         "supported_export_buckets": ["portrait", "story"],
         "animated_platforms":       [],
         "component_config": {
@@ -195,14 +196,15 @@ def test_ad06_premium_with_zero_credit_cost_rejected():
     assert any("credit_cost" in e.lower() or "premium" in e.lower() for e in result.errors)
 
 
-# ── AD-07: component_config key outside column-driver buckets ─────────────────
+# ── AD-07: component_config bucket not valid for declared archetype ────────────
 
 @pytest.mark.unit
-def test_ad07_component_config_invalid_bucket_rejected():
-    """component_config key 'square' is not a column-driver bucket in CS-2 → error."""
+def test_ad07_component_config_bucket_not_valid_for_archetype():
+    """component_config key 'square' with archetype_id='column' → bucket not in column allowed set."""
     from app.services.card_design_admin_service import validate_manifest
 
     item = _make_valid_item()
+    item["archetype_id"] = "column"
     item["supported_export_buckets"] = ["square"]
     item["component_config"] = {
         "square": {
@@ -214,7 +216,7 @@ def test_ad07_component_config_invalid_bucket_rejected():
     raw = json.dumps({"schema_version": 1, "designs": [item]}).encode()
     result = validate_manifest(raw, _mock_db_empty())
     assert not result.ok
-    assert any("square" in e and ("column" in e.lower() or "cs-2" in e.lower()) for e in result.errors)
+    assert any("square" in e and "column" in e.lower() for e in result.errors)
 
 
 # ── AD-08: component_config bucket not in supported_export_buckets ────────────

@@ -92,6 +92,7 @@ DESIGNS: dict[str, CardDesignDefinition] = {
         credit_cost=0,
         template="public/player_card_fifa.html",
         sort_order=0,
+        archetype_id="column",
         supported_export_buckets=("square", "portrait", "story", "tiktok", "landscape", "banner"),
         animated_platforms=("instagram_square",),
         component_config=_FIFA_COMPONENT_CONFIG,
@@ -149,8 +150,18 @@ DESIGNS: dict[str, CardDesignDefinition] = {
         credit_cost=600,
         template="public/player_card_pulse.html",
         sort_order=6,
+        archetype_id="pulse",
         supported_export_buckets=("square",),
         animated_platforms=("instagram_square",),
+        component_config={
+            "square": {
+                "skill_slice": None,
+                "show_dominant_badge": False,
+                "show_height_weight": False,
+                "show_sponsor": False,
+                "platform_vars": {},
+            }
+        },
     ),
 }
 
