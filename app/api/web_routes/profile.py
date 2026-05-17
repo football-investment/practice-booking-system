@@ -356,10 +356,11 @@ async def lfa_player_profile_edit_submit(
     goals: str             = Form(...),
     height_cm_raw: str     = Form(default=""),
     weight_kg_raw: str     = Form(default=""),
+    nickname_raw: str      = Form(default=""),
     db: Session            = Depends(get_db),
     user: User             = Depends(get_current_user_web),
 ):
-    """Validate and save LFA Football Player spec-profile fields (motivation_scores only)."""
+    """Validate and save LFA Football Player spec-profile fields and nickname."""
     license, redirect = _lfa_license_or_redirect(user.id, db)
     if redirect:
         return redirect
@@ -405,6 +406,14 @@ async def lfa_player_profile_edit_submit(
         except ValueError:
             errors.append("Weight must be a whole number")
 
+    nickname: str | None = None
+    nickname_clean = nickname_raw.strip()
+    if nickname_clean:
+        if len(nickname_clean) > 30:
+            errors.append("Nickname must be 30 characters or fewer")
+        else:
+            nickname = nickname_clean
+
     # ── Re-render form on validation error (no DB write) ──────────────────────
     if errors:
         return templates.TemplateResponse(
@@ -426,6 +435,8 @@ async def lfa_player_profile_edit_submit(
 
     # Backward-compat: sync primary position to User.position global field
     user.position = position
+    # Nickname: empty submission clears it; non-empty sets it
+    user.nickname = nickname
 
     db.commit()
     return RedirectResponse(url="/profile/lfa-football-player?updated=true", status_code=303)
@@ -654,11 +665,17 @@ from ...services.card_constants import (
     CANVAS_SIZES as _WC_CANVAS_SIZES,
     EXPORT_FORMAT_BUCKETS as _WC_EXPORT_BUCKETS,
     WC_GALLERY_PLATFORM_IDS as _WC_GALLERY_PLATFORM_IDS,
+    WC_PLATFORM_LAYOUT as _WC_PLATFORM_LAYOUT,
+    WC_PLATFORM_STYLE_TAGS as _WC_PLATFORM_STYLE_TAGS,
 )
 from ...services.card_platform_service import build_platform_list as _build_platform_list
 
 # Platforms exposed in the Welcome Card gallery — derived from authoritative sources.
-_WC_GALLERY_PLATFORMS: list[dict] = _build_platform_list(_WC_GALLERY_PLATFORM_IDS)
+# style_tag drives the archetype badge in the gallery picker UI.
+_WC_GALLERY_PLATFORMS: list[dict] = [
+    {**p, "style_tag": _WC_PLATFORM_STYLE_TAGS.get(p["id"], "")}
+    for p in _build_platform_list(_WC_GALLERY_PLATFORM_IDS)
+]
 
 # JSON-serialisable canvas_sizes dict passed to the gallery template so the
 # JS CANVAS_SIZES object is server-rendered instead of hardcoded.
@@ -666,8 +683,16 @@ _WC_CANVAS_SIZES_JSON: dict = {
     pid: {"w": w, "h": h} for pid, (w, h) in _WC_CANVAS_SIZES.items()
 }
 
-_WC_APP_LOGO_URL = "/static/images/logo-dark.png"
+_WC_APP_LOGO_URL = "/static/images/logo-wc.png"
 _TEMPLATES_DIR   = str(BASE_DIR / "templates")
+
+# Dir C category colors — must match --wc-c0..c3 in wc_base.html.
+_WC_CAT_COLORS: dict[str, str] = {
+    "outfield":   "#3b82f6",
+    "set_pieces": "#eab308",
+    "mental":     "#22c55e",
+    "physical":   "#ef4444",
+}
 
 # Maps WC platform IDs to the 3 Welcome Card template archetypes.
 # square: 1:1  |  vertical: column (4:5, 9:16)  |  horizontal: wide (1.91:1, 3:1)
@@ -690,6 +715,7 @@ def _build_welcome_card_context(
     license: UserLicense,
     platform: str | None,
     export: bool,
+    use_nickname: bool = False,
 ) -> dict:
     """
     Build the FIFA template context for the Welcome Card.
@@ -701,13 +727,21 @@ def _build_welcome_card_context(
     be used by calculation services.
 
     WELCOME_CARD_SPEC v1 content-field → context key mapping:
-      full_name         → player.name / display_name
+      full_name/nickname → player.name / display_name (resolved by use_nickname)
       overall_rating    → overall
       position          → player.position
       skill_values      → player.skills (current_level = self_assessment)
       card_theme        → card_theme / card_theme_id
       nationality       → player.nationality
       photo_url         → photo_url / portrait_photo_url / landscape_photo_url
+                          WC-specific fields take priority; Player Card fields are
+                          the fallback for users who have not uploaded a WC photo yet.
+                          Explicit chain (see code below):
+                            photo_url          = wc_photo_url  or player_card_photo_url
+                            portrait_photo_url = wc_photo_portrait_url or wc_photo_url
+                                                 or card_photo_portrait_url or player_card_photo_url
+                            landscape_photo_url= wc_photo_landscape_url or wc_photo_url
+                                                 or card_photo_landscape_url or player_card_photo_url
       club_name         → (intentionally absent — WC is individual, not club-branded)
       club_logo_url     → (intentionally absent)
       skill_categories  → skill_categories
@@ -742,6 +776,7 @@ def _build_welcome_card_context(
             "key":   cat["key"],
             "name":  cat["name_en"],
             "emoji": cat["emoji"],
+            "color": _WC_CAT_COLORS.get(cat["key"], "#94a3b8"),
             "avg":   round(
                 sum(
                     skills_for_fifa.get(s["key"], {}).get("current_level", 60.0)
@@ -752,7 +787,10 @@ def _build_welcome_card_context(
         for cat in SKILL_CATEGORIES
     ]
 
-    display_name      = user.name or user.email or ""
+    display_name      = (
+        (user.nickname if user.nickname else user.name)
+        if use_nickname else user.name
+    ) or user.email or ""
     parts             = display_name.split()
     initials          = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
     position          = ms.get("position", "")
@@ -779,8 +817,8 @@ def _build_welcome_card_context(
         name                 = display_name,
         position             = position,
         positions            = ms.get("positions", []),
-        nationality          = getattr(user, "country", None) or "",
-        secondary_nationality= None,
+        nationality          = user.nationality or "",
+        secondary_nationality= user.secondary_nationality,
         age_group            = age_group,
         total_tournaments    = 0,
         photo_url            = license.player_card_photo_url,
@@ -811,9 +849,19 @@ def _build_welcome_card_context(
         "platform_id":           platform_preset.id,
         "export_mode":           export,
         "native_export_mode":    False,   # WC never uses the native capture path
-        "photo_url":             license.player_card_photo_url,
-        "portrait_photo_url":    license.card_photo_portrait_url or license.player_card_photo_url,
-        "landscape_photo_url":   license.card_photo_landscape_url or license.player_card_photo_url,
+        # ── WC photo fallback chain ──────────────────────────────────────────
+        # Priority: WC-specific → WC base → PC variant → PC base.
+        # All WC fields are NULL for existing users (no upload yet) so they
+        # transparently fall back to their Player Card counterparts.
+        "photo_url":             license.wc_photo_url or license.player_card_photo_url,
+        "portrait_photo_url":    (license.wc_photo_portrait_url
+                                  or license.wc_photo_url
+                                  or license.card_photo_portrait_url
+                                  or license.player_card_photo_url),
+        "landscape_photo_url":   (license.wc_photo_landscape_url
+                                  or license.wc_photo_url
+                                  or license.card_photo_landscape_url
+                                  or license.player_card_photo_url),
         "compact_bg_url":        None,
         "showcase_bg_url":       None,
         # sponsor_logo is always None on Welcome Card — enforced at context build time
@@ -828,7 +876,7 @@ def _build_welcome_card_context(
         "welcome_card_mode":     True,
         # Welcome Card identity copy
         "welcome_heading":       "WELCOME TO LFA",
-        "welcome_subtitle":      "Lion Football Academy",
+        "welcome_subtitle":      "Welcome to Lion Football Academy",
         # 4 category average badges (SA-based, one per SKILL_CATEGORIES entry)
         "category_averages":     category_averages,
     }
@@ -837,20 +885,27 @@ def _build_welcome_card_context(
 def _select_welcome_card_template(platform: str | None, export: bool) -> str:
     """Return the Welcome Card template path for this platform + render mode.
 
-    Routes to one of three Welcome Card archetype templates in export/welcome/:
-      square     — 1:1 formats (instagram_square, facebook_square)
-      vertical   — column formats (portrait, story, tiktok)
-      horizontal — wide formats (landscape, og, facebook_post, banner_custom)
+    Progressive fallback chain for each platform:
+      1. Dir C layout  — export/welcome/{layout}.html   (e.g. panel, cinematic)
+      2. Old archetype — export/welcome/{archetype}.html (e.g. square, vertical)
+      3. FIFA Classic  — player_card_fifa.html           (always exists)
 
-    Falls back to the FIFA preview template when no platform is given (gallery hub)
-    or when a welcome archetype template file is not found on disk.
+    No platform given (gallery hub) falls straight through to FIFA Classic.
     """
     if platform:
+        # Tier 1: Dir C layout
+        layout = _WC_PLATFORM_LAYOUT.get(platform)
+        if layout:
+            layout_path = f"public/export/welcome/{layout}.html"
+            if os.path.isfile(os.path.join(_TEMPLATES_DIR, layout_path)):
+                return layout_path
+        # Tier 2: old archetype (square / vertical / horizontal)
         archetype = _WC_PLATFORM_TO_ARCHETYPE.get(platform)
         if archetype:
-            exp_path = f"public/export/welcome/{archetype}.html"
-            if os.path.isfile(os.path.join(_TEMPLATES_DIR, exp_path)):
-                return exp_path
+            arch_path = f"public/export/welcome/{archetype}.html"
+            if os.path.isfile(os.path.join(_TEMPLATES_DIR, arch_path)):
+                return arch_path
+    # Tier 3: FIFA Classic fallback
     return "public/player_card_fifa.html"
 
 
@@ -896,6 +951,7 @@ async def onboarding_welcome_card(
     request: Request,
     platform: str | None     = Query(default=None),
     export: bool             = Query(default=False),
+    use_nickname: bool       = Query(default=False),
     render_token: str | None = None,
     db: Session              = Depends(get_db),
     user: "User | None"      = Depends(get_current_user_optional),
@@ -944,15 +1000,18 @@ async def onboarding_welcome_card(
                 "request":          request,
                 "user":             user,
                 "display_name":     display_name,
-                "platforms":        _WC_GALLERY_PLATFORMS,
-                "default_platform": "instagram_square",
-                "photo_url":        license.player_card_photo_url,
-                "canvas_sizes":     _WC_CANVAS_SIZES_JSON,
+                "platforms":           _WC_GALLERY_PLATFORMS,
+                "default_platform":    "instagram_square",
+                "photo_url":           license.wc_photo_url or license.player_card_photo_url,
+                "canvas_sizes":        _WC_CANVAS_SIZES_JSON,
+                "use_nickname":        use_nickname,
+                "spec_dashboard_url":  "/dashboard/lfa-football-player",
+                "spec_dashboard_icon": "⚽",
             },
         )
 
     logger.info("welcome_card_rendered", extra={"user": user.email, "platform": platform, "export": export})
-    ctx  = _build_welcome_card_context(request, user, license, platform, export)
+    ctx  = _build_welcome_card_context(request, user, license, platform, export, use_nickname)
     tmpl = _select_welcome_card_template(platform, export)
     return templates.TemplateResponse(tmpl, ctx)
 
@@ -960,9 +1019,10 @@ async def onboarding_welcome_card(
 @router.get("/profile/onboarding-card/export")
 async def export_onboarding_welcome_card(
     request: Request,
-    platform: str = Query(default="instagram_square"),
-    db: Session   = Depends(get_db),
-    user: User    = Depends(get_current_user_web),
+    platform: str    = Query(default="instagram_square"),
+    use_nickname: bool = Query(default=False),
+    db: Session      = Depends(get_db),
+    user: User       = Depends(get_current_user_web),
 ):
     """
     Export the Welcome Card as a PNG at a social-media canvas size.
@@ -996,10 +1056,11 @@ async def export_onboarding_welcome_card(
             detail="Export rate limit exceeded (5 per minute). Please wait before exporting again.",
         )
 
+    _nick_param = "&use_nickname=1" if use_nickname else ""
     render_url = (
         f"http://127.0.0.1:{settings.APP_INTERNAL_PORT}"
         f"/profile/onboarding-card?platform={platform}&export=1"
-        f"&render_token={_create_render_token(user.id)}"
+        f"{_nick_param}&render_token={_create_render_token(user.id)}"
     )
 
     logger.info("welcome_card_export", extra={"user": user.email, "platform": platform})

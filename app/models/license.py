@@ -180,6 +180,15 @@ class UserLicense(Base):
                                      comment="Portrait-crop photo for player card variants")
     card_photo_landscape_url = Column(String(512), nullable=True,
                                       comment="Landscape-crop photo for player card variants")
+    # ── Welcome Card photos (fully independent from Player Card slots above) ──
+    # NULL means "fall back to the corresponding Player Card field" at read time
+    # (see _build_welcome_card_context in profile.py for the explicit fallback chain).
+    wc_photo_url = Column(String(512), nullable=True,
+                          comment="Welcome Card primary photo — independent from player_card_photo_url; NULL = fall back to player_card_photo_url")
+    wc_photo_portrait_url = Column(String(512), nullable=True,
+                                   comment="Welcome Card portrait photo — NULL = fall back to wc_photo_url then card_photo_portrait_url")
+    wc_photo_landscape_url = Column(String(512), nullable=True,
+                                    comment="Welcome Card landscape photo — NULL = fall back to wc_photo_url then card_photo_landscape_url")
     card_bg_compact_url = Column(String(512), nullable=True,
                                  comment="Background image for compact card variant")
     card_bg_showcase_url = Column(String(512), nullable=True,

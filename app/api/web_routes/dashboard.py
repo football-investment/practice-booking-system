@@ -663,6 +663,13 @@ from ...services.player_photo_service import (  # noqa: E402
     delete_showcase_bg_photo,
     save_sponsor_logo,
     delete_sponsor_logo,
+    save_wc_photo,
+    delete_wc_photo,
+    save_wc_portrait_photo,
+    delete_wc_portrait_photo,
+    save_wc_landscape_photo,
+    delete_wc_landscape_photo,
+    save_initial_player_photo,
 )
 
 
@@ -892,6 +899,168 @@ async def student_upload_sponsor_logo(
         return JSONResponse({"ok": True, "photo_url": url})
     except ValueError as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ONBOARDING INITIAL PHOTO  (atomic dual-write — PC + WC in one transaction)
+# Used exclusively by onboarding Step 7.  Writes player_card_photo_url AND
+# wc_photo_url to the same URL in one db.commit() so the two fields start life
+# as independent copies with no fallback dependency between them.
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/dashboard/initial-player-photo")
+async def student_upload_initial_player_photo(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    try:
+        url = save_initial_player_photo(await file.read(), file.content_type or "", user.id)
+        # Atomic dual-write: both fields set in a single commit.
+        # If commit fails, neither field is updated — no partial state.
+        lfa_license.player_card_photo_url = url
+        lfa_license.wc_photo_url          = url
+        db.commit()
+        return JSONResponse({"ok": True, "photo_url": url})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WELCOME CARD PHOTOS  (student self-upload — fully separate from Player Card)
+# Route naming: /dashboard/wc-photo* mirrors /dashboard/lfa-player-photo* but
+# writes to the independent wc_photo_* fields on UserLicense.
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/dashboard/wc-photo")
+async def student_upload_wc_photo(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    try:
+        url = save_wc_photo(await file.read(), file.content_type or "", user.id)
+        lfa_license.wc_photo_url = url
+        db.commit()
+        return JSONResponse({"ok": True, "photo_url": url})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/dashboard/wc-photo/delete")
+async def student_delete_wc_photo(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if lfa_license:
+        delete_wc_photo(user.id)
+        lfa_license.wc_photo_url = None
+        db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/dashboard/wc-photo-portrait")
+async def student_upload_wc_portrait_photo(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    try:
+        url = save_wc_portrait_photo(await file.read(), file.content_type or "", user.id)
+        lfa_license.wc_photo_portrait_url = url
+        db.commit()
+        return JSONResponse({"ok": True, "photo_url": url})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/dashboard/wc-photo-portrait/delete")
+async def student_delete_wc_portrait_photo(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if lfa_license:
+        delete_wc_portrait_photo(user.id)
+        lfa_license.wc_photo_portrait_url = None
+        db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/dashboard/wc-photo-landscape")
+async def student_upload_wc_landscape_photo(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    try:
+        url = save_wc_landscape_photo(await file.read(), file.content_type or "", user.id)
+        lfa_license.wc_photo_landscape_url = url
+        db.commit()
+        return JSONResponse({"ok": True, "photo_url": url})
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+
+@router.post("/dashboard/wc-photo-landscape/delete")
+async def student_delete_wc_landscape_photo(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    lfa_license = db.query(UserLicense).filter(
+        UserLicense.user_id == user.id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        UserLicense.is_active == True,
+    ).first()
+    if lfa_license:
+        delete_wc_landscape_photo(user.id)
+        lfa_license.wc_photo_landscape_url = None
+        db.commit()
+    return JSONResponse({"ok": True})
 
 
 @router.post("/dashboard/lfa-player-sponsor-logo/delete")

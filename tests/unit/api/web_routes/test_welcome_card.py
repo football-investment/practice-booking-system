@@ -67,9 +67,12 @@ def _license(onboarding_completed=True, football_skills=None):
     lic = MagicMock()
     lic.specialization_type   = "LFA_FOOTBALL_PLAYER"
     lic.onboarding_completed  = onboarding_completed
-    lic.player_card_photo_url = None
+    lic.player_card_photo_url    = None
     lic.card_photo_portrait_url  = None
     lic.card_photo_landscape_url = None
+    lic.wc_photo_url             = None
+    lic.wc_photo_portrait_url    = None
+    lic.wc_photo_landscape_url   = None
     lic.right_foot_score      = 70.0
     lic.left_foot_score       = 30.0
     lic.motivation_scores = {
@@ -243,6 +246,16 @@ class TestWelcomeCardGalleryRoute:
             f"Actual:   {actual_ids}"
         )
 
+    def test_sh04_gallery_context_has_spec_dashboard_url(self):
+        """Gallery hub context must include spec_dashboard_url for spec_subpage_hdr.html."""
+        lic = _license()
+        db  = _mock_db(license_return=lic)
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(onboarding_welcome_card(_req(), platform=None, db=db, user=_user()))
+        _, ctx = mock_tmpl.TemplateResponse.call_args.args
+        assert ctx.get("spec_dashboard_url") == "/dashboard/lfa-football-player"
+
 
 # ── 3. FIFA card route (?platform=X) ──────────────────────────────────────────
 
@@ -311,10 +324,10 @@ class TestWelcomeCardFifaRoute:
         assert ctx.get("sponsor_logo_url") is None
 
     def test_app_logo_url_is_set(self):
-        """Welcome Card must display fixed app logo (logo-dark.png)."""
+        """Welcome Card must display fixed app logo (logo-wc.png)."""
         _, ctx = self._call_with_platform()
         assert ctx.get("app_logo_url") == _WC_APP_LOGO_URL
-        assert "logo-dark.png" in ctx["app_logo_url"]
+        assert "logo-wc.png" in ctx["app_logo_url"]
 
     def test_welcome_card_mode_is_true(self):
         _, ctx = self._call_with_platform()
@@ -602,9 +615,41 @@ class TestWelcomeCardGalleryTemplate:
     def test_has_platform_download_buttons(self, gallery_src):
         assert "/profile/onboarding-card/export?platform=" in gallery_src
 
-    def test_has_back_link_to_lfa_player_profile(self, gallery_src):
-        # Back link updated (Fázis 2): Welcome Card is LFA-specific context.
-        assert 'href="/profile/lfa-football-player"' in gallery_src
+    def test_inherits_app_navigation_via_student_base(self, gallery_src):
+        # Navigation is provided by the student_base.html navbar (Option A).
+        # The manual back-link was removed; student_base.html carries the LFA Player nav item.
+        assert '{% extends "student_base.html" %}' in gallery_src
+
+    # ── Theme token assertions (TT-01..TT-05) ────────────────────────────────
+
+    def test_tt01_no_hardcoded_dark_body_background(self, gallery_src):
+        # body background must use --hub-bg token, never the old hardcoded dark navy
+        assert "#0f0f1a" not in gallery_src
+        assert "var(--hub-bg)" in gallery_src
+
+    def test_tt02_uses_hub_card_token_for_panels(self, gallery_src):
+        assert "var(--hub-card-bg)" in gallery_src
+
+    def test_tt03_uses_hub_btn_token_for_download_cta(self, gallery_src):
+        assert "var(--hub-btn-bg)" in gallery_src
+
+    def test_tt04_badge_has_no_purple_colour(self, gallery_src):
+        # Style badge was purple (off-brand); must now be brand-yellow
+        assert "167,139,250" not in gallery_src
+
+    def test_tt05_wc_frame_bg_token_used_for_iframe_container(self, gallery_src):
+        assert "var(--wc-frame-bg)" in gallery_src
+
+    # ── Spec header assertions (SH-01..SH-03) ────────────────────────────────
+
+    def test_sh01_overrides_student_header_block(self, gallery_src):
+        assert "{% block student_header %}" in gallery_src
+
+    def test_sh02_includes_spec_subpage_hdr(self, gallery_src):
+        assert "spec_subpage_hdr.html" in gallery_src
+
+    def test_sh03_active_page_is_lfa_player(self, gallery_src):
+        assert "active_page %}lfa-player" in gallery_src
 
     def test_gallery_renders_with_minimal_context(self):
         """Jinja2 render: gallery template must not error with minimal context.
@@ -620,12 +665,16 @@ class TestWelcomeCardGalleryTemplate:
             undefined=Undefined,
         )
         canvas_sizes = {pid: {"w": w, "h": h} for pid, (w, h) in CANVAS_SIZES.items()}
+        minimal_user = MagicMock()
+        minimal_user.nickname = None
         ctx = {
             "request":          MagicMock(),
+            "user":             minimal_user,
             "display_name":     "Test Player",
             "platforms":        _WC_GALLERY_PLATFORMS,
             "default_platform": "instagram_square",
             "canvas_sizes":     canvas_sizes,
+            "use_nickname":     False,
         }
         html = env.get_template("public/welcome_card.html").render(**ctx)
         assert "Welcome Card" in html
@@ -735,7 +784,7 @@ class TestWelcomeCardStep7:
         assert 'type="file"' in step7_src
 
     def test_photo_upload_uses_dashboard_endpoint(self, step7_src):
-        assert "/dashboard/lfa-player-photo" in step7_src
+        assert "/dashboard/initial-player-photo" in step7_src
 
     def test_photo_upload_is_optional(self, step7_src):
         """Upload input must not block the CTA buttons (they are in the same step)."""
@@ -929,9 +978,17 @@ class TestWelcomeCardRenderingFixes:
             "the JS CANVAS_SIZES object — hardcoded platform literals must not appear."
         )
 
-    def test_canvas_sizes_default_platform_still_hardcoded_in_iframe_src(self, gallery_html_src):
-        """Default iframe src still references instagram_square as the initial preview."""
-        assert "platform=instagram_square" in gallery_html_src
+    def test_canvas_sizes_default_platform_used_in_iframe_src(self, gallery_html_src):
+        """Iframe src and JS _activePlatform must use the server-supplied default_platform
+        variable, not a hardcoded platform ID."""
+        assert "platform={{ default_platform }}" in gallery_html_src, (
+            "welcome_card.html iframe src must reference {{ default_platform }}, "
+            "not a hardcoded platform ID."
+        )
+        assert "_activePlatform = '{{ default_platform }}'" in gallery_html_src, (
+            "JS _activePlatform must be initialised from {{ default_platform }}, "
+            "not a hardcoded string."
+        )
 
     def test_select_platform_calls_scale_iframe(self, gallery_html_src):
         """Fix B: selectPlatform() must call scaleIframe(pid) after updating src."""
@@ -1031,10 +1088,10 @@ class TestWelcomeCardPhotoUpload:
         assert 'type="file"' in gallery_html_src
 
     def test_gallery_upload_endpoint_is_correct(self, gallery_html_src):
-        assert "/dashboard/lfa-player-photo'" in gallery_html_src
+        assert "/dashboard/wc-photo'" in gallery_html_src
 
     def test_gallery_delete_endpoint_is_correct(self, gallery_html_src):
-        assert "/dashboard/lfa-player-photo/delete'" in gallery_html_src
+        assert "/dashboard/wc-photo/delete'" in gallery_html_src
 
     def test_gallery_has_getcsrftoken_function(self, gallery_html_src):
         assert "function getCsrfToken()" in gallery_html_src
@@ -1063,13 +1120,17 @@ class TestWelcomeCardPhotoUpload:
             undefined=Undefined,
         )
         canvas_sizes = {pid: {"w": w, "h": h} for pid, (w, h) in CANVAS_SIZES.items()}
+        minimal_user = MagicMock()
+        minimal_user.nickname = None
         ctx = {
             "request":          MagicMock(),
+            "user":             minimal_user,
             "display_name":     "Test Player",
             "platforms":        _WC_GALLERY_PLATFORMS,
             "default_platform": "instagram_square",
             "photo_url":        photo_url,
             "canvas_sizes":     canvas_sizes,
+            "use_nickname":     False,
         }
         return env.get_template("public/welcome_card.html").render(**ctx)
 
@@ -1445,9 +1506,9 @@ class TestWelcomeCardPhase4E:
         assert ctx["welcome_heading"] == "WELCOME TO LFA"
 
     def test_ctx02_welcome_subtitle(self):
-        """WC-4E-CTX-02: welcome_subtitle must be 'Lion Football Academy'."""
+        """WC-4E-CTX-02: welcome_subtitle must be 'Welcome to Lion Football Academy'."""
         ctx = _build_welcome_card_context(_req(), _user(), _license(), None, False)
-        assert ctx["welcome_subtitle"] == "Lion Football Academy"
+        assert ctx["welcome_subtitle"] == "Welcome to Lion Football Academy"
 
     def test_ctx03_category_averages_has_four_items(self):
         """WC-4E-CTX-03: category_averages must contain exactly 4 entries."""
@@ -1488,49 +1549,51 @@ class TestWelcomeCardPhase4E:
         ctx_b = _build_welcome_card_context(_req(), _user(), _license(), None, False)
         assert ctx_a["category_averages"] == ctx_b["category_averages"]
 
-    # ── WC-4E-RT: template routing ────────────────────────────────────────────
+    # ── WC-4E-RT: template routing (Dir C Tier 1) ────────────────────────────
+    # Dir C layouts are on disk → Tier 1 always wins; legacy archetypes are
+    # never reached for the platforms listed in WC_PLATFORM_LAYOUT.
 
-    def test_rt01_square_routes_to_welcome_square(self):
-        """WC-4E-RT-01: instagram_square → welcome/square.html."""
+    def test_rt01_square_routes_to_panel(self):
+        """WC-4E-RT-01: instagram_square → welcome/panel.html (Dir C)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template("instagram_square", False) == \
-               "public/export/welcome/square.html"
+               "public/export/welcome/panel.html"
 
-    def test_rt02_facebook_square_routes_to_welcome_square(self):
-        """WC-4E-RT-02: facebook_square → welcome/square.html."""
+    def test_rt02_facebook_square_routes_to_full_bleed(self):
+        """WC-4E-RT-02: facebook_square → welcome/full_bleed.html (Dir C)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template("facebook_square", False) == \
-               "public/export/welcome/square.html"
+               "public/export/welcome/full_bleed.html"
 
-    def test_rt03_story_routes_to_welcome_vertical(self):
-        """WC-4E-RT-03: instagram_story → welcome/vertical.html."""
+    def test_rt03_story_routes_to_panel(self):
+        """WC-4E-RT-03: instagram_story → welcome/panel.html (Dir C)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template("instagram_story", False) == \
-               "public/export/welcome/vertical.html"
+               "public/export/welcome/panel.html"
 
-    def test_rt04_tiktok_routes_to_welcome_vertical(self):
-        """WC-4E-RT-04: tiktok → welcome/vertical.html."""
+    def test_rt04_tiktok_routes_to_cinematic(self):
+        """WC-4E-RT-04: tiktok → welcome/cinematic.html (Dir C)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template("tiktok", False) == \
-               "public/export/welcome/vertical.html"
+               "public/export/welcome/cinematic.html"
 
-    def test_rt05_portrait_routes_to_welcome_vertical(self):
-        """WC-4E-RT-05: instagram_portrait → welcome/vertical.html."""
+    def test_rt05_portrait_routes_to_panel(self):
+        """WC-4E-RT-05: instagram_portrait → welcome/panel.html (Dir C)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template("instagram_portrait", False) == \
-               "public/export/welcome/vertical.html"
+               "public/export/welcome/panel.html"
 
-    def test_rt06_landscape_routes_to_welcome_horizontal(self):
-        """WC-4E-RT-06: facebook_landscape → welcome/horizontal.html."""
+    def test_rt06_landscape_routes_to_split(self):
+        """WC-4E-RT-06: facebook_landscape → welcome/split.html (Dir C)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template("facebook_landscape", False) == \
-               "public/export/welcome/horizontal.html"
+               "public/export/welcome/split.html"
 
-    def test_rt07_banner_routes_to_welcome_horizontal(self):
-        """WC-4E-RT-07: banner_custom → welcome/horizontal.html."""
+    def test_rt07_banner_routes_to_banner(self):
+        """WC-4E-RT-07: banner_custom → welcome/banner.html (Dir C)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template("banner_custom", False) == \
-               "public/export/welcome/horizontal.html"
+               "public/export/welcome/banner.html"
 
     def test_rt08_no_platform_returns_preview_fallback(self):
         """WC-4E-RT-08: None platform → FIFA preview fallback (gallery hub)."""
@@ -1553,7 +1616,7 @@ class TestWelcomeCardPhase4E:
     def test_rnd03_square_has_lfa_logo(self):
         """WC-4E-RND-03: square render contains the LFA logo URL."""
         html = _render_welcome("square", "instagram_square")
-        assert "logo-dark.png" in html
+        assert "logo-wc.png" in html
 
     def test_rnd04_square_has_four_category_badges(self):
         """WC-4E-RND-04: square render has 4 wc-cat-avg elements."""
@@ -1573,7 +1636,7 @@ class TestWelcomeCardPhase4E:
     def test_rnd07_vertical_has_lfa_logo(self):
         """WC-4E-RND-07: vertical render contains the LFA logo URL."""
         html = _render_welcome("vertical", "tiktok")
-        assert "logo-dark.png" in html
+        assert "logo-wc.png" in html
 
     def test_rnd08_vertical_has_four_category_badges(self):
         """WC-4E-RND-08: vertical render has 4 wc-cat-avg elements (2×2 grid)."""
@@ -1588,7 +1651,7 @@ class TestWelcomeCardPhase4E:
     def test_rnd10_horizontal_has_lfa_logo(self):
         """WC-4E-RND-10: horizontal render contains the LFA logo URL."""
         html = _render_welcome("horizontal", "facebook_landscape")
-        assert "logo-dark.png" in html
+        assert "logo-wc.png" in html
 
     def test_rnd11_horizontal_has_four_category_badges(self):
         """WC-4E-RND-11: horizontal render has 4 wc-cat-avg elements (4-in-a-row)."""
@@ -1792,3 +1855,371 @@ class TestLandscapeBugFix:
         """Regression: WC context for banner still has welcome_card_mode=True."""
         _, ctx = TestWelcomeCardFifaRoute()._call_with_platform("linkedin_banner")
         assert ctx.get("welcome_card_mode") is True
+
+
+# ── Nickname toggle ────────────────────────────────────────────────────────────
+
+class TestWelcomeCardNicknameToggle:
+    """
+    NC-01..NC-08: use_nickname query param resolves player.name in context builder.
+
+    All tests call _build_welcome_card_context() directly to stay isolated from
+    route-level concerns (auth, DB, rate limiting).
+    """
+
+    def _ctx(self, use_nickname=False, name="John Doe", nickname="JohnnyD"):
+        u = _user()
+        u.name     = name
+        u.nickname = nickname
+        return _build_welcome_card_context(
+            _req(), u, _license(), "instagram_square", False, use_nickname
+        )
+
+    # NC-01
+    def test_default_uses_real_name(self):
+        """Without use_nickname, player.name equals user.name."""
+        ctx = self._ctx(use_nickname=False, name="John Doe", nickname="JohnnyD")
+        assert ctx["player"].name == "John Doe"
+
+    # NC-02
+    def test_use_nickname_true_shows_nickname(self):
+        """use_nickname=True + nickname present → player.name equals nickname."""
+        ctx = self._ctx(use_nickname=True, name="John Doe", nickname="JohnnyD")
+        assert ctx["player"].name == "JohnnyD"
+
+    # NC-03
+    def test_use_nickname_true_falls_back_when_nickname_none(self):
+        """use_nickname=True but nickname is None → player.name falls back to real name."""
+        u = _user()
+        u.name     = "John Doe"
+        u.nickname = None
+        ctx = _build_welcome_card_context(
+            _req(), u, _license(), "instagram_square", False, True
+        )
+        assert ctx["player"].name == "John Doe"
+
+    # NC-04
+    def test_use_nickname_true_falls_back_when_nickname_empty(self):
+        """use_nickname=True but nickname is empty string → player.name falls back to real name."""
+        u = _user()
+        u.name     = "John Doe"
+        u.nickname = ""
+        ctx = _build_welcome_card_context(
+            _req(), u, _license(), "instagram_square", False, True
+        )
+        assert ctx["player"].name == "John Doe"
+
+    # NC-05
+    def test_initials_follow_resolved_name(self):
+        """Initials are derived from whichever name wins (nickname or real name)."""
+        ctx_real = self._ctx(use_nickname=False, name="John Doe",    nickname="XZ")
+        ctx_nick = self._ctx(use_nickname=True,  name="John Doe",    nickname="XZ")
+        assert ctx_real["initials"] == "JD"
+        assert ctx_nick["initials"] == "X"
+
+    # NC-06
+    def test_gallery_context_exposes_use_nickname(self):
+        """Gallery hub context must include use_nickname so the template can set toggle state."""
+        db = _mock_db(license_return=_license())
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(onboarding_welcome_card(
+                _req(), platform=None, use_nickname=False, db=db, user=_user()
+            ))
+        _, ctx = mock_tmpl.TemplateResponse.call_args.args
+        assert "use_nickname" in ctx
+        assert ctx["use_nickname"] is False
+
+    # NC-07
+    def test_gallery_context_use_nickname_true_when_param_set(self):
+        """Gallery hub reflects use_nickname=True when query param is present."""
+        db = _mock_db(license_return=_license())
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(onboarding_welcome_card(
+                _req(), platform=None, use_nickname=True, db=db, user=_user()
+            ))
+        _, ctx = mock_tmpl.TemplateResponse.call_args.args
+        assert ctx["use_nickname"] is True
+
+    # NC-08
+    def test_display_name_in_context_matches_player_name(self):
+        """display_name key (used in page title) must equal player.name."""
+        ctx = self._ctx(use_nickname=True, name="John Doe", nickname="JohnnyD")
+        assert ctx["display_name"] == ctx["player"].name == "JohnnyD"
+
+
+# ── 9. WC photo separation (Option A) ─────────────────────────────────────────
+
+class TestWCPhotoSeparation:
+    """Welcome Card photo fields are fully independent from Player Card fields.
+
+    Fallback chain (per profile.py _build_welcome_card_context):
+      photo_url          = wc_photo_url  or player_card_photo_url
+      portrait_photo_url = wc_photo_portrait_url or wc_photo_url
+                           or card_photo_portrait_url or player_card_photo_url
+      landscape_photo_url= wc_photo_landscape_url or wc_photo_url
+                           or card_photo_landscape_url or player_card_photo_url
+    """
+
+    def _ctx(self, **lic_overrides):
+        lic = _license()
+        for k, v in lic_overrides.items():
+            setattr(lic, k, v)
+        return _build_welcome_card_context(
+            _req(), _user(), lic, "instagram_square", export=False, use_nickname=False
+        )
+
+    # PS-01: WC-specific photo used when set
+    def test_wc_photo_url_takes_priority_over_pc_photo(self):
+        ctx = self._ctx(wc_photo_url="/wc.png", player_card_photo_url="/pc.png")
+        assert ctx["photo_url"] == "/wc.png"
+
+    # PS-02: fallback to PC photo when WC photo not set
+    def test_photo_falls_back_to_pc_when_wc_null(self):
+        ctx = self._ctx(wc_photo_url=None, player_card_photo_url="/pc.png")
+        assert ctx["photo_url"] == "/pc.png"
+
+    # PS-03: both null → photo_url is falsy
+    def test_photo_is_none_when_both_null(self):
+        ctx = self._ctx(wc_photo_url=None, player_card_photo_url=None)
+        assert not ctx["photo_url"]
+
+    # PS-04: WC portrait takes priority over everything
+    def test_wc_portrait_takes_priority(self):
+        ctx = self._ctx(
+            wc_photo_portrait_url="/wc_p.png",
+            wc_photo_url="/wc.png",
+            card_photo_portrait_url="/pc_p.png",
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["portrait_photo_url"] == "/wc_p.png"
+
+    # PS-05: WC base photo is second priority for portrait when portrait variant absent
+    def test_portrait_falls_back_to_wc_base_when_wc_portrait_null(self):
+        ctx = self._ctx(
+            wc_photo_portrait_url=None,
+            wc_photo_url="/wc.png",
+            card_photo_portrait_url="/pc_p.png",
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["portrait_photo_url"] == "/wc.png"
+
+    # PS-06: portrait falls back to PC portrait when no WC photos at all
+    def test_portrait_falls_back_to_pc_portrait_when_no_wc_photos(self):
+        ctx = self._ctx(
+            wc_photo_portrait_url=None,
+            wc_photo_url=None,
+            card_photo_portrait_url="/pc_p.png",
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["portrait_photo_url"] == "/pc_p.png"
+
+    # PS-07: portrait final fallback to PC base when all portrait variants absent
+    def test_portrait_final_fallback_to_pc_base(self):
+        ctx = self._ctx(
+            wc_photo_portrait_url=None,
+            wc_photo_url=None,
+            card_photo_portrait_url=None,
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["portrait_photo_url"] == "/pc.png"
+
+    # PS-08: landscape chain mirrors portrait chain
+    def test_landscape_falls_back_through_full_chain(self):
+        # WC landscape set → used
+        ctx = self._ctx(
+            wc_photo_landscape_url="/wc_l.png",
+            wc_photo_url="/wc.png",
+            card_photo_landscape_url="/pc_l.png",
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["landscape_photo_url"] == "/wc_l.png"
+
+        # WC landscape absent, WC base present → WC base
+        ctx = self._ctx(
+            wc_photo_landscape_url=None,
+            wc_photo_url="/wc.png",
+            card_photo_landscape_url="/pc_l.png",
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["landscape_photo_url"] == "/wc.png"
+
+        # No WC photos → PC landscape
+        ctx = self._ctx(
+            wc_photo_landscape_url=None,
+            wc_photo_url=None,
+            card_photo_landscape_url="/pc_l.png",
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["landscape_photo_url"] == "/pc_l.png"
+
+        # All absent except PC base → PC base
+        ctx = self._ctx(
+            wc_photo_landscape_url=None,
+            wc_photo_url=None,
+            card_photo_landscape_url=None,
+            player_card_photo_url="/pc.png",
+        )
+        assert ctx["landscape_photo_url"] == "/pc.png"
+
+    # PS-09: PC photo unchanged when only WC photo is modified
+    def test_pc_photo_fields_untouched_by_wc_context(self):
+        """WC context does not read from PC fields when WC fields are present.
+        The PC context (public_player.py) still uses player_card_photo_url exclusively.
+        This test confirms WC context reads wc_photo_url first, not player_card_photo_url."""
+        ctx = self._ctx(
+            wc_photo_url="/wc_only.png",
+            player_card_photo_url="/pc_only.png",
+        )
+        assert ctx["photo_url"] == "/wc_only.png"
+        # PC photo is NOT surfaced in WC context when WC photo exists
+        assert ctx["photo_url"] != "/pc_only.png"
+
+    # PS-10: gallery hub photo_url uses WC field with fallback
+    def test_gallery_hub_photo_url_uses_wc_photo(self):
+        """Gallery hub route passes wc_photo_url (not player_card_photo_url) to template."""
+        lic = _license()
+        lic.wc_photo_url          = "/wc_gallery.png"
+        lic.player_card_photo_url = "/pc_gallery.png"
+        db = _mock_db(license_return=lic)
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(onboarding_welcome_card(_req(), platform=None, db=db, user=_user()))
+        _, ctx = mock_tmpl.TemplateResponse.call_args.args
+        assert ctx["photo_url"] == "/wc_gallery.png"
+
+    # PS-11: gallery hub falls back to PC photo when WC photo absent
+    def test_gallery_hub_photo_url_falls_back_to_pc(self):
+        lic = _license()
+        lic.wc_photo_url          = None
+        lic.player_card_photo_url = "/pc_gallery.png"
+        db = _mock_db(license_return=lic)
+        with patch(f"{_BASE}.templates") as mock_tmpl:
+            mock_tmpl.TemplateResponse.return_value = MagicMock()
+            _run(onboarding_welcome_card(_req(), platform=None, db=db, user=_user()))
+        _, ctx = mock_tmpl.TemplateResponse.call_args.args
+        assert ctx["photo_url"] == "/pc_gallery.png"
+
+
+# ── 10. Onboarding initial photo — dual-write isolation ───────────────────────
+
+class TestInitialPlayerPhoto:
+    """POST /dashboard/initial-player-photo writes both PC and WC fields atomically.
+
+    IP-01..IP-06: endpoint contract, field isolation, no partial state guarantee.
+    """
+
+    _BASE_DASH = "app.api.web_routes.dashboard"
+
+    def _license(self):
+        lic = MagicMock()
+        lic.player_card_photo_url = None
+        lic.wc_photo_url          = None
+        return lic
+
+    def _db(self, lic):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = lic
+        return db
+
+    def _upload(self, lic, content_type="image/png"):
+        from app.api.web_routes.dashboard import student_upload_initial_player_photo
+        from fastapi import UploadFile
+        import io
+        req  = MagicMock()
+        user = MagicMock(); user.id = 42
+        db   = self._db(lic)
+        file = MagicMock(spec=UploadFile)
+        file.content_type = content_type
+        file.read = AsyncMock(return_value=b"fake-image-bytes")
+        with patch(f"{self._BASE_DASH}.save_initial_player_photo",
+                   return_value="/static/uploads/lfa_player_photos/42_orig_9999.png") as mock_save:
+            result = _run(student_upload_initial_player_photo(
+                req, file=file, db=db, user=user
+            ))
+        return result, lic, mock_save
+
+    # IP-01: successful upload writes BOTH fields to the same URL
+    def test_both_fields_written_on_success(self):
+        lic = self._license()
+        result, lic, _ = self._upload(lic)
+        data = result.body if hasattr(result, "body") else {}
+        import json
+        d = json.loads(result.body)
+        assert d["ok"] is True
+        assert lic.player_card_photo_url == "/static/uploads/lfa_player_photos/42_orig_9999.png"
+        assert lic.wc_photo_url          == "/static/uploads/lfa_player_photos/42_orig_9999.png"
+
+    # IP-02: both fields get the same URL value (independent DB strings)
+    def test_both_fields_hold_identical_url(self):
+        lic = self._license()
+        _, lic, _ = self._upload(lic)
+        assert lic.player_card_photo_url == lic.wc_photo_url
+
+    # IP-03: save_initial_player_photo is called exactly once (one file-save)
+    def test_single_file_save(self):
+        lic = self._license()
+        _, _, mock_save = self._upload(lic)
+        mock_save.assert_called_once()
+
+    # IP-04: no license → 404, no fields written
+    def test_no_license_returns_404(self):
+        from app.api.web_routes.dashboard import student_upload_initial_player_photo
+        from fastapi import UploadFile
+        req  = MagicMock()
+        user = MagicMock(); user.id = 99
+        db   = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        file = MagicMock(spec=UploadFile)
+        file.content_type = "image/png"
+        file.read = AsyncMock(return_value=b"x")
+        result = _run(student_upload_initial_player_photo(req, file=file, db=db, user=user))
+        import json
+        d = json.loads(result.body)
+        assert d["ok"] is False
+        assert result.status_code == 404
+
+    # IP-05: ValueError from save propagates as 400, no fields written
+    def test_bad_file_returns_400_no_fields_written(self):
+        from app.api.web_routes.dashboard import student_upload_initial_player_photo
+        from fastapi import UploadFile
+        lic  = self._license()
+        req  = MagicMock()
+        user = MagicMock(); user.id = 42
+        db   = self._db(lic)
+        file = MagicMock(spec=UploadFile)
+        file.content_type = "image/png"
+        file.read = AsyncMock(return_value=b"bad")
+        with patch(f"{self._BASE_DASH}.save_initial_player_photo",
+                   side_effect=ValueError("Érvénytelen képfájl")):
+            result = _run(student_upload_initial_player_photo(req, file=file, db=db, user=user))
+        import json
+        d = json.loads(result.body)
+        assert d["ok"] is False
+        assert result.status_code == 400
+        # Neither field was touched
+        assert lic.player_card_photo_url is None
+        assert lic.wc_photo_url          is None
+
+    # IP-06: isolation — a subsequent PC upload does not change wc_photo_url
+    def test_subsequent_pc_upload_does_not_affect_wc_field(self):
+        """After initial dual-write, independent PC upload must not touch wc_photo_url."""
+        from app.api.web_routes.dashboard import student_upload_player_photo
+        from fastapi import UploadFile
+        lic = self._license()
+        lic.player_card_photo_url = "/initial.png"
+        lic.wc_photo_url          = "/initial.png"   # as if initial upload ran
+
+        req  = MagicMock()
+        user = MagicMock(); user.id = 42
+        db   = self._db(lic)
+        file = MagicMock(spec=UploadFile)
+        file.content_type = "image/png"
+        file.read = AsyncMock(return_value=b"new-pc-photo")
+        with patch(f"{self._BASE_DASH}.save_player_photo",
+                   return_value="/static/uploads/lfa_player_photos/42_orig_8888.png"):
+            _run(student_upload_player_photo(req, file=file, db=db, user=user))
+
+        assert lic.player_card_photo_url == "/static/uploads/lfa_player_photos/42_orig_8888.png"
+        assert lic.wc_photo_url          == "/initial.png"   # untouched
