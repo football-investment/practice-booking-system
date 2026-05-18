@@ -181,18 +181,13 @@
             <a href="/my-cards/player-card" class="section-link">✏️ Edit →</a>
         </div>
         <div class="player-card-embed-wrap" id="spec-card-wrap">
-            {% if active_card_platform and active_card_platform != 'default' %}
+            {# default platform previews instagram_portrait — same as card editor P-1 fix #}
+            {% set _preview_platform = active_card_platform if (active_card_platform and active_card_platform != 'default') else 'instagram_portrait' %}
             <iframe id="spec-player-card-iframe"
-                    src="/players/{{ user.id }}/card?platform={{ active_card_platform }}&export=1"
+                    src="/players/{{ user.id }}/card?platform={{ _preview_platform }}&export=1"
                     height="760" scrolling="no" title="My Player Card"></iframe>
-            {% else %}
-            <iframe id="spec-player-card-iframe"
-                    src="/players/{{ user.id }}/card"
-                    height="760" scrolling="no" title="My Player Card"></iframe>
-            {% endif %}
         </div>
     </section>
-    {% if active_card_platform and active_card_platform != 'default' %}
     <script>
     (function() {
         var _SPEC_CANVAS = {
@@ -205,8 +200,9 @@
             og:                 [1200,  630],
             banner_custom:      [1500,  500],
         };
+        var _previewPlatform = '{{ _preview_platform }}';
         document.addEventListener('DOMContentLoaded', function() {
-            var dims = _SPEC_CANVAS['{{ active_card_platform }}'];
+            var dims = _SPEC_CANVAS[_previewPlatform];
             if (!dims) return;
             var iframe = document.getElementById('spec-player-card-iframe');
             var wrap   = document.getElementById('spec-card-wrap');
@@ -214,15 +210,14 @@
             var cw = dims[0], ch = dims[1];
             var availW = wrap.clientWidth || 840;
             var scale  = availW / cw;
-            iframe.style.width         = cw + 'px';
-            iframe.style.height        = ch + 'px';
-            iframe.style.transform     = 'scale(' + scale + ')';
+            iframe.style.width           = cw + 'px';
+            iframe.style.height          = ch + 'px';
+            iframe.style.transform       = 'scale(' + scale + ')';
             iframe.style.transformOrigin = 'top left';
-            wrap.style.height          = Math.round(ch * scale) + 'px';
+            wrap.style.height            = Math.round(ch * scale) + 'px';
         });
     })();
     </script>
-    {% endif %}
     {% endif %}
 
     {# ── Module Navigation (full-width, below card) ────────────────────────────── #}

@@ -311,10 +311,11 @@ function scaleIframe(pid) {
     if (!wrap || !iframe) return;
     var wrapW = wrap.offsetWidth || 500;
     var scale = wrapW / cw;
-    iframe.style.width     = cw + 'px';
-    iframe.style.height    = ch + 'px';
-    iframe.style.transform = 'scale(' + scale + ')';
-    wrap.style.height      = Math.round(ch * scale) + 'px';
+    iframe.style.width           = cw + 'px';
+    iframe.style.height          = ch + 'px';
+    iframe.style.transform       = 'scale(' + scale + ')';
+    iframe.style.transformOrigin = 'top left';
+    wrap.style.height            = Math.round(ch * scale) + 'px';
 }
 
 function selectPlatform(card) {
