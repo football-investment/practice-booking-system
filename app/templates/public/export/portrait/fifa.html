@@ -1,38 +1,43 @@
 {% extends "public/export/shared/export_base.html" %}
 {%- from "macros/card_position_map.html" import position_map_landscape -%}
+{%- from "macros/card_ovr_badge.html"    import ovr_badge -%}
 {#
- * FIFA Classic × Instagram Portrait — PORT-v2 (2026-05-18)
+ * FIFA Classic × Instagram Portrait — PORT-v2 — Split Hero v3.2b (2026-05-18)
  * Canvas  : 1080 × 1350 px  (4:5 ratio, Playwright viewport)
- * Layout  : fullbleed photo hero 420px
- *           meta strip 56px  (NAT | AGE | HT | WT | EVENTS | LV)
- *           skills zone flex:1  (2 cols: Outfield 19 | Mental+Sets+Phys 25)
- *           position map 170px full-width footer
+ * Layout  : Split Hero Block   660px  (flex-row)
+ *             ├── Photo Panel  560px — fullbleed photo, subtle name overlay bottom-left
+ *             └── Info Panel   520px — single stacked column:
+ *                   brand → OVR badge → tier → divider → meta → spacer → PosMap+labels
+ *           Skills Zone        flex:1 (~690px) — 3 columns
+ *             ├── Outfield     480px  (19 skills × 32px)
+ *             ├── Mental       260px  (14 skills × 32px)
+ *             └── Sets+Phys    flex:1 (3+8 skills, Sets fixed height)
  *
- * Level C standalone template — extends export_base.html directly.
- * No driver routing: portrait bucket removed from _ARCHETYPE_DRIVERS["column"].
- * component_config still governs show_position_map / show_extended_profile flags
- * via _driver_config context var when injected, but PORT-v2 reads them directly.
+ * Level C standalone — extends export_base.html directly.
+ * Typography: Bebas Neue (player name overlay, pos label) / Barlow Condensed (meta, skills)
+ *             via card_ovr_badge macro (size=100, dark=true) + export_base @font-face.
+ * v3.2b layout invariants unchanged (660px hero, 447×290 SVG, 44 × 32px skill rows).
  #}
 
 {% block platform_vars %}
 :root {
-    --ex-hero-h:     420px;
-    --ex-posmap-h:   170px;
-    --ex-sname-w:    120px;
-    --ex-font-skill: 13px;
-    --ex-bar-h:      6px;
-    --ex-row-max-h:  37px;
-    --ex-sval-w:     36px;
-    --ex-trend-w:    16px;
-    --ex-font-trend: 12px;
-    --ex-cat-pad:    10px;
-    --ex-cat-radius: 10px;
-    --ex-font-cat:   11px;
+    --ex-split-hero-h: 660px;
+    --ex-photo-w:      560px;
+    --ex-bar-h:        5px;
+    --ex-row-max-h:    32px;
+    --ex-sname-w:      116px;
+    --ex-font-skill:   13px;
+    --ex-sval-w:       30px;
+    --ex-trend-w:      14px;
+    --ex-font-trend:   11px;
+    --ex-cat-pad:      10px;
+    --ex-cat-radius:   10px;
+    --ex-font-cat:     11px;
 }
 {% endblock %}
 
 {% block extra_css %}
-/* ── ROOT CARD: column flex ─────────────────────────────────────────── */
+/* ── ROOT ──────────────────────────────────────────────────────── */
 .ex-card {
     display: flex;
     flex-direction: column;
@@ -42,9 +47,17 @@
     background: var(--ex-body-bg);
 }
 
-/* ── HERO: fullbleed photo 420px ────────────────────────────────────── */
-.ex-hero {
-    flex: 0 0 var(--ex-hero-h, 420px);
+/* ── SPLIT HERO: 560px, flex-row ───────────────────────────────── */
+.ex-split-hero {
+    flex: 0 0 var(--ex-split-hero-h, 560px);
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+/* ── PHOTO PANEL: 560 × 560px ──────────────────────────────────── */
+.ex-photo-panel {
+    flex: 0 0 var(--ex-photo-w, 560px);
     position: relative;
     overflow: hidden;
     background: var(--ex-panel-bg);
@@ -52,10 +65,10 @@
 .ex-hero-photo {
     position: absolute;
     inset: 0;
-    width: 100%;
+    width:  100%;
     height: 100%;
     object-fit: cover;
-    object-position: top center;
+    object-position: 50% 15%;
 }
 .ex-hero-placeholder {
     position: absolute;
@@ -63,62 +76,40 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 96px;
+    font-size: 110px;
     font-weight: 900;
-    color: rgba(255,255,255,0.18);
+    color: rgba(255,255,255,0.16);
     letter-spacing: -2px;
     background: var(--ex-panel-bg);
 }
-/* Gradient scrim over photo for legibility */
-.ex-hero-scrim {
+/* Subtle bottom scrim — name legibility only, not decorative */
+.ex-photo-scrim {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 100px;
+    background: linear-gradient(transparent 0%, rgba(0,0,0,0.48) 100%);
+    pointer-events: none;
+}
+/* Right-edge blend — no hard border between photo and info panel */
+.ex-photo-edge {
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-        to bottom,
-        transparent 30%,
-        rgba(0,0,0,0.18) 55%,
-        rgba(0,0,0,0.72) 100%
-    );
+    box-shadow: inset -16px 0 32px rgba(0,0,0,0.40);
+    pointer-events: none;
 }
-/* Top-left: position badge */
-.ex-pos-badge {
+/* Player name — display font overlay, 2-line clamp */
+.ex-photo-name {
     position: absolute;
-    top: 18px;
-    left: 20px;
-    background: var(--pos-color, #667eea);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    padding: 5px 12px;
-    border-radius: 20px;
-    white-space: nowrap;
-}
-/* Top-right: LFA brand tag */
-.ex-brand-tag {
-    position: absolute;
-    top: 18px;
-    right: 20px;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.55);
-}
-/* Bottom-left: player name */
-.ex-hero-name-block {
-    position: absolute;
-    bottom: 16px;
-    left: 20px;
-    right: 180px;
-}
-.ex-hero-name {
-    font-size: 46px;
-    font-weight: 900;
-    color: #fff;
-    line-height: 1.05;
-    text-shadow: 0 2px 12px rgba(0,0,0,0.65);
+    bottom: 14px;
+    left: 16px;
+    right: 16px;
+    font-family: var(--ex-font-display, 'Bebas Neue', sans-serif);
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.0;
+    letter-spacing: 0.03em;
+    color: rgba(255,255,255,0.90);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.52);
     white-space: normal;
     word-break: break-word;
     display: -webkit-box;
@@ -126,211 +117,247 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-/* Bottom-right: OVR block */
-.ex-ovr-block {
-    position: absolute;
-    bottom: 10px;
-    right: 20px;
+
+/* ── INFO PANEL: flex:1 (~520px wide), 560px tall ──────────────── */
+/* Single stacked column: brand → OVR → tier → divider → meta → spacer → PosMap */
+.ex-info-panel {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-}
-.ex-ovr-num {
-    font-size: 80px;
-    font-weight: 900;
-    line-height: 1;
-    color: #fff;
-    text-shadow: 0 2px 16px rgba(0,0,0,0.55);
-}
-.ex-tier-badge {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 3px 10px;
-    border-radius: 12px;
-    color: #fff;
+    padding: 22px 22px 16px 26px;
+    background: var(--ex-panel-bg);
+    overflow: hidden;
 }
 
-/* ── META STRIP: 56px, 1-row flex ───────────────────────────────────── */
-.ex-meta-strip {
-    flex: 0 0 56px;
-    background: var(--ex-panel-bg);
+/* Brand row — very quiet, top anchor */
+.ex-brand-row {
     display: flex;
     align-items: center;
-    justify-content: space-around;
-    padding: 0 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    justify-content: space-between;
+    flex-shrink: 0;
+    margin-bottom: 14px;
 }
-.ex-meta-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    min-width: 0;
+.ex-brand-text {
+    font-family: var(--ex-font-brand, 'Rajdhani', sans-serif);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.30);
 }
-.ex-meta-label {
+.ex-level-pill {
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.06em;
+    color: var(--ex-text-muted);
+    background: rgba(255,255,255,0.08);
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+/* OVR badge slot — card_ovr_badge macro (size=100, dark=true) renders here */
+.ex-ovr-slot {
+    flex-shrink: 0;
+    margin-bottom: 10px;
+}
+
+/* Tier badge — small pill below OVR badge, left-aligned */
+.ex-tier-badge {
+    display: inline-block;
+    align-self: flex-start;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 10px;
+    color: #fff;
+    flex-shrink: 0;
+    margin-bottom: 18px;
+}
+
+/* Divider — thin, very subtle */
+.ex-info-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.09);
+    flex-shrink: 0;
+    margin-bottom: 14px;
+}
+
+/* Meta list — editorial key-value pairs, fixed size (not flex:1) */
+.ex-meta-list {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.ex-meta-row {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.ex-meta-lbl {
+    flex: 0 0 70px;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
     color: var(--ex-text-muted);
     white-space: nowrap;
 }
-.ex-meta-value {
+.ex-meta-val {
+    flex: 1;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
     font-size: 13px;
     font-weight: 700;
     color: var(--ex-text-strong);
+    text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 80px;
-}
-.ex-meta-sep {
-    width: 1px;
-    height: 28px;
-    background: rgba(255,255,255,0.10);
-    flex-shrink: 0;
 }
 
-/* ── SKILLS ZONE: flex:1, 2 cols ────────────────────────────────────── */
+/* Spacer — premium breathing room between meta and PosMap */
+.ex-info-spacer {
+    flex: 1;
+    min-height: 12px;
+}
+
+/* PosMap inline — bottom anchor of info column, conditional */
+/* No fixed height: SVG uses height:auto to render at its native 1.54:1 aspect ratio.
+   At 447px wide → natural height ≈ 290px → no slice clipping. */
+.ex-posmap-inline {
+    flex-shrink: 0;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 10px;
+    overflow: visible;
+}
+.ex-posmap-inline > div {
+    display: flex;
+}
+/* height:auto lets the SVG size itself from viewBox (105×68, 1.54:1) at full width */
+.ex-posmap-inline .ex-pos-svg-landscape {
+    flex: 1;
+    width: 100%;
+    height: auto;
+    display: block;
+    max-width: 100%;
+}
+
+/* Position labels row — below inline PosMap */
+.ex-pos-labels-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 7px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.ex-pos-primary {
+    font-family: var(--ex-font-display, 'Bebas Neue', sans-serif);
+    font-size: 16px;
+    font-weight: 400;
+    color: #ECC94B;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.ex-pos-sec-chip {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.09);
+    color: var(--ex-text-body);
+    text-transform: uppercase;
+}
+
+/* ── SKILLS ZONE: flex:1 (~790px), 3 columns ───────────────────── */
 .ex-skills-zone {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: row;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 10px;
     background: var(--ex-body-bg);
+    border-top: 1px solid rgba(255,255,255,0.06);
     overflow: hidden;
 }
 
-/* Left column: Outfield only */
+/* Col 1: Outfield — wide, primary display */
 .ex-skills-col-left {
-    flex: 1;
+    flex: 0 0 480px;
     min-width: 0;
+    --ex-sname-w:    116px;
+    --ex-font-skill: 13px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-/* Right column: Mental + Sets + Physical stacked */
+/* Col 2: Mental */
+.ex-skills-col-mid {
+    flex: 0 0 260px;
+    min-width: 0;
+    --ex-sname-w:    86px;
+    --ex-font-skill: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Col 3: Set Pieces + Physical */
 .ex-skills-col-right {
     flex: 1;
     min-width: 0;
+    --ex-sname-w:    86px;
+    --ex-font-skill: 12px;
     display: flex;
     flex-direction: column;
     gap: 6px;
     overflow: hidden;
 }
 
-/* Category block */
-.ex-cat {
-    background: var(--ex-cat-bg);
-    border-radius: var(--ex-cat-radius, 10px);
-    padding: var(--ex-cat-pad, 10px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-}
-/* Outfield cat fills entire left col */
-.ex-cat-outfield {
-    flex: 1;
-}
-/* Right-col cats share space proportionally */
-.ex-cat-mental  { flex: 14; }
-.ex-cat-sets    { flex: 3; }
-.ex-cat-phys    { flex: 8; }
+.ex-cat-outfield { flex: 1; }
+.ex-cat-mental   { flex: 1; }
+/* Sets: fixed height — exactly 3 rows guaranteed */
+/* 10(top pad) + 13(font) + 8(pad-b) + 8(mar-b) + 3×32(rows) + 10(bot pad) = 145px */
+.ex-cat-sets     { flex: 0 0 145px; }
+.ex-cat-phys     { flex: 1; }
 
+/* Category heading — editorial, clear */
 .ex-cat-name {
     flex-shrink: 0;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
     font-size: var(--ex-font-cat, 11px);
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.10em;
-    color: var(--ex-text-secondary);
-    margin-bottom: 6px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: var(--ex-text-body);
+    margin-bottom: 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* ── POSITION MAP FOOTER: 170px ─────────────────────────────────────── */
-.ex-posmap-footer {
-    flex: 0 0 var(--ex-posmap-h, 170px);
-    background: var(--ex-panel-bg);
-    border-top: 1px solid rgba(255,255,255,0.07);
-    overflow: hidden;
-}
-.ex-posmap-footer > div {
-    height: 100%;
-    display: flex;
-    flex-direction: row;
-}
-.ex-posmap-footer .ex-pos-info {
-    flex: 0 0 220px;
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    justify-content: center;
-}
-.ex-posmap-footer .ex-pos-panel-title {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--ex-text-secondary);
-    margin-bottom: 4px;
-}
-.ex-posmap-footer .ex-pos-primary-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.10em;
-    color: var(--ex-text-muted);
-}
-.ex-posmap-footer .ex-pos-primary-name {
-    font-size: 18px;
-    font-weight: 800;
-    color: #ECC94B;
-    line-height: 1.1;
-}
-.ex-posmap-footer .ex-pos-secondary-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.10em;
-    color: var(--ex-text-muted);
-    margin-top: 4px;
-}
-.ex-posmap-footer .ex-pos-secondary-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 2px;
-}
-.ex-posmap-footer .ex-sec-pos-chip {
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.10);
-    color: var(--ex-text-body);
-}
-.ex-posmap-footer .ex-pos-svg-landscape {
-    flex: 1;
-    height: 100%;
-    min-width: 0;
-    display: block;
+/* Uniform 32px row rhythm across all 3 columns */
+.ex-row {
+    flex: 0 0 var(--ex-row-max-h, 32px);
+    min-height: 0;
+    align-items: center;
 }
 
 {% if animated_mode %}
 @keyframes ex-ovr-in {
     from { opacity: 0; transform: scale(0.7); }
-    to   { opacity: 1; transform: scale(1); }
+    to   { opacity: 1; transform: scale(1);   }
 }
 .ex-ovr-num    { animation: ex-ovr-in 0.5s cubic-bezier(.34,1.56,.64,1) forwards; }
 .ex-tier-badge { opacity: 0; animation: ex-ovr-in 0.4s 0.4s ease-out forwards; }
@@ -338,96 +365,108 @@
 @keyframes ex-bar-in { from { width: 0%; } }
 .ex-bar-fill { animation: ex-bar-in 0.8s ease-out forwards; }
 
-@keyframes ex-hero-slide {
-    from { transform: translateY(8px); opacity: 0; }
+@keyframes ex-name-in {
+    from { transform: translateY(6px); opacity: 0; }
     to   { transform: translateY(0);   opacity: 1; }
 }
-.ex-hero-name { animation: ex-hero-slide 0.5s 0.1s ease-out both; }
+.ex-photo-name { animation: ex-name-in 0.5s 0.1s ease-out both; }
 {% endif %}
 {% endblock %}
 
 {% block body_content %}
-{% set cfg = _driver_config or {} %}
+{% set cfg         = _driver_config or {} %}
 {% set show_posmap = cfg.get('show_position_map', False) %}
 {% set skill_slice = cfg.get('skill_slice') %}
 <div class="ex-card">
 
-    {# ── HERO ──────────────────────────────────────────────────────────────── #}
-    <div class="ex-hero">
-        {% if portrait_photo_url %}
-        <img class="ex-hero-photo" src="{{ portrait_photo_url }}" alt="{{ player.name }}" loading="eager">
-        {% else %}
-        <div class="ex-hero-placeholder">{{ initials }}</div>
-        {% endif %}
-        <div class="ex-hero-scrim"></div>
+    {# ── SPLIT HERO: photo left | info right ─────────────────────── #}
+    <div class="ex-split-hero">
 
-        {# Position badge top-left #}
-        <div class="ex-pos-badge" style="--pos-color:{{ pos_color }};">
-            {{ player.position | replace("_", " ") | upper if player.position != "Unknown" else "LFA" }}
+        {# Left — Photo Panel: full 560×560, name overlay at bottom #}
+        <div class="ex-photo-panel">
+            {% if portrait_photo_url %}
+            <img class="ex-hero-photo" src="{{ portrait_photo_url }}" alt="{{ player.name }}" loading="eager">
+            {% else %}
+            <div class="ex-hero-placeholder">{{ initials }}</div>
+            {% endif %}
+            <div class="ex-photo-scrim"></div>
+            <div class="ex-photo-edge"></div>
+            <div class="ex-photo-name">{{ player.name }}</div>
         </div>
 
-        {# Brand tag top-right #}
-        <div class="ex-brand-tag">LFA</div>
+        {# Right — Info Column: brand → OVR → tier → divider → meta → spacer → PosMap #}
+        <div class="ex-info-panel">
 
-        {# Player name bottom-left #}
-        <div class="ex-hero-name-block">
-            <div class="ex-hero-name">{{ player.name }}</div>
-        </div>
+            {# Brand row #}
+            <div class="ex-brand-row">
+                <span class="ex-brand-text">LFA</span>
+                {% if license_current_level %}
+                <span class="ex-level-pill">Lv.&nbsp;{{ license_current_level }}</span>
+                {% endif %}
+            </div>
 
-        {# OVR block bottom-right #}
-        <div class="ex-ovr-block">
-            <div class="ex-ovr-num">{{ overall | round(0) | int }}</div>
+            {# OVR badge — circular, dark mode, size=100 #}
+            <div class="ex-ovr-slot">
+                {{ ovr_badge(overall | round(0) | int, size=100, dark=true) }}
+            </div>
+
+            {# Tier #}
             <div class="ex-tier-badge" style="background:{{ tier_color }};">{{ tier_label }}</div>
+
+            {# Divider #}
+            <div class="ex-info-divider"></div>
+
+            {# Meta — editorial key-value pairs #}
+            <div class="ex-meta-list">
+                {% if player.nationality %}
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Nation</span>
+                    <span class="ex-meta-val">{{ player.nationality | nationalities_display }}</span>
+                </div>
+                {% endif %}
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Age group</span>
+                    <span class="ex-meta-val">{{ player.age_group }}</span>
+                </div>
+                {% if player_height_cm %}
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Height</span>
+                    <span class="ex-meta-val">{{ player_height_cm }} cm</span>
+                </div>
+                {% endif %}
+                {% if player_weight_kg %}
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Weight</span>
+                    <span class="ex-meta-val">{{ player_weight_kg }} kg</span>
+                </div>
+                {% endif %}
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Events</span>
+                    <span class="ex-meta-val">{{ player.total_tournaments }}</span>
+                </div>
+            </div>
+
+            {# Spacer — premium breathing room between meta and PosMap #}
+            <div class="ex-info-spacer"></div>
+
+            {# PosMap — bottom anchor of info column, conditional on known position #}
+            {% if show_posmap and position_nodes and primary_pos_label %}
+            <div class="ex-posmap-inline">
+                {{ position_map_landscape(position_nodes, primary_pos_label, secondary_pos_labels,
+                                          player_position=player.position, show_info_col=False) }}
+            </div>
+            <div class="ex-pos-labels-row">
+                <span class="ex-pos-primary">{{ primary_pos_label }}</span>
+                {% for sec in secondary_pos_labels[:3] %}
+                <span class="ex-pos-sec-chip">{{ sec }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
         </div>
     </div>
 
-    {# ── META STRIP ────────────────────────────────────────────────────────── #}
-    <div class="ex-meta-strip">
-        {% if player.nationality %}
-        <div class="ex-meta-item">
-            <span class="ex-meta-label">Nation</span>
-            <span class="ex-meta-value">{{ player.nationality | nationalities_display }}</span>
-        </div>
-        <div class="ex-meta-sep"></div>
-        {% endif %}
-
-        <div class="ex-meta-item">
-            <span class="ex-meta-label">Age group</span>
-            <span class="ex-meta-value">{{ player.age_group }}</span>
-        </div>
-
-        {% if player_height_cm %}
-        <div class="ex-meta-sep"></div>
-        <div class="ex-meta-item">
-            <span class="ex-meta-label">Height</span>
-            <span class="ex-meta-value">{{ player_height_cm }} cm</span>
-        </div>
-        {% endif %}
-
-        {% if player_weight_kg %}
-        <div class="ex-meta-sep"></div>
-        <div class="ex-meta-item">
-            <span class="ex-meta-label">Weight</span>
-            <span class="ex-meta-value">{{ player_weight_kg }} kg</span>
-        </div>
-        {% endif %}
-
-        <div class="ex-meta-sep"></div>
-        <div class="ex-meta-item">
-            <span class="ex-meta-label">Events</span>
-            <span class="ex-meta-value">{{ player.total_tournaments }}</span>
-        </div>
-
-        {% if license_current_level %}
-        <div class="ex-meta-sep"></div>
-        <div class="ex-meta-item">
-            <span class="ex-meta-label">Level</span>
-            <span class="ex-meta-value">{{ license_current_level }}</span>
-        </div>
-        {% endif %}
-    </div>
-
-    {# ── SKILLS ZONE: 2 columns ────────────────────────────────────────────── #}
+    {# ── SKILLS ZONE: 3 columns, flex:1 (~790px) ─────────────────── #}
     {# skill_categories: [0]=Outfield(19), [1]=SetPieces(3), [2]=Mental(14), [3]=Physical(8) #}
     {% if skill_categories|length >= 4 %}
     {% set cat_outfield  = skill_categories[0] %}
@@ -437,7 +476,7 @@
 
     <div class="ex-skills-zone">
 
-        {# Left column — Outfield (all 19 skills) #}
+        {# Col 1 — Outfield (19 skills) #}
         <div class="ex-skills-col-left">
             <div class="ex-cat ex-cat-outfield">
                 <div class="ex-cat-name">{{ cat_outfield.name }}</div>
@@ -470,9 +509,8 @@
             </div>
         </div>
 
-        {# Right column — Mental (14) + Set Pieces (3) + Physical (8) #}
-        <div class="ex-skills-col-right">
-            {# Mental #}
+        {# Col 2 — Mental (14 skills) #}
+        <div class="ex-skills-col-mid">
             <div class="ex-cat ex-cat-mental">
                 <div class="ex-cat-name">{{ cat_mental.name }}</div>
                 <div class="ex-skill-rows">
@@ -502,8 +540,11 @@
                     {% endfor %}
                 </div>
             </div>
+        </div>
 
-            {# Set Pieces #}
+        {# Col 3 — Set Pieces (3) + Physical (8) #}
+        <div class="ex-skills-col-right">
+
             <div class="ex-cat ex-cat-sets">
                 <div class="ex-cat-name">{{ cat_setpieces.name }}</div>
                 <div class="ex-skill-rows">
@@ -534,7 +575,6 @@
                 </div>
             </div>
 
-            {# Physical #}
             <div class="ex-cat ex-cat-phys">
                 <div class="ex-cat-name">{{ cat_physical.name }}</div>
                 <div class="ex-skill-rows">
@@ -564,17 +604,10 @@
                     {% endfor %}
                 </div>
             </div>
+
         </div>
     </div>
     {% endif %}{# skill_categories|length >= 4 #}
-
-    {# ── POSITION MAP FOOTER ───────────────────────────────────────────────── #}
-    {% if show_posmap and position_nodes %}
-    <div class="ex-posmap-footer">
-        {{ position_map_landscape(position_nodes, primary_pos_label, secondary_pos_labels,
-                                  player_position=player.position, show_info_col=True) }}
-    </div>
-    {% endif %}
 
 </div>
 {% endblock %}
