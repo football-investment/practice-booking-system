@@ -65,6 +65,11 @@ _ARCHETYPE_DRIVERS: dict[str, dict[str, str]] = {
     },
 }
 
+# Buckets where a Level C file takes priority over the driver (PORT-v2 pattern).
+# Used when a design has a dedicated Level C template that supersedes the shared driver.
+# Add new buckets here as each platform gets its PORT-v2 implementation.
+_LEVEL_C_PRIORITY_BUCKETS: frozenset[str] = frozenset({"portrait"})
+
 
 @router.get("/players/{user_id}/card", response_class=HTMLResponse)
 def public_player_card(
@@ -274,11 +279,17 @@ def public_player_card(
     platform_preset = _get_preset(effective_platform)
 
     # ── Export render layer ──────────────────────────────────────────────────
-    # Routing priority (CS-4c):
-    #   1. Driver routing: design has component_config for this bucket AND bucket is
-    #      in _ARCHETYPE_DRIVERS → use shared/drivers/<driver>.html + inject config.
-    #   2. File-based Level C: public/export/{bucket}/{design_id}.html exists → use it.
+    # Routing priority (CS-4c + PORT-v2):
+    #   For buckets in _LEVEL_C_PRIORITY_BUCKETS (currently "portrait"):
+    #     1. File-based Level C wins if the file exists.
+    #     2. Driver routing fallback for manifest-only designs (no Level C file).
+    #   For all other buckets (original CS-4c priority):
+    #     1. Driver routing: design has component_config for this bucket AND bucket is
+    #        in _ARCHETYPE_DRIVERS → use shared/drivers/<driver>.html + inject config.
+    #     2. File-based Level C: public/export/{bucket}/{design_id}.html exists → use it.
     #   3. Fallback: unchanged template_path (editor template + export-mode class).
+    # _driver_config is always populated when a config is available so that Level C
+    # templates can read component flags (show_position_map, skill_slice, etc.).
     # Covers both export=True (Playwright PNG/video) and browser-preview (export=False).
     # Semantic 422 validation (supported_export_buckets) happens at the export endpoint.
     _driver_config = None
@@ -288,13 +299,18 @@ def public_player_card(
         _bucket_cfg = _design_def.component_config.get(_fmt)
         _archetype  = _design_def.archetype_id or ""
         _driver_tpl = _ARCHETYPE_DRIVERS.get(_archetype, {}).get(_fmt)
-        if _bucket_cfg and _driver_tpl:
+        _level_c_tpl = f"public/export/{_fmt}/{card_variant_id}.html"
+        _has_level_c = os.path.isfile(os.path.join(_TEMPLATES_DIR, _level_c_tpl))
+        if _fmt in _LEVEL_C_PRIORITY_BUCKETS and _has_level_c:
+            # Level C file wins for PORT-v2 priority buckets (portrait).
+            template_path = _level_c_tpl
+            _driver_config = _bucket_cfg or {}
+        elif _bucket_cfg and _driver_tpl:
             template_path = f"public/export/shared/drivers/{_driver_tpl}"
             _driver_config = _bucket_cfg
-        else:
-            _tpl = f"public/export/{_fmt}/{card_variant_id}.html"
-            if os.path.isfile(os.path.join(_TEMPLATES_DIR, _tpl)):
-                template_path = _tpl
+        elif _has_level_c:
+            template_path = _level_c_tpl
+            _driver_config = _bucket_cfg or {}
 
     # animated_mode: True only when both export=1 AND animated=1 are present.
     # The PNG endpoint never passes animated=1 → this is always False for PNG renders.
