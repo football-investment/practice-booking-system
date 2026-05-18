@@ -88,6 +88,14 @@ _FIFA_COMPONENT_CONFIG: dict = {
             "--ex-posmap-h":    "250px",
         },
     },
+    "og": {
+        "skill_slice":          None,   # category averages, not sliced rows
+        "show_dominant_badge":  True,
+        "show_height_weight":   True,
+        "show_extended_profile": True,
+        "show_position_map":    True,
+        "show_sponsor":         False,
+    },
 }
 
 DESIGNS: dict[str, CardDesignDefinition] = {
@@ -100,7 +108,7 @@ DESIGNS: dict[str, CardDesignDefinition] = {
         template="public/player_card_fifa.html",
         sort_order=0,
         archetype_id="column",
-        supported_export_buckets=("square", "portrait", "story", "tiktok", "landscape", "banner"),
+        supported_export_buckets=("square", "portrait", "story", "tiktok", "landscape", "og", "banner"),
         animated_platforms=("instagram_square",),
         component_config=_FIFA_COMPONENT_CONFIG,
     ),

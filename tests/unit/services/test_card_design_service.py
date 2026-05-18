@@ -100,8 +100,9 @@ def test_cd02_get_design_fifa_fields():
     assert d.credit_cost == 0
     assert d.template == "public/player_card_fifa.html"
     assert d.available is True
-    assert d.archetype_id is None
+    assert d.archetype_id == "column"
     assert "square" in d.supported_export_buckets
+    assert "og" in d.supported_export_buckets
     assert "instagram_square" in d.animated_platforms
 
 
@@ -211,11 +212,11 @@ def test_cd12_animated_capable_wrong_platform():
     assert is_animated_capable("fifa", "instagram_portrait") is False
 
 
-# ── CD-13  get_supported_buckets: fifa returns all 6 ─────────────────────────
+# ── CD-13  get_supported_buckets: fifa returns all 7 ─────────────────────────
 
 def test_cd13_supported_buckets_fifa_all_six():
     buckets = get_supported_buckets("fifa")
-    expected = {"square", "portrait", "story", "tiktok", "landscape", "banner"}
+    expected = {"square", "portrait", "story", "tiktok", "landscape", "og", "banner"}
     assert set(buckets) == expected
 
 

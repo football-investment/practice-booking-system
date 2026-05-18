@@ -68,7 +68,7 @@ _ARCHETYPE_DRIVERS: dict[str, dict[str, str]] = {
 # Buckets where a Level C file takes priority over the driver (PORT-v2 pattern).
 # Used when a design has a dedicated Level C template that supersedes the shared driver.
 # Add new buckets here as each platform gets its PORT-v2 implementation.
-_LEVEL_C_PRIORITY_BUCKETS: frozenset[str] = frozenset({"portrait"})
+_LEVEL_C_PRIORITY_BUCKETS: frozenset[str] = frozenset({"portrait", "story", "og"})
 
 
 @router.get("/players/{user_id}/card", response_class=HTMLResponse)

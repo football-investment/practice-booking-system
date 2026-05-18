@@ -51,7 +51,7 @@ EXPORT_FORMAT_BUCKETS: dict[str, str] = {
     "instagram_story":    "story",
     "tiktok":             "tiktok",
     "facebook_landscape": "landscape",
-    "og":                 "landscape",
+    "og":                 "og",
     "banner_custom":      "banner",
     "facebook_post":      "landscape",
 }
