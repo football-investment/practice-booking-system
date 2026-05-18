@@ -155,7 +155,7 @@ def public_player_card(
         get_pitch_display_nodes as _get_pitch_nodes,
         position_label as _position_label,
     )
-    position_nodes = _get_pitch_nodes(position if position != "Unknown" else "", player_positions)
+    position_nodes = _get_pitch_nodes(position, player_positions) if position != "Unknown" else []
     primary_pos_label = _position_label(position) if position != "Unknown" else None
     secondary_pos_labels = [_position_label(p) for p in player_positions if p != position]
 
