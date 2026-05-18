@@ -11,8 +11,16 @@
  *     column_archetype.html   ← column layout intermediate base (Level B)
  *       export/{bucket}/{design_id}.html  ← per-bucket design templates (Level C)
  *
- * CS-4b will migrate existing export/*/fifa.html templates to extend this file
- * (via column_archetype or directly).  Until then, fifa_base.html remains active.
+ * Typography system (self-hosted woff2, served via /static/fonts/):
+ *   --ex-font-display  'Bebas Neue'        → OVR numbers, player names, big numbers
+ *   --ex-font-ui       'Barlow Condensed'  → labels, meta, skill names, category headers
+ *   --ex-font-brand    'Rajdhani'          → LFA brand badge
+ *
+ * Category colour tokens (fixed per design system):
+ *   --ex-cat-color-0  #3b82f6  Outfield
+ *   --ex-cat-color-1  #eab308  Set Pieces
+ *   --ex-cat-color-2  #22c55e  Mental
+ *   --ex-cat-color-3  #ef4444  Physical
  #}
 <!DOCTYPE html>
 <html lang="en">
@@ -49,6 +57,74 @@
  *   --ex-font-trend      14px         font-size of .ex-trend
  */
 
+/* ── SELF-HOSTED FONTS ───────────────────────────────────────────────────────
+   font-display:block — prevents FOUT during Playwright headless export.
+   All 9 woff2 files served from app/static/fonts/ via /static/fonts/ URL.
+   ─────────────────────────────────────────────────────────────────────────── */
+@font-face {
+    font-family: 'Bebas Neue';
+    src: url('/static/fonts/BebasNeue-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Barlow Condensed';
+    src: url('/static/fonts/BarlowCondensed-300.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Barlow Condensed';
+    src: url('/static/fonts/BarlowCondensed-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Barlow Condensed';
+    src: url('/static/fonts/BarlowCondensed-600.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Barlow Condensed';
+    src: url('/static/fonts/BarlowCondensed-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Barlow Condensed';
+    src: url('/static/fonts/BarlowCondensed-800.woff2') format('woff2');
+    font-weight: 800;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/static/fonts/Rajdhani-500.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/static/fonts/Rajdhani-600.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: block;
+}
+@font-face {
+    font-family: 'Rajdhani';
+    src: url('/static/fonts/Rajdhani-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: block;
+}
+
 /* ── THEME ROOT — CSS custom properties from export_root_vars macro ─────────
    Emits: --ex-panel-bg, --ex-body-bg, --ex-accent, --ex-bar-bg, --ex-cat-bg,
           --ex-text-strong, --ex-text-body, --ex-text-secondary, --ex-text-muted
@@ -59,6 +135,21 @@
 /* ── PLATFORM SIZING VARS — override in child to set --ex-hero-h, etc. ────── */
 {% block platform_vars %}{% endblock %}
 
+/* ── DESIGN SYSTEM TOKENS ────────────────────────────────────────────────────
+   Typography family vars — consumed by all Level C export templates.
+   Category colour vars — fixed per design system; used for skill bar fills.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+    --ex-font-display: 'Bebas Neue', system-ui, sans-serif;
+    --ex-font-ui:      'Barlow Condensed', system-ui, sans-serif;
+    --ex-font-brand:   'Rajdhani', system-ui, sans-serif;
+
+    --ex-cat-color-0:  #3b82f6;   /* Outfield    */
+    --ex-cat-color-1:  #eab308;   /* Set Pieces  */
+    --ex-cat-color-2:  #22c55e;   /* Mental      */
+    --ex-cat-color-3:  #ef4444;   /* Physical    */
+}
+
 /* ── RESET ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -66,7 +157,7 @@ html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-family: var(--ex-font-ui), -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ── ROOT CARD ───────────────────────────────────────────────────────────────
