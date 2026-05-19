@@ -347,12 +347,16 @@
     text-overflow: ellipsis;
 }
 
-/* Uniform 32px row rhythm across all 3 columns */
+/* Uniform 32px row rhythm across all 3 columns — must keep display:flex (base override) */
 .ex-row {
+    display: flex;
     flex: 0 0 var(--ex-row-max-h, 32px);
     min-height: 0;
     align-items: center;
 }
+
+/* Compact pos label inside macro output — hidden here because ex-pos-labels-row above map carries this */
+.ex-pos-compact-label { display: none; }
 
 {% if animated_mode %}
 @keyframes ex-ovr-in {
