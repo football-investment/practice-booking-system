@@ -564,23 +564,24 @@ class TestLayoutTileAndPlatformGridFix:
 # ── 6. FIFA Classic header/body alignment (CE-14..CE-18) ────────────────────
 
 class TestFifaHeaderBodyAlignment:
-    """CE-14..CE-18 — Photo column right edge must align with Outfield left edge.
+    """CE-14..CE-21 — Photo column right edge must align with Outfield left edge.
 
-    Design intent: .card-body uses a 3-column grid (170px spacer | 3fr skills | 2fr position).
-    The spacer width matches the header photo column (also 170px), so the Outfield section
-    left edge sits directly below the photo right edge. On mobile and in export-mode the
-    spacer is hidden and the skills panel padding is restored.
+    Design intent: --photo-col-w CSS custom property is set on .card-wrap (default 170px).
+    Both .fifa-header and .card-body reference var(--photo-col-w) so they are always
+    in sync. In export-mode, body.export-mode .card-wrap overrides --photo-col-w to
+    var(--ex-photo-w) so the alignment is preserved at any viewport / render context.
+    Spacer is hidden only for landscape/banner (side-by-side layouts) and on mobile
+    (1-col stack where the concept doesn't apply).
     """
 
     @pytest.fixture(autouse=True)
     def _src(self):
         self._html = _FIFA_TPL.read_text(encoding="utf-8")
 
-    def test_ce14_card_body_has_three_column_grid(self):
-        """card-body grid must include 170px spacer column before skills and position."""
-        assert "170px 3fr 2fr" in self._html, (
-            ".card-body must use grid-template-columns: 170px 3fr 2fr "
-            "to align Outfield left edge with header photo right edge"
+    def test_ce14_card_body_grid_uses_photo_col_w_token(self):
+        """card-body grid must reference --photo-col-w token, not a hardcoded pixel value."""
+        assert "var(--photo-col-w) 3fr 2fr" in self._html, (
+            ".card-body must use grid-template-columns: var(--photo-col-w) 3fr 2fr"
         )
 
     def test_ce15_photo_spacer_div_present_in_card_body(self):
@@ -590,15 +591,19 @@ class TestFifaHeaderBodyAlignment:
         )
 
     def test_ce16_skills_panel_has_no_left_padding(self):
-        """skills-panel must have padding-left: 0 so Outfield starts at x=170px."""
+        """skills-panel must have padding-left: 0 so Outfield starts at the spacer boundary."""
         assert "padding: 1rem 1rem 1rem 0" in self._html, (
             ".skills-panel must have padding-left:0 (spacer provides left visual margin)"
         )
 
-    def test_ce17_spacer_hidden_in_export_mode(self):
-        """export-mode must hide the spacer (header photo-width varies via --ex-photo-w)."""
-        assert "export-mode .card-body-photo-spacer" in self._html, (
-            "body.export-mode .card-body-photo-spacer { display: none } must be present"
+    def test_ce17_export_mode_syncs_photo_col_w_not_hides_spacer(self):
+        """export-mode must override --photo-col-w on .card-wrap (NOT hide the spacer).
+
+        Hiding the spacer in export-mode would break alignment because export-mode is the
+        context the editor's iframe runs in. The correct fix is to synchronise the token.
+        """
+        assert "export-mode .card-wrap" in self._html and "--photo-col-w: var(--ex-photo-w)" in self._html, (
+            "body.export-mode .card-wrap { --photo-col-w: var(--ex-photo-w) } must be present"
         )
 
     def test_ce18_spacer_hidden_on_mobile(self):
@@ -608,3 +613,24 @@ class TestFifaHeaderBodyAlignment:
         assert "card-body-photo-spacer" in mobile_block, (
             ".card-body-photo-spacer must be hidden inside the max-width:560px media block"
         )
+
+    def test_ce19_photo_col_w_default_defined_on_card_wrap(self):
+        """--photo-col-w: 170px must be defined on .card-wrap as the default value."""
+        assert "--photo-col-w: 170px" in self._html, (
+            ".card-wrap must define --photo-col-w: 170px as the non-export default"
+        )
+
+    def test_ce20_header_uses_photo_col_w_token(self):
+        """fifa-header grid must reference var(--photo-col-w), not a hardcoded width."""
+        assert "var(--photo-col-w) 1fr" in self._html, (
+            ".fifa-header must use grid-template-columns: var(--photo-col-w) 1fr "
+            "so header and body spacer are always in sync"
+        )
+
+    def test_ce21_landscape_banner_hides_spacer(self):
+        """Landscape and banner export layouts are side-by-side; spacer must be hidden."""
+        for platform in ("platform-facebook-landscape", "platform-og", "platform-banner-custom"):
+            assert f"{platform} .card-body-photo-spacer" in self._html, (
+                f"body.export-mode.{platform} must hide .card-body-photo-spacer "
+                f"(header and body are side-by-side in this layout)"
+            )

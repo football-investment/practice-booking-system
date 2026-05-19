@@ -26,6 +26,10 @@
     border-radius: 14px; overflow: hidden;
     box-shadow: 0 12px 48px rgba(0,0,0,0.55);
     border: 1px solid rgba(255,255,255,0.06);
+    /* Single source of truth for the photo column width.
+       Both .fifa-header and .card-body reference this token so they
+       always stay in sync regardless of viewport or render mode. */
+    --photo-col-w: 170px;
 }
 
 /* ── Default/native export: card fills width at natural height ─────────────
@@ -50,7 +54,7 @@ body.export-mode .card-body { display: grid !important; }
 /* ── Split header ─────────────────────────────────────────── */
 .fifa-header {
     display: grid;
-    grid-template-columns: 170px 1fr;
+    grid-template-columns: var(--photo-col-w) 1fr;
 }
 .fifa-left {
     position: relative; overflow: hidden;
@@ -127,15 +131,15 @@ div.fifa-avatar {
     opacity: 0.75;
 }
 
-/* ── Card body: spacer (170px) | skills (~60%) | position panel (~40%) ── */
+/* ── Card body: spacer (--photo-col-w) | skills (~60%) | position panel (~40%) ── */
 .card-body {
     display: grid;
-    grid-template-columns: 170px 3fr 2fr;
+    grid-template-columns: var(--photo-col-w) 3fr 2fr;
     background: var(--card-body-bg);
     min-height: 0;
 }
-/* 170px empty column — keeps Outfield left edge vertically aligned with
-   the header photo right edge. Hidden in export-mode and on mobile. */
+/* Empty first column — width tracks --photo-col-w so Outfield left edge always
+   aligns with the header photo right edge in every render context. */
 .card-body-photo-spacer {
     background: var(--card-body-bg);
 }
@@ -239,11 +243,11 @@ div.fifa-avatar {
 .ev-skill-pill.dn { background: rgba(252,129,129,0.15); color: #feb2b2; }
 .ev-empty { text-align: center; color: var(--card-text-faint); font-size: 0.8rem; padding: 2rem 0; }
 
-/* ── Export-mode overrides for photo-spacer ──────────────────────────────
-   In export-mode the header photo width uses --ex-photo-w (variable), so the
-   fixed 170px spacer would mis-align. Hide it and restore skills padding. */
-body.export-mode .card-body-photo-spacer { display: none; }
-body.export-mode .skills-panel           { padding-left: 1rem; }
+/* ── Export-mode: sync photo column width ────────────────────────────────
+   In export-mode the base template sets --ex-photo-w (viewport-relative).
+   Overriding --photo-col-w here cascades to BOTH .fifa-header and .card-body
+   so the header photo column and the body spacer always stay in sync. */
+body.export-mode .card-wrap { --photo-col-w: var(--ex-photo-w); }
 
 /* ── Responsive ─────────────────────────────────────────────
    Breakpoints:
@@ -314,12 +318,22 @@ body.export-mode.platform-banner-custom .fifa-name    { font-size: var(--ex-font
 body.export-mode.platform-banner-custom {
     --ex-photo-w: clamp(150px, 17vw, 300px);
 }
-body.export-mode .fifa-header   { grid-template-columns: var(--ex-photo-w) 1fr; }
+/* grid-template-columns for .fifa-header is now driven by --photo-col-w
+   (set from --ex-photo-w via body.export-mode .card-wrap above) — no
+   separate header rule needed. */
 body.export-mode .fifa-overall  { font-size: var(--ex-font-ovr); }
 body.export-mode .fifa-name     { font-size: var(--ex-font-name); }
 body.export-mode .skill-name,
 body.export-mode .skill-val     { font-size: var(--ex-font-skill); }
 body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !important; }
+
+/* ── Landscape / banner: body is beside the header (flex row), not below it.
+   The photo-spacer concept doesn't apply — hide it and restore skills padding. ── */
+body.export-mode.platform-facebook-landscape .card-body-photo-spacer,
+body.export-mode.platform-og .card-body-photo-spacer,
+body.export-mode.platform-banner-custom .card-body-photo-spacer { display: none; }
+body.export-mode.platform-facebook-landscape .skills-panel,
+body.export-mode.platform-og .skills-panel { padding-left: 1rem; }
 
 /* ── Browser preview entrance animations ─────────────────────────────────────
    Always-on: this template is only used for the editor browser preview.
