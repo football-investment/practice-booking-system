@@ -28,453 +28,796 @@
 
 {% block extra_styles %}
 <style>
-    /* ── Container ──────────────────────────────────────────────────────────── */
-    .container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 1.25rem 2rem 2rem;
-    }
-    .page-title { font-size: 1.4rem; color: var(--app-text); margin: 0; }
+/* ── Studio shell — breaks out of student-main's padding/max-width ─────────── */
+.ce-shell {
+    margin: -1.5rem;
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--ce-header-h, 56px));
+    overflow: hidden;
 
-    /* ── Section block ───────────────────────────────────────────────────────── */
-    .section-block {
-        background: var(--app-card);
-        border-radius: 16px;
-        padding: 1.75rem 2rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        margin-bottom: 1.5rem;
-    }
-    .section-link { color: #667eea; font-size: 0.88rem; text-decoration: none; font-weight: 600; white-space: nowrap; }
-    .section-link:hover { text-decoration: underline; }
+    /* Design tokens */
+    --ce-header-h:       56px;
+    --ce-sidebar-w:      300px;
+    --ce-sidebar-bg:     #0d1117;
+    --ce-sidebar-border: rgba(255,255,255,0.06);
+    --ce-stage-bg:       #070a0e;
+    --ce-action-h:       52px;
+    --ce-accent:         #667eea;
+}
 
-    /* ── Player Card embed ────────────────────────────────────────────────────── */
-    .player-card-embed-wrap { position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.13); }
-    .player-card-embed-wrap iframe { display: block; width: 100%; border: none; }
-    /* Watermark — same two-layer system as welcome_card.html preview panel.
-       ::before = monochrome logo (mask-image), ::after = SVG "LFA" text tile. */
-    .player-card-embed-wrap::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        z-index: 10;
-        pointer-events: none;
-        user-select: none;
-        background-color: rgba(255, 255, 255, 1);
-        -webkit-mask-image: url('/static/images/logo-wc.png');
-                mask-image: url('/static/images/logo-wc.png');
-        -webkit-mask-repeat: repeat;
-                mask-repeat: repeat;
-        -webkit-mask-size: 220px auto;
-                mask-size: 220px auto;
-        -webkit-mask-position: 80px 45px;
-                mask-position: 80px 45px;
-        opacity: 0.07;
-    }
-    .player-card-embed-wrap::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        z-index: 11;
-        pointer-events: none;
-        user-select: none;
-        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMTUwIj48dGV4dCB4PSIxNjAiIHk9IjgyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQmFybG93IENvbmRlbnNlZCxzeXN0ZW0tdWksc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9IjgwMCIgbGV0dGVyLXNwYWNpbmc9IjQiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC42MCkiIHRyYW5zZm9ybT0icm90YXRlKC0zMCwxNjAsODIpIj5MRkE8L3RleHQ+PC9zdmc+");
-        background-repeat: repeat;
-        background-size: 320px 150px;
-        background-position: 0px 0px;
-        opacity: 0.10;
-    }
+/* Breadcrumb — narrow top band above panels */
+.ce-shell .s-breadcrumb {
+    flex-shrink: 0;
+    padding: 0.5rem 1.1rem;
+    background: var(--ce-sidebar-bg);
+    border-bottom: 1px solid var(--ce-sidebar-border);
+    font-size: 0.75rem;
+}
 
-    /* ── Theme picker ─────────────────────────────────────────────────────────── */
-    .theme-picker { display: flex; align-items: center; gap: 0.45rem; flex-wrap: nowrap; }
-    .theme-dot {
-        width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
-        border: 2px solid transparent; transition: border-color .15s, transform .15s;
-        position: relative; flex-shrink: 0;
-    }
-    .theme-dot:hover { transform: scale(1.2); }
-    .theme-dot.active { border-color: white; box-shadow: 0 0 0 2px rgba(255,255,255,0.35); }
-    .theme-dot.locked { opacity: 0.55; cursor: pointer; }
-    .theme-dot.locked:hover { transform: scale(1.15); opacity: 0.8; }
-    .theme-dot .lock-icon {
-        position: absolute; top: -5px; right: -5px;
-        font-size: 0.5rem; line-height: 1; pointer-events: none;
-    }
+/* ── Two-panel row ───────────────────────────────────────────────────────────── */
+.ce-layout {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
 
-    /* ── Variant picker ───────────────────────────────────────────────────────── */
-    .variant-picker { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
-    .variant-btn {
-        font-size: 0.68rem; font-weight: 700; padding: 4px 10px; border-radius: 99px;
-        cursor: pointer; border: 1.5px solid transparent; transition: all .15s;
-        background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.65);
-        display: flex; align-items: center; gap: 0.3rem; white-space: nowrap;
-    }
-    .variant-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.88); }
-    .variant-btn.active {
-        background: rgba(102,126,234,0.2); border-color: rgba(102,126,234,0.6);
-        color: #a3b3f7;
-    }
-    .variant-btn.locked { opacity: 0.6; }
-    .variant-btn.unavailable { opacity: 0.55; cursor: pointer; }
-    .variant-btn.previewing {
-        border-color: rgba(102,126,234,0.35);
-        background: rgba(102,126,234,0.1);
-        color: rgba(163,179,247,0.8);
-    }
-    .variant-btn .var-cost { font-size: 0.6rem; opacity: 0.75; }
+/* ── LEFT: Sidebar ───────────────────────────────────────────────────────────── */
+.ce-sidebar {
+    width: var(--ce-sidebar-w);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--ce-sidebar-bg);
+    border-right: 1px solid var(--ce-sidebar-border);
+    overflow: hidden;
+}
 
-    /* ── Player photo widget ─────────────────────────────────────────────── */
-    .player-photo-section {
-        margin: 1.25rem 0 0;
-        background: rgba(255,255,255,0.04);
-        border-radius: 12px;
-        padding: 1.1rem 1.25rem;
-        border: 1px solid rgba(255,255,255,0.08);
-    }
-    .player-photo-section-title {
-        font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
-        letter-spacing: 0.1em; color: rgba(255,255,255,0.45); margin-bottom: 0.9rem;
-    }
-    .player-photo-body {
-        display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
-    }
-    .player-photo-preview {
-        width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
-        border: 3px solid rgba(255,255,255,0.2);
-    }
-    .player-photo-placeholder {
-        width: 96px; height: 96px; border-radius: 50%;
-        background: rgba(255,255,255,0.08); border: 2px dashed rgba(255,255,255,0.2);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 2rem; color: rgba(255,255,255,0.3);
-    }
-    .player-photo-hint { font-size: 0.7rem; color: rgba(255,255,255,0.35); text-align: center; }
-    .player-photo-empty { font-size: 0.78rem; color: rgba(255,255,255,0.45); text-align: center; }
-    .btn-photo-upload-student {
-        cursor: pointer; font-size: 0.72rem; font-weight: 600;
-        padding: 6px 16px; border-radius: 99px;
-        background: rgba(102,126,234,0.7); color: white;
-        border: 1px solid rgba(102,126,234,0.4); transition: background 0.15s;
-    }
-    .btn-photo-upload-student:hover { background: rgba(102,126,234,1); }
-    .btn-photo-delete-student {
-        font-size: 0.7rem; padding: 5px 12px; border-radius: 99px;
-        background: rgba(220,53,69,0.4); border: none; color: rgba(255,255,255,0.8); cursor: pointer;
-    }
-    .btn-photo-delete-student:hover { background: rgba(220,53,69,0.7); }
+.ce-sidebar-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1.1rem 0.65rem;
+    border-bottom: 1px solid var(--ce-sidebar-border);
+}
+.ce-sidebar-page-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.88);
+    margin: 0;
+}
+.ce-sidebar-fs-link {
+    font-size: 0.68rem;
+    color: rgba(163,179,247,0.75);
+    text-decoration: none;
+    white-space: nowrap;
+    font-weight: 600;
+}
+.ce-sidebar-fs-link:hover { color: #a3b3f7; text-decoration: underline; }
 
-    /* ── Publish card bar ───────────────────────────────────────────────────── */
-    .publish-card-bar {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 0.55rem 0 0.25rem; margin-top: 0.45rem;
-        border-top: 1px solid rgba(255,255,255,0.06);
-    }
-    .publish-status { display: flex; align-items: center; gap: 0.45rem; font-size: 0.72rem; }
-    .publish-status-dot {
-        width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; transition: background .2s;
-    }
-    .publish-status-dot.unpublished { background: #f6ad55; }
-    .publish-status-dot.published   { background: #68d391; }
-    .publish-status-text { color: rgba(255,255,255,0.55); }
-    .publish-view-link { font-size: 0.72rem; color: rgba(163,179,247,0.8); text-decoration: none; margin-left: 0.2rem; }
-    .publish-view-link:hover { color: #a3b3f7; text-decoration: underline; }
-    .btn-publish-card {
-        font-size: 0.75rem; font-weight: 700; padding: 5px 16px; border-radius: 99px;
-        cursor: pointer; border: 1.5px solid rgba(72,187,120,0.5);
-        background: rgba(72,187,120,0.15); color: #9ae6b4; transition: all .15s; white-space: nowrap;
-    }
-    .btn-publish-card:hover:not(:disabled) { background: rgba(72,187,120,0.3); color: #c6f6d5; }
-    .btn-publish-card:disabled { opacity: 0.45; cursor: not-allowed; }
+.ce-sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.7rem 0 1.25rem;
+}
+.ce-sidebar-body::-webkit-scrollbar { width: 3px; }
+.ce-sidebar-body::-webkit-scrollbar-track { background: transparent; }
+.ce-sidebar-body::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+}
 
-    /* ── Light mode overrides — system preference OR explicit .light class ─── */
-    @media (prefers-color-scheme: light) {
-        .variant-btn {
-            background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72);
-            border-color: rgba(0,0,0,0.12);
-        }
-        .variant-btn:hover { background: rgba(0,0,0,0.10); color: rgba(0,0,0,0.9); }
-        .variant-btn.active {
-            background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5);
-            color: #3730a3;
-        }
-        .player-photo-section { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
-        .player-photo-section-title { color: rgba(0,0,0,0.45); }
-        .player-photo-hint, .player-photo-empty { color: rgba(0,0,0,0.45); }
-        .player-photo-placeholder {
-            background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.2);
-            color: rgba(0,0,0,0.3);
-        }
-        .btn-photo-delete-student { background: rgba(220,53,69,0.15); color: rgba(220,53,69,0.9); }
-        .btn-photo-delete-student:hover { background: rgba(220,53,69,0.25); }
-        .publish-card-bar { border-top-color: rgba(0,0,0,0.08); }
-        .publish-status-text { color: rgba(0,0,0,0.5); }
-        .publish-view-link { color: rgba(55,48,163,0.8); }
-        .publish-view-link:hover { color: #3730a3; }
-        .btn-publish-card { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
-        .btn-publish-card:hover:not(:disabled) { background: rgba(56,161,105,0.2); }
-    }
-    .light .variant-btn {
-        background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72);
-        border-color: rgba(0,0,0,0.12);
-    }
-    .light .variant-btn:hover { background: rgba(0,0,0,0.10); color: rgba(0,0,0,0.9); }
-    .light .variant-btn.active {
-        background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5);
-        color: #3730a3;
-    }
-    .light .player-photo-section { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
-    .light .player-photo-section-title { color: rgba(0,0,0,0.45); }
-    .light .player-photo-hint, .light .player-photo-empty { color: rgba(0,0,0,0.45); }
-    .light .player-photo-placeholder {
-        background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.2);
-        color: rgba(0,0,0,0.3);
-    }
-    .light .btn-photo-delete-student { background: rgba(220,53,69,0.15); color: rgba(220,53,69,0.9); }
-    .light .btn-photo-delete-student:hover { background: rgba(220,53,69,0.25); }
-    .light .publish-card-bar { border-top-color: rgba(0,0,0,0.08); }
-    .light .publish-status-text { color: rgba(0,0,0,0.5); }
-    .light .publish-view-link { color: rgba(55,48,163,0.8); }
-    .light .publish-view-link:hover { color: #3730a3; }
-    .light .btn-publish-card { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
-    .light .btn-publish-card:hover:not(:disabled) { background: rgba(56,161,105,0.2); }
+/* ── Sidebar sections ────────────────────────────────────────────────────────── */
+.ce-section {
+    padding: 0 1.0rem;
+    margin-bottom: 1.2rem;
+}
+.ce-section-title {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
 
-    /* ── Platform picker ─────────────────────────────────────────────────────── */
-    .platform-picker { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
-    .platform-btn {
-        font-size: 0.68rem; font-weight: 700; padding: 4px 10px; border-radius: 99px;
-        cursor: pointer; border: 1.5px solid transparent; transition: all .15s;
-        background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.65); white-space: nowrap;
-    }
-    .platform-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.88); }
-    .platform-btn.active {
-        background: rgba(102,126,234,0.2); border-color: rgba(102,126,234,0.6); color: #a3b3f7;
-    }
+/* ── Design tiles (S1) ───────────────────────────────────────────────────────── */
+.ce-design-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 0.6rem;
+}
 
-    /* ── Export / Download buttons ──────────────────────────────────────────── */
-    .btn-export-card {
-        font-size: 0.78rem; font-weight: 700; padding: 7px 18px; border-radius: 99px;
-        cursor: pointer; border: 1.5px solid rgba(102,126,234,0.5);
-        background: rgba(102,126,234,0.15); color: #a3b3f7; transition: all .15s;
-    }
-    .btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.3); color: #c7d0ff; }
-    .btn-export-card:disabled { opacity: 0.4; cursor: not-allowed; }
+.ce-design-tile {
+    position: relative;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 9px;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    text-align: left;
+}
+.ce-design-tile:hover {
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.07);
+}
+.ce-design-tile.active {
+    border-color: var(--tile-accent, var(--ce-accent));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tile-accent, var(--ce-accent)) 22%, transparent);
+}
+.ce-design-tile.locked { opacity: 0.62; }
+.ce-design-tile.locked:hover { opacity: 0.85; }
 
-    /* Video export button — green accent, shown only for animated-capable combos */
-    .btn-export-video {
-        background: rgba(72,187,120,0.15); border-color: rgba(72,187,120,0.5); color: #9ae6b4;
-    }
-    .btn-export-video:hover:not(:disabled) { background: rgba(72,187,120,0.3); color: #c6f6d5; }
+/* Mini card art — two pseudo-elements, no images, works everywhere */
+.ce-design-tile-art {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    position: relative;
+    overflow: hidden;
+    border-radius: 7px 7px 0 0;
+    background: #0a0e17;
+}
+/* coloured hero band (top half) */
+.ce-design-tile-art::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 50% 0;
+    background: var(--tile-accent, var(--ce-accent));
+    opacity: 0.18;
+}
+/* accent dot — OVR badge suggestion */
+.ce-design-tile-art::after {
+    content: '';
+    position: absolute;
+    top: 7px; left: 7px;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: var(--tile-accent, var(--ce-accent));
+    opacity: 0.88;
+}
 
-    @media (prefers-color-scheme: light) {
-        .platform-btn { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72); border-color: rgba(0,0,0,0.12); }
-        .platform-btn:hover { background: rgba(0,0,0,0.10); color: rgba(0,0,0,0.9); }
-        .platform-btn.active { background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5); color: #3730a3; }
-        .btn-export-card { border-color: rgba(102,126,234,0.4); background: rgba(102,126,234,0.1); color: #3730a3; }
-        .btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.2); }
-        .btn-export-video { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
-        .btn-export-video:hover:not(:disabled) { background: rgba(56,161,105,0.2); }
-    }
-    .light .platform-btn { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72); border-color: rgba(0,0,0,0.12); }
-    .light .platform-btn:hover { background: rgba(0,0,0,0.10); color: rgba(0,0,0,0.9); }
-    .light .platform-btn.active { background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5); color: #3730a3; }
-    .light .btn-export-card { border-color: rgba(102,126,234,0.4); background: rgba(102,126,234,0.1); color: #3730a3; }
-    .light .btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.2); }
-    .light .btn-export-video { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
-    .light .btn-export-video:hover:not(:disabled) { background: rgba(56,161,105,0.2); }
+.ce-design-tile-footer {
+    padding: 5px 7px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+.ce-design-tile-name {
+    font-size: 0.63rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;
+}
+.ce-design-tile-lock {
+    font-size: 0.58rem;
+    color: rgba(255,255,255,0.38);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
 
-    @media (max-width: 768px) { .container { padding: 1rem; } }
+/* ── Variant strip (below design tiles) ─────────────────────────────────────── */
+.ce-variant-strip {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.15rem;
+}
+.ce-variant-btn {
+    font-size: 0.63rem; font-weight: 700; padding: 3px 9px; border-radius: 99px;
+    cursor: pointer; border: 1.5px solid transparent; transition: all .15s;
+    background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.65);
+    display: flex; align-items: center; gap: 0.3rem; white-space: nowrap;
+}
+.ce-variant-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.88); }
+.ce-variant-btn.active {
+    background: rgba(102,126,234,0.2); border-color: rgba(102,126,234,0.6); color: #a3b3f7;
+}
+.ce-variant-btn.locked { opacity: 0.6; }
+.ce-variant-btn.unavailable { opacity: 0.55; cursor: pointer; }
+.ce-variant-btn.previewing {
+    border-color: rgba(102,126,234,0.35);
+    background: rgba(102,126,234,0.1);
+    color: rgba(163,179,247,0.8);
+}
+.ce-variant-btn .var-cost { font-size: 0.58rem; opacity: 0.75; }
+
+/* ── Platform tiles (S2) ─────────────────────────────────────────────────────── */
+.ce-platform-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+.ce-platform-tile {
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 8px 4px 7px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: border-color 0.15s, background 0.15s;
+}
+.ce-platform-tile:hover {
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.07);
+}
+.ce-platform-tile.active {
+    border-color: var(--ce-accent);
+    background: rgba(102,126,234,0.15);
+}
+
+/* Orientation icons — pure CSS rectangles at correct aspect ratio */
+.ce-platform-icon {
+    border: 1.5px solid rgba(255,255,255,0.28);
+    border-radius: 2px;
+    background: rgba(255,255,255,0.05);
+    flex-shrink: 0;
+}
+.ce-platform-tile.active .ce-platform-icon {
+    border-color: var(--ce-accent);
+    background: rgba(102,126,234,0.2);
+}
+/* portrait  1080×1350 */
+.ce-platform-icon--portrait  { width: 18px; height: 22px; }
+/* story     1080×1920 */
+.ce-platform-icon--story     { width: 14px; height: 24px; }
+/* square    1080×1080 */
+.ce-platform-icon--square    { width: 20px; height: 20px; }
+/* tiktok    1080×1920 */
+.ce-platform-icon--tiktok    { width: 14px; height: 24px; }
+/* landscape fallback */
+.ce-platform-icon--landscape { width: 24px; height: 13px; }
+
+.ce-platform-tile-name {
+    font-size: 0.59rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.ce-platform-tile.active .ce-platform-tile-name { color: #a3b3f7; }
+.ce-platform-tile-dims {
+    font-size: 0.5rem;
+    color: rgba(255,255,255,0.28);
+    text-align: center;
+    white-space: nowrap;
+}
+.ce-platform-tile.active .ce-platform-tile-dims { color: rgba(163,179,247,0.55); }
+
+/* ── Photo widget overrides inside sidebar (compact horizontal layout) ────────── */
+.ce-section .player-photo-body {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+}
+.ce-section .player-photo-preview,
+.ce-section .player-photo-placeholder {
+    width: 48px; height: 48px;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.ce-section .player-photo-hint {
+    width: 100%;
+    font-size: 0.62rem;
+    color: rgba(255,255,255,0.28);
+    margin-top: 0.1rem;
+}
+.ce-section .player-photo-empty {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.4);
+}
+.btn-photo-upload-student {
+    cursor: pointer; font-size: 0.68rem; font-weight: 600;
+    padding: 5px 13px; border-radius: 99px;
+    background: rgba(102,126,234,0.7); color: white;
+    border: 1px solid rgba(102,126,234,0.4); transition: background 0.15s;
+}
+.btn-photo-upload-student:hover { background: rgba(102,126,234,1); }
+.btn-photo-delete-student {
+    font-size: 0.65rem; padding: 5px 10px; border-radius: 99px;
+    background: rgba(220,53,69,0.35); border: none; color: rgba(255,255,255,0.75); cursor: pointer;
+}
+.btn-photo-delete-student:hover { background: rgba(220,53,69,0.65); }
+.player-photo-preview {
+    border-radius: 50%; object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+.player-photo-placeholder {
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 1.5px dashed rgba(255,255,255,0.18);
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* ── RIGHT: Preview area ─────────────────────────────────────────────────────── */
+.ce-preview-area {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--ce-stage-bg);
+    overflow: hidden;
+}
+.ce-preview-stage {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 12px;
+}
+
+/* Replaces .player-card-embed-wrap */
+.ce-preview-wrap {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+    flex-shrink: 0;
+}
+.ce-preview-wrap iframe {
+    display: block;
+    border: none;
+    transform-origin: top left;
+}
+
+/* Watermarks — identical logic to old .player-card-embed-wrap */
+.ce-preview-wrap::before {
+    content: '';
+    position: absolute; inset: 0; z-index: 10;
+    pointer-events: none; user-select: none;
+    background-color: rgba(255,255,255,1);
+    -webkit-mask-image: url('/static/images/logo-wc.png');
+            mask-image: url('/static/images/logo-wc.png');
+    -webkit-mask-repeat: repeat; mask-repeat: repeat;
+    -webkit-mask-size: 220px auto; mask-size: 220px auto;
+    -webkit-mask-position: 80px 45px; mask-position: 80px 45px;
+    opacity: 0.07;
+}
+.ce-preview-wrap::after {
+    content: '';
+    position: absolute; inset: 0; z-index: 11;
+    pointer-events: none; user-select: none;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMTUwIj48dGV4dCB4PSIxNjAiIHk9IjgyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQmFybG93IENvbmRlbnNlZCxzeXN0ZW0tdWksc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMiIgZm9udC13ZWlnaHQ9IjgwMCIgbGV0dGVyLXNwYWNpbmc9IjQiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC42MCkiIHRyYW5zZm9ybT0icm90YXRlKC0zMCwxNjAsODIpIj5MRkE8L3RleHQ+PC9zdmc+");
+    background-repeat: repeat;
+    background-size: 320px 150px;
+    background-position: 0 0;
+    opacity: 0.10;
+}
+
+/* ── Action bar (publish + export CTA) ───────────────────────────────────────── */
+.ce-action-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.1rem;
+    height: var(--ce-action-h);
+    background: var(--ce-sidebar-bg);
+    border-top: 1px solid var(--ce-sidebar-border);
+    gap: 0.6rem;
+}
+.ce-publish-zone {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    overflow: hidden;
+}
+.ce-export-zone {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+/* Publish status elements */
+.publish-status-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: background .2s;
+}
+.publish-status-dot.unpublished { background: #f6ad55; }
+.publish-status-dot.published   { background: #68d391; }
+.publish-status-text {
+    font-size: 0.67rem;
+    color: rgba(255,255,255,0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 130px;
+}
+.publish-view-link {
+    font-size: 0.67rem;
+    color: rgba(163,179,247,0.75);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.publish-view-link:hover { color: #a3b3f7; text-decoration: underline; }
+.btn-publish-card {
+    font-size: 0.7rem; font-weight: 700; padding: 4px 13px; border-radius: 99px;
+    cursor: pointer; border: 1.5px solid rgba(72,187,120,0.5);
+    background: rgba(72,187,120,0.15); color: #9ae6b4;
+    transition: all .15s; white-space: nowrap; flex-shrink: 0;
+}
+.btn-publish-card:hover:not(:disabled) { background: rgba(72,187,120,0.3); color: #c6f6d5; }
+.btn-publish-card:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Export buttons */
+.btn-export-card {
+    font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: 99px;
+    cursor: pointer; border: 1.5px solid rgba(102,126,234,0.5);
+    background: rgba(102,126,234,0.15); color: #a3b3f7;
+    transition: all .15s; white-space: nowrap;
+}
+.btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.3); color: #c7d0ff; }
+.btn-export-card:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-export-video {
+    background: rgba(72,187,120,0.15); border-color: rgba(72,187,120,0.5); color: #9ae6b4;
+}
+.btn-export-video:hover:not(:disabled) { background: rgba(72,187,120,0.3); color: #c6f6d5; }
+
+/* ── Mobile (<768px) — stacked layout, natural scroll ───────────────────────── */
+@media (max-width: 767px) {
+    .ce-shell {
+        margin: -1rem;
+        height: auto;
+        overflow: visible;
+    }
+    .ce-layout {
+        flex-direction: column;
+        overflow: visible;
+    }
+    .ce-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--ce-sidebar-border);
+    }
+    .ce-sidebar-body { overflow-y: visible; overflow-x: visible; }
+    .ce-preview-area  { overflow: visible; min-height: 300px; }
+    .ce-preview-stage { overflow: visible; padding: 16px 12px; }
+    .ce-action-bar { padding: 0 0.75rem; }
+
+    /* Wider tile grids on mobile */
+    .ce-design-grid   { grid-template-columns: repeat(3, 1fr); }
+    .ce-platform-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── Tablet (768–1023px) ─────────────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .ce-shell { --ce-sidebar-w: 260px; }
+    .ce-platform-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Light mode ──────────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: light) {
+    .ce-shell {
+        --ce-sidebar-bg:     #f0f2f7;
+        --ce-sidebar-border: rgba(0,0,0,0.08);
+        --ce-stage-bg:       #1a1a2e;
+    }
+    .ce-sidebar-page-title { color: rgba(0,0,0,0.85); }
+    .ce-sidebar-fs-link    { color: rgba(55,48,163,0.75); }
+    .ce-section-title      { color: rgba(0,0,0,0.35); border-bottom-color: rgba(0,0,0,0.06); }
+    .ce-design-tile        { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+    .ce-design-tile:hover  { background: rgba(0,0,0,0.07); border-color: rgba(0,0,0,0.18); }
+    .ce-design-tile-name   { color: rgba(0,0,0,0.75); }
+    .ce-design-tile-lock   { color: rgba(0,0,0,0.38); }
+    .ce-design-tile-art    { background: #dde2ec; }
+    .ce-platform-tile      { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+    .ce-platform-tile:hover { background: rgba(0,0,0,0.07); }
+    .ce-platform-tile.active { background: rgba(102,126,234,0.12); }
+    .ce-platform-icon      { border-color: rgba(0,0,0,0.28); background: rgba(0,0,0,0.05); }
+    .ce-platform-tile-name { color: rgba(0,0,0,0.7); }
+    .ce-platform-tile.active .ce-platform-tile-name { color: #3730a3; }
+    .ce-platform-tile-dims { color: rgba(0,0,0,0.32); }
+    .ce-platform-tile.active .ce-platform-tile-dims { color: rgba(55,48,163,0.55); }
+    .ce-variant-btn { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72); border-color: rgba(0,0,0,0.12); }
+    .ce-variant-btn:hover { background: rgba(0,0,0,0.10); color: rgba(0,0,0,0.9); }
+    .ce-variant-btn.active { background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5); color: #3730a3; }
+    .publish-status-text { color: rgba(0,0,0,0.5); }
+    .publish-view-link   { color: rgba(55,48,163,0.75); }
+    .publish-view-link:hover { color: #3730a3; }
+    .btn-publish-card { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
+    .btn-publish-card:hover:not(:disabled) { background: rgba(56,161,105,0.2); }
+    .btn-export-card  { border-color: rgba(102,126,234,0.4); background: rgba(102,126,234,0.1); color: #3730a3; }
+    .btn-export-card:hover:not(:disabled) { background: rgba(102,126,234,0.2); }
+    .btn-export-video { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
+    .btn-export-video:hover:not(:disabled) { background: rgba(56,161,105,0.2); }
+    .ce-section .player-photo-hint  { color: rgba(0,0,0,0.38); }
+    .ce-section .player-photo-empty { color: rgba(0,0,0,0.45); }
+    .player-photo-placeholder { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.18); color: rgba(0,0,0,0.3); }
+    .btn-photo-delete-student { background: rgba(220,53,69,0.12); color: rgba(220,53,69,0.9); }
+    .btn-photo-delete-student:hover { background: rgba(220,53,69,0.22); }
+}
+/* .light class mirrors — forced light via JS */
+.light .ce-shell         { --ce-sidebar-bg: #f0f2f7; --ce-sidebar-border: rgba(0,0,0,0.08); --ce-stage-bg: #1a1a2e; }
+.light .ce-sidebar-page-title { color: rgba(0,0,0,0.85); }
+.light .ce-section-title { color: rgba(0,0,0,0.35); }
+.light .ce-design-tile   { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+.light .ce-design-tile-name { color: rgba(0,0,0,0.75); }
+.light .ce-design-tile-art  { background: #dde2ec; }
+.light .ce-platform-tile    { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+.light .ce-platform-tile-name { color: rgba(0,0,0,0.7); }
+.light .ce-variant-btn      { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.72); border-color: rgba(0,0,0,0.12); }
+.light .ce-variant-btn.active { background: rgba(102,126,234,0.15); border-color: rgba(102,126,234,0.5); color: #3730a3; }
+.light .btn-publish-card { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
+.light .btn-export-card  { border-color: rgba(102,126,234,0.4); background: rgba(102,126,234,0.1); color: #3730a3; }
+.light .btn-export-video { border-color: rgba(56,161,105,0.5); background: rgba(56,161,105,0.1); color: #276749; }
 </style>
 {% endblock %}
 
 {% block student_content %}
+{#
+  Platform orientation map — used to assign the correct icon class
+  to each platform tile based on its ID.
+#}
+{% set _orient_map = {
+    'instagram_portrait': 'portrait',
+    'instagram_story':    'story',
+    'instagram_landscape':'landscape',
+    'instagram_square':   'square',
+    'tiktok':             'tiktok'
+} %}
 
-{# ── Breadcrumb ─────────────────────────────────────────────────────────────── #}
-<nav class="s-breadcrumb" aria-label="Breadcrumb">
-    <a href="/dashboard" class="s-breadcrumb-item">🏠 Hub</a>
-    <span class="s-breadcrumb-sep">›</span>
-    <a href="/dashboard/lfa-football-player" class="s-breadcrumb-item">⚽ LFA Football Player</a>
-    <span class="s-breadcrumb-sep">›</span>
-    <span class="s-breadcrumb-item active">🎴 My Player Card</span>
-</nav>
+<div class="ce-shell">
 
-<div class="container">
+    {# ── Breadcrumb ─────────────────────────────────────────────────────────── #}
+    <nav class="s-breadcrumb" aria-label="Breadcrumb">
+        <a href="/dashboard" class="s-breadcrumb-item">Hub</a>
+        <span class="s-breadcrumb-sep">›</span>
+        <a href="/dashboard/lfa-football-player" class="s-breadcrumb-item">LFA Football Player</a>
+        <span class="s-breadcrumb-sep">›</span>
+        <span class="s-breadcrumb-item active">My Player Card</span>
+    </nav>
 
-    <section class="section-block" style="padding: 1.25rem; margin-bottom: 1.5rem;">
-        <div style="margin-bottom: 0.75rem;">
-            <h2 class="page-title" style="margin-bottom: 0.6rem;">🎴 My Player Card</h2>
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
-                {# ── Theme picker ── #}
-                <div class="theme-picker" id="theme-picker">
-                    {% for t in card_themes %}
-                    <button class="theme-dot {% if t.id == active_card_theme %}active{% endif %} {% if not t.unlocked %}locked{% endif %}"
-                            style="background: {{ t.dot_color }};"
-                            title="{{ t.label }}{% if t.is_premium and not t.unlocked %} · 🔓 Unlock for {{ t.credit_cost }} CR{% endif %}"
-                            onclick="setCardTheme('{{ t.id }}', {{ 'true' if t.unlocked else 'false' }}, '{{ t.label }}', {{ t.credit_cost }})">
-                        {% if t.is_premium and not t.unlocked %}<span class="lock-icon">🔒</span>{% endif %}
-                    </button>
-                    {% endfor %}
+    <div class="ce-layout">
+
+        {# ══════════════════ LEFT: SIDEBAR ══════════════════ #}
+        <aside class="ce-sidebar">
+
+            <div class="ce-sidebar-header">
+                <h2 class="ce-sidebar-page-title">My Player Card</h2>
+                <a id="fullscreen-link" href="/players/{{ user.id }}/card" target="_blank"
+                   class="ce-sidebar-fs-link">Open ↗</a>
+            </div>
+
+            <div class="ce-sidebar-body">
+
+                {# ── S1: Design ───────────────────────────────────────────────── #}
+                <div class="ce-section">
+                    <div class="ce-section-title">Design</div>
+
+                    {# Theme tiles — 2-column grid #}
+                    <div class="ce-design-grid" id="theme-picker">
+                        {% for t in card_themes %}
+                        <button class="ce-design-tile
+                                       {% if t.id == active_card_theme %}active{% endif %}
+                                       {% if not t.unlocked %}locked{% endif %}"
+                                style="--tile-accent: {{ t.dot_color }};"
+                                onclick="setCardTheme('{{ t.id }}', {{ 'true' if t.unlocked else 'false' }}, '{{ t.label }}', {{ t.credit_cost }})"
+                                title="{{ t.label }}{% if t.is_premium and not t.unlocked %} · Unlock for {{ t.credit_cost }} CR{% endif %}">
+                            <div class="ce-design-tile-art"></div>
+                            <div class="ce-design-tile-footer">
+                                <span class="ce-design-tile-name">{{ t.label }}</span>
+                                {% if t.is_premium and not t.unlocked %}
+                                <span class="ce-design-tile-lock">🔒 {{ t.credit_cost }}&thinsp;CR</span>
+                                {% endif %}
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+
+                    {# Variant strip — pills below tiles #}
+                    {% if show_variant_picker and card_variants is defined %}
+                    <div class="ce-variant-strip" id="variant-picker">
+                        {% for v in card_variants %}
+                        <button class="ce-variant-btn
+                                       {% if v.id == active_card_variant %}active{% endif %}
+                                       {% if not v.unlocked %}locked{% endif %}
+                                       {% if not v.available %}unavailable{% endif %}"
+                                data-variant="{{ v.id }}"
+                                title="{{ v.description }}{% if not v.available %} · Preview only{% elif v.is_premium and not v.unlocked %} · Unlock for {{ v.credit_cost }} CR{% endif %}"
+                                onclick="{% if v.available %}setCardVariant('{{ v.id }}', {{ 'true' if v.unlocked else 'false' }}, '{{ v.label }}', {{ v.credit_cost }}){% else %}previewVariant('{{ v.id }}'){% endif %}">
+                            {% if not v.available %}⏳{% elif v.is_premium and not v.unlocked %}🔒{% endif %}
+                            {{ v.label }}
+                            {% if v.is_premium and not v.unlocked and v.available %}
+                            <span class="var-cost">{{ v.credit_cost }} CR</span>
+                            {% endif %}
+                            <a href="/players/{{ user.id }}/card?preview={{ v.id }}" target="_blank"
+                               onclick="event.stopPropagation();"
+                               title="Preview {{ v.label }} in new tab"
+                               style="font-size:0.58rem; opacity:0.6; text-decoration:none; color:inherit;">↗</a>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
-                <a id="fullscreen-link" href="/players/{{ user.id }}/card" target="_blank" class="section-link">🌐 Open full screen →</a>
+
+                {# ── S2: Export Format ────────────────────────────────────────── #}
+                <div class="ce-section">
+                    <div class="ce-section-title">Export Format</div>
+                    <div class="ce-platform-grid" id="platform-picker">
+                        {# Default tile — always first #}
+                        <button class="ce-platform-tile {% if not active_card_platform or active_card_platform == 'default' %}active{% endif %}"
+                                data-platform="default"
+                                onclick="setPlatform('default')"
+                                title="Native card proportions">
+                            <div class="ce-platform-icon ce-platform-icon--portrait"></div>
+                            <div class="ce-platform-tile-name">Default</div>
+                            <div class="ce-platform-tile-dims">1080 × 1350</div>
+                        </button>
+                        {# Per-platform tiles #}
+                        {% for p in platforms %}
+                        <button class="ce-platform-tile {% if active_card_platform == p.id %}active{% endif %}"
+                                data-platform="{{ p.id }}"
+                                onclick="setPlatform('{{ p.id }}')"
+                                title="{{ p.title }}">
+                            <div class="ce-platform-icon ce-platform-icon--{{ _orient_map.get(p.id, 'portrait') }}"></div>
+                            <div class="ce-platform-tile-name">{{ p.label }}</div>
+                            <div class="ce-platform-tile-dims">
+                                {% if p.id in canvas_sizes %}{{ canvas_sizes[p.id].w }} × {{ canvas_sizes[p.id].h }}{% endif %}
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# ── S3: Player Photo ─────────────────────────────────────────── #}
+                <div class="ce-section">
+                    <div class="ce-section-title">Player Photo</div>
+                    <div class="player-photo-body">
+                        {% if user_license.player_card_photo_url %}
+                        <img src="{{ user_license.player_card_photo_url }}"
+                             class="player-photo-preview" alt="Player card photo">
+                        {% else %}
+                        <div class="player-photo-placeholder">📷</div>
+                        <p class="player-photo-empty">Nincs kép — tölts fel!</p>
+                        {% endif %}
+                        <label class="btn-photo-upload-student">
+                            📷 Feltöltés
+                            <input type="file" accept="image/jpeg,image/png,image/webp"
+                                   onchange="uploadMyPhoto(this)" hidden>
+                        </label>
+                        {% if user_license.player_card_photo_url %}
+                        <button class="btn-photo-delete-student" onclick="deleteMyPhoto()">✕</button>
+                        {% endif %}
+                        <p class="player-photo-hint">Max 2 MB · JPEG/PNG/WEBP · 400×400 px vágás</p>
+                    </div>
+                </div>
+
+                {# ── S4: Background photos (conditional on unlocked variants) ─── #}
+                {% set _unlocked = user_license.unlocked_card_variants or [] %}
+                {% if 'compact_bg' in _unlocked %}
+                <div class="ce-section">
+                    <div class="ce-section-title">Compact+BG Háttér</div>
+                    <div class="player-photo-body">
+                        {% if user_license.card_bg_compact_url %}
+                        <img src="{{ user_license.card_bg_compact_url }}"
+                             class="player-photo-preview" alt="Compact BG photo">
+                        {% else %}
+                        <div class="player-photo-placeholder">🖼️</div>
+                        {% endif %}
+                        <label class="btn-photo-upload-student">
+                            🖼️ Háttér
+                            <input type="file" accept="image/jpeg,image/png,image/webp"
+                                   onchange="uploadCompactBg(this)" hidden>
+                        </label>
+                        {% if user_license.card_bg_compact_url %}
+                        <button class="btn-photo-delete-student" onclick="deleteCompactBg()">✕</button>
+                        {% endif %}
+                        <p class="player-photo-hint">Max 8 MB · JPEG/PNG/WEBP · 800×800 px max</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if 'showcase_bg' in _unlocked %}
+                <div class="ce-section">
+                    <div class="ce-section-title">Showcase+BG Háttér</div>
+                    <div class="player-photo-body">
+                        {% if user_license.card_bg_showcase_url %}
+                        <img src="{{ user_license.card_bg_showcase_url }}"
+                             class="player-photo-preview" alt="Showcase BG photo">
+                        {% else %}
+                        <div class="player-photo-placeholder">🖼️</div>
+                        {% endif %}
+                        <label class="btn-photo-upload-student">
+                            🖼️ Háttér
+                            <input type="file" accept="image/jpeg,image/png,image/webp"
+                                   onchange="uploadShowcaseBg(this)" hidden>
+                        </label>
+                        {% if user_license.card_bg_showcase_url %}
+                        <button class="btn-photo-delete-student" onclick="deleteShowcaseBg()">✕</button>
+                        {% endif %}
+                        <p class="player-photo-hint">Max 8 MB · JPEG/PNG/WEBP · 800×800 px max</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {# ── S5: Sponsor Logo ─────────────────────────────────────────── #}
+                <div class="ce-section">
+                    <div class="ce-section-title">Sponsor Logo</div>
+                    <div class="player-photo-body">
+                        {% if user_license.sponsor_logo_url %}
+                        <img src="{{ user_license.sponsor_logo_url }}"
+                             class="player-photo-preview" alt="Sponsor logo"
+                             style="object-fit: contain; background: rgba(255,255,255,0.05);">
+                        {% else %}
+                        <div class="player-photo-placeholder">🏷️</div>
+                        {% endif %}
+                        <label class="btn-photo-upload-student">
+                            🏷️ Logó
+                            <input type="file" accept="image/jpeg,image/png,image/webp"
+                                   onchange="uploadSponsorLogo(this)" hidden>
+                        </label>
+                        {% if user_license.sponsor_logo_url %}
+                        <button class="btn-photo-delete-student" onclick="deleteSponsorLogo()">✕</button>
+                        {% endif %}
+                        <p class="player-photo-hint">Max 2 MB · JPEG/PNG/WEBP · PNG transparent ajánlott</p>
+                    </div>
+                </div>
+
+            </div>{# /ce-sidebar-body #}
+        </aside>{# /ce-sidebar #}
+
+        {# ══════════════════ RIGHT: PREVIEW AREA ══════════════════ #}
+        <div class="ce-preview-area">
+
+            <div class="ce-preview-stage">
+                <div class="ce-preview-wrap">
+                    <iframe id="player-card-iframe"
+                            width="1080" height="1350"
+                            src="{% if active_card_platform and active_card_platform != 'default' %}/players/{{ user.id }}/card?preview={{ active_card_variant }}&theme={{ active_card_theme }}&platform={{ active_card_platform }}&export=1{% if active_card_platform in animated_capable_platforms %}&animated=1{% endif %}{% else %}/players/{{ user.id }}/card?preview={{ active_card_variant }}&theme={{ active_card_theme }}&platform=instagram_portrait&export=1{% endif %}"
+                            scrolling="no" title="My Player Card"></iframe>
+                </div>
             </div>
-            {# ── Variant picker ── #}
-            {% if show_variant_picker and card_variants is defined %}
-            <div class="variant-picker" id="variant-picker">
-                {% for v in card_variants %}
-                <button class="variant-btn {% if v.id == active_card_variant %}active{% endif %} {% if not v.unlocked %}locked{% endif %} {% if not v.available %}unavailable{% endif %}"
-                        data-variant="{{ v.id }}"
-                        title="{{ v.description }}{% if not v.available %} · Preview only{% elif v.is_premium and not v.unlocked %} · Unlock for {{ v.credit_cost }} CR{% endif %}"
-                        onclick="{% if v.available %}setCardVariant('{{ v.id }}', {{ 'true' if v.unlocked else 'false' }}, '{{ v.label }}', {{ v.credit_cost }}){% else %}previewVariant('{{ v.id }}'){% endif %}">
-                    {% if not v.available %}⏳{% elif v.is_premium and not v.unlocked %}🔒{% endif %}
-                    {{ v.label }}
-                    {% if v.is_premium and not v.unlocked and v.available %}<span class="var-cost">{{ v.credit_cost }} CR</span>{% endif %}
-                    <a href="/players/{{ user.id }}/card?preview={{ v.id }}" target="_blank"
-                       onclick="event.stopPropagation();" title="Preview {{ v.label }} layout in new tab"
-                       style="font-size:0.6rem; opacity:0.6; text-decoration:none; color:inherit;">↗</a>
-                </button>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {# ── Platform picker ── #}
-            {# "default" is a static CTA — no canvas size, not an export target #}
-            <div class="platform-picker" id="platform-picker">
-                <button class="platform-btn {% if not active_card_platform or active_card_platform == 'default' %}active{% endif %}"
-                        data-platform="default"
-                        onclick="setPlatform('default')"
-                        title="Native card proportions">Default</button>
-                {% for p in platforms %}
-                <button class="platform-btn {% if active_card_platform == p.id %}active{% endif %}"
-                        data-platform="{{ p.id }}"
-                        onclick="setPlatform('{{ p.id }}')"
-                        title="{{ p.title }}">{{ p.label }}</button>
-                {% endfor %}
-            </div>
-            {# ── Publish state bar ── #}
-            <div class="publish-card-bar" id="publish-card-bar">
-                <div class="publish-status">
+
+            {# ── Action bar: publish status + export CTA ─────────────────────── #}
+            <div class="ce-action-bar">
+                <div class="ce-publish-zone">
                     <span class="publish-status-dot" id="publish-status-dot"></span>
                     <span class="publish-status-text" id="publish-status-text"></span>
-                    <a href="/players/{{ user.id }}/card" target="_blank" class="publish-view-link">View Public Card ↗</a>
+                    <a href="/players/{{ user.id }}/card" target="_blank"
+                       class="publish-view-link">View ↗</a>
+                    <button class="btn-publish-card" id="btn-publish-card"
+                            onclick="publishCard()">Publish Card</button>
                 </div>
-                <button class="btn-publish-card" id="btn-publish-card" onclick="publishCard()">Publish Card</button>
+                <div class="ce-export-zone">
+                    <button id="btn-export-card" class="btn-export-card" onclick="exportCard()"
+                            title="Download PNG — Default exports at native card proportions">⬇ PNG</button>
+                    <button id="btn-export-video" class="btn-export-card btn-export-video"
+                            style="display:none;" onclick="exportCardVideo()"
+                            title="Download animated MP4 (5s, H.264)">▶ MP4</button>
+                    <button id="btn-export-webm-debug" class="btn-export-card btn-export-video"
+                            style="display:none;" onclick="exportCardWebmDebug()"
+                            title="[DEBUG] Raw WebM">⬇ WebM</button>
+                </div>
             </div>
-        </div>
-        <div class="player-card-embed-wrap">
-            <iframe id="player-card-iframe"
-                    src="{% if active_card_platform and active_card_platform != 'default' %}/players/{{ user.id }}/card?preview={{ active_card_variant }}&theme={{ active_card_theme }}&platform={{ active_card_platform }}&export=1{% if active_card_platform in animated_capable_platforms %}&animated=1{% endif %}{% else %}/players/{{ user.id }}/card?preview={{ active_card_variant }}&theme={{ active_card_theme }}&platform=instagram_portrait&export=1{% endif %}"
-                    height="920" scrolling="no" title="My Player Card"></iframe>
-        </div>
-        <div style="margin-top: 0.75rem; display: flex; justify-content: flex-end; gap: 0.5rem; align-items: center;">
-            <button id="btn-export-card" class="btn-export-card" onclick="exportCard()"
-                    title="Download PNG — Default exports the FIFA Classic card at native proportions">⬇ Download PNG</button>
-            {# Video export button — hidden by default; JS shows it only for animated-capable combos #}
-            <button id="btn-export-video" class="btn-export-card btn-export-video"
-                    style="display:none;" onclick="exportCardVideo()"
-                    title="Download animated MP4 video (5s, H.264) — compatible with iOS and Instagram">▶ Download MP4</button>
-            {# DEBUG: raw WebM download — inspect before FFmpeg conversion #}
-            <button id="btn-export-webm-debug" class="btn-export-card btn-export-video"
-                    style="display:none;" onclick="exportCardWebmDebug()"
-                    title="[DEBUG] Download raw WebM — use to verify Playwright recording before MP4 conversion">⬇ WebM (debug)</button>
-        </div>
-    </section>
 
-    {# ── Photo upload sections ── #}
-    <div class="player-photo-section">
-        <div class="player-photo-section-title">⚽ Player Card Photo</div>
-        <div class="player-photo-body">
-            {% if user_license.player_card_photo_url %}
-            <img src="{{ user_license.player_card_photo_url }}"
-                 class="player-photo-preview" alt="Player card photo">
-            {% else %}
-            <div class="player-photo-placeholder">📷</div>
-            <p class="player-photo-empty">Még nincs profilkép — tölts fel egyet a kártyádhoz!</p>
-            {% endif %}
-            <label class="btn-photo-upload-student">
-                📷 Fotó feltöltése
-                <input type="file" accept="image/jpeg,image/png,image/webp"
-                       onchange="uploadMyPhoto(this)" hidden>
-            </label>
-            {% if user_license.player_card_photo_url %}
-            <button class="btn-photo-delete-student" onclick="deleteMyPhoto()">✕ Törlés</button>
-            {% endif %}
-            <p class="player-photo-hint">Max 2 MB · JPEG/PNG/WEBP · automatikus 400×400 vágás</p>
-        </div>
-    </div>
+        </div>{# /ce-preview-area #}
 
-    {# ── Compact BG photo (only when compact_bg is unlocked) ── #}
-    {% set _unlocked = user_license.unlocked_card_variants or [] %}
-    {% if 'compact_bg' in _unlocked %}
-    <div class="player-photo-section">
-        <div class="player-photo-section-title">🎨 Compact+BG — Background Photo</div>
-        <div class="player-photo-body">
-            {% if user_license.card_bg_compact_url %}
-            <img src="{{ user_license.card_bg_compact_url }}"
-                 class="player-photo-preview" alt="Compact BG photo">
-            {% else %}
-            <div class="player-photo-placeholder">🖼️</div>
-            <p class="player-photo-empty">Háttérkép hiányzik — tölts fel egyet!</p>
-            {% endif %}
-            <label class="btn-photo-upload-student">
-                🖼️ Háttér feltöltése
-                <input type="file" accept="image/jpeg,image/png,image/webp"
-                       onchange="uploadCompactBg(this)" hidden>
-            </label>
-            {% if user_license.card_bg_compact_url %}
-            <button class="btn-photo-delete-student" onclick="deleteCompactBg()">✕ Törlés</button>
-            {% endif %}
-            <p class="player-photo-hint">Max 8 MB · JPEG/PNG/WEBP · 800×800 px max</p>
-        </div>
-    </div>
-    {% endif %}
-
-    {# ── Showcase BG photo (only when showcase_bg is unlocked) ── #}
-    {% if 'showcase_bg' in _unlocked %}
-    <div class="player-photo-section">
-        <div class="player-photo-section-title">🎨 Showcase+BG — Background Photo</div>
-        <div class="player-photo-body">
-            {% if user_license.card_bg_showcase_url %}
-            <img src="{{ user_license.card_bg_showcase_url }}"
-                 class="player-photo-preview" alt="Showcase BG photo">
-            {% else %}
-            <div class="player-photo-placeholder">🖼️</div>
-            <p class="player-photo-empty">Háttérkép hiányzik — tölts fel egyet!</p>
-            {% endif %}
-            <label class="btn-photo-upload-student">
-                🖼️ Háttér feltöltése
-                <input type="file" accept="image/jpeg,image/png,image/webp"
-                       onchange="uploadShowcaseBg(this)" hidden>
-            </label>
-            {% if user_license.card_bg_showcase_url %}
-            <button class="btn-photo-delete-student" onclick="deleteShowcaseBg()">✕ Törlés</button>
-            {% endif %}
-            <p class="player-photo-hint">Max 8 MB · JPEG/PNG/WEBP · 800×800 px max</p>
-        </div>
-    </div>
-    {% endif %}
-
-    {# ── Sponsor logo (always visible for FIFA square variant) ── #}
-    <div class="player-photo-section">
-        <div class="player-photo-section-title">🏷️ Player Card Sponsor Logo</div>
-        <div class="player-photo-body">
-            {% if user_license.sponsor_logo_url %}
-            <img src="{{ user_license.sponsor_logo_url }}"
-                 class="player-photo-preview" alt="Sponsor logo"
-                 style="background: rgba(255,255,255,0.05); object-fit: contain;">
-            {% else %}
-            <div class="player-photo-placeholder">🏷️</div>
-            <p class="player-photo-empty">Szponzor logó hiányzik — tölts fel egyet!</p>
-            {% endif %}
-            <label class="btn-photo-upload-student">
-                🏷️ Logó feltöltése
-                <input type="file" accept="image/jpeg,image/png,image/webp"
-                       onchange="uploadSponsorLogo(this)" hidden>
-            </label>
-            {% if user_license.sponsor_logo_url %}
-            <button class="btn-photo-delete-student" onclick="deleteSponsorLogo()">✕ Törlés</button>
-            {% endif %}
-            <p class="player-photo-hint">Max 2 MB · JPEG/PNG/WEBP · 300×300 px max · PNG transparent ajánlott</p>
-        </div>
-    </div>
-
-</div>
+    </div>{# /ce-layout #}
+</div>{# /ce-shell #}
 {% endblock %}
 
 {% block scripts %}
@@ -502,37 +845,33 @@ function _cardIframeSrc() {
 
 function _applyIframeSize() {
     const iframe = document.getElementById('player-card-iframe');
-    const wrap   = document.querySelector('.player-card-embed-wrap');
-    if (!iframe || !wrap) return;
+    const stage  = document.querySelector('.ce-preview-stage');
+    const wrap   = document.querySelector('.ce-preview-wrap');
+    if (!iframe || !stage || !wrap) return;
 
-    if (_currentPlatform === 'default') {
-        // 'default' previews instagram_portrait — use its canvas size for scaling.
-        const _defDims = _CANVAS_SIZES['instagram_portrait'];
-        if (_defDims) {
-            const [cw, ch] = _defDims;
-            const availW = wrap.clientWidth || 840;
-            const scale  = availW / cw;
-            iframe.style.width         = cw + 'px';
-            iframe.style.height        = ch + 'px';
-            iframe.style.transform     = `scale(${scale})`;
-            iframe.style.transformOrigin = 'top left';
-            wrap.style.height          = Math.round(ch * scale) + 'px';
-        }
-        return;
-    }
-
-    const dims = _CANVAS_SIZES[_currentPlatform];
+    // Always resolve 'default' to instagram_portrait for canvas size lookup
+    const platformKey = _currentPlatform === 'default' ? 'instagram_portrait' : _currentPlatform;
+    const dims = _CANVAS_SIZES[platformKey];
     if (!dims) return;
     const [cw, ch] = dims;
-    const availW   = wrap.clientWidth || 840;
-    const scale    = availW / cw;
-    const displayH = Math.round(ch * scale);
+
+    const PAD    = 24;
+    const availW = stage.clientWidth  - PAD;
+    const availH = stage.clientHeight - PAD;
+
+    // On mobile (stacked layout, page scrolls) constrain by width only
+    const isMobile = window.innerWidth < 768;
+    const scale = isMobile
+        ? Math.min(availW / cw, 1.0)
+        : Math.min(availW / cw, availH / ch, 1.0);
 
     iframe.style.width         = cw + 'px';
     iframe.style.height        = ch + 'px';
     iframe.style.transform     = `scale(${scale})`;
     iframe.style.transformOrigin = 'top left';
-    wrap.style.height          = displayH + 'px';
+
+    wrap.style.width  = Math.round(cw * scale) + 'px';
+    wrap.style.height = Math.round(ch * scale) + 'px';
 }
 
 function _updateFullscreenLink() {
@@ -569,8 +908,8 @@ async function setCardTheme(themeId, unlocked, label, cost) {
         const data = await r.json();
         if (data.ok) {
             _currentTheme = themeId;
-            document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
-            const active = document.querySelector(`.theme-dot[onclick*="'${themeId}'"]`);
+            document.querySelectorAll('.ce-design-tile').forEach(d => d.classList.remove('active'));
+            const active = document.querySelector(`.ce-design-tile[onclick*="'${themeId}'"]`);
             if (active) active.classList.add('active');
             const iframe = document.getElementById('player-card-iframe');
             if (iframe) { iframe.src = _cardIframeSrc(); }
@@ -644,18 +983,20 @@ async function _savePlatform(platformId) {
 }
 
 function _showPlatformSaved(platformId) {
-    const btn = document.querySelector(`.platform-btn[data-platform="${platformId}"]`);
-    if (!btn) return;
-    const orig = btn.textContent;
-    btn.textContent = '✓ Saved';
-    setTimeout(() => { btn.textContent = orig; }, 1400);
+    const tile = document.querySelector(`.ce-platform-tile[data-platform="${platformId}"]`);
+    if (!tile) return;
+    const nameEl = tile.querySelector('.ce-platform-tile-name');
+    if (!nameEl) return;
+    const orig = nameEl.textContent;
+    nameEl.textContent = '✓ Saved';
+    setTimeout(() => { nameEl.textContent = orig; }, 1400);
 }
 
 function setPlatform(platformId) {
     _currentPlatform = platformId;
-    document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
-    const btn = document.querySelector(`.platform-btn[data-platform="${platformId}"]`);
-    if (btn) btn.classList.add('active');
+    document.querySelectorAll('.ce-platform-tile').forEach(b => b.classList.remove('active'));
+    const tile = document.querySelector(`.ce-platform-tile[data-platform="${platformId}"]`);
+    if (tile) tile.classList.add('active');
     const iframe = document.getElementById('player-card-iframe');
     if (iframe) { iframe.src = _cardIframeSrc(); }
     _applyIframeSize();
@@ -667,12 +1008,17 @@ function setPlatform(platformId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (_currentPlatform !== 'default') {
-        _applyIframeSize();
-        _updateFullscreenLink();
-    }
+    // Always apply size — not just for non-default (covers default=instagram_portrait too)
+    _applyIframeSize();
+    _updateFullscreenLink();
     _updateVideoButtonVisibility();
     _updatePublishIndicator();
+
+    // Rescale on container resize (viewport resize, orientation change)
+    if (window.ResizeObserver) {
+        new ResizeObserver(_applyIframeSize)
+            .observe(document.querySelector('.ce-preview-stage'));
+    }
 });
 
 function _isDraftPublished() {
@@ -815,8 +1161,8 @@ function previewVariant(variantId) {
         ? `&platform=${_currentPlatform}&export=1`
         : '';
     if (iframe) { iframe.src = `/players/${_cardUserId}/card?preview=${variantId}${p}&_t=${Date.now()}`; }
-    document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('previewing'));
-    const btn = document.querySelector(`.variant-btn[data-variant="${variantId}"]`);
+    document.querySelectorAll('.ce-variant-btn').forEach(b => b.classList.remove('previewing'));
+    const btn = document.querySelector(`.ce-variant-btn[data-variant="${variantId}"]`);
     if (btn) btn.classList.add('previewing');
 }
 
@@ -832,8 +1178,8 @@ async function setCardVariant(variantId, unlocked, label, cost) {
         const data = await r.json();
         if (data.ok) {
             _currentVariant = variantId;
-            document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active', 'previewing'));
-            const active = document.querySelector(`.variant-btn[data-variant="${variantId}"]`);
+            document.querySelectorAll('.ce-variant-btn').forEach(b => b.classList.remove('active', 'previewing'));
+            const active = document.querySelector(`.ce-variant-btn[data-variant="${variantId}"]`);
             if (active) active.classList.add('active');
             const iframe = document.getElementById('player-card-iframe');
             if (iframe) { iframe.src = _cardIframeSrc(); }
