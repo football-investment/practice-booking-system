@@ -327,7 +327,8 @@
 }
 
 .ex-cat-outfield { flex: 1; }
-.ex-cat-mental   { flex: 1; }
+/* Mental: natural height (14 × 32px rows ≈ 497px) pushed to column bottom */
+.ex-cat-mental   { flex: 0 0 auto; margin-top: auto; }
 /* Sets: fixed height — exactly 3 rows guaranteed */
 /* 10(top pad) + 13(font) + 8(pad-b) + 8(mar-b) + 3×32(rows) + 10(bot pad) = 145px */
 .ex-cat-sets     { flex: 0 0 145px; }
