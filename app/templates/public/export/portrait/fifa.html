@@ -7,7 +7,7 @@
  * Layout  : Split Hero Block   660px  (flex-row)
  *             ├── Photo Panel  560px — fullbleed photo, subtle name overlay bottom-left
  *             └── Info Panel   520px — single stacked column:
- *                   brand → OVR badge → tier → divider → meta → spacer → PosMap+labels
+ *                   brand → OVR badge → tier → divider → meta → spacer → labels → PosMap
  *           Skills Zone        flex:1 (~690px) — 3 columns
  *             ├── Outfield     480px  (19 skills × 32px)
  *             ├── Mental       260px  (14 skills × 32px)
@@ -249,12 +249,12 @@
     max-width: 100%;
 }
 
-/* Position labels row — below inline PosMap */
+/* Position labels row — above inline PosMap, below meta */
 .ex-pos-labels-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 7px;
+    margin-bottom: 7px;
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -451,15 +451,15 @@
 
             {# PosMap — bottom anchor of info column, conditional on known position #}
             {% if show_posmap and position_nodes and primary_pos_label %}
-            <div class="ex-posmap-inline">
-                {{ position_map_landscape(position_nodes, primary_pos_label, secondary_pos_labels,
-                                          player_position=player.position, show_info_col=False) }}
-            </div>
             <div class="ex-pos-labels-row">
                 <span class="ex-pos-primary">{{ primary_pos_label }}</span>
                 {% for sec in secondary_pos_labels[:3] %}
                 <span class="ex-pos-sec-chip">{{ sec }}</span>
                 {% endfor %}
+            </div>
+            <div class="ex-posmap-inline">
+                {{ position_map_landscape(position_nodes, primary_pos_label, secondary_pos_labels,
+                                          player_position=player.position, show_info_col=False) }}
             </div>
             {% endif %}
 
