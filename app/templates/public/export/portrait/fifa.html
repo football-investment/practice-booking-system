@@ -9,8 +9,8 @@
  *             └── Info Panel   520px — single stacked column:
  *                   brand → OVR badge → tier → divider → meta → spacer → labels → PosMap
  *           Skills Zone        flex:1 (~690px) — 3 columns
- *             ├── Outfield     480px  (19 skills × 32px)
- *             ├── Mental       260px  (14 skills × 32px)
+ *             ├── Outfield     440px  (19 skills × 32px, name 130px)
+ *             ├── Mental       300px  (14 skills × 32px, name 116px — fits "Positioning (Off)")
  *             └── Sets+Phys    flex:1 (3+8 skills, Sets fixed height)
  *
  * Level C standalone — extends export_base.html directly.
@@ -292,22 +292,22 @@
     overflow: hidden;
 }
 
-/* Col 1: Outfield — wide, primary display */
+/* Col 1: Outfield — 440px (was 480): shorter bars, consistent with col-mid */
 .ex-skills-col-left {
-    flex: 0 0 480px;
+    flex: 0 0 440px;
     min-width: 0;
-    --ex-sname-w:    116px;
+    --ex-sname-w:    130px;
     --ex-font-skill: 13px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 
-/* Col 2: Mental */
+/* Col 2: Mental — 300px (was 260): name 116px fits "Positioning (Off)" / "Tactical Awareness" */
 .ex-skills-col-mid {
-    flex: 0 0 260px;
+    flex: 0 0 300px;
     min-width: 0;
-    --ex-sname-w:    86px;
+    --ex-sname-w:    116px;
     --ex-font-skill: 12px;
     display: flex;
     flex-direction: column;
