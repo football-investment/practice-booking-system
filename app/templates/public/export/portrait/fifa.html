@@ -106,6 +106,24 @@
     box-shadow: inset -16px 0 32px rgba(0,0,0,0.40);
     pointer-events: none;
 }
+/* Top scrim — gradient fade for OVR badge readability on any photo */
+.ex-photo-top-scrim {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 160px;
+    background: linear-gradient(rgba(0,0,0,0.50) 0%, transparent 100%);
+    pointer-events: none;
+}
+/* OVR badge + tier pill — positioned top-left, above top scrim */
+.ex-photo-ovr {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
 /* Player name — display font overlay, 2-line clamp */
 .ex-photo-name {
     position: absolute;
@@ -128,7 +146,8 @@
 }
 
 /* ── INFO PANEL: auto height (content-driven); right-col flex child ── */
-/* Single stacked column: brand → OVR → tier → divider → meta → spacer → labels */
+/* Single stacked column: brand → divider → meta → spacer → labels */
+/* OVR badge + tier moved to .ex-photo-ovr overlay in .ex-photo-panel */
 .ex-info-panel {
     flex: 0 0 auto;
     min-width: 0;
@@ -167,13 +186,7 @@
     white-space: nowrap;
 }
 
-/* OVR badge slot — card_ovr_badge macro (size=100, dark=true) renders here */
-.ex-ovr-slot {
-    flex-shrink: 0;
-    margin-bottom: 10px;
-}
-
-/* Tier badge — small pill below OVR badge, left-aligned */
+/* Tier badge — colored pill; now lives in .ex-photo-ovr (photo panel overlay) */
 .ex-tier-badge {
     display: inline-block;
     align-self: flex-start;
@@ -186,7 +199,6 @@
     border-radius: 10px;
     color: #fff;
     flex-shrink: 0;
-    margin-bottom: 18px;
 }
 
 /* Divider — thin, very subtle */
@@ -197,38 +209,39 @@
     margin-bottom: 14px;
 }
 
-/* Meta list — editorial key-value pairs, fixed size (not flex:1) */
+/* Meta list — editorial stacked layout: label (muted, small) above value (large, bold) */
 .ex-meta-list {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
 }
 .ex-meta-row {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
     flex-shrink: 0;
+    gap: 2px;
 }
 .ex-meta-lbl {
-    flex: 0 0 70px;
     font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.13em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ex-text-muted);
     white-space: nowrap;
+    line-height: 1;
 }
 .ex-meta-val {
-    flex: 1;
     font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 800;
     color: var(--ex-text-strong);
-    text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.1;
 }
 
 /* Spacer — breathing room between meta and pos labels.
@@ -452,6 +465,13 @@
                 {% else %}
                 <div class="ex-hero-placeholder">{{ initials }}</div>
                 {% endif %}
+                {# Top gradient for OVR badge readability on any background #}
+                <div class="ex-photo-top-scrim"></div>
+                {# OVR badge + tier pill — top-left corner overlay #}
+                <div class="ex-photo-ovr">
+                    {{ ovr_badge(overall | round(0) | int, size=100, dark=true) }}
+                    <div class="ex-tier-badge" style="background:{{ tier_color }};">{{ tier_label }}</div>
+                </div>
                 <div class="ex-photo-scrim"></div>
                 <div class="ex-photo-edge"></div>
                 <div class="ex-photo-name">{{ player.name }}</div>
@@ -498,7 +518,8 @@
         {# ── RIGHT COLUMN ─────────────────────────────────────────── #}
         <div class="ex-right-col">
 
-            {# Info panel: brand → OVR → tier → divider → meta → spacer → pos labels #}
+            {# Info panel: brand → divider → meta → spacer → pos labels #}
+            {# OVR badge + tier pill live in .ex-photo-ovr (photo panel overlay) #}
             <div class="ex-info-panel">
 
                 {# Brand row #}
@@ -508,14 +529,6 @@
                     <span class="ex-level-pill">Lv.&nbsp;{{ license_current_level }}</span>
                     {% endif %}
                 </div>
-
-                {# OVR badge — circular, dark mode, size=100 #}
-                <div class="ex-ovr-slot">
-                    {{ ovr_badge(overall | round(0) | int, size=100, dark=true) }}
-                </div>
-
-                {# Tier #}
-                <div class="ex-tier-badge" style="background:{{ tier_color }};">{{ tier_label }}</div>
 
                 {# Divider #}
                 <div class="ex-info-divider"></div>
