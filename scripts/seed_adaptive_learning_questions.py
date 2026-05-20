@@ -17,6 +17,7 @@ Idempotency: Quiz rows are matched by quiz_title. Existing quizzes are skipped i
 
 import argparse
 import json
+import random
 import sys
 import os
 from pathlib import Path
@@ -221,7 +222,9 @@ def _seed_file(db, data: dict[str, Any], path: Path, dry_run: bool) -> dict[str,
         db.add(question)
         db.flush()  # get question.id
 
-        for opt_idx, opt in enumerate(q_data["options"]):
+        options_list = list(q_data["options"])
+        random.shuffle(options_list)
+        for opt_idx, opt in enumerate(options_list):
             db.add(QuizAnswerOption(
                 question_id=question.id,
                 option_text=opt["text"].strip(),

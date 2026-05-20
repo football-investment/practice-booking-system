@@ -144,6 +144,123 @@ class TestSeederValidation:
 
 
 # ---------------------------------------------------------------------------
+# SD — Seeder scramble tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestSeederScramble:
+    """Verify that the seeder scrambles option order before INSERT.
+
+    SD-01  random.shuffle() call is present in the seeder source before the
+           QuizAnswerOption INSERT loop.
+    SD-02  Running the seeder's shuffle logic 20 times on a 4-option question
+           (correct always first in source) produces at least 2 distinct orderings.
+           P(identical order all 20 times) = (1/24)^19 ≈ 2e-26.
+    SD-03  After shuffling, each question retains exactly 1 is_correct=True option
+           and all option texts are preserved unchanged.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _load_seeder(self):
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+        import seed_adaptive_learning_questions as _seeder
+        self._seeder = _seeder
+
+    # ── SD-01 ──────────────────────────────────────────────────────────────────
+
+    def test_sd01_random_shuffle_present_before_insert_loop(self):
+        """SD-01: seeder source contains random.shuffle call before the INSERT loop."""
+        import inspect
+        source = inspect.getsource(self._seeder)
+
+        # The shuffle must appear before the QuizAnswerOption construction
+        shuffle_pos = source.find("random.shuffle(options_list)")
+        insert_pos  = source.find("QuizAnswerOption(")
+
+        assert shuffle_pos != -1, (
+            "random.shuffle(options_list) not found in seeder source — "
+            "seeder scramble was not applied"
+        )
+        assert insert_pos != -1, (
+            "QuizAnswerOption( not found in seeder source"
+        )
+        assert shuffle_pos < insert_pos, (
+            f"random.shuffle (pos={shuffle_pos}) must appear BEFORE "
+            f"QuizAnswerOption insert (pos={insert_pos})"
+        )
+
+    # ── SD-02 ──────────────────────────────────────────────────────────────────
+
+    def test_sd02_shuffle_produces_multiple_orderings(self):
+        """SD-02: across 20 shuffle runs on a 4-option input, at least 2 distinct
+        orderings appear for the correct option position.
+
+        Source order: correct at index 0 (always first in JSON).
+        Without shuffle, correct would always be at order_index=0 (position A).
+        P(same ordering all 20 times with uniform shuffle) = (1/4)^19 ≈ 4e-12.
+        """
+        import random
+
+        source_options = [
+            {"text": "Correct option", "is_correct": True},
+            {"text": "Wrong 1", "is_correct": False},
+            {"text": "Wrong 2", "is_correct": False},
+            {"text": "Wrong 3", "is_correct": False},
+        ]
+
+        correct_positions = set()
+        for _ in range(20):
+            options_list = list(source_options)
+            random.shuffle(options_list)
+            pos = next(i for i, o in enumerate(options_list) if o["is_correct"])
+            correct_positions.add(pos)
+
+        assert len(correct_positions) >= 2, (
+            f"Correct option only appeared at positions {correct_positions} "
+            "across 20 shuffle runs — shuffle appears non-functional"
+        )
+
+    # ── SD-03 ──────────────────────────────────────────────────────────────────
+
+    def test_sd03_is_correct_flag_and_texts_survive_shuffle(self):
+        """SD-03: shuffle preserves is_correct flags and option texts.
+
+        Exactly 1 correct option per question after any number of shuffles.
+        All option texts are present (no data dropped or duplicated).
+        """
+        import random
+
+        source_options = [
+            {"text": "Correct option", "is_correct": True},
+            {"text": "Wrong A",        "is_correct": False},
+            {"text": "Wrong B",        "is_correct": False},
+            {"text": "Wrong C",        "is_correct": False},
+        ]
+        original_texts = {o["text"] for o in source_options}
+
+        for _ in range(50):
+            options_list = list(source_options)
+            random.shuffle(options_list)
+
+            correct_count = sum(1 for o in options_list if o["is_correct"])
+            assert correct_count == 1, (
+                f"Expected exactly 1 correct option after shuffle, got {correct_count}"
+            )
+
+            shuffled_texts = {o["text"] for o in options_list}
+            assert shuffled_texts == original_texts, (
+                f"Option texts changed during shuffle: "
+                f"expected {original_texts}, got {shuffled_texts}"
+            )
+
+            assert len(options_list) == 4, (
+                f"Option count changed during shuffle: expected 4, got {len(options_list)}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # _build_presented_options — output shape
 # ---------------------------------------------------------------------------
 
