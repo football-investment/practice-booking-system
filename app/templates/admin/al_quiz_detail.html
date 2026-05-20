@@ -1,0 +1,97 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Quiz — {{ quiz.title }}{% endblock %}
+{% block page_heading %}📖 {{ quiz.title }}{% endblock %}
+{% block page_subtitle %}{{ questions|length }} question(s) &bull; {{ quiz.category.value if quiz.category else '?' }} &bull; {{ quiz.difficulty.value if quiz.difficulty else '?' }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .breadcrumb { font-size: 0.85rem; color: #718096; margin-bottom: 1rem; }
+    .breadcrumb a { color: #718096; text-decoration: none; }
+    .breadcrumb a:hover { color: #5a4a9a; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .meta-card { background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 0.75rem 1rem; }
+    .meta-card .label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #718096; }
+    .meta-card .value { font-size: 1.1rem; font-weight: 700; color: #2d3748; margin-top: 0.2rem; }
+    .card-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.5rem; }
+    .q-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .q-table thead th { background: #f7fafc; color: #718096; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.55rem 0.75rem; border-bottom: 2px solid #e2e8f0; }
+    .q-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+    .q-table tbody tr:hover { background: #fafbff; }
+    .q-table td { padding: 0.5rem 0.75rem; vertical-align: top; }
+    .q-text { max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+    .badge-mc   { background: #e0f2fe; color: #0369a1; }
+    .badge-tf   { background: #f0fdf4; color: #166534; }
+    .badge-fill { background: #fef9c3; color: #92400e; }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: 1px solid #5a4a9a; color: #5a4a9a; background: white; text-decoration: none; display: inline-block; }
+    .btn-sm:hover { background: #f5f3ff; }
+    .badge-active   { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #f3f4f6; color: #6b7280; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="breadcrumb">
+    <a href="/admin/adaptive-learning/dashboard">Dashboard</a> /
+    <a href="/admin/adaptive-learning/quizzes">Quizzes</a> /
+    {{ quiz.title }}
+</div>
+
+<div class="meta-grid">
+    <div class="meta-card"><div class="label">ID</div><div class="value">#{{ quiz.id }}</div></div>
+    <div class="meta-card"><div class="label">Category</div><div class="value">{{ quiz.category.value if quiz.category else '—' }}</div></div>
+    <div class="meta-card"><div class="label">Difficulty</div><div class="value">{{ quiz.difficulty.value if quiz.difficulty else '—' }}</div></div>
+    <div class="meta-card"><div class="label">Language</div><div class="value">{{ quiz.language or '—' }}</div></div>
+    <div class="meta-card"><div class="label">XP Reward</div><div class="value">{{ quiz.xp_reward or 0 }}</div></div>
+    <div class="meta-card">
+        <div class="label">Status</div>
+        <div class="value">
+            {% if quiz.is_active %}
+                <span class="badge badge-active">active</span>
+            {% else %}
+                <span class="badge badge-inactive">inactive</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card-wrap">
+    {% if questions %}
+    <table class="q-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Question</th>
+                <th>Type</th>
+                <th>Points</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for q in questions %}
+            <tr>
+                <td style="color:#718096;">{{ loop.index }}</td>
+                <td class="q-text">{{ q.question_text }}</td>
+                <td>
+                    {% if q.question_type and q.question_type.value == 'MULTIPLE_CHOICE' %}
+                        <span class="badge badge-mc">MC</span>
+                    {% elif q.question_type and q.question_type.value == 'TRUE_FALSE' %}
+                        <span class="badge badge-tf">T/F</span>
+                    {% else %}
+                        <span class="badge badge-fill">FILL</span>
+                    {% endif %}
+                </td>
+                <td>{{ q.points or 1 }}</td>
+                <td>
+                    <a href="/admin/adaptive-learning/quizzes/{{ quiz.id }}/questions/{{ q.id }}" class="btn-sm">View</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#718096; font-size:0.9rem;">No questions in this quiz.</p>
+    {% endif %}
+</div>
+{% endblock %}

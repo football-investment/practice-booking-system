@@ -1,0 +1,95 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Question Detail{% endblock %}
+{% block page_heading %}❓ Question Detail{% endblock %}
+{% block page_subtitle %}Read-only view &bull; {{ quiz.title }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .breadcrumb { font-size: 0.85rem; color: #718096; margin-bottom: 1rem; }
+    .breadcrumb a { color: #718096; text-decoration: none; }
+    .breadcrumb a:hover { color: #5a4a9a; }
+    .card-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.5rem; margin-bottom: 1.25rem; }
+    .field-row { margin-bottom: 1rem; }
+    .field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #718096; margin-bottom: 0.3rem; }
+    .field-value { font-size: 0.9rem; color: #2d3748; }
+    .explanation-box { background: #f7fafc; border-left: 3px solid #5a4a9a; padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; font-size: 0.875rem; color: #4a5568; }
+    .opt-list { list-style: none; padding: 0; margin: 0; }
+    .opt-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: 6px; margin-bottom: 0.4rem; font-size: 0.875rem; }
+    .opt-correct   { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .opt-incorrect { background: #f9f9f9; border: 1px solid #e2e8f0; }
+    .opt-tag { font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 4px; white-space: nowrap; flex-shrink: 0; margin-top: 0.1rem; }
+    .tag-correct   { background: #dcfce7; color: #166534; }
+    .tag-incorrect { background: #f3f4f6; color: #6b7280; }
+    .tag-variant   { background: #e0f2fe; color: #0369a1; }
+    .tag-distractor { background: #fef9c3; color: #92400e; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 0; }
+    .meta-card { background: #f7fafc; border-radius: 8px; padding: 0.6rem 0.9rem; }
+    .meta-card .label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #718096; }
+    .meta-card .value { font-size: 1rem; font-weight: 700; color: #2d3748; margin-top: 0.15rem; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="breadcrumb">
+    <a href="/admin/adaptive-learning/dashboard">Dashboard</a> /
+    <a href="/admin/adaptive-learning/quizzes">Quizzes</a> /
+    <a href="/admin/adaptive-learning/quizzes/{{ quiz.id }}">{{ quiz.title }}</a> /
+    Question #{{ question.order_index + 1 }}
+</div>
+
+<div class="card-wrap">
+    <div class="field-row">
+        <div class="field-label">Question Text</div>
+        <div class="field-value" style="font-size:1rem; font-weight:600;">{{ question.question_text }}</div>
+    </div>
+    <div class="field-row">
+        <div class="field-label">Type</div>
+        <div class="field-value">{{ question.question_type.value if question.question_type else '—' }}</div>
+    </div>
+    {% if question.explanation %}
+    <div class="field-row">
+        <div class="field-label">Explanation</div>
+        <div class="explanation-box">{{ question.explanation }}</div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card-wrap">
+    <div class="field-label" style="margin-bottom:0.75rem;">Answer Options</div>
+    {% if options %}
+    <ul class="opt-list">
+    {% for opt in options %}
+        <li class="{{ 'opt-correct' if opt.is_correct else 'opt-incorrect' }}">
+            {% if opt.option_type == OptionType.CORRECT_VARIANT %}
+                <span class="opt-tag tag-variant">VARIANT</span>
+            {% elif opt.option_type == OptionType.DISTRACTOR %}
+                <span class="opt-tag tag-distractor">DISTRACTOR</span>
+            {% elif opt.is_correct %}
+                <span class="opt-tag tag-correct">CORRECT</span>
+            {% else %}
+                <span class="opt-tag tag-incorrect">WRONG</span>
+            {% endif %}
+            <span>{{ opt.option_text }}</span>
+        </li>
+    {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color:#718096; font-size:0.9rem;">No options.</p>
+    {% endif %}
+</div>
+
+{% if question.metadata %}
+<div class="card-wrap">
+    <div class="field-label" style="margin-bottom:0.75rem;">Metadata</div>
+    <div class="meta-grid">
+        <div class="meta-card"><div class="label">Est. Difficulty</div><div class="value">{{ question.metadata.estimated_difficulty }}</div></div>
+        <div class="meta-card"><div class="label">Cognitive Load</div><div class="value">{{ question.metadata.cognitive_load }}</div></div>
+        <div class="meta-card"><div class="label">Avg Time (s)</div><div class="value">{{ question.metadata.average_time_seconds }}</div></div>
+        {% if question.metadata.concept_tags %}
+        <div class="meta-card" style="grid-column: span 2;"><div class="label">Concept Tags</div><div class="value" style="font-size:0.85rem; font-weight:400;">{{ question.metadata.concept_tags }}</div></div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -192,20 +192,25 @@ class TestSeederScramble:
     # ── SD-01 ──────────────────────────────────────────────────────────────────
 
     def test_sd01_random_shuffle_present_before_insert_loop(self):
-        """SD-01: seeder source contains random.shuffle call before the INSERT loop."""
+        """SD-01: al_import_service source contains random.shuffle before the INSERT loop.
+
+        Shuffle logic lives in app.services.al_import_service._seed_options_v1;
+        the seeder script is now a thin CLI wrapper that re-exports from the service.
+        """
         import inspect
-        source = inspect.getsource(self._seeder)
+        import app.services.al_import_service as _svc_mod
+        source = inspect.getsource(_svc_mod)
 
         # The shuffle must appear before the QuizAnswerOption construction
         shuffle_pos = source.find("random.shuffle(options_list)")
         insert_pos  = source.find("QuizAnswerOption(")
 
         assert shuffle_pos != -1, (
-            "random.shuffle(options_list) not found in seeder source — "
+            "random.shuffle(options_list) not found in al_import_service source — "
             "seeder scramble was not applied"
         )
         assert insert_pos != -1, (
-            "QuizAnswerOption( not found in seeder source"
+            "QuizAnswerOption( not found in al_import_service source"
         )
         assert shuffle_pos < insert_pos, (
             f"random.shuffle (pos={shuffle_pos}) must appear BEFORE "

@@ -3466,6 +3466,44 @@
         "title": "Body_age_verification_submit_age_verification_post",
         "type": "object"
       },
+      "Body_al_import_apply_admin_adaptive_learning_import_apply_post": {
+        "properties": {
+          "apply_payload_json": {
+            "default": "",
+            "title": "Apply Payload Json",
+            "type": "string"
+          },
+          "spec": {
+            "default": "LFA_FOOTBALL_PLAYER",
+            "title": "Spec",
+            "type": "string"
+          }
+        },
+        "title": "Body_al_import_apply_admin_adaptive_learning_import_apply_post",
+        "type": "object"
+      },
+      "Body_al_import_validate_admin_adaptive_learning_import_validate_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "spec": {
+            "default": "LFA_FOOTBALL_PLAYER",
+            "title": "Spec",
+            "type": "string"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_al_import_validate_admin_adaptive_learning_import_validate_post",
+        "type": "object"
+      },
       "Body_confirm_attendance_sessions__session_id__attendance_confirm_post": {
         "properties": {
           "action": {
@@ -23847,6 +23885,308 @@
         "tags": [
           "web",
           "adaptive-learning"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/dashboard": {
+      "get": {
+        "operationId": "al_dashboard_admin_adaptive_learning_dashboard_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Al Dashboard",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/import": {
+      "get": {
+        "operationId": "al_import_form_admin_adaptive_learning_import_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Al Import Form",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/import/apply": {
+      "post": {
+        "operationId": "al_import_apply_admin_adaptive_learning_import_apply_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_al_import_apply_admin_adaptive_learning_import_apply_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Import Apply",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/import/history": {
+      "get": {
+        "operationId": "al_import_history_admin_adaptive_learning_import_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Import History",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/import/validate": {
+      "post": {
+        "operationId": "al_import_validate_admin_adaptive_learning_import_validate_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_al_import_validate_admin_adaptive_learning_import_validate_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Import Validate",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/quizzes": {
+      "get": {
+        "operationId": "al_quiz_list_admin_adaptive_learning_quizzes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Quiz List",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/quizzes/{quiz_id}": {
+      "get": {
+        "operationId": "al_quiz_detail_admin_adaptive_learning_quizzes__quiz_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quiz_id",
+            "required": true,
+            "schema": {
+              "title": "Quiz Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Quiz Detail",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/admin/adaptive-learning/quizzes/{quiz_id}/questions/{question_id}": {
+      "get": {
+        "operationId": "al_question_detail_admin_adaptive_learning_quizzes__quiz_id__questions__question_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quiz_id",
+            "required": true,
+            "schema": {
+              "title": "Quiz Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "question_id",
+            "required": true,
+            "schema": {
+              "title": "Question Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Al Question Detail",
+        "tags": [
+          "web"
         ]
       }
     },

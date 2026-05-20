@@ -126,6 +126,21 @@
             </div>
         </div>
 
+        <div class="nav-group{% if p.startswith('/admin/adaptive-learning') %} active{% endif %}">
+            <a href="/admin/adaptive-learning/dashboard" class="nav-item nav-group-trigger"
+               onclick="toggleNavDropdown(event,this)">🧠 AL Content ▾</a>
+            <div class="nav-dropdown">
+                <a href="/admin/adaptive-learning/dashboard"
+                   class="nav-dropdown-item{% if p == '/admin/adaptive-learning/dashboard' %} active{% endif %}">Dashboard</a>
+                <a href="/admin/adaptive-learning/quizzes"
+                   class="nav-dropdown-item{% if p.startswith('/admin/adaptive-learning/quizzes') %} active{% endif %}">Quizzes</a>
+                <a href="/admin/adaptive-learning/import"
+                   class="nav-dropdown-item{% if p == '/admin/adaptive-learning/import' %} active{% endif %}">Import</a>
+                <a href="/admin/adaptive-learning/import/history"
+                   class="nav-dropdown-item{% if p.startswith('/admin/adaptive-learning/import/history') %} active{% endif %}">Import History</a>
+            </div>
+        </div>
+
         <a href="/admin/system-events"
            class="nav-item{% if p.startswith('/admin/system-events') %} active{% endif %}">⚙️ System</a>
 

@@ -1,0 +1,95 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Import History{% endblock %}
+{% block page_heading %}📋 Import History{% endblock %}
+{% block page_subtitle %}{{ total }} import operation(s) recorded.{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .card-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.5rem; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .log-table thead th { background: #f7fafc; color: #718096; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.55rem 0.75rem; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+    .log-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+    .log-table tbody tr:hover { background: #fafbff; }
+    .log-table td { padding: 0.5rem 0.75rem; vertical-align: middle; }
+    .badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-partial { background: #fef3c7; color: #92400e; }
+    .badge-error   { background: #fff5f5; color: #c53030; }
+    .id-code { font-family: monospace; font-size: 0.78rem; background: #f0f0f0; padding: 0.1rem 0.4rem; border-radius: 4px; color: #4a5568; }
+    .pagination { display: flex; gap: 0.5rem; align-items: center; margin-top: 1.25rem; justify-content: center; }
+    .pagination a, .pagination span { padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; text-decoration: none; border: 1px solid #e2e8f0; color: #4a5568; }
+    .pagination a:hover { background: #f5f3ff; border-color: #5a4a9a; color: #5a4a9a; }
+    .pagination .current { background: #5a4a9a; color: white; border-color: #5a4a9a; }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: 1px solid #5a4a9a; color: #5a4a9a; background: white; text-decoration: none; display: inline-block; }
+    .btn-sm:hover { background: #f5f3ff; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div style="margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;">
+    <a href="/admin/adaptive-learning/dashboard" style="font-size:0.85rem; color:#718096; text-decoration:none;">← Dashboard</a>
+    <a href="/admin/adaptive-learning/import" class="btn-sm">New Import</a>
+</div>
+
+<div class="card-wrap">
+    {% if logs %}
+    <table class="log-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Spec</th>
+                <th>Status</th>
+                <th>Files</th>
+                <th>Quizzes</th>
+                <th>Questions</th>
+                <th>Options (F/V/D)</th>
+                <th>Operator</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+            <tr>
+                <td><span class="id-code">#{{ log.id }}</span></td>
+                <td>{{ log.spec }}</td>
+                <td>
+                    {% if log.status == ImportStatus.SUCCESS %}
+                        <span class="badge badge-success">success</span>
+                    {% elif log.status == ImportStatus.PARTIAL %}
+                        <span class="badge badge-partial">partial</span>
+                    {% else %}
+                        <span class="badge badge-error">error</span>
+                    {% endif %}
+                </td>
+                <td style="color:#718096; font-size:0.8rem;">
+                    {{ log.files_ok }}✓
+                    {% if log.files_skipped %} {{ log.files_skipped }}— {% endif %}
+                    {% if log.files_error %} <span style="color:#c53030;">{{ log.files_error }}✗</span>{% endif %}
+                    / {{ log.files_submitted }}
+                </td>
+                <td>{{ log.quizzes_created }}</td>
+                <td>{{ log.questions_created }}</td>
+                <td style="font-family:monospace; font-size:0.78rem;">{{ log.options_fixed }}/{{ log.options_variant }}/{{ log.options_distractor }}</td>
+                <td style="font-size:0.8rem; color:#718096;">
+                    {% if log.operator %}{{ log.operator.email or log.operator.id }}{% else %}—{% endif %}
+                </td>
+                <td style="white-space:nowrap; color:#718096; font-size:0.8rem;">{{ log.completed_at.strftime('%Y-%m-%d %H:%M') if log.completed_at else '—' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}<a href="?page={{ page - 1 }}">← Prev</a>{% endif %}
+        <span class="current">{{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}<a href="?page={{ page + 1 }}">Next →</a>{% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p style="color:#718096; font-size:0.9rem;">No import history yet. <a href="/admin/adaptive-learning/import">Import content →</a></p>
+    {% endif %}
+</div>
+{% endblock %}
