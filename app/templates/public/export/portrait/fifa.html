@@ -365,15 +365,16 @@
 }
 
 .ex-cat-outfield { flex: 1; }
-/* Mental: natural height (14 × 32px rows ≈ 497px) pushed to column bottom */
-.ex-cat-mental   { flex: 0 0 auto; margin-top: auto; }
-/* Sets: fixed height — exactly 3 rows guaranteed */
-/* 10(top pad) + 13(font) + 8(pad-b) + 8(mar-b) + 3×32(rows) + 10(bot pad) = 145px */
-/* margin-top:auto anchors Sets+Physical to the card bottom (same as Mental's pattern) */
-/* Sets top = Mental top; Physical bottom = Mental bottom; gap fills the diff */
-/* 145(sets) + gap + 347(phys) = 497 ≈ Mental height; margin-top:auto aligns tops */
-.ex-cat-sets     { flex: 0 0 145px; margin-top: auto; }
-.ex-cat-phys     { flex: 0 0 347px; }
+/* Mental: fills column height; rows flex:1 to expand proportionally */
+/* Mental.top = Sets.top = posmap.bottom+gap; Mental.bottom = Physical.bottom */
+.ex-cat-mental            { flex: 1; }
+.ex-cat-mental .ex-row    { flex: 1; min-height: 0; max-height: none; }
+/* Sets: fixed height — exactly 3 rows guaranteed (145px) */
+.ex-cat-sets              { flex: 0 0 145px; }
+/* Physical: fills remaining right-col height; rows flex:1 to expand proportionally */
+/* Leadership.bottom = Work Rate.bottom (both = block.bottom − pad) */
+.ex-cat-phys              { flex: 1; }
+.ex-cat-phys .ex-row      { flex: 1; min-height: 0; max-height: none; }
 
 /* Category heading — editorial, clear */
 .ex-cat-name {
@@ -392,7 +393,7 @@
     text-overflow: ellipsis;
 }
 
-/* Uniform 32px row rhythm across all 3 columns — must keep display:flex (base override) */
+/* Base row: fixed 32px for outfield and sets columns */
 .ex-row {
     display: flex;
     flex: 0 0 var(--ex-row-max-h, 32px);
