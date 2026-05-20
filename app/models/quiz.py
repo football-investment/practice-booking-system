@@ -5,6 +5,12 @@ from sqlalchemy.sql import func
 import enum
 from app.database import Base
 
+class OptionType(enum.Enum):
+    FIXED           = "FIXED"            # legacy — all 375 existing options
+    CORRECT_VARIANT = "CORRECT_VARIANT"  # one of several correct phrasings
+    DISTRACTOR      = "DISTRACTOR"       # pool of wrong answers to sample from
+
+
 class QuestionType(enum.Enum):
     MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
     TRUE_FALSE = "TRUE_FALSE"
@@ -73,7 +79,8 @@ class QuizAnswerOption(Base):
     question_id = Column(Integer, ForeignKey("quiz_questions.id"), nullable=False)
     option_text = Column(String(500), nullable=False)
     is_correct = Column(Boolean, nullable=False, default=False)
-    order_index = Column(Integer, nullable=False, default=0)  # válaszok sorrendje
+    order_index = Column(Integer, nullable=False, default=0)
+    option_type = Column(SQLEnum(OptionType, native_enum=False), nullable=False, default=OptionType.FIXED)
     
     # Relationships
     question = relationship("QuizQuestion", back_populates="answer_options")

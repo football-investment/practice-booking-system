@@ -60440,6 +60440,22 @@
               "title": "Platform",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "theme",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Theme"
+            }
           }
         ],
         "responses": {

@@ -7,7 +7,7 @@ import math
 
 from ..models.quiz import (
     Quiz, QuizQuestion, UserQuestionPerformance, AdaptiveLearningSession,
-    QuestionMetadata, QuizCategory
+    QuestionMetadata, QuizCategory, OptionType,
 )
 
 
@@ -363,19 +363,33 @@ class AdaptiveLearningService:
     def _build_presented_options(self, question) -> list[dict]:
         """Select and shuffle options for presentation.
 
-        Legacy (≤4 options): return all options.
-        Pool (>4 options): pick 1 correct + 3 random distractors.
+        Pool mode (CORRECT_VARIANT + ≥3 DISTRACTOR options present):
+          pick 1 random correct variant + 3 random distractors.
+
+        FIXED fallback (all legacy options, or mixed):
+          ≤4 options → use all; >4 → pick 1 correct + 3 random incorrect.
+
         Always returns exactly 4 items as {"id", "text"} dicts.
+        is_correct is intentionally excluded from the output.
         """
         options = list(question.answer_options)
-        correct = [o for o in options if o.is_correct]
-        incorrect = [o for o in options if not o.is_correct]
+        variants    = [o for o in options if o.option_type == OptionType.CORRECT_VARIANT]
+        distractors = [o for o in options if o.option_type == OptionType.DISTRACTOR]
+        fixed       = [o for o in options if o.option_type == OptionType.FIXED]
 
-        if len(options) <= 4:
-            selected = options
+        if variants and len(distractors) >= 3:
+            # Pool mode: 1 random correct variant + 3 random distractors
+            chosen_correct     = random.choice(variants)
+            chosen_distractors = random.sample(distractors, 3)
+            selected = [chosen_correct] + chosen_distractors
         else:
-            distractors = random.sample(incorrect, 3)
-            selected = correct + distractors
+            # FIXED fallback — preserves all pre-Phase-C behaviour
+            correct   = [o for o in fixed if o.is_correct]
+            incorrect = [o for o in fixed if not o.is_correct]
+            if len(fixed) <= 4:
+                selected = fixed
+            else:
+                selected = correct + random.sample(incorrect, 3)
 
         random.shuffle(selected)
         return [{"id": o.id, "text": o.option_text} for o in selected]

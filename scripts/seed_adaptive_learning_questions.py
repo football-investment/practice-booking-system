@@ -34,6 +34,7 @@ from app.models.quiz import (
     QuizAnswerOption,
     QuestionMetadata,
     QuestionType,
+    OptionType,
 )
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -57,7 +58,11 @@ SPECIALIZATION_CATEGORY_ALLOWLIST: dict[str, set[str]] = {
     },
 }
 
-VALID_SCHEMA_VERSIONS = {"1.0"}
+VALID_SCHEMA_VERSIONS = {"1.0", "2.0"}
+
+# Minimum pool sizes enforced for v2.0 questions
+_V2_MIN_CORRECT_VARIANTS = 2
+_V2_MIN_DISTRACTORS = 6
 
 
 # ── Validation ────────────────────────────────────────────────────────────────
@@ -99,8 +104,9 @@ def _validate_file(data: dict[str, Any], path: Path, spec: str) -> None:
     if not isinstance(questions, list) or len(questions) == 0:
         raise ValidationError("questions must be a non-empty list")
 
+    validator = _validate_question_v2 if sv == "2.0" else _validate_question
     for i, q in enumerate(questions):
-        _validate_question(q, i)
+        validator(q, i)
 
 
 def _validate_question(q: dict[str, Any], idx: int) -> None:
@@ -157,6 +163,67 @@ def _validate_question(q: dict[str, Any], idx: int) -> None:
         )
 
 
+def _validate_question_v2(q: dict[str, Any], idx: int) -> None:
+    """Validate a v2.0 question with correct_variants[] and distractor_pool[]."""
+    prefix = f"questions[{idx}]"
+
+    if not q.get("text", "").strip():
+        raise ValidationError(f"{prefix}.text must be non-empty")
+
+    qtype_str = q.get("type", "")
+    try:
+        QuestionType[qtype_str]
+    except KeyError:
+        raise ValidationError(f"{prefix}.type unknown: {qtype_str!r}")
+
+    if qtype_str == "TRUE_FALSE":
+        raise ValidationError(
+            f"{prefix}: TRUE_FALSE questions are not supported in v2.0 schema "
+            "(use v1.0 options[] format for true/false questions)"
+        )
+
+    if not q.get("explanation", "").strip():
+        raise ValidationError(f"{prefix}.explanation must be non-empty")
+
+    variants = q.get("correct_variants")
+    if not isinstance(variants, list):
+        raise ValidationError(f"{prefix}.correct_variants must be a list")
+    if len(variants) < _V2_MIN_CORRECT_VARIANTS:
+        raise ValidationError(
+            f"{prefix}.correct_variants must have at least {_V2_MIN_CORRECT_VARIANTS} "
+            f"entries (got {len(variants)})"
+        )
+    for j, v in enumerate(variants):
+        if not isinstance(v, str) or not v.strip():
+            raise ValidationError(f"{prefix}.correct_variants[{j}] must be a non-empty string")
+
+    distractors = q.get("distractor_pool")
+    if not isinstance(distractors, list):
+        raise ValidationError(f"{prefix}.distractor_pool must be a list")
+    if len(distractors) < _V2_MIN_DISTRACTORS:
+        raise ValidationError(
+            f"{prefix}.distractor_pool must have at least {_V2_MIN_DISTRACTORS} "
+            f"entries (got {len(distractors)})"
+        )
+    for j, d in enumerate(distractors):
+        if not isinstance(d, str) or not d.strip():
+            raise ValidationError(f"{prefix}.distractor_pool[{j}] must be a non-empty string")
+
+    meta = q.get("metadata")
+    if not isinstance(meta, dict):
+        raise ValidationError(f"{prefix}.metadata must be a dict")
+
+    for key in ("estimated_difficulty", "cognitive_load", "average_time_seconds"):
+        if key not in meta:
+            raise ValidationError(f"{prefix}.metadata.{key} is required")
+
+    diff = meta["estimated_difficulty"]
+    if not (0.0 <= diff <= 1.0):
+        raise ValidationError(
+            f"{prefix}.metadata.estimated_difficulty must be 0.0–1.0 (got {diff})"
+        )
+
+
 # ── File discovery ─────────────────────────────────────────────────────────────
 
 def _discover_files(spec: str) -> list[Path]:
@@ -177,6 +244,45 @@ def _discover_files(spec: str) -> list[Path]:
             files.extend(sorted(d.rglob("*.json")))
 
     return files
+
+
+# ── Option seeding helpers ────────────────────────────────────────────────────
+
+def _seed_options_v1(db, question_id: int, q_data: dict[str, Any]) -> None:
+    """Seed v1.0 options[] as FIXED type with seeder-side shuffle."""
+    options_list = list(q_data["options"])
+    random.shuffle(options_list)
+    for opt_idx, opt in enumerate(options_list):
+        db.add(QuizAnswerOption(
+            question_id=question_id,
+            option_text=opt["text"].strip(),
+            is_correct=bool(opt["is_correct"]),
+            order_index=opt_idx,
+            option_type=OptionType.FIXED,
+        ))
+
+
+def _seed_options_v2(db, question_id: int, q_data: dict[str, Any]) -> None:
+    """Seed v2.0 correct_variants[] + distractor_pool[] with typed options."""
+    opt_idx = 0
+    for variant_text in q_data["correct_variants"]:
+        db.add(QuizAnswerOption(
+            question_id=question_id,
+            option_text=variant_text.strip(),
+            is_correct=True,
+            order_index=opt_idx,
+            option_type=OptionType.CORRECT_VARIANT,
+        ))
+        opt_idx += 1
+    for distractor_text in q_data["distractor_pool"]:
+        db.add(QuizAnswerOption(
+            question_id=question_id,
+            option_text=distractor_text.strip(),
+            is_correct=False,
+            order_index=opt_idx,
+            option_type=OptionType.DISTRACTOR,
+        ))
+        opt_idx += 1
 
 
 # ── Seeding ───────────────────────────────────────────────────────────────────
@@ -209,6 +315,7 @@ def _seed_file(db, data: dict[str, Any], path: Path, dry_run: bool) -> dict[str,
     db.add(quiz)
     db.flush()  # get quiz.id
 
+    schema_version = data.get("schema_version", "1.0")
     questions = data["questions"]
     for order_idx, q_data in enumerate(questions):
         question = QuizQuestion(
@@ -222,15 +329,10 @@ def _seed_file(db, data: dict[str, Any], path: Path, dry_run: bool) -> dict[str,
         db.add(question)
         db.flush()  # get question.id
 
-        options_list = list(q_data["options"])
-        random.shuffle(options_list)
-        for opt_idx, opt in enumerate(options_list):
-            db.add(QuizAnswerOption(
-                question_id=question.id,
-                option_text=opt["text"].strip(),
-                is_correct=bool(opt["is_correct"]),
-                order_index=opt_idx,
-            ))
+        if schema_version == "2.0":
+            _seed_options_v2(db, question.id, q_data)
+        else:
+            _seed_options_v1(db, question.id, q_data)
 
         meta = q_data["metadata"]
         tags = meta.get("concept_tags", [])
