@@ -209,21 +209,21 @@
     margin-bottom: 14px;
 }
 
-/* Meta list — editorial stacked layout: label (muted, small) above value (large, bold) */
+/* Meta list — two-column row layout: label (left, fixed) | value (right, flex:1) */
 .ex-meta-list {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
 }
 .ex-meta-row {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     flex-shrink: 0;
-    gap: 2px;
 }
 .ex-meta-lbl {
+    flex: 0 0 80px;
     font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
     font-size: 9px;
     font-weight: 700;
@@ -231,17 +231,17 @@
     text-transform: uppercase;
     color: var(--ex-text-muted);
     white-space: nowrap;
-    line-height: 1;
 }
 .ex-meta-val {
+    flex: 1;
     font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 800;
     color: var(--ex-text-strong);
+    text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.1;
 }
 
 /* Spacer — breathing room between meta and pos labels.
