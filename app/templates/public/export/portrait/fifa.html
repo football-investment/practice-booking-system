@@ -21,7 +21,7 @@
 
 {% block platform_vars %}
 :root {
-    --ex-split-hero-h: 660px;
+    --ex-split-hero-h: {{ '580px' if sponsor_logo_url else '660px' }};
     --ex-photo-w:      560px;
     --ex-bar-h:        5px;
     --ex-row-max-h:    32px;
@@ -381,6 +381,24 @@
 }
 .ex-photo-name { animation: ex-name-in 0.5s 0.1s ease-out both; }
 {% endif %}
+
+/* ── SPONSOR LOGO BAR ─────────────────────────────────────────── */
+/* Visible only when sponsor_logo_url is set; hero shrinks 660→580px to compensate. */
+.ex-logo-bar {
+    flex: 0 0 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ex-body-bg);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+.ex-logo-bar-img {
+    max-height: 48px;
+    max-width: 280px;
+    object-fit: contain;
+    opacity: 0.85;
+}
 {% endblock %}
 
 {% block body_content %}
@@ -622,6 +640,13 @@
         </div>
     </div>
     {% endif %}{# skill_categories|length >= 4 #}
+
+    {# ── SPONSOR LOGO BAR: bottom-center, only when a logo is uploaded ── #}
+    {% if sponsor_logo_url %}
+    <div class="ex-logo-bar">
+        <img class="ex-logo-bar-img" src="{{ sponsor_logo_url }}" alt="Sponsor">
+    </div>
+    {% endif %}
 
 </div>
 {% endblock %}
