@@ -58,6 +58,7 @@ from .tournament_instructor_slot import TournamentInstructorSlot, SlotRole, Slot
 from .card_draft import CardDraft
 from .card_theme import CardTheme
 from .card_design import CardDesign
+from .virtual_training import VirtualTrainingGame, VirtualTrainingAttempt
 
 # 🎓 New Track-Based Modular Education System
 from .track import Track, Module, ModuleComponent
@@ -226,4 +227,7 @@ __all__ = [
     "CardDraft",
     "CardTheme",
     "CardDesign",
+    # Virtual Training
+    "VirtualTrainingGame",
+    "VirtualTrainingAttempt",
 ]
