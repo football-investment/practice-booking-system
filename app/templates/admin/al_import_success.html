@@ -1,0 +1,68 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Import Complete{% endblock %}
+{% block page_heading %}✅ Import Complete{% endblock %}
+{% block page_subtitle %}Spec: {{ spec }} &bull; Log #{{ log_id }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .card-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.5rem; margin-bottom: 1.25rem; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem 1.25rem; }
+    .stat-card .label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #166534; margin-bottom: 0.3rem; }
+    .stat-card .value { font-size: 2rem; font-weight: 800; color: #14532d; }
+    .error-list { background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem; color: #c53030; }
+    .error-list li { margin-bottom: 0.4rem; }
+    .btn-primary { background: #5a4a9a; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-outline { background: white; color: #5a4a9a; border: 1px solid #5a4a9a; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">Quizzes Created</div>
+        <div class="value">{{ summary.quizzes_created }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Questions Created</div>
+        <div class="value">{{ summary.questions_created }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">FIXED Options</div>
+        <div class="value">{{ summary.options_fixed }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Variant Options</div>
+        <div class="value">{{ summary.options_variant }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Distractors</div>
+        <div class="value">{{ summary.options_distractor }}</div>
+    </div>
+    {% if summary.skipped %}
+    <div class="stat-card" style="background:#f9f9f9; border-color:#e2e8f0;">
+        <div class="label" style="color:#718096;">Skipped</div>
+        <div class="value" style="color:#6b7280;">{{ summary.skipped }}</div>
+    </div>
+    {% endif %}
+</div>
+
+{% if summary.errors %}
+<div class="card-wrap">
+    <h2 style="font-size:1rem; font-weight:700; color:#c53030; margin-bottom:0.75rem;">Errors ({{ summary.errors|length }})</h2>
+    <ul class="error-list">
+        {% for err in summary.errors %}
+        <li>{{ err }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="actions">
+    <a href="/admin/adaptive-learning/quizzes" class="btn-primary">Browse Quizzes</a>
+    <a href="/admin/adaptive-learning/import" class="btn-outline">Import More</a>
+    <a href="/admin/adaptive-learning/import/history" class="btn-outline">Import History</a>
+</div>
+{% endblock %}

@@ -1,7 +1,10 @@
-{% extends "public/export/shared/fifa_base.html" %}
+{% extends "public/export/shared/export_base.html" %}
+{%- from "macros/card_position_map.html" import position_map_landscape -%}
+{%- from "macros/card_sponsor_block.html" import sponsor_slot -%}
+{%- from "macros/card_ovr_badge.html"    import ovr_badge -%}
 {#
  * FIFA Classic × FB Landscape / OG / Facebook Post — export template
- * (Phase 3b-4: extends fifa_base.html)
+ * (Phase 3b-4: extends export_base.html)
  * Canvas  : 1200 × 630 px  (Playwright viewport, 1.91:1 ratio)
  * Covers  : facebook_landscape, og, facebook_post (all map to 'landscape' bucket)
  *
@@ -22,7 +25,6 @@
 
 {% block platform_vars %}
 :root {
-    --ex-card-direction: row;
     --ex-sname-w:        80px;
     --ex-font-skill:     9px;
     --ex-bar-h:          4px;
@@ -92,7 +94,7 @@
 .ex-pos-corner {
     position: absolute;
     top: 8px; left: 8px;
-    font-size: 7px;
+    font-size: 11px;
     font-weight: 800;
     color: white;
     padding: 2px 7px;
@@ -129,17 +131,7 @@
     letter-spacing: -0.04em;
 }
 
-/* OVR number — 3.8rem, glow */
-.ex-ovr-num {
-    font-size: 3.8rem;
-    font-weight: 900;
-    line-height: 1;
-    color: white;
-    letter-spacing: -0.03em;
-    position: relative;
-    z-index: 1;
-    text-shadow: 0 0 24px var(--ex-accent);
-}
+/* ex-ovr-num removed — replaced by card_ovr_badge macro (size=80, dark=true) */
 
 /* Tier badge */
 .ex-tier-badge {
@@ -330,11 +322,106 @@
 
 /* Override base .ex-bar-fill: 3px radius (base: 4px) */
 .ex-bar-fill { border-radius: 3px; }
+
+/* ── COLUMN LAYOUT — cols-row wraps three panels; PosMap is a full-width footer ─ */
+.ex-card { flex-direction: column; }
+.ex-cols-row {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+}
+
+/* ── POSITION MAP — compact 130px footer strip (no info column) ──────────────── */
+.ex-pos-panel-landscape {
+    flex: 0 0 130px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+    background: rgba(26, 92, 42, 0.55);
+    position: relative;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.ex-pos-compact-label {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    font-weight: 800;
+    color: #ECC94B;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.60);
+    z-index: 1;
+    pointer-events: none;
+}
+.ex-pos-svg-landscape {
+    flex: 1;
+    min-width: 0;
+    display: block;
+    align-self: stretch;
+}
+
+/* ── SPONSOR ZONE — compact bar at bottom of center panel ────────────────────── */
+.ex-ls-sponsor {
+    flex-shrink: 0;
+    height: 36px;
+    border-top: 1px solid rgba(0,0,0,0.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+}
+.ex-ls-sponsor-img {
+    max-height: 26px;
+    max-width: 70%;
+    object-fit: contain;
+    opacity: 0.75;
+}
+
+{% if animated_mode %}
+@keyframes ex-ovr-in {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.ex-ovr-badge  { animation: ex-ovr-in 0.5s cubic-bezier(.34,1.56,.64,1) forwards; }
+.ex-tier-badge { opacity: 0; animation: ex-ovr-in 0.4s 0.4s ease-out forwards; }
+
+@keyframes ex-bar-in { from { width: 0%; } }
+.ex-bar-fill { animation: ex-bar-in 0.8s ease-out forwards; }
+.ex-row:nth-child(1)  .ex-bar-fill { animation-delay: 0.30s; }
+.ex-row:nth-child(2)  .ex-bar-fill { animation-delay: 0.35s; }
+.ex-row:nth-child(3)  .ex-bar-fill { animation-delay: 0.40s; }
+.ex-row:nth-child(4)  .ex-bar-fill { animation-delay: 0.45s; }
+.ex-row:nth-child(5)  .ex-bar-fill { animation-delay: 0.50s; }
+.ex-row:nth-child(6)  .ex-bar-fill { animation-delay: 0.55s; }
+.ex-row:nth-child(7)  .ex-bar-fill { animation-delay: 0.60s; }
+.ex-row:nth-child(8)  .ex-bar-fill { animation-delay: 0.65s; }
+
+@keyframes ex-cat-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.ex-cat { opacity: 0; animation: ex-cat-in 0.4s ease-out forwards; }
+.ex-cat:nth-child(1) { animation-delay: 0.15s; }
+.ex-cat:nth-child(2) { animation-delay: 0.25s; }
+.ex-cat:nth-child(3) { animation-delay: 0.35s; }
+.ex-cat:nth-child(4) { animation-delay: 0.45s; }
+
+/* Landscape: glow on the photo zone (no .ex-hero on this layout) */
+@keyframes ex-photo-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(102,126,234,0); }
+    50%       { box-shadow: 0 0 48px 8px rgba(102,126,234,0.12); }
+}
+.ex-photo-zone { animation: ex-photo-glow 3s ease-in-out infinite; }
+{% endif %}
 {% endblock %}
 
 {% block body_content %}
 {% from "macros/card_skill_row.html" import export_skill_rows %}
 <div class="ex-card">
+<div class="ex-cols-row">
 
     <!-- ── LEFT PANEL — photo zone (58%) + OVR zone (42%) ────────────────── -->
     <div class="ex-left">
@@ -358,7 +445,7 @@
         <!-- OVR zone — bottom 42% -->
         <div class="ex-ovr-zone">
             <div class="ex-ovr-watermark">{{ overall | round(0) | int }}</div>
-            <div class="ex-ovr-num">{{ overall | round(0) | int }}</div>
+            {{ ovr_badge(overall | round(0) | int, size=80, dark=true) }}
             <span class="ex-tier-badge" style="background: {{ tier_color }};">{{ tier_label }}</span>
             {% if dominant_badge is defined and dominant_badge %}
             <span class="ex-dom-badge">
@@ -413,6 +500,18 @@
                 <span class="ex-profile-value">{{ player_gender }}</span>
             </div>
             {% endif %}
+            {% if player_height_cm %}
+            <div class="ex-profile-row">
+                <span class="ex-profile-label">Height</span>
+                <span class="ex-profile-value">{{ player_height_cm }} cm</span>
+            </div>
+            {% endif %}
+            {% if player_weight_kg %}
+            <div class="ex-profile-row">
+                <span class="ex-profile-label">Weight</span>
+                <span class="ex-profile-value">{{ player_weight_kg }} kg</span>
+            </div>
+            {% endif %}
             {% if player_location %}
             <div class="ex-profile-row">
                 <span class="ex-profile-label">Location</span>
@@ -449,6 +548,12 @@
 
         </div>
 
+        {% if sponsor_logo_url %}
+        <div class="ex-ls-sponsor">
+            <img src="{{ sponsor_logo_url }}" alt="Sponsor" class="ex-ls-sponsor-img">
+        </div>
+        {% endif %}
+
     </div>
 
     <!-- ── SKILLS PANEL — 2×2 grid, ALL skills ───────────────────────────── -->
@@ -465,12 +570,18 @@
                     {{ cat.emoji }} {{ cat.name_en }}
                     <span class="ex-cat-avg">{{ cat_avg }}</span>
                 </div>
-                {{ export_skill_rows(cat, player.skills, last_skill_delta, neutral_bar='rgba(255,255,255,0.18)', neutral_val='rgba(255,255,255,0.80)') }}
+                {{ export_skill_rows(cat, player.skills, last_skill_delta, neutral_bar='var(--ex-cat-color-' ~ loop.index0 ~ ')', neutral_val='rgba(255,255,255,0.80)') }}
             </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
 
-</div>
+</div><!-- /.ex-cols-row -->
+
+    <!-- ── POSITION MAP — compact 130px full-width footer ────────────────── -->
+    {{ position_map_landscape(position_nodes, primary_pos_label, secondary_pos_labels,
+                              player_position=player.position, show_info_col=False) }}
+
+</div><!-- /.ex-card -->
 {% endblock %}

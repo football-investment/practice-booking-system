@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ...database import get_db
 from ...dependencies import get_current_user_web
-from ...models.quiz import AdaptiveLearningSession, Quiz, QuizAnswerOption, QuizCategory, QuizQuestion, QuestionMetadata
+from ...models.quiz import AdaptiveLearningSession, ALAnswerLog, ContentStatus, Quiz, QuizAnswerOption, QuizCategory, QuizQuestion, QuestionMetadata
 from ...models.user import User
 from ...models.xp_transaction import XPTransaction
 from ...services.adaptive_learning import AdaptiveLearningService
@@ -99,7 +99,7 @@ async def adaptive_learning_session_page(
         db.query(Quiz.category)
         .join(QuizQuestion, QuizQuestion.quiz_id == Quiz.id)
         .join(QuestionMetadata, QuestionMetadata.question_id == QuizQuestion.id)
-        .filter(Quiz.is_active == True, Quiz.language == language)
+        .filter(Quiz.content_status == ContentStatus.PUBLISHED.value, Quiz.language == language)
         .group_by(Quiz.category)
         .having(func.count(QuizQuestion.id) >= MIN_QUESTIONS_PER_CATEGORY)
         .all()
@@ -150,7 +150,7 @@ async def al_available_categories(
         db.query(Quiz.category, func.count(QuizQuestion.id).label("q_count"))
         .join(QuizQuestion, QuizQuestion.quiz_id == Quiz.id)
         .filter(
-            Quiz.is_active == True,
+            Quiz.content_status == ContentStatus.PUBLISHED.value,
             Quiz.language == language,
             Quiz.title.like("AL — % - %"),
             *_module_exclusion_filters(),
@@ -206,7 +206,7 @@ async def al_modules(
         db.query(prefix_expr.label("module_prefix"), func.count(QuizQuestion.id).label("q_count"))
         .join(QuizQuestion, QuizQuestion.quiz_id == Quiz.id)
         .filter(
-            Quiz.is_active == True,
+            Quiz.content_status == ContentStatus.PUBLISHED.value,
             Quiz.language == language,
             Quiz.category == quiz_category,
             Quiz.title.like("AL — % - %"),
@@ -315,7 +315,7 @@ async def al_session_start(
         .filter(
             Quiz.category == quiz_category,
             Quiz.language == language,
-            Quiz.is_active == True,
+            Quiz.content_status == ContentStatus.PUBLISHED.value,
             Quiz.title.like(f"{module_prefix} -%"),
             *_module_exclusion_filters(),
         )
@@ -482,6 +482,7 @@ async def al_session_answer(
     selected_option_id: int = body.get("selected_option_id")
     time_spent: float = float(body.get("time_spent_seconds", 30.0))
     timed_out: bool = bool(body.get("timed_out", False))
+    presented_option_ids: list = body.get("presented_option_ids") or []
 
     if not question_id:
         return JSONResponse({"error": "question_id required"}, status_code=422)
@@ -534,6 +535,30 @@ async def al_session_answer(
         is_correct=is_correct,
         time_spent_seconds=time_spent,
     )
+
+    # Audit log — never block the answer response on a log failure
+    try:
+        correct_pos = None
+        if presented_option_ids and correct_option:
+            try:
+                correct_pos = presented_option_ids.index(correct_option.id)
+            except ValueError:
+                correct_pos = None
+        db.add(ALAnswerLog(
+            session_id=session_id,
+            user_id=user.id,
+            question_id=question_id,
+            selected_option_id=selected_option_id if not timed_out else None,
+            correct_option_id=correct_option.id if correct_option else None,
+            is_correct=is_correct,
+            timed_out=timed_out,
+            presented_option_ids=presented_option_ids if presented_option_ids else None,
+            correct_option_position=correct_pos,
+            time_spent_seconds=time_spent,
+        ))
+        db.commit()
+    except Exception:
+        pass
 
     return JSONResponse({
         "correct": is_correct,

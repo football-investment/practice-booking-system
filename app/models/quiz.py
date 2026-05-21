@@ -1,8 +1,15 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, Float, UniqueConstraint
+from sqlalchemy import Column, Integer, SmallInteger, String, Text, Boolean, DateTime, ForeignKey, Enum as SQLEnum, Float, UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from app.database import Base
+
+class OptionType(enum.Enum):
+    FIXED           = "FIXED"            # legacy — all 375 existing options
+    CORRECT_VARIANT = "CORRECT_VARIANT"  # one of several correct phrasings
+    DISTRACTOR      = "DISTRACTOR"       # pool of wrong answers to sample from
+
 
 class QuestionType(enum.Enum):
     MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
@@ -28,19 +35,30 @@ class QuizDifficulty(enum.Enum):
     MEDIUM = "MEDIUM"
     HARD = "HARD"
 
+
+class ContentStatus(enum.Enum):
+    DRAFT     = "DRAFT"      # being edited; hidden from students
+    PUBLISHED = "PUBLISHED"  # live; served by the runtime AL engine
+    ARCHIVED  = "ARCHIVED"   # retired; never shown again
+
+
 class Quiz(Base):
     __tablename__ = "quizzes"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     category = Column(SQLEnum(QuizCategory), nullable=False)
     difficulty = Column(SQLEnum(QuizDifficulty), nullable=False, default=QuizDifficulty.MEDIUM)
-    time_limit_minutes = Column(Integer, nullable=False, default=15)  # időkorlát percekben
-    xp_reward = Column(Integer, nullable=False, default=50)  # XP jutalom sikeres kitöltésért
-    passing_score = Column(Float, nullable=False, default=70.0)  # minimum pont százalékban
+    time_limit_minutes = Column(Integer, nullable=False, default=15)
+    xp_reward = Column(Integer, nullable=False, default=50)
+    passing_score = Column(Float, nullable=False, default=70.0)
     language = Column(String(10), nullable=False, default='en')
+    # Legacy flag — kept for backward compatibility; always synced with content_status:
+    #   PUBLISHED → is_active=True,  DRAFT/ARCHIVED → is_active=False
     is_active = Column(Boolean, default=True)
+    # Authoritative lifecycle state (migration 2026_05_20_1300)
+    content_status = Column(String(20), nullable=False, default=ContentStatus.PUBLISHED.value)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -72,7 +90,8 @@ class QuizAnswerOption(Base):
     question_id = Column(Integer, ForeignKey("quiz_questions.id"), nullable=False)
     option_text = Column(String(500), nullable=False)
     is_correct = Column(Boolean, nullable=False, default=False)
-    order_index = Column(Integer, nullable=False, default=0)  # válaszok sorrendje
+    order_index = Column(Integer, nullable=False, default=0)
+    option_type = Column(SQLEnum(OptionType, native_enum=False), nullable=False, default=OptionType.FIXED)
     
     # Relationships
     question = relationship("QuizQuestion", back_populates="answer_options")
@@ -226,3 +245,28 @@ class QuestionMetadata(Base):
     
     # Unique constraint
     __table_args__ = (UniqueConstraint('question_id', name='unique_question_metadata'),)
+
+
+class ALAnswerLog(Base):
+    """Per-question audit log for Adaptive Learning sessions.
+
+    Records exactly which option IDs were presented (and their display order),
+    which option the user selected, and the position of the correct answer —
+    enabling retrospective positional bias analysis.
+    """
+    __tablename__ = "adaptive_learning_answer_log"
+
+    id                     = Column(Integer, primary_key=True, autoincrement=True)
+    session_id             = Column(Integer, ForeignKey("adaptive_learning_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id                = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_id            = Column(Integer, ForeignKey("quiz_questions.id", ondelete="CASCADE"), nullable=False)
+    selected_option_id     = Column(Integer, ForeignKey("quiz_answer_options.id", ondelete="SET NULL"), nullable=True)
+    correct_option_id      = Column(Integer, ForeignKey("quiz_answer_options.id", ondelete="SET NULL"), nullable=True)
+    is_correct             = Column(Boolean, nullable=False)
+    timed_out              = Column(Boolean, nullable=False, default=False)
+    # [id_at_pos_0, id_at_pos_1, id_at_pos_2, id_at_pos_3] — presentation order
+    presented_option_ids   = Column(ARRAY(Integer), nullable=True)
+    # 0=A, 1=B, 2=C, 3=D — derived from presented_option_ids.index(correct_option_id)
+    correct_option_position = Column(SmallInteger, nullable=True)
+    time_spent_seconds     = Column(Float, nullable=True)
+    answered_at            = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

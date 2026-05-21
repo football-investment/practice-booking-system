@@ -1,0 +1,70 @@
+{#
+ * card_ovr_badge.html — Shared OVR circular badge macro
+ * ======================================================
+ * Used by all 7 FIFA Classic export templates (portrait, story, square,
+ * landscape, tiktok, banner, og).
+ *
+ * Parameters:
+ *   ovr   (int)          — Overall Rating value (0–100)
+ *   size  (int, =80)     — Badge diameter in pixels
+ *   dark  (bool, =false) — Colour mode:
+ *                          dark=true  → dark panel bg + gold text  (info panel, overlays)
+ *                          dark=false → gold bg + dark text        (standalone badge)
+ *
+ * Dependencies (resolved from export_base.html :root):
+ *   --ex-accent      → gold colour (#f5c518 in default theme)
+ *   --ex-panel-bg    → dark panel background
+ *   --ex-font-display → Bebas Neue (OVR number)
+ *   --ex-font-ui      → Barlow Condensed 700 ("OVR" label)
+ *
+ * All sizing is proportional to `size` — computed via Jinja2 math.
+ * No external CSS class dependency: badge is self-contained via inline styles.
+ #}
+{% macro ovr_badge(ovr, size=80, dark=false) %}
+{%- set num_fs   = (size * 0.42) | int -%}
+{%- set lbl_fs   = (size * 0.13) | int -%}
+{%- set border_w = [((size * 0.03) | int), 1] | max -%}
+{%- if dark -%}
+  {%- set bg_grad   = "radial-gradient(circle, #1a2a44, #0a1528)" -%}
+  {%- set border_cl = "rgba(245,197,24,0.33)" -%}
+  {%- set num_cl    = "var(--ex-accent, #f5c518)" -%}
+  {%- set lbl_cl    = "rgba(245,197,24,0.5)" -%}
+  {%- set glow      = "0 0 " ~ (size * 0.25 | int) ~ "px rgba(245,197,24,0.13)" -%}
+{%- else -%}
+  {%- set bg_grad   = "radial-gradient(circle, rgba(245,197,24,0.8), rgba(212,148,0,0.53))" -%}
+  {%- set border_cl = "var(--ex-accent, #f5c518)" -%}
+  {%- set num_cl    = "#0a0f18" -%}
+  {%- set lbl_cl    = "rgba(10,15,24,0.53)" -%}
+  {%- set glow      = "0 0 " ~ (size * 0.3 | int) ~ "px rgba(245,197,24,0.4)" -%}
+{%- endif -%}
+<div class="ex-ovr-badge" style="
+    width: {{ size }}px;
+    height: {{ size }}px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: {{ bg_grad }};
+    border: {{ border_w }}px solid {{ border_cl }};
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: {{ glow }};
+">
+    <span style="
+        font-family: var(--ex-font-display, 'Bebas Neue', sans-serif);
+        font-size: {{ num_fs }}px;
+        color: {{ num_cl }};
+        line-height: 1;
+        letter-spacing: 0.01em;
+    ">{{ ovr }}</span>
+    <span style="
+        font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+        font-size: {{ lbl_fs }}px;
+        font-weight: 700;
+        color: {{ lbl_cl }};
+        letter-spacing: 0.10em;
+        line-height: 1;
+        text-transform: uppercase;
+    ">OVR</span>
+</div>
+{% endmacro %}

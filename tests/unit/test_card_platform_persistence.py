@@ -334,7 +334,7 @@ class TestPublicCardPlatformResolution:
 
 _APP_PORT = int(os.getenv("APP_INTERNAL_PORT", "8000"))
 _BASE_URL  = f"http://127.0.0.1:{_APP_PORT}"
-_TEST_UID  = 7   # user whose card is publicly readable in the dev DB
+_TEST_UID  = 19310   # Rafael Cardoso — seeded dev user with portrait photo + valid card
 
 
 def _playwright_available() -> bool:
@@ -401,29 +401,28 @@ class TestPlatformPersistencePlaywright:
     def test_pp06_url_param_overrides_saved_platform(self):
         """
         Explicit ?platform=og must override any saved platform.
-        (og has no dedicated export template yet — falls back to editor template)
+        og now has a dedicated export template — .ex-card must be present.
         """
         page = self._page({"width": 1200, "height": 630})
         page.goto(
-            f"{_BASE_URL}/players/{_TEST_UID}/card?platform=og",
+            f"{_BASE_URL}/players/{_TEST_UID}/card?platform=og&export=1",
             wait_until="networkidle",
         )
-        # og has no export template → editor template renders
-        body_class = page.evaluate("() => document.body.className")
-        assert "platform-og" in body_class, \
-            "body must carry platform-og CSS class when ?platform=og is set"
+        assert page.query_selector(".ex-card") is not None, \
+            "OG export template (.ex-card) must be present when ?platform=og is set"
         page.close()
 
-    def test_pp07_default_renders_editor_template(self):
+    def test_pp07_no_param_renders_public_profile(self):
         """
-        /players/{uid}/card with no params and no saved platform must show
-        the editor template (card-wrap present, no ex-card).
+        /players/{uid}/card with no params must render the public profile page —
+        single card iframe (pcp-card-wrap present) with no download buttons or platform picker.
         """
         page = self._page({"width": 1200, "height": 900})
         page.goto(f"{_BASE_URL}/players/{_TEST_UID}/card", wait_until="networkidle")
-        # Only valid when no platform saved in DB — tests the fallback path
-        has_card_wrap = page.query_selector(".card-wrap") is not None
-        has_ex_card   = page.query_selector(".ex-card") is not None
-        # One or the other must be present (card renders at all)
-        assert has_card_wrap or has_ex_card, "Card must render in some form"
+        has_card_wrap      = page.query_selector(".pcp-card-wrap") is not None
+        has_dl_btn         = page.query_selector(".pcg-dl-btn") is not None
+        has_platform_picker = page.query_selector(".pcg-platform-card") is not None
+        assert has_card_wrap, "Public profile must render the single card iframe wrap (pcp-card-wrap)"
+        assert not has_dl_btn, "Public profile must NOT render download buttons (pcg-dl-btn)"
+        assert not has_platform_picker, "Public profile must NOT render platform picker cards (pcg-platform-card)"
         page.close()

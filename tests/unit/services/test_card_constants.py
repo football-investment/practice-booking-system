@@ -62,7 +62,7 @@ def test_cc03_export_format_buckets_keys_match_canvas_sizes():
 
 
 def test_cc04_export_format_buckets_value_set():
-    expected_buckets = {"square", "portrait", "story", "tiktok", "landscape", "banner"}
+    expected_buckets = {"square", "portrait", "story", "tiktok", "landscape", "og", "banner"}
     actual_buckets = set(EXPORT_FORMAT_BUCKETS.values())
     assert actual_buckets == expected_buckets, (
         f"Unexpected bucket values: {actual_buckets - expected_buckets}. "

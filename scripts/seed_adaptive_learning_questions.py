@@ -18,21 +18,25 @@ Idempotency: Quiz rows are matched by quiz_title. Existing quizzes are skipped i
 import argparse
 import json
 import sys
-import os
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.database import SessionLocal
-from app.models.quiz import (
-    Quiz,
-    QuizCategory,
-    QuizDifficulty,
-    QuizQuestion,
-    QuizAnswerOption,
-    QuestionMetadata,
-    QuestionType,
+from app.models.quiz import Quiz
+
+# Re-export service symbols so that tests that import from this script still work.
+from app.services.al_import_service import (  # noqa: F401
+    SPECIALIZATION_CATEGORY_ALLOWLIST,
+    VALID_SCHEMA_VERSIONS,
+    ValidationError,
+    _validate_file,
+    _validate_question,
+    _validate_question_v2,
+    _seed_options_v1,
+    _seed_options_v2,
+    _seed_quiz,
 )
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -44,116 +48,6 @@ SPEC_FOLDER_MAP: dict[str, str] = {
     "LFA_FOOTBALL_PLAYER": "lfa_football_player",
     "LFA_FOOTBALL_COACH": "lfa_football_coach",
 }
-
-# Valid categories per specialization (gate 2 category check)
-SPECIALIZATION_CATEGORY_ALLOWLIST: dict[str, set[str]] = {
-    "LFA_FOOTBALL_PLAYER": {
-        "GENERAL", "LESSON", "SPORTS_PHYSIOLOGY", "NUTRITION",
-        "MARKETING", "ECONOMICS", "INFORMATICS",
-    },
-    "LFA_FOOTBALL_COACH": {
-        "GENERAL", "LESSON", "SPORTS_PHYSIOLOGY", "NUTRITION",
-    },
-}
-
-VALID_SCHEMA_VERSIONS = {"1.0"}
-
-
-# ── Validation ────────────────────────────────────────────────────────────────
-
-class ValidationError(Exception):
-    pass
-
-
-def _validate_file(data: dict[str, Any], path: Path, spec: str) -> None:
-    """Raise ValidationError if the file fails schema validation."""
-    sv = data.get("schema_version")
-    if sv not in VALID_SCHEMA_VERSIONS:
-        raise ValidationError(f"Unknown schema_version: {sv!r}")
-
-    if spec not in data.get("specializations", []):
-        raise ValidationError(f"Specialization {spec!r} not in specializations field")
-
-    category_str = data.get("category", "")
-    if category_str not in SPECIALIZATION_CATEGORY_ALLOWLIST.get(spec, set()):
-        raise ValidationError(
-            f"Category {category_str!r} not in allowlist for {spec}"
-        )
-
-    try:
-        QuizCategory[category_str]
-    except KeyError:
-        raise ValidationError(f"Unknown QuizCategory value: {category_str!r}")
-
-    difficulty_str = data.get("difficulty", "")
-    try:
-        QuizDifficulty[difficulty_str]
-    except KeyError:
-        raise ValidationError(f"Unknown QuizDifficulty value: {difficulty_str!r}")
-
-    if not data.get("quiz_title", "").strip():
-        raise ValidationError("quiz_title must be non-empty")
-
-    questions = data.get("questions")
-    if not isinstance(questions, list) or len(questions) == 0:
-        raise ValidationError("questions must be a non-empty list")
-
-    for i, q in enumerate(questions):
-        _validate_question(q, i)
-
-
-def _validate_question(q: dict[str, Any], idx: int) -> None:
-    prefix = f"questions[{idx}]"
-
-    if not q.get("text", "").strip():
-        raise ValidationError(f"{prefix}.text must be non-empty")
-
-    qtype_str = q.get("type", "")
-    try:
-        QuestionType[qtype_str]
-    except KeyError:
-        raise ValidationError(f"{prefix}.type unknown: {qtype_str!r}")
-
-    if not q.get("explanation", "").strip():
-        raise ValidationError(f"{prefix}.explanation must be non-empty")
-
-    options = q.get("options")
-    if not isinstance(options, list):
-        raise ValidationError(f"{prefix}.options must be a list")
-
-    if qtype_str == "TRUE_FALSE":
-        if len(options) != 2:
-            raise ValidationError(
-                f"{prefix} ({qtype_str}) must have exactly 2 options (got {len(options)})"
-            )
-    elif len(options) < 4:
-        raise ValidationError(
-            f"{prefix} ({qtype_str}) must have at least 4 options (got {len(options)})"
-        )
-
-    correct_count = sum(1 for o in options if o.get("is_correct"))
-    if correct_count != 1:
-        raise ValidationError(
-            f"{prefix} must have exactly 1 correct option (got {correct_count})"
-        )
-
-    for j, o in enumerate(options):
-        if not o.get("text", "").strip():
-            raise ValidationError(f"{prefix}.options[{j}].text must be non-empty")
-
-    meta = q.get("metadata")
-    if not isinstance(meta, dict):
-        raise ValidationError(f"{prefix}.metadata must be a dict")
-
-    for key in ("estimated_difficulty", "cognitive_load", "average_time_seconds"):
-        if key not in meta:
-            raise ValidationError(f"{prefix}.metadata.{key} is required")
-
-    diff = meta["estimated_difficulty"]
-    if not (0.0 <= diff <= 1.0):
-        raise ValidationError(
-            f"{prefix}.metadata.estimated_difficulty must be 0.0–1.0 (got {diff})"
-        )
 
 
 # ── File discovery ─────────────────────────────────────────────────────────────
@@ -191,57 +85,8 @@ def _seed_file(db, data: dict[str, Any], path: Path, dry_run: bool) -> dict[str,
     if dry_run:
         return {"dry_run_would_create": 1, "questions": len(data["questions"])}
 
-    category = QuizCategory[data["category"]]
-    difficulty = QuizDifficulty[data["difficulty"]]
-
-    quiz = Quiz(
-        title=quiz_title,
-        description=f"{data.get('topic', '')} — {data.get('module', '')}",
-        category=category,
-        difficulty=difficulty,
-        language=data.get("language", "en"),
-        time_limit_minutes=20,
-        xp_reward=50,
-        passing_score=70.0,
-        is_active=True,
-    )
-    db.add(quiz)
-    db.flush()  # get quiz.id
-
-    questions = data["questions"]
-    for order_idx, q_data in enumerate(questions):
-        question = QuizQuestion(
-            quiz_id=quiz.id,
-            question_text=q_data["text"].strip(),
-            question_type=QuestionType[q_data["type"]],
-            points=q_data.get("points", 1),
-            order_index=order_idx,
-            explanation=q_data["explanation"].strip(),
-        )
-        db.add(question)
-        db.flush()  # get question.id
-
-        for opt_idx, opt in enumerate(q_data["options"]):
-            db.add(QuizAnswerOption(
-                question_id=question.id,
-                option_text=opt["text"].strip(),
-                is_correct=bool(opt["is_correct"]),
-                order_index=opt_idx,
-            ))
-
-        meta = q_data["metadata"]
-        tags = meta.get("concept_tags", [])
-        db.add(QuestionMetadata(
-            question_id=question.id,
-            estimated_difficulty=meta["estimated_difficulty"],
-            cognitive_load=meta["cognitive_load"],
-            concept_tags=json.dumps(tags) if isinstance(tags, list) else tags,
-            average_time_seconds=meta["average_time_seconds"],
-            global_success_rate=None,
-        ))
-
-    db.commit()
-    return {"quizzes": 1, "questions": len(questions)}
+    counts = _seed_quiz(db, data)
+    return {"quizzes": counts["quizzes"], "questions": counts["questions"]}
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -308,7 +153,7 @@ def main() -> None:
                 continue
 
         try:
-            _validate_file(data, path, spec)
+            _validate_file(data, spec)
         except ValidationError as e:
             print(f"  [ERROR] {path.relative_to(CONTENT_ROOT)} — {e}")
             error_count += 1

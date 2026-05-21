@@ -7,18 +7,10 @@
  #}
 
 {% block extra_styles %}
-/* ── FIFA lavender right-panel defaults (overrides base :root #ffffff) ────── */
+/* ── FIFA lavender right-panel (all themes) ──────────────────────────────── */
+/* Base :root default is #ffffff; this overrides to the lavender identity panel.
+   No .theme-* class selectors needed — base now injects theme vars via :root. */
 :root {
-    --card-right-bg:    #eef2ff;
-    --card-pill-bg:     #dde4ff;
-    --card-pill-border: #c7d2fe;
-}
-/* Dark themes would otherwise override right-panel tokens via base .theme-* classes;
-   reset them to lavender so FIFA card always shows the accent-aligned right panel. */
-.theme-midnight,
-.theme-gold,
-.theme-emerald,
-.theme-crimson {
     --card-right-bg:    #eef2ff;
     --card-pill-bg:     #dde4ff;
     --card-pill-border: #c7d2fe;
@@ -34,6 +26,10 @@
     border-radius: 14px; overflow: hidden;
     box-shadow: 0 12px 48px rgba(0,0,0,0.55);
     border: 1px solid rgba(255,255,255,0.06);
+    /* Single source of truth for the photo column width.
+       Both .fifa-header and .card-body reference this token so they
+       always stay in sync regardless of viewport or render mode. */
+    --photo-col-w: 170px;
 }
 
 /* ── Default/native export: card fills width at natural height ─────────────
@@ -58,7 +54,7 @@ body.export-mode .card-body { display: grid !important; }
 /* ── Split header ─────────────────────────────────────────── */
 .fifa-header {
     display: grid;
-    grid-template-columns: 170px 1fr;
+    grid-template-columns: var(--photo-col-w) 1fr;
 }
 .fifa-left {
     position: relative; overflow: hidden;
@@ -135,15 +131,20 @@ div.fifa-avatar {
     opacity: 0.75;
 }
 
-/* ── Card body: skills (left ~60%) + position panel (right ~40%) ── */
+/* ── Card body: spacer (--photo-col-w) | skills (~60%) | position panel (~40%) ── */
 .card-body {
     display: grid;
-    grid-template-columns: 3fr 2fr;
+    grid-template-columns: var(--photo-col-w) 3fr 2fr;
     background: var(--card-body-bg);
     min-height: 0;
 }
+/* Empty first column — width tracks --photo-col-w so Outfield left edge always
+   aligns with the header photo right edge in every render context. */
+.card-body-photo-spacer {
+    background: var(--card-body-bg);
+}
 .skills-panel {
-    padding: 1rem;
+    padding: 1rem 1rem 1rem 0;
     min-width: 0;
 }
 .skills-title {
@@ -242,6 +243,12 @@ div.fifa-avatar {
 .ev-skill-pill.dn { background: rgba(252,129,129,0.15); color: #feb2b2; }
 .ev-empty { text-align: center; color: var(--card-text-faint); font-size: 0.8rem; padding: 2rem 0; }
 
+/* ── Export-mode: sync photo column width ────────────────────────────────
+   In export-mode the base template sets --ex-photo-w (viewport-relative).
+   Overriding --photo-col-w here cascades to BOTH .fifa-header and .card-body
+   so the header photo column and the body spacer always stay in sync. */
+body.export-mode .card-wrap { --photo-col-w: var(--ex-photo-w); }
+
 /* ── Responsive ─────────────────────────────────────────────
    Breakpoints:
    < 560px : tablet/large phone — stack card-body, 2-col skills, smaller left
@@ -256,6 +263,7 @@ div.fifa-avatar {
     .fifa-name { font-size: 1.2rem; }
     .identity-grid { grid-template-columns: 1fr 1fr; }
     .card-body { grid-template-columns: 1fr; }
+    .card-body-photo-spacer { display: none; }
     .position-panel { order: -1; }
     .skill-name { white-space: normal; overflow-wrap: break-word; overflow: visible; text-overflow: clip; }
     .skills-panel { padding: 0.9rem; }
@@ -310,12 +318,47 @@ body.export-mode.platform-banner-custom .fifa-name    { font-size: var(--ex-font
 body.export-mode.platform-banner-custom {
     --ex-photo-w: clamp(150px, 17vw, 300px);
 }
-body.export-mode .fifa-header   { grid-template-columns: var(--ex-photo-w) 1fr; }
+/* grid-template-columns for .fifa-header is now driven by --photo-col-w
+   (set from --ex-photo-w via body.export-mode .card-wrap above) — no
+   separate header rule needed. */
 body.export-mode .fifa-overall  { font-size: var(--ex-font-ovr); }
 body.export-mode .fifa-name     { font-size: var(--ex-font-name); }
 body.export-mode .skill-name,
 body.export-mode .skill-val     { font-size: var(--ex-font-skill); }
 body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !important; }
+
+/* ── Landscape / banner: body is beside the header (flex row), not below it.
+   The photo-spacer concept doesn't apply — hide it and restore skills padding. ── */
+body.export-mode.platform-facebook-landscape .card-body-photo-spacer,
+body.export-mode.platform-og .card-body-photo-spacer,
+body.export-mode.platform-banner-custom .card-body-photo-spacer { display: none; }
+body.export-mode.platform-facebook-landscape .skills-panel,
+body.export-mode.platform-og .skills-panel { padding-left: 1rem; }
+
+/* ── Browser preview entrance animations ─────────────────────────────────────
+   Always-on: this template is only used for the editor browser preview.
+   Playwright export always targets the dedicated export/*/fifa.html templates.
+   Uses pc- prefix to avoid collision with the export templates' ex- classes.
+   ─────────────────────────────────────────────────────────────────────────── */
+@keyframes pc-ovr-in {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.fifa-overall { animation: pc-ovr-in 0.5s cubic-bezier(.34,1.56,.64,1) forwards; }
+
+@keyframes pc-cat-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.skill-cat { opacity: 0; animation: pc-cat-in 0.4s ease-out forwards; }
+.skill-cat:nth-child(1) { animation-delay: 0.15s; }
+.skill-cat:nth-child(2) { animation-delay: 0.25s; }
+
+@keyframes pc-hero-glow {
+    0%, 100% { box-shadow: inset 0 0 0 0 rgba(102,126,234,0); }
+    50%       { box-shadow: inset 0 0 48px 6px rgba(102,126,234,0.08); }
+}
+.fifa-left { animation: pc-hero-glow 3s ease-in-out infinite; }
 {% endblock %}
 
 {% block extra_body_classes %}{% if native_export_mode %} native-export-mode{% endif %}{% endblock %}
@@ -405,8 +448,11 @@ body.export-mode .skill-bar-bg  { flex: 1 1 0 !important; max-width: none !impor
         <button class="tab-btn"        id="btn-events" onclick="switchTab('events')">🏆 Events</button>
     </div>
 
-    <!-- Skills tab: split layout — skills (left ~60%) + position panel (right ~40%) -->
+    <!-- Skills tab: spacer (170px) | skills (~60%) | position panel (~40%) -->
     <div class="card-body" id="tab-skills">
+
+        <!-- Photo-column spacer: aligns Outfield left edge with header photo right edge -->
+        <div class="card-body-photo-spacer"></div>
 
         <!-- Left: skill categories -->
         <div class="skills-panel">

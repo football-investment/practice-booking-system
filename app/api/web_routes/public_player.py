@@ -46,6 +46,29 @@ _FALLBACK_TEMPLATE = "public/player_card.html"
 # Template path resolved as: public/export/{bucket}/{card_variant_id}.html
 # Falls back to existing editor template + export-mode class if no file found.
 from app.services.card_constants import EXPORT_FORMAT_BUCKETS as _EXPORT_FORMAT_BUCKETS
+from app.services.card_design_service import (
+    get_supported_buckets as _get_supported_buckets,
+    get_design as _get_design,
+)
+
+# CS-6 A-model: archetype_id → {bucket → driver filename}.
+# archetype_id identifies the driver family for component_config-backed exports only.
+# File-based exports (no component_config entry for that bucket) are unaffected.
+# Absence of archetype_id or unknown archetype → file-based Level C fallback.
+_ARCHETYPE_DRIVERS: dict[str, dict[str, str]] = {
+    "column": {
+        "portrait": "column_driver.html",
+        "story":    "column_driver.html",
+    },
+    "pulse": {
+        "square":   "pulse_driver.html",
+    },
+}
+
+# Buckets where a Level C file takes priority over the driver (PORT-v2 pattern).
+# Used when a design has a dedicated Level C template that supersedes the shared driver.
+# Add new buckets here as each platform gets its PORT-v2 implementation.
+_LEVEL_C_PRIORITY_BUCKETS: frozenset[str] = frozenset({"portrait", "story", "og"})
 
 
 @router.get("/players/{user_id}/card", response_class=HTMLResponse)
@@ -54,6 +77,7 @@ def public_player_card(
     user_id: int,
     preview: Optional[str] = Query(None),
     platform: Optional[str] = Query(None),
+    theme: Optional[str] = Query(None),
     export: Optional[bool] = Query(default=False),
     animated: Optional[bool] = Query(default=False),
     native_export: Optional[bool] = Query(default=False),
@@ -131,7 +155,7 @@ def public_player_card(
         get_pitch_display_nodes as _get_pitch_nodes,
         position_label as _position_label,
     )
-    position_nodes = _get_pitch_nodes(position if position != "Unknown" else "", player_positions)
+    position_nodes = _get_pitch_nodes(position, player_positions) if position != "Unknown" else []
     primary_pos_label = _position_label(position) if position != "Unknown" else None
     secondary_pos_labels = [_position_label(p) for p in player_positions if p != position]
 
@@ -162,6 +186,53 @@ def public_player_card(
     parts = (user.name or user.email).split()
     initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
 
+    # ── CardDraft (hoisted) ───────────────────────────────────────────────────
+    # Must be resolved before the early return so the public profile can read
+    # the authoritative published_platform from card_drafts (written by publish_draft).
+    # UserLicense.published_card_platform is kept as a legacy fallback for users
+    # who existed before the Phase 4D-1 migration (card_drafts row absent / platform NULL).
+    from app.services.card_draft_service import CardDraftService as _CardDraftService
+    _card_draft = _CardDraftService.get_player_card_draft(db, user_id=lfa_license.user_id)
+
+    # ── Public profile early return ───────────────────────────────────────────
+    # No ?platform= AND no &export=1 AND no ?preview= AND no ?native_export=1
+    # → human-browseable public link → render read-only profile page.
+    # Playwright always supplies one of: ?platform=…&export=1 OR ?native_export=1.
+    # ?preview= is the editor draft-variant parameter.
+    # All machine callers bypass this early return; only bare human-browseable URLs hit it.
+    if not platform and not export and not preview and not native_export:
+        from app.services.card_constants import CANVAS_SIZES as _CANVAS_SIZES_ALL
+        # Priority: CardDraft.published_platform (written by publish_draft())
+        #         > UserLicense.published_card_platform (legacy pre-4D-1 fallback).
+        # Sentinel guard: "default" has no canvas size and is not a real export platform.
+        _raw_pub_platform = _card_draft.published_platform or lfa_license.published_card_platform
+        _pub_platform = (
+            _raw_pub_platform
+            if (
+                _raw_pub_platform
+                and _raw_pub_platform != "default"
+                and _raw_pub_platform in _CANVAS_SIZES_ALL
+            )
+            else "instagram_portrait"
+        )
+        _pub_dims = _CANVAS_SIZES_ALL[_pub_platform]
+        return templates.TemplateResponse(request, "public/player_card_public.html", {
+            "player_name":       user.name or user.email,
+            "user_id":           user_id,
+            "player": {
+                "position":    position,
+                "nationality": user.nationality,
+            },
+            "overall":           overall,
+            "tier_label":        tier_label,
+            "tier_color":        tier_color,
+            "initials":          initials,
+            "public_platform":   _pub_platform,
+            "public_iframe_src": f"/players/{user_id}/card?platform={_pub_platform}&export=1",
+            "pub_card_w":        _pub_dims[0],
+            "pub_card_h":        _pub_dims[1],
+        })
+
     # Teams
     teams_info = []
     for tm in db.query(TeamMember).filter(TeamMember.user_id == user_id).all():
@@ -188,26 +259,35 @@ def public_player_card(
     # Reads the PUBLISHED snapshot from card_drafts (primary source after 4D-2).
     # Falls back to UserLicense.published_card_* for users who have never visited
     # the editor after the Phase 4D-1 migration (card_drafts row absent).
-    from app.services.card_theme_service import get_theme as _get_theme
-    from app.services.card_variant_service import get_variant as _get_variant, VARIANTS as _VARIANTS
-    from app.services.card_draft_service import CardDraftService as _CardDraftService
+    # _card_draft was already fetched above (hoisted for the public profile early return).
+    from app.services.card_theme_service import get_theme as _get_theme, get_all_themes as _get_all_themes
+    from app.services.card_variant_service import get_variant as _get_variant
 
-    _card_draft = _CardDraftService.get_player_card_draft(db, user_id=lfa_license.user_id)
     card_theme_id = (
         _card_draft.published_theme
         or lfa_license.published_card_theme
         or "default"
     )
-    theme = _get_theme(card_theme_id)  # falls back to "default" for unknown IDs
+    # Editor preview override: ?theme= reflects the draft theme for live preview.
+    # Mirrors the ?preview= pattern used for variants.
+    if theme:
+        _valid_ids = {t.id for t in _get_all_themes(db=db)}
+        if theme in _valid_ids:
+            card_theme_id = theme
+    theme = _get_theme(card_theme_id, db=db)  # falls back to "default" for unknown IDs
 
     # Variant: ?preview= overrides published value (preview only, not persisted).
+    # Validation uses _get_design(preview, db) so DB-backed manifest designs are
+    # accepted in addition to designs in the static DESIGNS fallback dict.
     card_variant_id = (
         _card_draft.published_variant
         or lfa_license.published_card_variant
         or "fifa"
     )
-    if preview and preview in _VARIANTS:
-        card_variant_id = preview
+    if preview:
+        _preview_def = _get_design(preview, db)
+        if _preview_def.id == preview:
+            card_variant_id = preview
     variant = _get_variant(card_variant_id)  # falls back to "fifa" for unknown IDs
 
     # Template selection: use variant.template if the file exists.
@@ -245,54 +325,38 @@ def public_player_card(
     platform_preset = _get_preset(effective_platform)
 
     # ── Export render layer ──────────────────────────────────────────────────
-    # Prefer a dedicated export template when one exists for this combination.
-    # Lookup key: public/export/{format_bucket}/{card_variant_id}.html
-    # No match → unchanged template_path → existing editor template + export-mode class.
-    if export and platform_preset.id in _EXPORT_FORMAT_BUCKETS:
+    # Routing priority (CS-4c + PORT-v2):
+    #   For buckets in _LEVEL_C_PRIORITY_BUCKETS (currently "portrait"):
+    #     1. File-based Level C wins if the file exists.
+    #     2. Driver routing fallback for manifest-only designs (no Level C file).
+    #   For all other buckets (original CS-4c priority):
+    #     1. Driver routing: design has component_config for this bucket AND bucket is
+    #        in _ARCHETYPE_DRIVERS → use shared/drivers/<driver>.html + inject config.
+    #     2. File-based Level C: public/export/{bucket}/{design_id}.html exists → use it.
+    #   3. Fallback: unchanged template_path (editor template + export-mode class).
+    # _driver_config is always populated when a config is available so that Level C
+    # templates can read component flags (show_position_map, skill_slice, etc.).
+    # Covers both export=True (Playwright PNG/video) and browser-preview (export=False).
+    # Semantic 422 validation (supported_export_buckets) happens at the export endpoint.
+    _driver_config = None
+    if platform_preset.id in _EXPORT_FORMAT_BUCKETS:
         _fmt = _EXPORT_FORMAT_BUCKETS[platform_preset.id]
-        _exp_tpl = f"public/export/{_fmt}/{card_variant_id}.html"
-        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _exp_tpl)):
-            template_path = _exp_tpl
-
-    # Landscape FIFA browser-preview: use the same standalone export template as PNG.
-    # Covers facebook_post, facebook_landscape, og — all map to the landscape bucket.
-    # Single source of truth — no separate preview template to avoid visual drift.
-    if not export and platform_preset.id in {"facebook_post", "facebook_landscape", "og"} and card_variant_id == "fifa":
-        _fb_tpl = "public/export/landscape/fifa.html"
-        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _fb_tpl)):
-            template_path = _fb_tpl
-
-    # Square FIFA browser-preview: same pattern as landscape — single source of truth.
-    # Covers instagram_square and facebook_square (both map to the square bucket).
-    if not export and platform_preset.id in {"instagram_square", "facebook_square"} and card_variant_id == "fifa":
-        _sq_tpl = "public/export/square/fifa.html"
-        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _sq_tpl)):
-            template_path = _sq_tpl
-
-    # Instagram Story FIFA browser-preview — single source of truth, prevents editor drift.
-    if not export and platform_preset.id == "instagram_story" and card_variant_id == "fifa":
-        _st_tpl = "public/export/story/fifa.html"
-        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _st_tpl)):
-            template_path = _st_tpl
-
-    # TikTok FIFA browser-preview — single source of truth, dedicated tiktok template.
-    if not export and platform_preset.id == "tiktok" and card_variant_id == "fifa":
-        _tk_tpl = "public/export/tiktok/fifa.html"
-        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _tk_tpl)):
-            template_path = _tk_tpl
-
-    # Portrait FIFA browser-preview — same single-source pattern; previously missing,
-    # causing no-export requests to fall back to the default card template.
-    if not export and platform_preset.id == "instagram_portrait" and card_variant_id == "fifa":
-        _pr_tpl = "public/export/portrait/fifa.html"
-        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _pr_tpl)):
-            template_path = _pr_tpl
-
-    # Banner FIFA browser-preview — same single-source pattern; previously missing.
-    if not export and platform_preset.id == "banner_custom" and card_variant_id == "fifa":
-        _bn_tpl = "public/export/banner/fifa.html"
-        if os.path.isfile(os.path.join(_TEMPLATES_DIR, _bn_tpl)):
-            template_path = _bn_tpl
+        _design_def = _get_design(card_variant_id, db)
+        _bucket_cfg = _design_def.component_config.get(_fmt)
+        _archetype  = _design_def.archetype_id or ""
+        _driver_tpl = _ARCHETYPE_DRIVERS.get(_archetype, {}).get(_fmt)
+        _level_c_tpl = f"public/export/{_fmt}/{card_variant_id}.html"
+        _has_level_c = os.path.isfile(os.path.join(_TEMPLATES_DIR, _level_c_tpl))
+        if _fmt in _LEVEL_C_PRIORITY_BUCKETS and _has_level_c:
+            # Level C file wins for PORT-v2 priority buckets (portrait).
+            template_path = _level_c_tpl
+            _driver_config = _bucket_cfg or {}
+        elif _bucket_cfg and _driver_tpl:
+            template_path = f"public/export/shared/drivers/{_driver_tpl}"
+            _driver_config = _bucket_cfg
+        elif _has_level_c:
+            template_path = _level_c_tpl
+            _driver_config = _bucket_cfg or {}
 
     # animated_mode: True only when both export=1 AND animated=1 are present.
     # The PNG endpoint never passes animated=1 → this is always False for PNG renders.
@@ -358,6 +422,8 @@ def public_player_card(
         "position_nodes":       position_nodes,
         "primary_pos_label":    primary_pos_label,
         "secondary_pos_labels": secondary_pos_labels,
+        # CS-4c: populated when driver routing is active; None for file-based routes
+        "_driver_config": _driver_config,
     })
 
 
@@ -368,6 +434,7 @@ async def export_player_card(
     request: Request,
     user_id: int,
     platform: str = Query("instagram_square"),
+    theme: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_web),
 ):
@@ -415,15 +482,44 @@ async def export_player_card(
     if not target_license:
         raise HTTPException(status_code=404, detail="No active LFA Player license")
 
+    # Semantic validation: reject unsupported design/platform pairs before Playwright.
+    # "default" platform uses ?native_export=1 (browser template, no bucket) → skip.
+    card_variant_id = target_license.card_variant or "fifa"
+    if platform != "default":
+        _bucket = _EXPORT_FORMAT_BUCKETS[platform]  # safe: CANVAS_SIZES invariant guarantees coverage
+        _supported = _get_supported_buckets(card_variant_id, db)
+        if _bucket not in _supported:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Design {card_variant_id!r} does not support export to {platform!r} "
+                    f"(bucket={_bucket!r}). Supported buckets: {list(_supported)}"
+                ),
+            )
+
+    # Theme validation: mirror the render-route's logic — accept only known IDs.
+    # Invalid or unknown IDs are silently dropped so the export falls back to the
+    # published theme (same semantics as the preview route).
+    _theme_qs = ""
+    if theme:
+        from app.services.card_theme_service import get_all_themes as _get_all_themes
+        _valid_theme_ids = {t.id for t in _get_all_themes(db=db)}
+        if theme not in _valid_theme_ids:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown theme {theme!r}. Valid values: {sorted(_valid_theme_ids)}",
+            )
+        _theme_qs = f"&theme={theme}"
+
     # Render URL — constructed server-side only; no user-controlled string.
     # "default" platform: use ?native_export=1 so the template applies
     # native-export-mode CSS (card fills 820px width at natural auto height).
     # All other platforms: standard export render with ?platform=…&export=1.
     _base = f"http://127.0.0.1:{settings.APP_INTERNAL_PORT}/players/{user_id}/card"
     if platform == "default":
-        render_url = f"{_base}?native_export=1"
+        render_url = f"{_base}?native_export=1{_theme_qs}"
     else:
-        render_url = f"{_base}?platform={platform}&export=1"
+        render_url = f"{_base}?platform={platform}&export=1{_theme_qs}"
 
     # Screenshot runs in a thread so it does not block the event loop
     try:
@@ -529,15 +625,22 @@ async def export_player_card_video(
             ),
         )
 
-    # Dedicated export template existence check (guards registry/template drift)
-    if platform in _EXPORT_FORMAT_BUCKETS:
-        _fmt = _EXPORT_FORMAT_BUCKETS[platform]
-        _tpl = f"public/export/{_fmt}/{card_variant_id}.html"
-        if not os.path.isfile(os.path.join(_TEMPLATES_DIR, _tpl)):
-            raise HTTPException(
-                status_code=422,
-                detail=f"No export template found for variant={card_variant_id!r} and platform={platform!r}.",
-            )
+    # Validate design export support using supported_export_buckets.
+    _bucket = _EXPORT_FORMAT_BUCKETS.get(platform)
+    if _bucket is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Platform {platform!r} is not an export platform.",
+        )
+    _supported = _get_supported_buckets(card_variant_id, db)
+    if _bucket not in _supported:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Design {card_variant_id!r} does not support video export to {platform!r} "
+                f"(bucket={_bucket!r}). Supported buckets: {list(_supported)}"
+            ),
+        )
 
     # Rate limit: 2 video exports / 60 s per (user_id, client_ip)
     client_ip = request.client.host if request.client else "unknown"

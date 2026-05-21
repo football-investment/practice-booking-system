@@ -265,14 +265,17 @@ class TestVariantRenderSmoke:
 
     @pytest.mark.parametrize("theme_id", ["default", "midnight", "arctic", "gold", "emerald", "crimson"])
     def test_compact_renders_all_themes(self, jinja_env, theme_id):
-        """Compact extends player_card_base.html which injects <body class="theme-{id}">."""
-        ctx = {**_RENDER_CONTEXT, "theme": get_theme(theme_id), "card_theme_id": theme_id, "card_theme": theme_id}
+        """Compact extends player_card_base.html; F-THEME-1: theme injected via :root, not body class."""
+        theme = get_theme(theme_id)
+        ctx = {**_RENDER_CONTEXT, "theme": theme, "card_theme_id": theme_id, "card_theme": theme_id}
         t = jinja_env.get_template("public/player_card_compact.html")
         try:
             html = t.render(**ctx)
         except Exception as e:
             pytest.fail(f"compact render with theme={theme_id!r} raised {type(e).__name__}: {e}")
-        assert f"theme-{theme_id}" in html, f"theme CSS class missing in rendered output for {theme_id!r}"
+        assert f"theme-{theme_id}" not in html, f"old .theme-* body class should be gone after F-THEME-1"
+        if theme_id != "default":
+            assert theme.body_bg in html, f"theme body_bg not injected into :root for {theme_id!r}"
 
 
 # ── Combinatorial theme × variant: every combination must render ─────────────
@@ -299,11 +302,12 @@ class TestThemeVariantCombinations:
         for v in ["compact", "showcase", "compact_bg", "showcase_bg"]
     ])
     def test_theme_variant_combination_renders(self, jinja_env, theme_id, variant_id):
-        """Each theme+variant combo must render without error and contain the theme CSS class."""
+        """Each theme × variant must render without error; F-THEME-1: theme applied via :root."""
+        theme = get_theme(theme_id)
         v = get_variant(variant_id)
         ctx = {
             **_RENDER_CONTEXT,
-            "theme": get_theme(theme_id),
+            "theme": theme,
             "card_theme_id": theme_id,
             "card_theme": theme_id,
             "card_variant_id": variant_id,
@@ -318,10 +322,14 @@ class TestThemeVariantCombinations:
                 f"theme={theme_id!r} × variant={variant_id!r} raised {type(e).__name__}: {e}\n"
                 f"This means theme/variant are NOT orthogonal — one overwrites the other's render path."
             )
-        assert f"theme-{theme_id}" in html, (
-            f"theme={theme_id!r} CSS class missing in variant={variant_id!r} render — "
-            f"base template inheritance broken."
+        assert f"theme-{theme_id}" not in html, (
+            f"old .theme-* body class found in {variant_id!r} — should be gone after F-THEME-1"
         )
+        if theme_id != "default":
+            assert theme.body_bg in html, (
+                f"theme body_bg not injected into :root for {theme_id!r} × {variant_id!r} — "
+                f"base template :root injection not reaching this variant."
+            )
 
     @pytest.mark.parametrize("photo_position", ["left", "right"])
     def test_compact_photo_position_both_sides(self, jinja_env, photo_position):

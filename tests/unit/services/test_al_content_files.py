@@ -246,7 +246,7 @@ class TestSeedScriptDryRun:
         for path in _NEW_FILES:
             data = _load(path)
             try:
-                mod._validate_file(data, path, "LFA_FOOTBALL_PLAYER")
+                mod._validate_file(data, "LFA_FOOTBALL_PLAYER")
             except mod.ValidationError as exc:
                 pytest.fail(f"{path.name} failed seed validation: {exc}")
 

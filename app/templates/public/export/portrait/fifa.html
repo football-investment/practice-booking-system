@@ -1,60 +1,713 @@
-{% extends "public/export/shared/fifa_base_column.html" %}
+{% extends "public/export/shared/export_base.html" %}
+{%- from "macros/card_position_map.html" import position_map_landscape -%}
+{%- from "macros/card_ovr_badge.html"    import ovr_badge -%}
 {#
- * FIFA Classic × IG Portrait — export template (Phase 3a: extends fifa_base_column.html)
- * Canvas  : 1080 × 1350 px  (Playwright viewport, 4:5 ratio)
- * Purpose : static social export ONLY — no editor UI, no responsive CSS
+ * FIFA Classic × Instagram Portrait — PORT-v2 — Split Hero v3.2b (2026-05-18)
+ * Canvas  : 1080 × 1350 px  (4:5 ratio, Playwright viewport)
+ * Layout  : Split Hero Block   660px  (flex-row)
+ *             ├── Photo Panel  560px — fullbleed photo, subtle name overlay bottom-left
+ *             └── Info Panel   520px — single stacked column:
+ *                   brand → OVR badge → tier → divider → meta → spacer → labels → PosMap
+ *           Skills Zone        flex:1 (~690px) — 3 columns
+ *             ├── Outfield     440px  (19 skills × 32px, name 130px)
+ *             ├── Mental       300px  (14 skills × 32px, name 116px — fits "Positioning (Off)")
+ *             └── Sets+Phys    flex:1 (3+8 skills, Sets fixed height)
  *
- * Inherits from column base:
- *   HTML shell, CSS reset, theme_root, shared skill-row CSS classes,
- *   hero structure (avatar circle + identity block + OVR block),
- *   2×2 skills zone.
- *
- * Platform-specific: [:6] skill slice per category.
- * All sizing vars match column base defaults — no platform_vars override needed.
- *
- * vs. story/fifa.html (Phase 3b, extends same column base):
- *   hero height     350px  → 460px   (--ex-hero-h)
- *   avatar          160px  → 180px   (--ex-avatar-sz)
- *   avatar font     52px   → 60px    (--ex-avatar-font)
- *   ovr-num         88px   → 96px    (--ex-ovr-font)
- *   player name     44px   → 48px    (--ex-name-font)
- *   ex-row          44px   → 66px    (--ex-row-max-h)
- *   ex-sname        160px/15px → 155px/14px
- *   skill slice     [:6]   → [:8]
- *   tag-row         — → adds dominant_badge
- *   meta-row        — → adds height/weight
- *   sponsor zone    none → sponsor_slot macro
+ * Level C standalone — extends export_base.html directly.
+ * Typography: Bebas Neue (player name overlay, pos label) / Barlow Condensed (meta, skills)
+ *             via card_ovr_badge macro (size=100, dark=true) + export_base @font-face.
+ * v3.2b layout invariants unchanged (660px hero, 447×290 SVG, 44 × 32px skill rows).
  #}
 
-{% block skill_rows scoped %}
-{% for skill in cat.skills[:6] %}
-{% set sdata = player.skills.get(skill.key, {}) %}
-{% set sval  = sdata.get('current_level', 50) | round(0) | int %}
-{% set fill  = [sval, 100] | min %}
-{% set delta = last_skill_delta.get(skill.key, 0) %}
-{% if delta > 0 %}
-    {% set bar_clr  = '#48bb78' %}
-    {% set val_clr  = '#48bb78' %}
-    {% set trend    = '↑' %}
-    {% set trend_vis = 'visible' %}
-{% elif delta < 0 %}
-    {% set bar_clr  = '#fc8181' %}
-    {% set val_clr  = '#fc8181' %}
-    {% set trend    = '↓' %}
-    {% set trend_vis = 'visible' %}
-{% else %}
-    {% set bar_clr  = 'rgba(255,255,255,0.20)' %}
-    {% set val_clr  = 'rgba(255,255,255,0.85)' %}
-    {% set trend    = '↑' %}
-    {% set trend_vis = 'hidden' %}
+{% block platform_vars %}
+:root {
+    --ex-split-hero-h: 660px;
+    --ex-photo-h:      {{ '580px' if sponsor_logo_url else '660px' }};
+    --ex-photo-w:      560px;
+    --ex-bar-h:        5px;
+    --ex-row-max-h:    32px;
+    --ex-sname-w:      116px;
+    --ex-font-skill:   13px;
+    --ex-sval-w:       30px;
+    --ex-trend-w:      14px;
+    --ex-font-trend:   11px;
+    --ex-cat-pad:      10px;
+    --ex-cat-radius:   10px;
+    --ex-font-cat:     11px;
+}
+{% endblock %}
+
+{% block extra_css %}
+/* ── ROOT ──────────────────────────────────────────────────────── */
+.ex-card {
+    display: flex;
+    flex-direction: column;
+    width:  100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--ex-body-bg);
+}
+
+/* ── MAIN ROW: fills card between logo-bar; two independent columns ── */
+.ex-main-row {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+/* ── LEFT COLUMN: 560px — photo (--ex-photo-h) + outfield (flex:1) ── */
+.ex-left-col {
+    flex: 0 0 560px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── PHOTO PANEL: 560px wide × --ex-photo-h tall (independent of right col) ── */
+.ex-photo-panel {
+    flex: 0 0 var(--ex-photo-h);
+    position: relative;
+    overflow: hidden;
+    background: var(--ex-panel-bg);
+}
+.ex-hero-photo {
+    position: absolute;
+    inset: 0;
+    width:  100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 15%;
+}
+.ex-hero-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 110px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.16);
+    letter-spacing: -2px;
+    background: var(--ex-panel-bg);
+}
+/* Subtle bottom scrim — name legibility only, not decorative */
+.ex-photo-scrim {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 100px;
+    background: linear-gradient(transparent 0%, rgba(0,0,0,0.48) 100%);
+    pointer-events: none;
+}
+/* Right-edge blend — no hard border between photo and info panel */
+.ex-photo-edge {
+    position: absolute;
+    inset: 0;
+    box-shadow: inset -16px 0 32px rgba(0,0,0,0.40);
+    pointer-events: none;
+}
+/* Top scrim — gradient fade for OVR badge readability on any photo */
+.ex-photo-top-scrim {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 160px;
+    background: linear-gradient(rgba(0,0,0,0.50) 0%, transparent 100%);
+    pointer-events: none;
+}
+/* OVR badge + tier pill — positioned top-left, above top scrim */
+.ex-photo-ovr {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+/* Player name — display font overlay, 2-line clamp */
+.ex-photo-name {
+    position: absolute;
+    bottom: 14px;
+    left: 16px;
+    right: 16px;
+    font-family: var(--ex-font-display, 'Bebas Neue', sans-serif);
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.0;
+    letter-spacing: 0.03em;
+    color: rgba(255,255,255,0.90);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.52);
+    white-space: normal;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ── INFO PANEL: flex:1 — grows to fill right-col above fixed skills-right ── */
+/* Spacer (flex:1 inside) absorbs the extra 145px; posmap shifts down accordingly. */
+/* OVR badge + tier moved to .ex-photo-ovr overlay in .ex-photo-panel */
+.ex-info-panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 22px 22px 16px 26px;
+    background: var(--ex-panel-bg);
+    overflow: hidden;
+}
+
+/* Brand row — very quiet, top anchor */
+.ex-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    margin-bottom: 14px;
+}
+.ex-brand-text {
+    font-family: var(--ex-font-brand, 'Rajdhani', sans-serif);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.30);
+}
+.ex-level-pill {
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ex-text-muted);
+    background: rgba(255,255,255,0.08);
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+/* Tier badge — colored pill; now lives in .ex-photo-ovr (photo panel overlay) */
+.ex-tier-badge {
+    display: inline-block;
+    align-self: flex-start;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 10px;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+/* Divider — thin, very subtle */
+.ex-info-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.09);
+    flex-shrink: 0;
+    margin-bottom: 14px;
+}
+
+/* Meta list — two-column row layout: label (left, fixed) | value (right, flex:1) */
+.ex-meta-list {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.ex-meta-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+.ex-meta-lbl {
+    flex: 0 0 80px;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ex-text-muted);
+    white-space: nowrap;
+}
+.ex-meta-val {
+    flex: 1;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--ex-text-strong);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Spacer — breathing room between meta and pos labels.
+   In an auto-height flex container flex:1 resolves to min-height. */
+.ex-info-spacer {
+    flex: 1;
+    min-height: 30px;
+}
+
+/* ── RIGHT COLUMN: flex:1 — info panel (auto h) + skills-right (flex:1) ── */
+.ex-right-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── OUTFIELD COL (left-col, below photo) ── */
+/* Width = left-col 560px; no fixed col width needed — fills parent. */
+.ex-outfield-col {
+    flex: 1;
+    min-height: 0;
+    padding: 10px;
+    background: var(--ex-body-bg);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    --ex-sname-w: 130px;
+    --ex-font-skill: 13px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── SKILLS-RIGHT (right-col, below info panel) ── */
+/* Fixed at 851px: 10(pad)+324(posmap)+10(gap)+497(bottomRow)+10(pad).
+   bottomRow fills remaining 497px = catMental's exact 32px-row content height.
+   padding:10px → inner w = (1080−560)−20 = 500px. */
+.ex-skills-right {
+    flex: 0 0 851px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    background: var(--ex-body-bg);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+}
+
+/* PosMap — full inner width; height auto from SVG viewBox aspect 105/68 */
+/* At 500px wide: height = 500×68/105 = 324px; left/right edges flush with skill cols */
+.ex-posmap-skills {
+    flex: 0 0 auto;
+    overflow: hidden;
+}
+.ex-posmap-skills .ex-pos-info { display: none; }
+.ex-posmap-skills .ex-pos-svg-landscape {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+}
+
+/* Bottom row: Mental + Sets+Physical — fills remaining skills-right height */
+.ex-skills-bottom-row {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    overflow: hidden;
+}
+
+/* Position labels row — above inline PosMap, below meta */
+.ex-pos-labels-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.ex-pos-primary {
+    font-family: var(--ex-font-display, 'Bebas Neue', sans-serif);
+    font-size: 24px;
+    font-weight: 400;
+    color: #ECC94B;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.ex-pos-sec-chip {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.09);
+    color: var(--ex-text-body);
+    text-transform: uppercase;
+}
+
+/* Col 2: Mental — 260px: name 116px fits "Positioning (Off)" / "Tactical Awareness" */
+.ex-skills-col-mid {
+    flex: 0 0 260px;
+    min-width: 0;
+    --ex-sname-w:    116px;
+    --ex-font-skill: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Col 3: Set Pieces + Physical */
+.ex-skills-col-right {
+    flex: 1;
+    min-width: 0;
+    --ex-sname-w:    86px;
+    --ex-font-skill: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.ex-cat-outfield { flex: 1; }
+/* Mental: flex:1 fills bottomRow (497px) → rows 448/14 = 32px/row (Outfield pitch) */
+.ex-cat-mental            { flex: 1; }
+/* Sets: fixed 145px = 3 × 32px rows + 49px padding+header */
+.ex-cat-sets              { flex: 0 0 145px; }
+/* Physical: fixed 305px = 8 × 32px rows + 49px; margin-top:41px bottom-aligns */
+/* with catMental (497−145−6−305=41). gap between Sets and Physical = 47px. */
+.ex-cat-phys              { flex: 0 0 305px; margin-top: 41px; }
+
+/* Category heading — editorial, clear */
+.ex-cat-name {
+    flex-shrink: 0;
+    font-family: var(--ex-font-ui, 'Barlow Condensed', sans-serif);
+    font-size: var(--ex-font-cat, 11px);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: var(--ex-text-body);
+    margin-bottom: 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Base row: fixed 32px for outfield and sets columns */
+.ex-row {
+    display: flex;
+    flex: 0 0 var(--ex-row-max-h, 32px);
+    min-height: 0;
+    align-items: center;
+}
+
+/* Compact pos label inside macro output — hidden here because ex-pos-labels-row above map carries this */
+.ex-pos-compact-label { display: none; }
+
+{% if animated_mode %}
+@keyframes ex-ovr-in {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1);   }
+}
+.ex-ovr-num    { animation: ex-ovr-in 0.5s cubic-bezier(.34,1.56,.64,1) forwards; }
+.ex-tier-badge { opacity: 0; animation: ex-ovr-in 0.4s 0.4s ease-out forwards; }
+
+@keyframes ex-bar-in { from { width: 0%; } }
+.ex-bar-fill { animation: ex-bar-in 0.8s ease-out forwards; }
+
+@keyframes ex-name-in {
+    from { transform: translateY(6px); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+}
+.ex-photo-name { animation: ex-name-in 0.5s 0.1s ease-out both; }
 {% endif %}
-<div class="ex-row">
-    <span class="ex-sname">{{ skill.name_en }}</span>
-    <div class="ex-bar-bg">
-        <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
+
+/* ── SPONSOR LOGO BAR ─────────────────────────────────────────── */
+/* Visible only when sponsor_logo_url is set; --ex-photo-h switches 660→580px. */
+.ex-logo-bar {
+    flex: 0 0 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ex-body-bg);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+.ex-logo-bar-img {
+    max-height: 48px;
+    max-width: 280px;
+    object-fit: contain;
+    opacity: 0.85;
+}
+{% endblock %}
+
+{% block body_content %}
+{% set cfg         = _driver_config or {} %}
+{% set show_posmap = cfg.get('show_position_map', False) %}
+{% set skill_slice = cfg.get('skill_slice') %}
+{# skill_categories: [0]=Outfield(19), [1]=SetPieces(3), [2]=Mental(14), [3]=Physical(8) #}
+{% if skill_categories|length >= 4 %}
+{% set cat_outfield  = skill_categories[0] %}
+{% set cat_setpieces = skill_categories[1] %}
+{% set cat_mental    = skill_categories[2] %}
+{% set cat_physical  = skill_categories[3] %}
+{% endif %}
+<div class="ex-card">
+
+    {# ── MAIN ROW: left-col (photo+outfield) | right-col (info+posmap+skills) ── #}
+    <div class="ex-main-row">
+
+        {# ── LEFT COLUMN ──────────────────────────────────────────── #}
+        <div class="ex-left-col">
+
+            {# Photo Panel: --ex-photo-h tall, independent of right col #}
+            <div class="ex-photo-panel">
+                {% if portrait_photo_url %}
+                <img class="ex-hero-photo" src="{{ portrait_photo_url }}" alt="{{ player.name }}" loading="eager">
+                {% else %}
+                <div class="ex-hero-placeholder">{{ initials }}</div>
+                {% endif %}
+                {# Top gradient for OVR badge readability on any background #}
+                <div class="ex-photo-top-scrim"></div>
+                {# OVR badge + tier pill — top-left corner overlay #}
+                <div class="ex-photo-ovr">
+                    {{ ovr_badge(overall | round(0) | int, size=100, dark=true) }}
+                    <div class="ex-tier-badge" style="background:{{ tier_color }};">{{ tier_label }}</div>
+                </div>
+                <div class="ex-photo-scrim"></div>
+                <div class="ex-photo-edge"></div>
+                <div class="ex-photo-name">{{ player.name }}</div>
+            </div>
+
+            {# Outfield skills — fills remaining left-col height below photo #}
+            {% if skill_categories|length >= 4 %}
+            <div class="ex-outfield-col">
+                <div class="ex-cat ex-cat-outfield">
+                    <div class="ex-cat-name">{{ cat_outfield.name_en }}</div>
+                    <div class="ex-skill-rows">
+                        {%- set cat_neutral_clr = 'var(--ex-cat-color-0)' -%}
+                        {% for skill in cat_outfield.skills[:skill_slice] %}
+                        {%- set sdata = player.skills.get(skill.key, {}) -%}
+                        {%- set sval  = sdata.get('current_level', 50) | round(0) | int -%}
+                        {%- set fill  = [sval, 100] | min -%}
+                        {%- set delta = last_skill_delta.get(skill.key, 0) -%}
+                        {%- if delta > 0 -%}
+                            {%- set bar_clr = '#48bb78' -%}{%- set val_clr = '#48bb78' -%}
+                            {%- set trend = '↑' -%}{%- set trend_vis = 'visible' -%}
+                        {%- elif delta < 0 -%}
+                            {%- set bar_clr = '#fc8181' -%}{%- set val_clr = '#fc8181' -%}
+                            {%- set trend = '↓' -%}{%- set trend_vis = 'visible' -%}
+                        {%- else -%}
+                            {%- set bar_clr = cat_neutral_clr -%}{%- set val_clr = 'rgba(255,255,255,0.85)' -%}
+                            {%- set trend = '↑' -%}{%- set trend_vis = 'hidden' -%}
+                        {%- endif -%}
+                        <div class="ex-row">
+                            <span class="ex-sname">{{ skill.name_en }}</span>
+                            <div class="ex-bar-bg">
+                                <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
+                            </div>
+                            <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
+                            <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>{# /ex-left-col #}
+
+        {# ── RIGHT COLUMN ─────────────────────────────────────────── #}
+        <div class="ex-right-col">
+
+            {# Info panel: brand → divider → meta → spacer → pos labels #}
+            {# OVR badge + tier pill live in .ex-photo-ovr (photo panel overlay) #}
+            <div class="ex-info-panel">
+
+                {# Brand row #}
+                <div class="ex-brand-row">
+                    <span class="ex-brand-text">LFA</span>
+                    {% if license_current_level %}
+                    <span class="ex-level-pill">Lv.&nbsp;{{ license_current_level }}</span>
+                    {% endif %}
+                </div>
+
+                {# Divider #}
+                <div class="ex-info-divider"></div>
+
+                {# Position labels: primary (gold) + secondary chips — above meta #}
+                {% if show_posmap and position_nodes and primary_pos_label %}
+                <div class="ex-pos-labels-row">
+                    <span class="ex-pos-primary">{{ primary_pos_label }}</span>
+                    {% for sec in secondary_pos_labels[:3] %}
+                    <span class="ex-pos-sec-chip">{{ sec }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {# Meta — editorial key-value pairs #}
+                <div class="ex-meta-list">
+                    {% if player.nationality %}
+                    <div class="ex-meta-row">
+                        <span class="ex-meta-lbl">Nation</span>
+                        <span class="ex-meta-val">{{ player.nationality | nationalities_display }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="ex-meta-row">
+                        <span class="ex-meta-lbl">Age group</span>
+                        <span class="ex-meta-val">{{ player.age_group }}</span>
+                    </div>
+                    {% if player_height_cm %}
+                    <div class="ex-meta-row">
+                        <span class="ex-meta-lbl">Height</span>
+                        <span class="ex-meta-val">{{ player_height_cm }} cm</span>
+                    </div>
+                    {% endif %}
+                    {% if player_weight_kg %}
+                    <div class="ex-meta-row">
+                        <span class="ex-meta-lbl">Weight</span>
+                        <span class="ex-meta-val">{{ player_weight_kg }} kg</span>
+                    </div>
+                    {% endif %}
+                    <div class="ex-meta-row">
+                        <span class="ex-meta-lbl">Events</span>
+                        <span class="ex-meta-val">{{ player.total_tournaments }}</span>
+                    </div>
+                </div>
+
+                {# Spacer — breathing room; resolves to min-height (30px) in auto-height col #}
+                <div class="ex-info-spacer"></div>
+
+            </div>{# /ex-info-panel #}
+
+            {# Skills-right: posmap (full-width) + bottom row (Mental + Sets+Phys) #}
+            {% if skill_categories|length >= 4 %}
+            <div class="ex-skills-right">
+
+                {# Position Map — width:100% → 500px; height:auto → 324px (aspect 105/68) #}
+                {% if show_posmap and position_nodes and primary_pos_label %}
+                <div class="ex-posmap-skills">
+                    {{ position_map_landscape(position_nodes, primary_pos_label, secondary_pos_labels,
+                                              player_position=player.position, show_info_col=True) }}
+                </div>
+                {% endif %}
+
+                {# Bottom row: Mental (col-mid) + Set Pieces + Physical (col-right) #}
+                <div class="ex-skills-bottom-row">
+
+                {# Mental (14 skills) #}
+                <div class="ex-skills-col-mid">
+                    <div class="ex-cat ex-cat-mental">
+                        <div class="ex-cat-name">{{ cat_mental.name_en }}</div>
+                        <div class="ex-skill-rows">
+                            {%- set cat_neutral_clr = 'var(--ex-cat-color-2)' -%}
+                            {% for skill in cat_mental.skills[:skill_slice] %}
+                            {%- set sdata = player.skills.get(skill.key, {}) -%}
+                            {%- set sval  = sdata.get('current_level', 50) | round(0) | int -%}
+                            {%- set fill  = [sval, 100] | min -%}
+                            {%- set delta = last_skill_delta.get(skill.key, 0) -%}
+                            {%- if delta > 0 -%}
+                                {%- set bar_clr = '#48bb78' -%}{%- set val_clr = '#48bb78' -%}
+                                {%- set trend = '↑' -%}{%- set trend_vis = 'visible' -%}
+                            {%- elif delta < 0 -%}
+                                {%- set bar_clr = '#fc8181' -%}{%- set val_clr = '#fc8181' -%}
+                                {%- set trend = '↓' -%}{%- set trend_vis = 'visible' -%}
+                            {%- else -%}
+                                {%- set bar_clr = cat_neutral_clr -%}{%- set val_clr = 'rgba(255,255,255,0.85)' -%}
+                                {%- set trend = '↑' -%}{%- set trend_vis = 'hidden' -%}
+                            {%- endif -%}
+                            <div class="ex-row">
+                                <span class="ex-sname">{{ skill.name_en }}</span>
+                                <div class="ex-bar-bg">
+                                    <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
+                                </div>
+                                <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
+                                <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>{# /ex-skills-col-mid #}
+
+                {# Set Pieces (3) + Physical (8) #}
+                <div class="ex-skills-col-right">
+
+                    <div class="ex-cat ex-cat-sets">
+                        <div class="ex-cat-name">{{ cat_setpieces.name_en }}</div>
+                        <div class="ex-skill-rows">
+                            {%- set cat_neutral_clr = 'var(--ex-cat-color-1)' -%}
+                            {% for skill in cat_setpieces.skills[:skill_slice] %}
+                            {%- set sdata = player.skills.get(skill.key, {}) -%}
+                            {%- set sval  = sdata.get('current_level', 50) | round(0) | int -%}
+                            {%- set fill  = [sval, 100] | min -%}
+                            {%- set delta = last_skill_delta.get(skill.key, 0) -%}
+                            {%- if delta > 0 -%}
+                                {%- set bar_clr = '#48bb78' -%}{%- set val_clr = '#48bb78' -%}
+                                {%- set trend = '↑' -%}{%- set trend_vis = 'visible' -%}
+                            {%- elif delta < 0 -%}
+                                {%- set bar_clr = '#fc8181' -%}{%- set val_clr = '#fc8181' -%}
+                                {%- set trend = '↓' -%}{%- set trend_vis = 'visible' -%}
+                            {%- else -%}
+                                {%- set bar_clr = cat_neutral_clr -%}{%- set val_clr = 'rgba(255,255,255,0.85)' -%}
+                                {%- set trend = '↑' -%}{%- set trend_vis = 'hidden' -%}
+                            {%- endif -%}
+                            <div class="ex-row">
+                                <span class="ex-sname">{{ skill.name_en }}</span>
+                                <div class="ex-bar-bg">
+                                    <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
+                                </div>
+                                <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
+                                <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="ex-cat ex-cat-phys">
+                        <div class="ex-cat-name">{{ cat_physical.name_en }}</div>
+                        <div class="ex-skill-rows">
+                            {%- set cat_neutral_clr = 'var(--ex-cat-color-3)' -%}
+                            {% for skill in cat_physical.skills[:skill_slice] %}
+                            {%- set sdata = player.skills.get(skill.key, {}) -%}
+                            {%- set sval  = sdata.get('current_level', 50) | round(0) | int -%}
+                            {%- set fill  = [sval, 100] | min -%}
+                            {%- set delta = last_skill_delta.get(skill.key, 0) -%}
+                            {%- if delta > 0 -%}
+                                {%- set bar_clr = '#48bb78' -%}{%- set val_clr = '#48bb78' -%}
+                                {%- set trend = '↑' -%}{%- set trend_vis = 'visible' -%}
+                            {%- elif delta < 0 -%}
+                                {%- set bar_clr = '#fc8181' -%}{%- set val_clr = '#fc8181' -%}
+                                {%- set trend = '↓' -%}{%- set trend_vis = 'visible' -%}
+                            {%- else -%}
+                                {%- set bar_clr = cat_neutral_clr -%}{%- set val_clr = 'rgba(255,255,255,0.85)' -%}
+                                {%- set trend = '↑' -%}{%- set trend_vis = 'hidden' -%}
+                            {%- endif -%}
+                            <div class="ex-row">
+                                <span class="ex-sname">{{ skill.name_en }}</span>
+                                <div class="ex-bar-bg">
+                                    <div class="ex-bar-fill" style="width:{{ fill }}%; background:{{ bar_clr }};"></div>
+                                </div>
+                                <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
+                                <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                </div>{# /ex-skills-col-right #}
+
+                </div>{# /ex-skills-bottom-row #}
+            </div>{# /ex-skills-right #}
+            {% endif %}{# skill_categories|length >= 4 #}
+
+        </div>{# /ex-right-col #}
+
+    </div>{# /ex-main-row #}
+
+    {# ── SPONSOR LOGO BAR: bottom-center, only when a logo is uploaded ── #}
+    {% if sponsor_logo_url %}
+    <div class="ex-logo-bar">
+        <img class="ex-logo-bar-img" src="{{ sponsor_logo_url }}" alt="Sponsor">
     </div>
-    <span class="ex-sval" style="color:{{ val_clr }};">{{ sval }}</span>
-    <span class="ex-trend" style="color:{{ bar_clr }}; visibility:{{ trend_vis }};">{{ trend }}</span>
+    {% endif %}
+
 </div>
-{% endfor %}
 {% endblock %}

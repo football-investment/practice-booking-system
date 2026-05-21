@@ -40,6 +40,9 @@
     --pex-panel-bg:  {{ theme.panel_bg if theme is defined else 'linear-gradient(155deg,#1a2744 0%,#2a3a5c 60%,#1e3a4a 100%)' }};
     --pex-body-bg:   {{ theme.body_bg  if theme is defined else '#1a202c' }};
     --pex-page-bg:   #0f1923;
+    --pex-hero-h:    580px;
+    {% for k, v in (_driver_config or {}).get('platform_vars', {}).items() %}{{ k }}: {{ v }};
+    {% endfor %}
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -59,9 +62,9 @@ html, body {
     background: var(--pex-page-bg);
 }
 
-/* ── HERO ZONE — 580px ──────────────────────────────────────────────────── */
+/* ── HERO ZONE — var(--pex-hero-h) — default 580px, overridable via _driver_config platform_vars ── */
 .pex-hero {
-    flex: 0 0 580px;
+    flex: 0 0 var(--pex-hero-h);
     background: var(--pex-panel-bg);
     position: relative;
     overflow: hidden;

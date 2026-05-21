@@ -1,0 +1,112 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}AL Content Dashboard{% endblock %}
+{% block page_heading %}🧠 Adaptive Learning{% endblock %}
+{% block page_subtitle %}Content library overview and recent import activity.{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.25rem 1.5rem; }
+    .stat-card .label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #718096; margin-bottom: 0.4rem; }
+    .stat-card .value { font-size: 2rem; font-weight: 800; color: #2d3748; }
+    .stat-card .sub   { font-size: 0.78rem; color: #a0aec0; margin-top: 0.2rem; }
+    .card-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .section-header h2 { font-size: 1.1rem; color: #2d3748; font-weight: 700; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .log-table thead th { background: #f7fafc; color: #718096; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e2e8f0; }
+    .log-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f0f0f0; }
+    .badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-partial { background: #fef3c7; color: #92400e; }
+    .badge-error   { background: #fff5f5; color: #c53030; }
+    .quick-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn-primary { background: #5a4a9a; color: white; border: none; border-radius: 8px; padding: 0.6rem 1.2rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-primary:hover { background: #4a3a8a; }
+    .btn-outline { background: white; color: #5a4a9a; border: 1px solid #5a4a9a; border-radius: 8px; padding: 0.6rem 1.2rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-outline:hover { background: #f5f3ff; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">Total Quizzes</div>
+        <div class="value">{{ total_quizzes }}</div>
+        <div class="sub">{{ active_quizzes }} active</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Total Questions</div>
+        <div class="value">{{ total_questions }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Total Options</div>
+        <div class="value">{{ total_options }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Variant Options</div>
+        <div class="value">{{ variant_options }}</div>
+        <div class="sub">CORRECT_VARIANT</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Distractor Pool</div>
+        <div class="value">{{ distractor_options }}</div>
+        <div class="sub">DISTRACTOR</div>
+    </div>
+</div>
+
+<div class="card-wrap">
+    <div class="section-header">
+        <h2>Quick Actions</h2>
+    </div>
+    <div class="quick-links">
+        <a href="/admin/adaptive-learning/quizzes" class="btn-outline">Browse Quizzes</a>
+        <a href="/admin/adaptive-learning/import" class="btn-primary">Import Content</a>
+        <a href="/admin/adaptive-learning/import/history" class="btn-outline">Import History</a>
+    </div>
+</div>
+
+<div class="card-wrap">
+    <div class="section-header">
+        <h2>Recent Imports</h2>
+        <a href="/admin/adaptive-learning/import/history" style="font-size:0.85rem; color:#5a4a9a;">View all →</a>
+    </div>
+    {% if recent_imports %}
+    <table class="log-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Spec</th>
+                <th>Status</th>
+                <th>Quizzes</th>
+                <th>Questions</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for log in recent_imports %}
+            <tr>
+                <td>#{{ log.id }}</td>
+                <td>{{ log.spec }}</td>
+                <td>
+                    {% if log.status == ImportStatus.SUCCESS %}
+                        <span class="badge badge-success">success</span>
+                    {% elif log.status == ImportStatus.PARTIAL %}
+                        <span class="badge badge-partial">partial</span>
+                    {% else %}
+                        <span class="badge badge-error">error</span>
+                    {% endif %}
+                </td>
+                <td>{{ log.quizzes_created }}</td>
+                <td>{{ log.questions_created }}</td>
+                <td style="white-space:nowrap; color:#718096; font-size:0.8rem;">{{ log.completed_at.strftime('%Y-%m-%d %H:%M') if log.completed_at else '—' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#718096; font-size:0.9rem;">No import operations yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

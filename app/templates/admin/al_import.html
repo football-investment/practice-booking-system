@@ -1,0 +1,158 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Import AL Content{% endblock %}
+{% block page_heading %}📥 Import Content{% endblock %}
+{% block page_subtitle %}Upload JSON quiz files for validation and import.{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .card-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.5rem; margin-bottom: 1.25rem; }
+    .alert { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.875rem; }
+    .alert-error   { background: #fff5f5; border: 1px solid #fed7d7; color: #c53030; }
+    .alert-success { background: #f0fff4; border: 1px solid #9ae6b4; color: #276749; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 0.4rem; }
+    .form-select { width: 100%; max-width: 340px; padding: 0.55rem 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; background: white; }
+    .form-hint { font-size: 0.78rem; color: #9ca3af; margin-top: 0.3rem; }
+    .file-input { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; background: white; }
+    .btn-primary { background: #5a4a9a; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+    .btn-primary:hover { background: #4a3a8a; }
+    .btn-success { background: #166534; color: white; border: none; border-radius: 8px; padding: 0.65rem 1.4rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; }
+    .btn-success:hover { background: #14532d; }
+    .btn-outline { background: white; color: #5a4a9a; border: 1px solid #5a4a9a; border-radius: 8px; padding: 0.65rem 1.2rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+
+    /* Validation report */
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .report-table thead th { background: #f7fafc; color: #718096; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+    .report-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    .badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+    .badge-ok     { background: #dcfce7; color: #166534; }
+    .badge-skip   { background: #f3f4f6; color: #6b7280; }
+    .badge-error  { background: #fff5f5; color: #c53030; }
+    .summary-row  { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; font-size: 0.9rem; }
+    .summary-item { font-weight: 600; }
+    .ok-color     { color: #166534; }
+    .skip-color   { color: #6b7280; }
+    .error-color  { color: #c53030; }
+    .confirm-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem; }
+    .confirm-box p { font-size: 0.9rem; color: #166534; margin-bottom: 0.75rem; font-weight: 600; }
+    .stats-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .chip { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 0.2rem 0.65rem; font-size: 0.78rem; color: #4a5568; }
+    .variant-info { font-size: 0.75rem; color: #0369a1; }
+    .error-msg { font-size: 0.78rem; color: #c53030; max-width: 320px; word-break: break-word; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div style="margin-bottom:1rem;">
+    <a href="/admin/adaptive-learning/dashboard" style="font-size:0.85rem; color:#718096; text-decoration:none;">← Dashboard</a>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+{% if success %}
+<div class="alert alert-success">{{ success }}</div>
+{% endif %}
+
+<!-- Upload form (always visible) -->
+<div class="card-wrap">
+    <h2 style="font-size:1.05rem; font-weight:700; color:#2d3748; margin-bottom:1.25rem;">Upload JSON Files</h2>
+    <form method="post" action="/admin/adaptive-learning/import/validate" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token', '') }}">
+        <div class="form-group">
+            <label class="form-label">Specialization</label>
+            <select name="spec" class="form-select">
+                {% for s in known_specs %}
+                <option value="{{ s }}" {% if s == default_spec %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Quiz JSON Files</label>
+            <input type="file" name="files" multiple accept=".json" class="file-input" required>
+            <div class="form-hint">Select up to {{ max_files }} files. Each file should contain one quiz.</div>
+        </div>
+        <button type="submit" class="btn-primary">Validate Files</button>
+    </form>
+</div>
+
+<!-- Validation report (shown after validate POST) -->
+{% if report %}
+<div class="card-wrap">
+    <h2 style="font-size:1.05rem; font-weight:700; color:#2d3748; margin-bottom:1rem;">Validation Report</h2>
+
+    <div class="summary-row">
+        <span class="summary-item ok-color">{{ report.total_ok }} OK</span>
+        <span class="summary-item skip-color">{{ report.total_skip }} skip (already exist)</span>
+        <span class="summary-item error-color">{{ report.total_error }} error</span>
+        {% if report.quizzes_to_create %}
+        <span class="summary-item" style="color:#2d3748;">→ {{ report.quizzes_to_create }} quiz(zes) / {{ report.questions_to_create }} question(s) to create</span>
+        {% endif %}
+    </div>
+
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>File</th>
+                <th>Status</th>
+                <th>Quiz Title</th>
+                <th>Questions</th>
+                <th>Schema</th>
+                <th>Pool Stats</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for f in report.files %}
+            <tr>
+                <td style="font-family:monospace; font-size:0.78rem; color:#4a5568;">{{ f.filename }}</td>
+                <td>
+                    {% if f.status == 'ok' %}
+                        <span class="badge badge-ok">OK</span>
+                    {% elif f.status == 'skip' %}
+                        <span class="badge badge-skip">SKIP</span>
+                    {% else %}
+                        <span class="badge badge-error">ERROR</span>
+                    {% endif %}
+                </td>
+                <td>{{ f.quiz_title or '—' }}</td>
+                <td>{{ f.question_count if f.question_count else '—' }}</td>
+                <td>{{ f.schema_version or '—' }}</td>
+                <td>
+                    {% if f.variant_stats %}
+                        <span class="variant-info">V: {{ f.variant_stats.min_variants }}–{{ f.variant_stats.max_variants }} avg {{ f.variant_stats.avg_variants }}</span><br>
+                    {% endif %}
+                    {% if f.distractor_stats %}
+                        <span class="variant-info">D: {{ f.distractor_stats.min_distractors }}–{{ f.distractor_stats.max_distractors }} avg {{ f.distractor_stats.avg_distractors }}</span>
+                    {% endif %}
+                    {% if not f.variant_stats and not f.distractor_stats %}—{% endif %}
+                </td>
+                <td><span class="error-msg">{{ f.error_message or '' }}</span></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if report.total_ok > 0 %}
+    <div class="confirm-box">
+        <p>Ready to import {{ report.quizzes_to_create }} quiz(zes) with {{ report.questions_to_create }} question(s).
+        {% if report.total_skip %} ({{ report.total_skip }} already exist and will be skipped.){% endif %}
+        </p>
+        <div class="stats-chips">
+            <span class="chip">{{ report.quizzes_to_create }} quizzes</span>
+            <span class="chip">{{ report.questions_to_create }} questions</span>
+        </div>
+        <form method="post" action="/admin/adaptive-learning/import/apply">
+            <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token', '') }}">
+            <input type="hidden" name="spec" value="{{ default_spec }}">
+            <input type="hidden" name="apply_payload_json" value="{{ apply_payload_json | e }}">
+            <button type="submit" class="btn-success">Apply Import</button>
+        </form>
+    </div>
+    {% elif report.total_skip > 0 and report.total_ok == 0 and report.total_error == 0 %}
+    <p style="color:#6b7280; font-size:0.9rem; margin-top:0.75rem;">All uploaded quizzes already exist in the database. Nothing to import.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

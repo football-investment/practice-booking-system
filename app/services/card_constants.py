@@ -7,6 +7,11 @@ defines its own copy.
 Invariants enforced by tests/unit/services/test_card_constants.py:
   - EXPORT_FORMAT_BUCKETS.keys() == CANVAS_SIZES.keys() − {"default"}
   - Every platform_id in ANIMATED_EXPORT_CAPABLE exists in CANVAS_SIZES
+
+CS-1 note: ANIMATED_EXPORT_CAPABLE is now derived from card_design_service.DESIGNS
+(the fallback dict) rather than being hardcoded as a frozenset literal.  The name
+and type are preserved for backward compatibility.  Future phases (CS-4+) will
+derive it from the DB-backed cache instead of the fallback dict.
 """
 from __future__ import annotations
 
@@ -46,19 +51,29 @@ EXPORT_FORMAT_BUCKETS: dict[str, str] = {
     "instagram_story":    "story",
     "tiktok":             "tiktok",
     "facebook_landscape": "landscape",
-    "og":                 "landscape",
+    "og":                 "og",
     "banner_custom":      "banner",
     "facebook_post":      "landscape",
 }
 
 # ── Animated video export capability registry ─────────────────────────────────
-# (variant_id, platform_id) pairs that have a dedicated animated export
-# template.  All other combinations return 422 — no fallback, no silent
-# degradation.
-ANIMATED_EXPORT_CAPABLE: frozenset[tuple[str, str]] = frozenset({
-    ("fifa",  "instagram_square"),
-    ("pulse", "instagram_square"),
-})
+# Derived from card_design_service.DESIGNS (the fallback dict) at import time.
+# (variant_id, platform_id) pairs that have a dedicated animated export template.
+# All other combinations return 422 — no fallback, no silent degradation.
+#
+# CS-1: source of truth moved from a hardcoded frozenset literal to the DESIGNS
+# dict so that animated_platforms is declared alongside all other design metadata.
+# The frozenset name and structure are preserved for backward compatibility.
+def _build_animated_capable() -> frozenset[tuple[str, str]]:
+    from .card_design_service import DESIGNS  # noqa: PLC0415
+    return frozenset(
+        (design_id, platform_id)
+        for design_id, design in DESIGNS.items()
+        for platform_id in design.animated_platforms
+    )
+
+
+ANIMATED_EXPORT_CAPABLE: frozenset[tuple[str, str]] = _build_animated_capable()
 
 
 def is_animated_capable(variant_id: str, platform_id: str) -> bool:
@@ -125,4 +140,17 @@ CARD_EDITOR_PLATFORM_IDS: tuple[str, ...] = (
     "og",
     "banner_custom",
     "facebook_post",
+)
+
+# Platforms shown in the public Player Card gallery hub.
+# Subset of CARD_EDITOR_PLATFORM_IDS: excludes facebook_post (secondary landscape variant)
+# and facebook_square (alias of instagram_square). Ordered for visual hierarchy.
+CARD_GALLERY_PLATFORM_IDS: tuple[str, ...] = (
+    "instagram_portrait",
+    "instagram_story",
+    "instagram_square",
+    "tiktok",
+    "facebook_landscape",
+    "og",
+    "banner_custom",
 )

@@ -1,99 +1,33 @@
 """
-Player Card Variant Service
-===========================
-Manages layout variants for the public LFA Football Player card.
+Player Card Variant Service — backward-compatibility shim (CS-1).
+=================================================================
+All design metadata is now stored in card_design_service.py (DB-backed).
 
-A *variant* controls the card's visual structure (layout, component arrangement).
-It is orthogonal to the colour *theme* — any variant × theme combination is valid.
+VariantDefinition is an alias for CardDesignDefinition.
+VARIANTS is an alias for DESIGNS.
+VARIANT_ORDER is an alias for DESIGN_ORDER.
 
-Free variants (fifa) are always available.
-Premium variants (compact, showcase) require credit purchase.
+Lookup helpers (get_variant, get_all_variants) delegate to card_design_service.
+Business logic (is_variant_unlocked, apply_variant, unlock_variant) remains
+here because it involves credits and CardDraft — not pure design metadata.
 
-Adding a new variant requires only:
-  1. A new entry in VARIANTS below
-  2. A new template at the path listed in VariantDefinition.template
+Adding a new design:
+  1. Add a row to the card_designs DB table (via admin manifest upload or migration).
+  2. Add the browser template at the path listed in browser_template.
+  (No code changes required in this file.)
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-
+from .card_design_service import (
+    CardDesignDefinition as VariantDefinition,
+    DESIGNS as VARIANTS,
+    DESIGN_ORDER as VARIANT_ORDER,
+    get_design as _get_design,
+    get_all_designs as _get_all_designs,
+    _invalidate_cache,
+)
 from .credit_service import CreditService
 from .card_draft_service import CardDraftService
-
-
-@dataclass(frozen=True)
-class VariantDefinition:
-    id:          str
-    label:       str          # dashboard picker label
-    description: str          # tooltip / preview text
-    is_premium:  bool
-    credit_cost: int          # 0 for free variants
-    template:    str          # path relative to templates/ directory
-    available:   bool = True  # False = coming soon; blocks unlock/apply/preview
-
-
-# ── Variant registry ──────────────────────────────────────────────────────────
-VARIANTS: dict[str, VariantDefinition] = {
-    "fifa": VariantDefinition(
-        id="fifa",
-        label="FIFA Classic",
-        description="The original LFA player card with full skill breakdown and event history.",
-        is_premium=False,
-        credit_cost=0,
-        template="public/player_card_fifa.html",
-    ),
-    "compact": VariantDefinition(
-        id="compact",
-        label="Compact",
-        description="Mobile-first card designed for sharing. Shows category averages at a glance.",
-        is_premium=True,
-        credit_cost=300,
-        template="public/player_card_compact.html",
-    ),
-    "showcase": VariantDefinition(
-        id="showcase",
-        label="Showcase",
-        description="Premium landscape trading card with category highlights and recent events strip.",
-        is_premium=True,
-        credit_cost=500,
-        template="public/player_card_showcase.html",
-    ),
-    "compact_bg": VariantDefinition(
-        id="compact_bg",
-        label="Compact + BG",
-        description="Compact layout with a custom background image behind your player photo.",
-        is_premium=True,
-        credit_cost=400,
-        template="public/player_card_compact_bg.html",
-    ),
-    "showcase_bg": VariantDefinition(
-        id="showcase_bg",
-        label="Showcase + BG",
-        description="Showcase layout with a custom background image behind your player photo.",
-        is_premium=True,
-        credit_cost=600,
-        template="public/player_card_showcase_bg.html",
-    ),
-    "atlas": VariantDefinition(
-        id="atlas",
-        label="Atlas",
-        description="Modern vertical card with hero section, stat strip, and three-tab layout including player profile.",
-        is_premium=True,
-        credit_cost=400,
-        template="public/player_card_atlas.html",
-    ),
-    "pulse": VariantDefinition(
-        id="pulse",
-        label="Pulse",
-        description="Radar skill chart with animated OVR ring, pulse effects, and HUD aesthetic.",
-        is_premium=True,
-        credit_cost=600,
-        template="public/player_card_pulse.html",
-    ),
-}
-
-# Display order for the dashboard picker (free first, then premium)
-VARIANT_ORDER = ["fifa", "compact", "compact_bg", "showcase", "showcase_bg", "atlas", "pulse"]
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -102,12 +36,12 @@ def get_variant(variant_id: str) -> VariantDefinition:
     """Return variant by ID, falling back to 'fifa' for unknown IDs.
     The available flag is NOT used here — render path must never be feature-gated.
     """
-    return VARIANTS.get(variant_id, VARIANTS["fifa"])
+    return _get_design(variant_id)
 
 
 def get_all_variants() -> list[VariantDefinition]:
     """Return all variants in display order."""
-    return [VARIANTS[vid] for vid in VARIANT_ORDER if vid in VARIANTS]
+    return _get_all_designs()
 
 
 def is_variant_unlocked(user_license, variant_id: str) -> bool:

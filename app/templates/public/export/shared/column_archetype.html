@@ -1,7 +1,19 @@
-{% extends "public/export/shared/fifa_base.html" %}
+{% extends "public/export/shared/export_base.html" %}
 {#
- * Column Archetype — Intermediate Export Base Template
- * Extends: public/export/shared/fifa_base.html
+ * column_archetype.html — Column layout archetype base  (CS-4a, 2026-05-17)
+ *
+ * This is the archetype-named version of fifa_base_column.html.  Content is
+ * identical; the name change makes the structural role explicit so future designs
+ * (e.g. Compact on portrait/story) can extend this file without inheriting a
+ * "fifa" name in their template chain.
+ *
+ * Relationship:
+ *   export_base.html            (Level A: HTML shell + CSS framework)
+ *     column_archetype.html     (Level B: column structural layout — this file)
+ *       export/{bucket}/{design_id}.html  (Level C: per-bucket design template)
+ *
+ * CS-4b will migrate export/portrait/fifa.html and export/story/fifa.html to
+ * extend this file.  Until then, fifa_base_column.html remains the active base.
  *
  * Canvas fills 100vw × 100vh, flex-direction: column.
  * Layout: [.ex-hero  fixed height, var(--ex-hero-h)]
@@ -278,6 +290,9 @@
 
     </div>
     {% endblock %}
+
+    <!-- ── PRE-SKILLS (Position Map injection point for driver templates) ──── -->
+    {% block pre_skills %}{% endblock %}
 
     <!-- ── SKILLS ──────────────────────────────────────────────────────────── -->
     {% block skills_zone %}

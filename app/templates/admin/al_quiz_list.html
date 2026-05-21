@@ -1,0 +1,85 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Quizzes{% endblock %}
+{% block page_heading %}📚 Quiz Library{% endblock %}
+{% block page_subtitle %}{{ total }} quiz(zes) in the knowledge base.{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .card-wrap { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 1.5rem; }
+    .quiz-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .quiz-table thead th { background: #f7fafc; color: #718096; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.55rem 0.75rem; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+    .quiz-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+    .quiz-table tbody tr:hover { background: #fafbff; }
+    .quiz-table td { padding: 0.5rem 0.75rem; vertical-align: middle; }
+    .id-code { font-family: monospace; font-size: 0.78rem; background: #f0f0f0; padding: 0.1rem 0.4rem; border-radius: 4px; color: #4a5568; }
+    .badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+    .badge-active   { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #f3f4f6; color: #6b7280; }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: 1px solid #5a4a9a; color: #5a4a9a; background: white; text-decoration: none; display: inline-block; }
+    .btn-sm:hover { background: #f5f3ff; }
+    .pagination { display: flex; gap: 0.5rem; align-items: center; margin-top: 1.25rem; justify-content: center; }
+    .pagination a, .pagination span { padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; text-decoration: none; border: 1px solid #e2e8f0; color: #4a5568; }
+    .pagination a:hover { background: #f5f3ff; border-color: #5a4a9a; color: #5a4a9a; }
+    .pagination .current { background: #5a4a9a; color: white; border-color: #5a4a9a; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div style="margin-bottom:1rem;">
+    <a href="/admin/adaptive-learning/dashboard" style="font-size:0.85rem; color:#718096; text-decoration:none;">← Dashboard</a>
+</div>
+<div class="card-wrap">
+    {% if quizzes %}
+    <table class="quiz-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Difficulty</th>
+                <th>Lang</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for quiz in quizzes %}
+            <tr>
+                <td><span class="id-code">{{ quiz.id }}</span></td>
+                <td>{{ quiz.title }}</td>
+                <td>{{ quiz.category.value if quiz.category else '—' }}</td>
+                <td>{{ quiz.difficulty.value if quiz.difficulty else '—' }}</td>
+                <td>{{ quiz.language or '—' }}</td>
+                <td>
+                    {% if quiz.is_active %}
+                        <span class="badge badge-active">active</span>
+                    {% else %}
+                        <span class="badge badge-inactive">inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/admin/adaptive-learning/quizzes/{{ quiz.id }}" class="btn-sm">View</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+            <a href="?page={{ page - 1 }}">← Prev</a>
+        {% endif %}
+        <span class="current">{{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}
+            <a href="?page={{ page + 1 }}">Next →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <p style="color:#718096; font-size:0.9rem;">No quizzes found. <a href="/admin/adaptive-learning/import">Import content →</a></p>
+    {% endif %}
+</div>
+{% endblock %}
