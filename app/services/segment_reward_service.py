@@ -296,14 +296,17 @@ def get_training_skill_deltas_for_user(
     user_id: int,
 ) -> dict[str, float]:
     """
-    Aggregate all session_segment_results for a user into per-skill totals.
+    Aggregate per-skill training deltas from all training sources.
 
-    Single JSONB expansion query — no N+1.
+    Sources:
+      1. session_segment_results (on-site/hybrid training attendance)
+      2. virtual_training_attempts (VT mini-games, valid only)
 
+    Both use the same JSONB skill_deltas column and are summed together.
     Returns: {skill_key: total_delta}  — empty dict if no results exist.
     Used by get_skill_profile() to add training_delta alongside tournament_delta.
     """
-    rows = db.execute(
+    segment_rows = db.execute(
         text(
             """
             SELECT kv.key, SUM(kv.value::float) AS total_delta
@@ -316,7 +319,27 @@ def get_training_skill_deltas_for_user(
         {"uid": user_id},
     ).fetchall()
 
-    return {row[0]: round(row[1], 2) for row in rows}
+    vt_rows = db.execute(
+        text(
+            """
+            SELECT kv.key, SUM(kv.value::float) AS total_delta
+            FROM virtual_training_attempts vta,
+                 jsonb_each_text(vta.skill_deltas) AS kv(key, value)
+            WHERE vta.user_id = :uid
+              AND vta.is_valid = true
+            GROUP BY kv.key
+            """
+        ),
+        {"uid": user_id},
+    ).fetchall()
+
+    totals: dict[str, float] = {}
+    for row in segment_rows:
+        totals[row[0]] = totals.get(row[0], 0.0) + row[1]
+    for row in vt_rows:
+        totals[row[0]] = totals.get(row[0], 0.0) + row[1]
+
+    return {k: round(v, 2) for k, v in totals.items()}
 
 
 def get_training_session_count_for_user(
