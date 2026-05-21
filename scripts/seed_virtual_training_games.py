@@ -21,7 +21,7 @@ _GAMES = [
             "Trains raw reaction speed and visual attention."
         ),
         "game_type": "reaction_time",
-        "is_active": False,
+        "is_active": True,   # Phase 2: Color Reaction MVP activated
         "base_xp": 15,
         "max_daily_attempts": 5,
         "skill_targets": {

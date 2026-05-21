@@ -20,6 +20,7 @@ from . import (
     events,
     adaptive_learning,
     training,
+    virtual_training,
     communications,
     teams,
     tournament_live,
@@ -52,6 +53,7 @@ router.include_router(programs.router)       # 📅 MINI_SEASON / ACADEMY_SEASON
 router.include_router(events.router)         # 📅 Events hub (/events)
 router.include_router(adaptive_learning.router)  # 🧠 Adaptive Learning entry point
 router.include_router(training.router)           # 🎓 Training hub (/training)
+router.include_router(virtual_training.router)   # ⚡ Virtual Training mini-games
 router.include_router(communications.router)
 router.include_router(teams.router)
 router.include_router(tournament_live.router)  # ✅ Live monitoring (WebSocket + admin page)

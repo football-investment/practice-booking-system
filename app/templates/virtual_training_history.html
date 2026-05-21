@@ -1,0 +1,184 @@
+{% extends "student_base.html" %}
+
+{% block title %}VT History - LFA{% endblock %}
+{% block active_page %}lfa-player{% endblock %}
+
+{% block student_header %}
+{% set _page_icon = '📋' %}
+{% set _page_name = 'VT History' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .vth-container {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    .vth-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .vth-header h1 {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: var(--app-text);
+        margin: 0 0 0.3rem;
+    }
+
+    .vth-header p {
+        font-size: 0.88rem;
+        color: var(--app-text-muted);
+        margin: 0;
+    }
+
+    .vth-table-wrap {
+        background: var(--app-card);
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        overflow: hidden;
+    }
+
+    table.vth-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .vth-table th {
+        background: #f9fafb;
+        color: var(--app-text-muted);
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.7rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .vth-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        color: var(--app-text);
+        vertical-align: middle;
+    }
+
+    .vth-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .vth-xp-chip {
+        display: inline-block;
+        background: #ede9fe;
+        color: #5b21b6;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.15rem 0.55rem;
+        border-radius: 20px;
+    }
+
+    .vth-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--app-text-muted);
+        background: var(--app-card);
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    .vth-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .vth-footer a {
+        color: #667eea;
+        text-decoration: none;
+        margin: 0 0.75rem;
+        font-weight: 600;
+        font-size: 0.88rem;
+    }
+
+    .vth-footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 520px) {
+        .vth-table th:nth-child(4),
+        .vth-table td:nth-child(4) { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="vth-container">
+
+    <div class="vth-header">
+        <h1>📋 Virtual Training History</h1>
+        <p>Your last {{ attempts | length }} valid attempt{{ 's' if attempts | length != 1 else '' }}.</p>
+    </div>
+
+    {% if attempts %}
+    <div class="vth-table-wrap">
+        <table class="vth-table">
+            <thead>
+                <tr>
+                    <th>Game</th>
+                    <th>Score</th>
+                    <th>Avg RT</th>
+                    <th>XP</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in attempts %}
+                <tr>
+                    <td>
+                        <a href="/virtual-training/color-reaction/result/{{ attempt.id }}"
+                           style="color: #4f46e5; font-weight: 600; text-decoration: none;">
+                            {{ games[attempt.game_id].name if attempt.game_id in games else "—" }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if attempt.score_normalized is not none %}
+                            {{ attempt.score_normalized | round(0) | int }}%
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if attempt.avg_reaction_ms is not none %}
+                            {{ attempt.avg_reaction_ms | round(0) | int }} ms
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if attempt.xp_awarded > 0 %}
+                        <span class="vth-xp-chip">+{{ attempt.xp_awarded }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if attempt.completed_at %}
+                            {{ attempt.completed_at.strftime('%b %d, %H:%M') }}
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="vth-empty">
+        <p style="font-size: 2rem; margin-bottom: 0.75rem;">🎮</p>
+        <p>No valid attempts yet. Play a game to see your history here.</p>
+    </div>
+    {% endif %}
+
+    <div class="vth-footer">
+        <a href="/virtual-training">💻 All Games</a>
+        <a href="/virtual-training/color-reaction">⚡ Play Color Reaction</a>
+        <a href="/training">🎓 Training</a>
+    </div>
+
+</div>
+{% endblock %}

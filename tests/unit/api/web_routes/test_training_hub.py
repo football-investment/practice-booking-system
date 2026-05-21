@@ -46,6 +46,15 @@ def _make_request(path="/training"):
 
 # ── TRN-01: authenticated student → 200 ──────────────────────────────────────
 
+def _make_db():
+    db = MagicMock()
+    q = MagicMock()
+    q.filter.return_value = q
+    q.first.return_value = None
+    db.query.return_value = q
+    return db
+
+
 class TestTrainingHubAuth:
 
     def test_trn01_authenticated_student_gets_200(self):
@@ -54,15 +63,17 @@ class TestTrainingHubAuth:
 
         user = _make_student()
         request = _make_request()
+        db = _make_db()
 
         fake_response = MagicMock(spec=HTMLResponse)
         fake_response.status_code = 200
 
         with patch(f"{_ROUTES}.require_student_onboarding", return_value=None), \
              patch(f"{_ROUTES}._spec_ctx", return_value={}), \
+             patch(f"{_ROUTES}.VirtualTrainingService.get_game", return_value=None), \
              patch(f"{_ROUTES}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = fake_response
-            result = _run(training_hub_page(request=request, user=user))
+            result = _run(training_hub_page(request=request, db=db, user=user))
 
         assert result is fake_response
         mock_tmpl.TemplateResponse.assert_called_once()
@@ -79,12 +90,13 @@ class TestTrainingHubAuth:
         user = _make_student()
         user.onboarding_completed = False
         request = _make_request()
+        db = _make_db()
 
         redirect = RedirectResponse(url="/dashboard", status_code=303)
 
         with patch(f"{_ROUTES}.require_student_onboarding", return_value=redirect), \
              patch(f"{_ROUTES}.templates") as mock_tmpl:
-            result = _run(training_hub_page(request=request, user=user))
+            result = _run(training_hub_page(request=request, db=db, user=user))
 
         assert isinstance(result, RedirectResponse)
         mock_tmpl.TemplateResponse.assert_not_called()

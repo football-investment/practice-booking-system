@@ -230,15 +230,18 @@ class TestSkillDeltas:
 
 class TestSeedData:
 
-    def test_vt16_seed_presets_present_and_inactive(self):
-        """VT-16: Seed data defines exactly 3 presets, all is_active=False."""
+    def test_vt16_seed_presets_present_and_correct_active_state(self):
+        """VT-16: Seed data defines exactly 3 presets; color_reaction is_active=True (Phase 2), others False."""
         from scripts.seed_virtual_training_games import _GAMES
 
         assert len(_GAMES) == 3
         codes = {g["code"] for g in _GAMES}
         assert codes == {"color_reaction", "stroop_challenge", "go_no_go"}
-        for g in _GAMES:
-            assert g["is_active"] is False, f"{g['code']} must be inactive in Phase 1"
+
+        active_map = {g["code"]: g["is_active"] for g in _GAMES}
+        assert active_map["color_reaction"] is True, "color_reaction must be active in Phase 2"
+        assert active_map["stroop_challenge"] is False, "stroop_challenge not yet active"
+        assert active_map["go_no_go"] is False, "go_no_go not yet active"
 
 
 # ── VT-17: get_training_skill_deltas_for_user merges VT deltas ───────────────

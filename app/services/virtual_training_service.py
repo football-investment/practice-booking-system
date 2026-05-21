@@ -1,13 +1,10 @@
 """
-Virtual Training Service — Phase 1
-
-Provides pure-function helpers and DB-backed queries for the Virtual Training
-mini-game system. No active user routes in Phase 1 — service exists purely
-for data model validation and future Phase 2 integration.
+Virtual Training Service — Phase 2 (Color Reaction MVP)
 
 Anti-farming rules enforced here (not in the route):
-  - Bot filter: avg_reaction_ms < 100 → is_valid=False, invalid_reason="bot_suspected"
-  - Diminishing returns multiplier: attempt 1→1.0, 2→0.6, 3→0.3, 4+→0.0
+  - too_short:       duration_seconds < 5.0 — session ended too fast to be real
+  - too_few_stimuli: stimuli_count < 5 — not enough data for a valid score
+  - bot_suspected:   avg_reaction_ms < 100 — physically impossible reaction time
 
 Skill delta computation reuses compute_skill_deltas() from segment_reward_service
 so the formula is identical to the tournament/session training pipeline.
@@ -23,6 +20,8 @@ from app.models.virtual_training import VirtualTrainingAttempt, VirtualTrainingG
 
 _XP_MULTIPLIER_TABLE: dict[int, float] = {1: 1.0, 2: 0.6, 3: 0.3}
 _BOT_REACTION_THRESHOLD_MS = 100.0
+_MIN_DURATION_SECONDS = 5.0
+_MIN_STIMULI_COUNT = 5
 
 
 class VirtualTrainingService:
@@ -56,12 +55,23 @@ class VirtualTrainingService:
         Run anti-abuse checks on raw attempt data.
 
         Returns (is_valid, invalid_reason).
-        Checks:
-          - avg_reaction_ms < 100 → bot_suspected
+        Checks (in order — first failing check wins):
+          1. duration_seconds < 5.0    → too_short
+          2. stimuli_count < 5         → too_few_stimuli
+          3. avg_reaction_ms < 100     → bot_suspected
         """
+        duration = data.get("duration_seconds")
+        if duration is not None and float(duration) < _MIN_DURATION_SECONDS:
+            return False, "too_short"
+
+        stimuli = data.get("stimuli_count")
+        if stimuli is not None and int(stimuli) < _MIN_STIMULI_COUNT:
+            return False, "too_few_stimuli"
+
         avg_ms = data.get("avg_reaction_ms")
         if avg_ms is not None and float(avg_ms) < _BOT_REACTION_THRESHOLD_MS:
             return False, "bot_suspected"
+
         return True, None
 
     # ── Daily indexing ────────────────────────────────────────────────────────
@@ -131,3 +141,100 @@ class VirtualTrainingService:
             xp_awarded=xp_awarded,
             conversion_rates=conversion_rates,
         )
+
+    # ── Write path ────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def record_attempt(
+        db: Session,
+        user_id: int,
+        game: VirtualTrainingGame,
+        data: dict,
+        idempotency_key: str,
+    ) -> VirtualTrainingAttempt:
+        """
+        Persist one validated VirtualTrainingAttempt and award XP.
+
+        Idempotent: if a row with the same idempotency_key already exists,
+        the existing row is returned without re-awarding XP.
+        Does NOT commit — caller owns the transaction boundary.
+
+        data keys (all optional except started_at):
+          started_at, duration_seconds, stimuli_count, correct_count,
+          error_count, avg_reaction_ms, min_reaction_ms,
+          score_raw, score_normalized
+        """
+        from sqlalchemy.exc import IntegrityError
+        from app.services.segment_reward_service import _load_conversion_rates
+        from app.services.gamification import xp_service
+
+        now = datetime.now(timezone.utc)
+
+        is_valid, invalid_reason = VirtualTrainingService.validate_attempt(data)
+
+        attempt_index = VirtualTrainingService.calculate_daily_attempt_index(
+            db, user_id, game.id
+        )
+        multiplier = VirtualTrainingService.calculate_xp_multiplier(attempt_index)
+        xp_awarded = VirtualTrainingService.calculate_xp_awarded(game, multiplier) if is_valid else 0
+
+        rates = _load_conversion_rates(db)
+        skill_deltas = (
+            VirtualTrainingService.calculate_skill_deltas(game, xp_awarded, rates)
+            if is_valid and xp_awarded > 0
+            else {}
+        )
+
+        started_at = data.get("started_at")
+        if isinstance(started_at, str):
+            try:
+                started_at = datetime.fromisoformat(started_at)
+            except ValueError:
+                started_at = now
+        if started_at is None:
+            started_at = now
+
+        sp = db.begin_nested()
+        try:
+            attempt = VirtualTrainingAttempt(
+                user_id=user_id,
+                game_id=game.id,
+                started_at=started_at,
+                completed_at=now,
+                is_valid=is_valid,
+                invalid_reason=invalid_reason,
+                score_raw=data.get("score_raw"),
+                score_normalized=data.get("score_normalized"),
+                avg_reaction_ms=data.get("avg_reaction_ms"),
+                min_reaction_ms=data.get("min_reaction_ms"),
+                duration_seconds=data.get("duration_seconds"),
+                stimuli_count=data.get("stimuli_count"),
+                correct_count=data.get("correct_count"),
+                error_count=data.get("error_count"),
+                xp_awarded=xp_awarded,
+                skill_deltas=skill_deltas,
+                attempt_index_today=attempt_index,
+                idempotency_key=idempotency_key,
+            )
+            db.add(attempt)
+            sp.commit()
+        except IntegrityError:
+            sp.rollback()
+            attempt = (
+                db.query(VirtualTrainingAttempt)
+                .filter(VirtualTrainingAttempt.idempotency_key == idempotency_key)
+                .first()
+            )
+            return attempt
+
+        if is_valid and xp_awarded > 0:
+            xp_service.award_xp(
+                db=db,
+                user_id=user_id,
+                xp_amount=xp_awarded,
+                reason=f"Virtual Training: {game.name}",
+                idempotency_key=f"{idempotency_key}_xp",
+                transaction_type="VIRTUAL_TRAINING_XP",
+            )
+
+        return attempt

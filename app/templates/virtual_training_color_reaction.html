@@ -1,0 +1,478 @@
+{% extends "student_base.html" %}
+
+{% block title %}Color Reaction - LFA{% endblock %}
+{% block active_page %}lfa-player{% endblock %}
+
+{% block student_header %}
+{% set _page_icon = '⚡' %}
+{% set _page_name = 'Color Reaction' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .cr-container {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    /* ── Meta info bar ──────────────────────────────────────────────────── */
+    .cr-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--app-card);
+        border-radius: 10px;
+        padding: 0.65rem 1rem;
+        margin-bottom: 1.25rem;
+        font-size: 0.85rem;
+        color: var(--app-text-muted);
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+
+    .cr-meta span { font-weight: 600; color: var(--app-text); }
+
+    /* ── Instruction card ───────────────────────────────────────────────── */
+    .cr-instruction {
+        background: var(--app-card);
+        border-radius: 14px;
+        padding: 1.5rem 1.5rem 1.75rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .cr-instruction h2 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: 0 0 0.6rem;
+        color: var(--app-text);
+    }
+
+    .cr-instruction p {
+        font-size: 0.9rem;
+        color: var(--app-text-muted);
+        line-height: 1.6;
+        margin: 0 0 1.25rem;
+    }
+
+    .cr-skill-chips {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+
+    .cr-skill-chip {
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: #ede9fe;
+        color: #5b21b6;
+        padding: 0.2rem 0.65rem;
+        border-radius: 20px;
+    }
+
+    .cr-btn-start {
+        display: inline-block;
+        background: #4f46e5;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 700;
+        padding: 0.75rem 2.5rem;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .cr-btn-start:hover { background: #4338ca; }
+    .cr-btn-start:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* ── Game arena ─────────────────────────────────────────────────────── */
+    .cr-arena {
+        display: none;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .cr-arena.active { display: flex; }
+
+    .cr-progress-bar-wrap {
+        background: #e5e7eb;
+        border-radius: 20px;
+        height: 8px;
+        overflow: hidden;
+    }
+
+    .cr-progress-bar {
+        background: #4f46e5;
+        height: 100%;
+        width: 0%;
+        transition: width 0.15s;
+        border-radius: 20px;
+    }
+
+    .cr-stats-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.82rem;
+        color: var(--app-text-muted);
+    }
+
+    .cr-stats-row b { color: var(--app-text); }
+
+    /* The stimulus field — fixed aspect so the circle can be placed randomly */
+    .cr-field {
+        position: relative;
+        background: var(--app-card);
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        overflow: hidden;
+        aspect-ratio: 4 / 3;
+        cursor: crosshair;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .cr-field-msg {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        color: var(--app-text-muted);
+        font-weight: 600;
+        pointer-events: none;
+    }
+
+    .cr-circle {
+        position: absolute;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: opacity 0.1s;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        display: none;
+    }
+
+    .cr-circle.visible { display: block; }
+
+    /* ── Feedback flash ─────────────────────────────────────────────────── */
+    .cr-feedback {
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 700;
+        height: 1.5rem;
+        color: #10b981;
+    }
+
+    .cr-feedback.miss { color: #ef4444; }
+
+    /* ── Cap warning ────────────────────────────────────────────────────── */
+    .cr-cap-warning {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        text-align: center;
+        color: #92400e;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    /* ── Loading overlay ────────────────────────────────────────────────── */
+    .cr-submitting {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+        color: var(--app-text-muted);
+    }
+
+    .cr-submitting.active { display: block; }
+
+    .cr-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .cr-footer a {
+        color: #667eea;
+        text-decoration: none;
+        margin: 0 0.75rem;
+        font-weight: 600;
+        font-size: 0.88rem;
+    }
+
+    .cr-footer a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="cr-container">
+
+    {# ── Meta bar ──────────────────────────────────────────────────────── #}
+    <div class="cr-meta">
+        <span>⚡ Color Reaction</span>
+        <span>
+            Attempts today: <span id="attemptsToday">{{ attempts_today }}</span> /
+            <span id="maxAttempts">{{ max_daily_attempts }}</span>
+        </span>
+        <span><span id="attemptsRemaining">{{ attempts_remaining }}</span> remaining</span>
+    </div>
+
+    {# ── Daily cap reached ─────────────────────────────────────────────── #}
+    {% if attempts_remaining == 0 %}
+    <div class="cr-cap-warning">
+        You've reached the daily limit of {{ max_daily_attempts }} attempts. Come back tomorrow!
+    </div>
+    {% else %}
+
+    {# ── Instruction card (shown before game starts) ───────────────────── #}
+    <div class="cr-instruction" id="crInstruction">
+        <h2>⚡ Color Reaction</h2>
+        <p>
+            A coloured circle appears at a random position on the field.
+            <strong>Tap or click it as fast as you can</strong> before it disappears.
+            {{ game.config.stimulus_count or 10 }} stimuli will be shown in total.
+        </p>
+        <div class="cr-skill-chips">
+            {% for skill in game.skill_targets.keys() %}
+            <span class="cr-skill-chip">{{ skill }}</span>
+            {% endfor %}
+        </div>
+        <p style="font-size: 0.8rem; color: var(--app-text-muted); margin-bottom: 1rem;">
+            Up to <strong>{{ game.base_xp }} XP</strong> per attempt •
+            Diminishing returns apply to repeated attempts
+        </p>
+        <button class="cr-btn-start" id="btnStart" onclick="crStart()">Start Game</button>
+    </div>
+
+    {# ── Game arena (hidden until started) ────────────────────────────── #}
+    <div class="cr-arena" id="crArena">
+        <div class="cr-progress-bar-wrap">
+            <div class="cr-progress-bar" id="crProgressBar"></div>
+        </div>
+        <div class="cr-stats-row">
+            <span>Stimulus <b id="crCurrent">0</b> / <b id="crTotal">{{ game.config.stimulus_count or 10 }}</b></span>
+            <span>Hits: <b id="crHits">0</b> &nbsp; Misses: <b id="crMisses">0</b></span>
+            <span>Avg: <b id="crAvgMs">—</b> ms</span>
+        </div>
+        <div class="cr-field" id="crField">
+            <div class="cr-field-msg" id="crFieldMsg">Get ready…</div>
+            <div class="cr-circle" id="crCircle"></div>
+        </div>
+        <div class="cr-feedback" id="crFeedback"></div>
+    </div>
+
+    {# ── Submitting spinner ────────────────────────────────────────────── #}
+    <div class="cr-submitting" id="crSubmitting">
+        <p>Saving your result…</p>
+    </div>
+
+    {% endif %}
+
+    <div class="cr-footer">
+        <a href="/virtual-training">💻 All Games</a>
+        <a href="/virtual-training/history">📋 History</a>
+        <a href="/training">🎓 Training</a>
+    </div>
+</div>
+
+<script>
+(function () {
+    // ── Config pulled from server ─────────────────────────────────────────
+    const STIMULUS_COUNT    = {{ game.config.stimulus_count or 10 }};
+    const MIN_DELAY_MS      = {{ game.config.min_delay_ms or 600 }};
+    const MAX_DELAY_MS      = {{ game.config.max_delay_ms or 2500 }};
+    const COLOURS           = {{ game.config.colours | tojson }};
+    const CIRCLE_DIAMETER   = 64;   // px — fixed size for consistent hit area
+    const WINDOW_MS         = 2500; // ms until a stimulus expires (miss)
+    const CSRF_TOKEN        = "{{ request.cookies.get('csrf_token', '') }}";
+    const SUBMIT_URL        = "/virtual-training/color-reaction/submit";
+
+    // ── Game state ────────────────────────────────────────────────────────
+    let started       = false;
+    let startedAt     = null;       // ISO string set at first stimulus show
+    let stimulusTimes = [];         // reaction times for each hit (ms)
+    let hits          = 0;
+    let misses        = 0;
+    let currentStim   = 0;
+    let stimTimestamp = null;       // when current stimulus appeared
+    let stimTimeout   = null;       // timer for auto-miss
+
+    // ── DOM refs ──────────────────────────────────────────────────────────
+    const arena       = document.getElementById("crArena");
+    const instruction = document.getElementById("crInstruction");
+    const field       = document.getElementById("crField");
+    const circle      = document.getElementById("crCircle");
+    const fieldMsg    = document.getElementById("crFieldMsg");
+    const progressBar = document.getElementById("crProgressBar");
+    const elCurrent   = document.getElementById("crCurrent");
+    const elHits      = document.getElementById("crHits");
+    const elMisses    = document.getElementById("crMisses");
+    const elAvgMs     = document.getElementById("crAvgMs");
+    const elFeedback  = document.getElementById("crFeedback");
+    const elSubmitting= document.getElementById("crSubmitting");
+
+    // ── Public entry ──────────────────────────────────────────────────────
+    window.crStart = function () {
+        if (started) return;
+        started = true;
+        instruction.style.display = "none";
+        arena.classList.add("active");
+        scheduleNextStimulus(800);  // brief pause before first circle
+    };
+
+    // ── Stimulus lifecycle ────────────────────────────────────────────────
+    function scheduleNextStimulus(delay) {
+        fieldMsg.textContent = "";
+        setTimeout(showStimulus, delay);
+    }
+
+    function showStimulus() {
+        currentStim++;
+        updateStats();
+
+        if (startedAt === null) {
+            startedAt = new Date().toISOString();
+        }
+
+        const colour = COLOURS[Math.floor(Math.random() * COLOURS.length)];
+        const rect   = field.getBoundingClientRect();
+        const maxX   = rect.width  - CIRCLE_DIAMETER;
+        const maxY   = rect.height - CIRCLE_DIAMETER;
+        const x      = Math.floor(Math.random() * maxX);
+        const y      = Math.floor(Math.random() * maxY);
+
+        circle.style.width            = CIRCLE_DIAMETER + "px";
+        circle.style.height           = CIRCLE_DIAMETER + "px";
+        circle.style.left             = x + "px";
+        circle.style.top              = y + "px";
+        circle.style.backgroundColor  = colour;
+        circle.classList.add("visible");
+
+        stimTimestamp = performance.now();
+        stimTimeout   = setTimeout(handleMiss, WINDOW_MS);
+    }
+
+    function hideStimulus() {
+        clearTimeout(stimTimeout);
+        stimTimeout = null;
+        circle.classList.remove("visible");
+    }
+
+    function handleHit(e) {
+        e.stopPropagation();
+        if (!circle.classList.contains("visible")) return;
+        const rt = Math.round(performance.now() - stimTimestamp);
+        stimulusTimes.push(rt);
+        hits++;
+        hideStimulus();
+        showFeedback("✓ " + rt + " ms", false);
+        afterStimulus();
+    }
+
+    function handleMiss() {
+        if (!circle.classList.contains("visible")) return;
+        misses++;
+        hideStimulus();
+        showFeedback("✗ Miss", true);
+        afterStimulus();
+    }
+
+    function afterStimulus() {
+        updateStats();
+        if (currentStim >= STIMULUS_COUNT) {
+            finishGame();
+        } else {
+            const delay = MIN_DELAY_MS + Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS);
+            scheduleNextStimulus(Math.round(delay));
+        }
+    }
+
+    circle.addEventListener("click",     handleHit);
+    circle.addEventListener("touchstart", function(e) { handleHit(e); }, { passive: false });
+
+    // ── UI helpers ────────────────────────────────────────────────────────
+    function updateStats() {
+        const pct = Math.round((currentStim / STIMULUS_COUNT) * 100);
+        progressBar.style.width = pct + "%";
+        elCurrent.textContent   = currentStim;
+        elHits.textContent      = hits;
+        elMisses.textContent    = misses;
+        if (stimulusTimes.length > 0) {
+            const avg = Math.round(stimulusTimes.reduce((a, b) => a + b, 0) / stimulusTimes.length);
+            elAvgMs.textContent = avg;
+        }
+    }
+
+    function showFeedback(msg, isMiss) {
+        elFeedback.textContent = msg;
+        elFeedback.className   = "cr-feedback" + (isMiss ? " miss" : "");
+        clearTimeout(elFeedback._timer);
+        elFeedback._timer = setTimeout(() => { elFeedback.textContent = ""; }, 900);
+    }
+
+    // ── Finish + submit ───────────────────────────────────────────────────
+    function finishGame() {
+        arena.classList.remove("active");
+        elSubmitting.classList.add("active");
+
+        const now = performance.now();
+        const durationMs = stimulusTimes.length > 0 || misses > 0
+            ? now - (now - (STIMULUS_COUNT * 1500))  // approximate; backend uses server time
+            : 0;
+
+        const avgMs = stimulusTimes.length > 0
+            ? Math.round(stimulusTimes.reduce((a, b) => a + b, 0) / stimulusTimes.length)
+            : null;
+        const minMs = stimulusTimes.length > 0
+            ? Math.min(...stimulusTimes)
+            : null;
+        const scoreRaw        = hits;
+        const scoreNormalized = STIMULUS_COUNT > 0 ? Math.round((hits / STIMULUS_COUNT) * 100) : 0;
+
+        // Compute duration from startedAt to now
+        const durationSeconds = startedAt
+            ? (Date.now() - new Date(startedAt).getTime()) / 1000
+            : null;
+
+        const payload = {
+            started_at:       startedAt,
+            duration_seconds: durationSeconds ? Math.round(durationSeconds * 10) / 10 : null,
+            stimuli_count:    STIMULUS_COUNT,
+            correct_count:    hits,
+            error_count:      misses,
+            avg_reaction_ms:  avgMs,
+            min_reaction_ms:  minMs,
+            score_raw:        scoreRaw,
+            score_normalized: scoreNormalized,
+        };
+
+        fetch(SUBMIT_URL, {
+            method:  "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": CSRF_TOKEN,
+            },
+            body: JSON.stringify(payload),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.attempt_id) {
+                window.location.href = "/virtual-training/color-reaction/result/" + data.attempt_id;
+            } else {
+                elSubmitting.innerHTML = "<p>⚠️ Could not save attempt. <a href='/virtual-training'>Back to hub</a></p>";
+            }
+        })
+        .catch(() => {
+            elSubmitting.innerHTML = "<p>⚠️ Network error. <a href='/virtual-training'>Back to hub</a></p>";
+        });
+    }
+})();
+</script>
+{% endblock %}
