@@ -29,19 +29,19 @@ async def virtual_training_hub(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Virtual Training hub — lists active mini-games."""
+    """Virtual Games hub — lists all hub-visible games (active + planned)."""
     guard = require_student_onboarding(user)
     if guard:
         return guard
 
-    active_games = VirtualTrainingService.get_games(db)
+    all_games = VirtualTrainingService.get_hub_games(db)
     return templates.TemplateResponse(
         "virtual_training_hub.html",
         {
             "request": request,
             "user": user,
             **_spec_ctx(user, db),
-            "active_games": active_games,
+            "all_games": all_games,
         },
     )
 
@@ -206,6 +206,45 @@ async def virtual_training_color_reaction_result(
         VirtualTrainingGame.id == attempt.game_id
     ).first()
 
+    # ── Skill delta breakdown (VH-04/05): recompute per-skill scores from stored fields ──
+    skill_scores: dict = {}
+    signals_ctx: dict = {}
+    if attempt.skill_deltas and game is not None:
+        from ...services.virtual_training_metrics import VTSignalExtractor, VTSkillScorer
+        cfg          = game.config or {}
+        phase_config = cfg.get("phases", []) if isinstance(cfg, dict) else []
+        data_for_signals = {
+            "stimuli_count":    attempt.stimuli_count,
+            "correct_count":    attempt.correct_count,
+            "wrong_click_count": attempt.wrong_click_count,
+            "error_count":      attempt.error_count,
+            "avg_reaction_ms":  attempt.avg_reaction_ms,
+            "raw_metrics":      attempt.raw_metrics,
+        }
+        signals = VTSignalExtractor.extract(data_for_signals, phase_config)
+        skill_scores = VTSkillScorer.score_all(signals, game.skill_targets or {})
+        signals_ctx = {
+            "hit_rate":        round(signals.hit_rate * 100, 1),
+            "wrong_rate":      round(signals.wrong_rate * 100, 1),
+            "miss_rate":       round(signals.miss_rate * 100, 1),
+            "speed_score":     round(signals.speed_score * 100, 1),
+            "completion_rate": round(signals.completion_rate * 100, 1),
+            "avg_reaction_ms": signals.avg_reaction_ms,
+        }
+
+    # ── raw_metrics decomposition (VH-06/07/08/09): per-phase, per-color, per-stimulus ──
+    per_phase: list = []
+    per_color: dict = {}
+    per_stimulus: list = []
+    raw = attempt.raw_metrics
+    if isinstance(raw, dict) and raw.get("v") == 1:
+        per_phase    = raw.get("per_phase")    or []
+        per_color    = raw.get("per_color")    or {}
+        per_stimulus = raw.get("per_stimulus") or []
+
+    from ...models.user import UserRole
+    is_admin = user.role == UserRole.ADMIN
+
     return templates.TemplateResponse(
         "virtual_training_result.html",
         {
@@ -214,6 +253,12 @@ async def virtual_training_color_reaction_result(
             **_spec_ctx(user, db),
             "attempt": attempt,
             "game": game,
+            "skill_scores": skill_scores,
+            "signals_ctx":  signals_ctx,
+            "per_phase":     per_phase,
+            "per_color":     per_color,
+            "per_stimulus":  per_stimulus,
+            "is_admin":      is_admin,
         },
     )
 
