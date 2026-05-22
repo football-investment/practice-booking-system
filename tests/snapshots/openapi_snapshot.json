@@ -63916,6 +63916,140 @@
           "web"
         ]
       }
+    },
+    "/virtual-training": {
+      "get": {
+        "description": "Virtual Training hub \u2014 lists active mini-games.",
+        "operationId": "virtual_training_hub_virtual_training_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training Hub",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/color-reaction": {
+      "get": {
+        "description": "Color Reaction game page \u2014 instructions + Vanilla JS game loop.",
+        "operationId": "virtual_training_color_reaction_virtual_training_color_reaction_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training Color Reaction",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/color-reaction/result/{attempt_id}": {
+      "get": {
+        "description": "Result screen for a completed Color Reaction attempt.",
+        "operationId": "virtual_training_color_reaction_result_virtual_training_color_reaction_result__attempt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "title": "Attempt Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Virtual Training Color Reaction Result",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/color-reaction/submit": {
+      "post": {
+        "description": "Record a Color Reaction attempt. Returns attempt_id, xp_awarded, is_valid.",
+        "operationId": "virtual_training_color_reaction_submit_virtual_training_color_reaction_submit_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training Color Reaction Submit",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/history": {
+      "get": {
+        "description": "Attempt history \u2014 last 20 valid attempts across all VT games.",
+        "operationId": "virtual_training_history_virtual_training_history_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training History",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
     }
   }
 }

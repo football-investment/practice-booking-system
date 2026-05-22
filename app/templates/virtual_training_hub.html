@@ -1,0 +1,167 @@
+{% extends "student_base.html" %}
+
+{% block title %}Virtual Training - LFA{% endblock %}
+{% block active_page %}lfa-player{% endblock %}
+
+{% block student_header %}
+{% set _page_icon = '💻' %}
+{% set _page_name = 'Virtual Training' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .vt-container {
+        max-width: 700px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    .vt-header {
+        margin-bottom: 2rem;
+    }
+
+    .vt-header h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--app-text);
+        margin: 0 0 0.4rem;
+    }
+
+    .vt-header p {
+        color: var(--app-text-muted);
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .vt-alert {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        color: #92400e;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .vt-game-card {
+        background: var(--app-card);
+        border-radius: 14px;
+        padding: 1.5rem 1.25rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-bottom: 1.25rem;
+        border-left: 4px solid #4f46e5;
+        text-decoration: none;
+        color: inherit;
+        transition: box-shadow 0.15s;
+    }
+
+    .vt-game-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+
+    .vt-game-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--app-text);
+        margin: 0;
+    }
+
+    .vt-game-card p {
+        font-size: 0.88rem;
+        color: var(--app-text-muted);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .vt-game-meta {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 0.25rem;
+    }
+
+    .vt-meta-chip {
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: #ede9fe;
+        color: #5b21b6;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
+    }
+
+    .vt-no-games {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--app-text-muted);
+    }
+
+    .vt-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .vt-footer a {
+        color: #667eea;
+        text-decoration: none;
+        margin: 0 1rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .vt-footer a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="vt-container">
+
+    <div class="vt-header">
+        <h1>💻 Virtual Training</h1>
+        <p>Cognitive mini-games that sharpen your football skills. Train your reactions, decisions and concentration anywhere.</p>
+    </div>
+
+    {% if error %}
+    <div class="vt-alert">{{ error }}</div>
+    {% endif %}
+
+    {% if active_games %}
+        {% for game in active_games %}
+        <a href="/virtual-training/{{ game.code | replace('_', '-') }}" class="vt-game-card">
+            <h3>⚡ {{ game.name }}</h3>
+            <p>{{ game.description }}</p>
+            <div class="vt-game-meta">
+                <span class="vt-meta-chip">{{ game.base_xp }} XP</span>
+                <span class="vt-meta-chip">{{ game.max_daily_attempts }}× per day</span>
+                {% for skill in game.skill_targets.keys() %}
+                <span class="vt-meta-chip">{{ skill }}</span>
+                {% endfor %}
+            </div>
+        </a>
+        {% endfor %}
+    {% else %}
+        <div class="vt-no-games">
+            <p style="font-size: 2rem; margin-bottom: 0.75rem;">🎮</p>
+            <p>No virtual training games are active yet. Check back soon.</p>
+        </div>
+    {% endif %}
+
+    <div style="margin-top: 1rem; text-align: right;">
+        <a href="/virtual-training/history" style="color: #667eea; font-size: 0.88rem; font-weight: 600; text-decoration: none;">
+            📋 View my history →
+        </a>
+    </div>
+
+    <div class="vt-footer">
+        <a href="/training">🎓 Training</a>
+        <a href="/dashboard/lfa-football-player">⚽ Dashboard</a>
+        <a href="/adaptive-learning">🧠 Adaptive Learning</a>
+    </div>
+
+</div>
+{% endblock %}

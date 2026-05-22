@@ -2,11 +2,14 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
+from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.user import User
+from ...services.virtual_training_service import VirtualTrainingService
 from .helpers import require_student_onboarding
 from .student_features import _spec_ctx
 
@@ -19,6 +22,7 @@ router = APIRouter(tags=["training"])
 @router.get("/training", response_class=HTMLResponse)
 async def training_hub_page(
     request: Request,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
     """Training hub — top-level entry point for all training modes."""
@@ -26,11 +30,15 @@ async def training_hub_page(
     if redirect:
         return redirect
 
+    color_reaction = VirtualTrainingService.get_game(db, "color_reaction")
+    vt_active = color_reaction is not None and color_reaction.is_active
+
     return templates.TemplateResponse(
         "training_hub.html",
         {
             "request": request,
             "user": user,
-            **_spec_ctx(user),
+            **_spec_ctx(user, db),
+            "vt_active": vt_active,
         },
     )

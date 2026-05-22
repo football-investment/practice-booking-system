@@ -9,6 +9,7 @@ No formula logic, no config enumeration, no EMA step computation here.
 
 Extracted from skill_progression_service.py (Layer 5).
 """
+from datetime import datetime, timezone
 from typing import Dict, List
 
 from sqlalchemy.orm import Session
@@ -168,21 +169,64 @@ def get_skill_profile(db: Session, user_id: int) -> Dict[str, any]:
     }
 
 
+_TIMELINE_EPOCH = datetime(1900, 1, 1, tzinfo=timezone.utc)
+
+
+def _collect_vt_timeline_events(db: Session, user_id: int, skill_key: str) -> List[dict]:
+    """Return pre-shaped raw timeline event dicts for valid VT attempts that affect skill_key.
+
+    Filtered at DB level: is_valid=True, xp_awarded>0.
+    Filtered at Python level: skill_key present in skill_deltas JSONB.
+    """
+    from app.models.virtual_training import VirtualTrainingAttempt
+
+    attempts = (
+        db.query(VirtualTrainingAttempt)
+        .filter(
+            VirtualTrainingAttempt.user_id == user_id,
+            VirtualTrainingAttempt.is_valid == True,
+            VirtualTrainingAttempt.xp_awarded > 0,
+        )
+        .order_by(VirtualTrainingAttempt.started_at.asc())
+        .all()
+    )
+
+    events = []
+    for attempt in attempts:
+        vt_delta = (attempt.skill_deltas or {}).get(skill_key)
+        if vt_delta is None:
+            continue
+        events.append({
+            "_type":     "virtual_training",
+            "_sort_dt":  attempt.started_at,
+            "_vt_delta": float(vt_delta),
+            "event_type":      "virtual_training",
+            "event_name":      f"Virtual Training — {attempt.game.name}",
+            "achieved_at":     attempt.started_at.isoformat() if attempt.started_at else None,
+            "tournament_id":   None,
+            "tournament_name": None,
+            "placement":       None,
+            "total_players":   None,
+            "placement_skill": None,
+            "skill_weight":    None,
+        })
+    return events
+
+
 def get_skill_timeline(
     db: Session,
     user_id: int,
     skill_key: str
 ) -> Dict:
     """
-    Build a per-tournament timeline for a single skill showing how it evolved
-    across all tournaments the player participated in.
+    Build a unified per-event timeline for a single skill showing how it evolved
+    across all tournaments and Virtual Training attempts the player completed.
 
-    The timeline replays the same sequential weighted-average formula used by
-    calculate_tournament_skill_contribution(), but captures the intermediate
-    value after every tournament instead of only the final aggregated result.
-
-    No schema changes required: all data lives in TournamentParticipation +
-    TournamentSkillMapping / reward_config.
+    Tournament events replay the EMA-weighted formula (calculate_skill_value_from_placement).
+    Virtual Training events apply an additive delta on top of the running skill value.
+    All events are sorted chronologically before replay so interleaved VT and tournament
+    events are processed in the correct order — a VT boost before a tournament is
+    visible in that tournament's prev_value.
 
     Returns:
         {
@@ -192,13 +236,15 @@ def get_skill_timeline(
             "total_delta": 17.5,
             "timeline": [
                 {
-                    "tournament_id":   10,
-                    "tournament_name": "League Cup 2026",
-                    "achieved_at":     "2026-02-11T15:33:11+00:00",
-                    "placement":       1,
-                    "total_players":   4,
-                    "placement_skill": 100.0,
-                    "skill_weight":    1.0,
+                    "event_type":        "tournament" | "virtual_training",
+                    "event_name":        "League Cup 2026" | "Virtual Training — Color Reaction",
+                    "tournament_id":     10 | None,
+                    "tournament_name":   "League Cup 2026" | None,
+                    "achieved_at":       "2026-02-11T15:33:11+00:00",
+                    "placement":         1 | None,
+                    "total_players":     4 | None,
+                    "placement_skill":   100.0 | None,
+                    "skill_weight":      1.0 | None,
                     "skill_value_after": 88.5,
                     "delta_from_baseline": 8.5,
                     "delta_from_previous": 8.5,
@@ -206,7 +252,7 @@ def get_skill_timeline(
                 ...
             ]
         }
-        Returns None if the player has no participation data or the skill is unknown.
+        Returns None if skill_key is unknown.
     """
     all_skill_keys = get_all_skill_keys()
     if skill_key not in all_skill_keys:
@@ -216,12 +262,11 @@ def get_skill_timeline(
     baseline_skills = get_baseline_skills(db, user_id)
     baseline = baseline_skills.get(skill_key, DEFAULT_BASELINE)
 
-    # Player average baseline for opponent_factor computation
     all_baseline_vals = list(baseline_skills.values())
     player_baseline_avg = (sum(all_baseline_vals) / len(all_baseline_vals)) if all_baseline_vals else DEFAULT_BASELINE
 
-    # --- participations in chronological order ---------------------------
-    # S01: (achieved_at, id) stable sort for deterministic timeline replay
+    # --- Phase 1: collect raw tournament events (no skill_value_after yet) ------
+    # S01: (achieved_at, id) stable sort for deterministic ordering within the DB query.
     participations = (
         db.query(TournamentParticipation)
         .filter(TournamentParticipation.user_id == user_id)
@@ -232,9 +277,7 @@ def get_skill_timeline(
         .all()
     )
 
-    timeline = []
-    tournament_count = 0      # How many tournaments have already affected this skill
-    previous_value = baseline
+    raw_events: List[dict] = []
 
     for participation in participations:
         tournament = participation.tournament
@@ -242,15 +285,12 @@ def get_skill_timeline(
             continue
 
         tournament_skills_with_weights = _extract_tournament_skills(db, tournament, all_skill_keys)
-        # This tournament does not affect the requested skill → skip
         if skill_key not in tournament_skills_with_weights:
             continue
 
         skill_weight = tournament_skills_with_weights[skill_key]
 
-        # Total players in this tournament.
-        # For TEAM tournaments: count distinct placements (= number of teams),
-        # not total individual rows — prevents last-place teams getting 5th-percentile scores.
+        # For TEAM tournaments count distinct placements; for INDIVIDUAL count rows.
         if getattr(tournament, "participant_type", "INDIVIDUAL") == "TEAM":
             total_players = (
                 db.query(TournamentParticipation.placement)
@@ -267,7 +307,6 @@ def get_skill_timeline(
         if total_players == 0:
             continue
 
-        # Placement → placement_skill (100 for 1st, 40 for last)
         if total_players == 1:
             percentile = 0.0
         else:
@@ -278,45 +317,66 @@ def get_skill_timeline(
             db, tournament.id, user_id, player_baseline_avg
         )
 
-        tournament_count += 1
-        skill_value_after = calculate_skill_value_from_placement(
-            baseline=baseline,
-            placement=participation.placement,
-            total_players=total_players,
-            tournament_count=tournament_count,
-            skill_weight=skill_weight,
-            prev_value=previous_value,
-            opponent_factor=opp_factor,
-        )
-
-        timeline.append({
-            # Event-model fields (canonical)
-            "event_type":           "tournament",
-            "event_name":           tournament.name,
-            # Legacy fields kept for backwards compatibility
-            "tournament_id":        tournament.id,
-            "tournament_name":      tournament.name,
-            "achieved_at":          participation.achieved_at.isoformat() if participation.achieved_at else None,
-            "placement":            participation.placement,
-            "total_players":        total_players,
-            "placement_skill":      round(placement_skill, 1),
-            "skill_weight":         skill_weight,
-            "skill_value_after":    skill_value_after,
-            "delta_from_baseline":  round(skill_value_after - baseline, 1),
-            "delta_from_previous":  round(skill_value_after - previous_value, 1),
+        raw_events.append({
+            "_type":          "tournament",
+            "_sort_dt":       participation.achieved_at,
+            "_placement":     participation.placement,
+            "_total_players": total_players,
+            "_skill_weight":  skill_weight,
+            "_opp_factor":    opp_factor,
+            "event_type":      "tournament",
+            "event_name":      tournament.name,
+            "tournament_id":   tournament.id,
+            "tournament_name": tournament.name,
+            "achieved_at":     participation.achieved_at.isoformat() if participation.achieved_at else None,
+            "placement":       participation.placement,
+            "total_players":   total_players,
+            "placement_skill": round(placement_skill, 1),
+            "skill_weight":    skill_weight,
         })
+
+    # --- Phase 2: collect VT events ----------------------------------------
+    vt_events = _collect_vt_timeline_events(db, user_id, skill_key)
+
+    # --- Phase 3: merge + chronological sort --------------------------------
+    def _sort_key(ev: dict) -> datetime:
+        dt = ev["_sort_dt"]
+        return dt if dt is not None else _TIMELINE_EPOCH
+
+    all_raw = sorted(raw_events + vt_events, key=_sort_key)
+
+    # --- Phase 4: single replay pass ----------------------------------------
+    timeline: List[dict] = []
+    tournament_count = 0
+    previous_value = baseline
+
+    for ev in all_raw:
+        ev_type = ev["_type"]
+
+        if ev_type == "tournament":
+            tournament_count += 1
+            skill_value_after = calculate_skill_value_from_placement(
+                baseline=baseline,
+                placement=ev["_placement"],
+                total_players=ev["_total_players"],
+                tournament_count=tournament_count,
+                skill_weight=ev["_skill_weight"],
+                prev_value=previous_value,
+                opponent_factor=ev["_opp_factor"],
+            )
+        else:
+            # Virtual Training: additive delta on current running value (not pre-rounded,
+            # consistent with how calculate_skill_value_from_placement returns raw float)
+            skill_value_after = previous_value + ev["_vt_delta"]
+
+        entry = {k: v for k, v in ev.items() if not k.startswith("_")}
+        entry["skill_value_after"]   = skill_value_after
+        entry["delta_from_baseline"] = round(skill_value_after - baseline, 1)
+        entry["delta_from_previous"] = round(skill_value_after - previous_value, 1)
+        timeline.append(entry)
         previous_value = skill_value_after
 
-    if not timeline:
-        return {
-            "skill": skill_key,
-            "baseline": baseline,
-            "current_level": baseline,
-            "total_delta": 0.0,
-            "timeline": []
-        }
-
-    current_level = timeline[-1]["skill_value_after"]
+    current_level = timeline[-1]["skill_value_after"] if timeline else baseline
     return {
         "skill":         skill_key,
         "baseline":      baseline,

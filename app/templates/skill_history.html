@@ -315,15 +315,17 @@
 
     // ── Event type helpers ──────────────────────────────────────────────────
     var EVENT_ICONS = {
-        tournament: '🏆',
-        session:    '🎯',
-        assessment: '📋',
+        tournament:       '🏆',
+        session:          '🎯',
+        assessment:       '📋',
+        virtual_training: '⚡',
     };
 
     var EVENT_LABELS = {
-        tournament: 'Tournament',
-        session:    'Session',
-        assessment: 'Assessment',
+        tournament:       'Tournament',
+        session:          'Session',
+        assessment:       'Assessment',
+        virtual_training: 'Virtual Training',
     };
 
     function eventLabel(type) {
@@ -520,7 +522,7 @@
                 '<td>' + fmtDate(t.achieved_at) + '</td>' +
                 '<td>' + placementBadge(t.placement) + '</td>' +
                 '<td style="text-align:center;">' + (t.total_players || '—') + '</td>' +
-                '<td style="font-weight:600;color:#3b82f6;">' + t.placement_skill.toFixed(1) + '</td>' +
+                '<td style="font-weight:600;color:#3b82f6;">' + (t.placement_skill != null ? t.placement_skill.toFixed(1) : '—') + '</td>' +
                 '<td style="font-weight:700;color:#1b4332;">' + t.skill_value_after.toFixed(1) + '</td>' +
                 '<td class="' + deltaClass(d) + '">' + (d >= 0 ? '+' : '') + d.toFixed(1) + '</td>' +
             '</tr>';

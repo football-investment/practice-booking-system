@@ -1,13 +1,10 @@
 """
-Virtual Training Service — Phase 1
-
-Provides pure-function helpers and DB-backed queries for the Virtual Training
-mini-game system. No active user routes in Phase 1 — service exists purely
-for data model validation and future Phase 2 integration.
+Virtual Training Service — Phase 2 (Color Reaction MVP)
 
 Anti-farming rules enforced here (not in the route):
-  - Bot filter: avg_reaction_ms < 100 → is_valid=False, invalid_reason="bot_suspected"
-  - Diminishing returns multiplier: attempt 1→1.0, 2→0.6, 3→0.3, 4+→0.0
+  - too_short:       duration_seconds < 5.0 — session ended too fast to be real
+  - too_few_stimuli: stimuli_count < 5 — not enough data for a valid score
+  - bot_suspected:   avg_reaction_ms < 100 — physically impossible reaction time
 
 Skill delta computation reuses compute_skill_deltas() from segment_reward_service
 so the formula is identical to the tournament/session training pipeline.
@@ -22,7 +19,10 @@ from sqlalchemy.orm import Session
 from app.models.virtual_training import VirtualTrainingAttempt, VirtualTrainingGame
 
 _XP_MULTIPLIER_TABLE: dict[int, float] = {1: 1.0, 2: 0.6, 3: 0.3}
-_BOT_REACTION_THRESHOLD_MS = 100.0
+_BOT_REACTION_THRESHOLD_MS   = 80.0   # Phase 2.1: tighter bot floor (was 100)
+_MIN_DURATION_SECONDS        = 25.0   # Phase 2.1: 36 stimuli × avg ~0.7 s (was 5)
+_MIN_STIMULI_COUNT           = 28     # Phase 2.1: 36 total, allow minor losses (was 5)
+_RANDOM_CLICKING_THRESHOLD   = 0.55   # G4: wrong_click_count / stimuli_count > this → invalid
 
 
 class VirtualTrainingService:
@@ -56,12 +56,29 @@ class VirtualTrainingService:
         Run anti-abuse checks on raw attempt data.
 
         Returns (is_valid, invalid_reason).
-        Checks:
-          - avg_reaction_ms < 100 → bot_suspected
+        Checks (in order — first failing check wins):
+          1. duration_seconds < 25.0   → too_short
+          2. stimuli_count < 28        → too_few_stimuli
+          3. wrong_click_count > 0.55 × stimuli_count → random_clicking  (G4)
+          4. avg_reaction_ms < 80      → bot_suspected
         """
+        duration = data.get("duration_seconds")
+        if duration is not None and float(duration) < _MIN_DURATION_SECONDS:
+            return False, "too_short"
+
+        stimuli = data.get("stimuli_count")
+        if stimuli is not None and int(stimuli) < _MIN_STIMULI_COUNT:
+            return False, "too_few_stimuli"
+
+        wrong_clicks = data.get("wrong_click_count")
+        if wrong_clicks is not None and stimuli is not None and int(stimuli) > 0:
+            if int(wrong_clicks) > _RANDOM_CLICKING_THRESHOLD * int(stimuli):
+                return False, "random_clicking"
+
         avg_ms = data.get("avg_reaction_ms")
         if avg_ms is not None and float(avg_ms) < _BOT_REACTION_THRESHOLD_MS:
             return False, "bot_suspected"
+
         return True, None
 
     # ── Daily indexing ────────────────────────────────────────────────────────
@@ -110,24 +127,100 @@ class VirtualTrainingService:
         """Compute floor(base_xp * multiplier). Returns 0 when multiplier is 0."""
         return int(game.base_xp * multiplier)
 
-    # ── Skill deltas ──────────────────────────────────────────────────────────
+    # ── Write path ────────────────────────────────────────────────────────────
 
     @staticmethod
-    def calculate_skill_deltas(
+    def record_attempt(
+        db: Session,
+        user_id: int,
         game: VirtualTrainingGame,
-        xp_awarded: int,
-        conversion_rates: dict[str, int],
-    ) -> dict[str, float]:
+        data: dict,
+        idempotency_key: str,
+    ) -> VirtualTrainingAttempt:
         """
-        Translate game skill_targets + XP into per-skill additive deltas.
+        Persist one validated VirtualTrainingAttempt and award XP.
 
-        Delegates to segment_reward_service.compute_skill_deltas() so the
-        formula is identical to the session training pipeline.
+        Idempotent: if a row with the same idempotency_key already exists,
+        the existing row is returned without re-awarding XP.
+        Does NOT commit — caller owns the transaction boundary.
+
+        data keys (all optional except started_at):
+          started_at, duration_seconds, stimuli_count, correct_count,
+          error_count, wrong_click_count, avg_reaction_ms, min_reaction_ms,
+          score_raw, score_normalized
         """
-        from app.services.segment_reward_service import compute_skill_deltas
+        from sqlalchemy.exc import IntegrityError
+        from app.services.gamification import xp_service
+        from app.services.virtual_training_metrics import compute_vt_skill_deltas
 
-        return compute_skill_deltas(
-            skill_targets=game.skill_targets or {},
-            xp_awarded=xp_awarded,
-            conversion_rates=conversion_rates,
+        now = datetime.now(timezone.utc)
+
+        is_valid, invalid_reason = VirtualTrainingService.validate_attempt(data)
+
+        attempt_index = VirtualTrainingService.calculate_daily_attempt_index(
+            db, user_id, game.id
         )
+        multiplier = VirtualTrainingService.calculate_xp_multiplier(attempt_index)
+        xp_awarded = VirtualTrainingService.calculate_xp_awarded(game, multiplier) if is_valid else 0
+
+        skill_deltas = (
+            compute_vt_skill_deltas(data=data, game=game, multiplier=multiplier)
+            if is_valid and xp_awarded > 0
+            else {}
+        )
+
+        started_at = data.get("started_at")
+        if isinstance(started_at, str):
+            try:
+                started_at = datetime.fromisoformat(started_at)
+            except ValueError:
+                started_at = now
+        if started_at is None:
+            started_at = now
+
+        sp = db.begin_nested()
+        try:
+            attempt = VirtualTrainingAttempt(
+                user_id=user_id,
+                game_id=game.id,
+                started_at=started_at,
+                completed_at=now,
+                is_valid=is_valid,
+                invalid_reason=invalid_reason,
+                score_raw=data.get("score_raw"),
+                score_normalized=data.get("score_normalized"),
+                avg_reaction_ms=data.get("avg_reaction_ms"),
+                min_reaction_ms=data.get("min_reaction_ms"),
+                duration_seconds=data.get("duration_seconds"),
+                stimuli_count=data.get("stimuli_count"),
+                correct_count=data.get("correct_count"),
+                error_count=data.get("error_count"),
+                wrong_click_count=data.get("wrong_click_count"),
+                raw_metrics=data.get("raw_metrics"),
+                xp_awarded=xp_awarded,
+                skill_deltas=skill_deltas,
+                attempt_index_today=attempt_index,
+                idempotency_key=idempotency_key,
+            )
+            db.add(attempt)
+            sp.commit()
+        except IntegrityError:
+            sp.rollback()
+            attempt = (
+                db.query(VirtualTrainingAttempt)
+                .filter(VirtualTrainingAttempt.idempotency_key == idempotency_key)
+                .first()
+            )
+            return attempt
+
+        if is_valid and xp_awarded > 0:
+            xp_service.award_xp(
+                db=db,
+                user_id=user_id,
+                xp_amount=xp_awarded,
+                reason=f"Virtual Training: {game.name}",
+                idempotency_key=f"{idempotency_key}_xp",
+                transaction_type="VIRTUAL_TRAINING_XP",
+            )
+
+        return attempt
