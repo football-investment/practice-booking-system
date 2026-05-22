@@ -474,10 +474,13 @@
         var tgtIdx  = Math.floor(Math.random() * n);
         currentTargetName = pool[tgtIdx];
 
-        // Update instruction badge
+        // Update instruction badge — swatch shows correct colour; text uses a random
+        // distractor colour (never the target) to create Stroop-like interference.
+        var distractorPool = COLOUR_NAMES.filter(function(n) { return n !== currentTargetName; });
+        var distractorName = distractorPool[Math.floor(Math.random() * distractorPool.length)];
         badgeSwatch.style.backgroundColor = COLOURS[currentTargetName];
         badgeName.textContent             = currentTargetName;
-        badgeName.style.color             = COLOURS[currentTargetName];
+        badgeName.style.color             = COLOURS[distractorName];
         targetBadge.style.display         = "flex";
 
         // Place N circles, one per zone
