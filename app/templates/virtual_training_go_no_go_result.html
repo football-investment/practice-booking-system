@@ -130,6 +130,8 @@
         padding: 0.2rem 0;
     }
 
+    .gngr-skill-row.neg { color: #dc2626; }
+
     /* ── Play again button ───────────────────────────────────────────── */
     .gngr-btn-play {
         display: inline-block;
@@ -175,8 +177,9 @@
     }
     .gngr-breakdown-row:last-child { border-bottom: none; }
 
-    .gngr-breakdown-skill   { font-weight: 700; color: #14532d; }
-    .gngr-breakdown-delta   { font-weight: 800; color: #166534; white-space: nowrap; }
+    .gngr-breakdown-skill        { font-weight: 700; color: #14532d; }
+    .gngr-breakdown-delta        { font-weight: 800; color: #166534; white-space: nowrap; }
+    .gngr-breakdown-delta.neg    { color: #dc2626; }
     .gngr-breakdown-factors {
         font-size: 0.78rem;
         color: #6b7280;
@@ -380,9 +383,9 @@
         <div class="gngr-skill-deltas">
             <h4>Skill deltas</h4>
             {% for skill, delta in attempt.skill_deltas.items() %}
-            <div class="gngr-skill-row">
+            <div class="gngr-skill-row {% if delta < 0 %}neg{% endif %}">
                 <span>{{ skill }}</span>
-                <span>+{{ "%.2f"|format(delta) }}</span>
+                <span>{{ "%+.2f"|format(delta) }}</span>
             </div>
             {% endfor %}
         </div>
@@ -396,7 +399,7 @@
             {% set delta = attempt.skill_deltas.get(skill, 0) if attempt.skill_deltas else 0 %}
             <div class="gngr-breakdown-row">
                 <span class="gngr-breakdown-skill">{{ skill|capitalize }}</span>
-                <span class="gngr-breakdown-delta">+{{ "%.3f"|format(delta) }}</span>
+                <span class="gngr-breakdown-delta {% if delta < 0 %}neg{% endif %}">{{ "%+.3f"|format(delta) }}</span>
                 <span class="gngr-breakdown-factors">
                     {# Per-skill formula documentation shown to player #}
                     {% if skill == "decisions" %}
@@ -413,6 +416,9 @@
                         <br><span style="font-style:italic;color:#9ca3af;">Measures how quickly you respond to GO stimuli (secondary skill)</span>
                     {% else %}
                         Score: {{ "%.0f"|format(score * 100) }}%
+                    {% endif %}
+                    {% if delta < 0 %}
+                    <br><span style="color:#dc2626;font-style:italic;">Performance below training threshold — skill decreased this attempt.</span>
                     {% endif %}
                 </span>
             </div>

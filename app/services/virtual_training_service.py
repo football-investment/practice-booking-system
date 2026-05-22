@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Optional
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.virtual_training import VirtualTrainingAttempt, VirtualTrainingGame
@@ -177,11 +178,32 @@ class VirtualTrainingService:
         multiplier = VirtualTrainingService.calculate_xp_multiplier(attempt_index)
         xp_awarded = VirtualTrainingService.calculate_xp_awarded(game, multiplier) if is_valid else 0
 
-        skill_deltas = (
-            compute_vt_skill_deltas(data=data, game=game, multiplier=multiplier)
-            if is_valid and xp_awarded > 0
-            else {}
-        )
+        if is_valid and xp_awarded > 0:
+            today_start = datetime.combine(date.today(), datetime.min.time()).replace(
+                tzinfo=timezone.utc
+            )
+            neg_rows = db.execute(
+                text(
+                    """
+                    SELECT kv.key, SUM(kv.value::float) AS neg_today
+                    FROM virtual_training_attempts vta,
+                         jsonb_each_text(vta.skill_deltas) AS kv(key, value)
+                    WHERE vta.user_id    = :uid
+                      AND vta.is_valid   = true
+                      AND vta.started_at >= :today_start
+                      AND kv.value::float < 0
+                    GROUP BY kv.key
+                    """
+                ),
+                {"uid": user_id, "today_start": today_start},
+            ).fetchall()
+            existing_neg_today: dict[str, float] = {row.key: row.neg_today for row in neg_rows}
+            skill_deltas = compute_vt_skill_deltas(
+                data=data, game=game, multiplier=multiplier,
+                existing_neg_today=existing_neg_today,
+            )
+        else:
+            skill_deltas = {}
 
         started_at = data.get("started_at")
         if isinstance(started_at, str):

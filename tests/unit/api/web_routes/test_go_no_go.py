@@ -547,11 +547,12 @@ class TestScoreComposure:
         sig = self._signals(wrong_rate=0.5)
         assert VTSkillScorer.score_composure(sig) == pytest.approx(0.25)
 
-    def test_gng15_heavy_false_alarms_clamped_to_zero(self):
-        """GNG-15: score_composure(wrong_rate=0.8) → 0.0 (clamped, 1.0-1.2<0)."""
+    def test_gng15_heavy_false_alarms_negative_composure(self):
+        """GNG-15: score_composure(wrong_rate=0.8) → -0.2 (lower clamp removed)."""
         from app.services.virtual_training_metrics import VTSkillScorer
         sig = self._signals(wrong_rate=0.8)
-        assert VTSkillScorer.score_composure(sig) == pytest.approx(0.0)
+        # 1.0 - 1.5*0.8 = -0.2; only upper clamp (min(1.0, ...)) applies now
+        assert VTSkillScorer.score_composure(sig) == pytest.approx(-0.2)
 
     def test_gng16_score_all_includes_composure(self):
         """GNG-16: score_all() dispatches composure to dedicated scorer."""
@@ -600,37 +601,37 @@ class TestGoNoGoDeltas:
         for skill, delta in deltas.items():
             assert delta > 0, f"Expected positive delta for {skill}"
 
-    def test_gng19_false_alarm_heavy_composure_near_zero(self):
-        """GNG-19: Many false alarms → composure score near zero, tiny/no delta."""
+    def test_gng19_false_alarm_heavy_composure_negative(self):
+        """GNG-19: Many false alarms → composure below neutral threshold → negative delta."""
         from app.services.virtual_training_metrics import compute_vt_skill_deltas
 
-        # 9 false alarms out of 30 stimuli → wrong_rate = 0.30 → composure = 1-1.5*0.3 = 0.55
-        # At wrong_rate = 0.67 composure = 0; use extreme case
+        # wrong_rate = 20/30 ≈ 0.667 → composure = 1 - 1.5*0.667 ≈ 0.0
+        # 0.0 < NEUTRAL_THRESHOLD(0.45) → delta = (0.0 - 0.45) * 0.5 * unit < 0
         data = {
             "stimuli_count":     30,
             "correct_count":     15,
-            "wrong_click_count": 20,    # very high false alarm proxy
+            "wrong_click_count": 20,
             "error_count":       0,
             "avg_reaction_ms":   350.0,
         }
         deltas = compute_vt_skill_deltas(data=data, game=self._game_mock(), multiplier=1.0)
-        # composure should be 0 when wrong_rate = 20/30 = 0.67
-        assert deltas.get("composure", 0.0) == pytest.approx(0.0, abs=0.01)
+        assert deltas.get("composure", 0.0) < 0
 
-    def test_gng20_missed_go_heavy_concentration_low(self):
-        """GNG-20: Many missed GO → concentration score near zero."""
+    def test_gng20_missed_go_heavy_concentration_negative(self):
+        """GNG-20: Many missed GO → concentration below neutral threshold → negative delta."""
         from app.services.virtual_training_metrics import compute_vt_skill_deltas
 
-        # miss_rate = 15/30 = 0.5 → concentration = max(0, 1 - 2*0.5) = 0.0
+        # miss_rate = 15/30 = 0.5 → concentration = 1 - 2*0.5 = 0.0
+        # 0.0 < NEUTRAL_THRESHOLD(0.45) → delta = (0.0 - 0.45) * 0.5 * unit < 0
         data = {
             "stimuli_count":     30,
             "correct_count":     6,
             "wrong_click_count": 0,
-            "error_count":       15,    # heavy misses
+            "error_count":       15,
             "avg_reaction_ms":   400.0,
         }
         deltas = compute_vt_skill_deltas(data=data, game=self._game_mock(), multiplier=1.0)
-        assert deltas.get("concentration", 0.0) == pytest.approx(0.0, abs=0.01)
+        assert deltas.get("concentration", 0.0) < 0
 
 
 # ── GNG-21..22: raw_metrics persistence ──────────────────────────────────────
