@@ -748,12 +748,10 @@ class TestGoNoGoTemplates:
 
     def test_gng25_views_timeline_event_includes_game_code(self):
         """GNG-25: _collect_vt_timeline_events includes game_code in returned dicts."""
-        import ast, pathlib
-        src = pathlib.Path(
-            "/Users/lovas.zoltan/Seafile/Football Investment/Projects/"
-            "Football Investment Internship/practice_booking_system/"
-            "app/services/skill_progression/_views.py"
-        ).read_text()
+        from pathlib import Path
+        src = (Path(__file__).resolve().parents[4]
+               / "app" / "services" / "skill_progression" / "_views.py"
+               ).read_text()
         assert '"game_code"' in src or "'game_code'" in src
 
     def test_gng26_result_template_has_per_phase_no_per_color(self):
