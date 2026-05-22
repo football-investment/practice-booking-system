@@ -137,11 +137,11 @@ def get_skill_profile(db: Session, user_id: int) -> Dict[str, any]:
         tournament_delta = data["contribution"]
         training_delta_raw = training_deltas.get(skill_key, 0.0)
         training_delta = round(training_delta_raw, 1)
-        current_level = min(
-            MAX_SKILL_CAP,
-            max(MIN_SKILL_VALUE, data["current_value"] + training_delta),
+        current_level = round(
+            min(MAX_SKILL_CAP, max(MIN_SKILL_VALUE, data["current_value"] + training_delta_raw)),
+            2,
         )
-        total_delta = round(tournament_delta + training_delta, 1)
+        total_delta = round(tournament_delta + training_delta_raw, 2)
 
         # Determine tier
         tier, tier_emoji = get_skill_tier(current_level)

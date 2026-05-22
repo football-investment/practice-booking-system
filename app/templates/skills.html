@@ -353,9 +353,9 @@
     }
 
     function deltaHtml(delta) {
-        if (delta > 0.05)  return `<span class="skill-delta-pos">+${delta.toFixed(1)} ↑</span>`;
-        if (delta < -0.05) return `<span class="skill-delta-neg">${delta.toFixed(1)} ↓</span>`;
-        return `<span class="skill-delta-zero">±0</span>`;
+        if (delta > 0.005)  return `<span class="skill-delta-pos">+${delta.toFixed(2)} ↑</span>`;
+        if (delta < -0.005) return `<span class="skill-delta-neg">${delta.toFixed(2)} ↓</span>`;
+        return `<span class="skill-delta-zero">±0.00</span>`;
     }
 
     function trainingMetaHtml(s) {
@@ -444,7 +444,7 @@
                     ${presetBadge}
                 </div>
                 <div class="skill-level-row">
-                    <span class="skill-level">${s.current_level.toFixed(1)}</span>
+                    <span class="skill-level">${s.current_level.toFixed(2)}</span>
                     ${deltaHtml(s.total_delta || 0)}
                 </div>
                 <div class="skill-bar-wrap">
