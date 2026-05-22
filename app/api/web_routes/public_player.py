@@ -302,7 +302,7 @@ def public_player_card(
     _published_platform = _card_draft.published_platform or lfa_license.published_card_platform
     effective_platform = platform or (
         _published_platform
-        if (bool(export) or bool(preview))
+        if bool(export)
         else None
     )
     platform_preset = _get_preset(effective_platform)

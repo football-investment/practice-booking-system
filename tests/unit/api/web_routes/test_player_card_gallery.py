@@ -406,29 +406,36 @@ class TestEditorDefaultPlatformFix:
     def _src(self, editor_src):
         self._html = editor_src
 
-    def test_pcp13_initial_iframe_src_uses_portrait_for_default(self):
-        """When platform is default/unset, initial iframe src must use instagram_portrait&export=1."""
-        assert "platform=instagram_portrait&export=1" in self._html
+    def test_pcp13_initial_iframe_src_uses_native_export_for_default(self):
+        """When platform is default/unset, initial iframe src must use native_export=1
+        so the editor preview shows the interactive FIFA card with 2-decimal values."""
+        assert "native_export=1" in self._html
+        assert "platform=instagram_portrait&export=1" not in self._html, (
+            "Editor must not use portrait export for the default platform preview — "
+            "that renders integers via export_skill_rows"
+        )
 
-    def test_pcp14_card_iframe_src_js_uses_portrait_for_default(self):
-        """_cardIframeSrc() for default must include platform=instagram_portrait&export=1."""
+    def test_pcp14_card_iframe_src_js_uses_native_export_for_default(self):
+        """_cardIframeSrc() for default must use native_export=1 — not instagram_portrait&export=1."""
         assert "_currentPlatform === 'default'" in self._html
         idx     = self._html.index("_currentPlatform === 'default'")
         snippet = self._html[idx: idx + 300]
-        assert "instagram_portrait" in snippet, (
-            "_cardIframeSrc default branch must reference instagram_portrait"
+        assert "native_export=1" in snippet, (
+            "_cardIframeSrc default branch must use native_export=1"
         )
-        assert "export=1" in snippet, (
-            "_cardIframeSrc default branch must pass export=1"
+        assert "instagram_portrait" not in snippet, (
+            "_cardIframeSrc default branch must not reference instagram_portrait"
         )
 
-    def test_pcp15_apply_iframe_size_js_uses_portrait_dims_for_default(self):
-        """_applyIframeSize() for default must look up instagram_portrait canvas dimensions."""
+    def test_pcp15_apply_iframe_size_js_uses_default_dims(self):
+        """_applyIframeSize() for default must look up 'default' canvas (820×800),
+        not instagram_portrait, since the preview now shows the native FIFA card."""
         start = self._html.find("function _applyIframeSize(")
         assert start != -1, "_applyIframeSize function must exist"
         body = self._html[start: start + 600]
-        assert "instagram_portrait" in body, (
-            "_applyIframeSize default branch must reference instagram_portrait canvas size"
+        assert "instagram_portrait" not in body, (
+            "_applyIframeSize must not hard-code instagram_portrait for the default platform — "
+            "use the 'default' key from CANVAS_SIZES (820×800)"
         )
 
     def test_pcp16_export_card_js_maps_default_to_instagram_portrait(self):

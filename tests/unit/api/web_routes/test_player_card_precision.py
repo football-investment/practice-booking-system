@@ -319,11 +319,19 @@ class TestBareUrlRouting:
         )
 
     def test_pcprec16_effective_platform_gated_on_explicit_export(self):
-        """PCPREC-16: effective_platform only uses _published_platform when
-        export=True or preview is set — bare URL and native_export=1 resolve to None."""
+        """PCPREC-16: effective_platform only uses _published_platform when export=True.
+        ?preview= without export=1 (e.g. ?preview=fifa&native_export=1) resolves to None
+        so the interactive FIFA card is served, not an export template."""
         src = self._route_src()
-        assert "bool(export) or bool(preview)" in src, (
-            "effective_platform must gate _published_platform on explicit export/preview signal"
+        # Gate must be: bool(export) — NOT bool(preview) or bool(native_export)
+        eff_section = src[src.find("effective_platform = platform"):
+                          src.find("platform_preset = _get_preset(effective_platform)")]
+        assert "bool(export)" in eff_section, (
+            "effective_platform must gate _published_platform on explicit export signal"
+        )
+        assert "bool(preview)" not in eff_section, (
+            "bool(preview) must NOT gate effective_platform — ?preview= without export=1 "
+            "should serve the interactive FIFA card, not an export template"
         )
 
     def test_pcprec17_export_skill_rows_macro_still_integer(self):
@@ -354,14 +362,14 @@ class TestBareUrlRouting:
         """PCPREC-18: ?native_export=1 does NOT activate published_platform fallback
         → effective_platform stays None → export layer inactive → FIFA card served."""
         src = self._route_src()
-        # Gate must be: bool(export) or bool(preview)  — NOT including native_export
-        assert "bool(export) or bool(preview)" in src
-        # native_export must NOT appear in the effective_platform gate expression
         eff_section = src[src.find("effective_platform = platform"):
                           src.find("platform_preset = _get_preset(effective_platform)")]
         assert "native_export" not in eff_section, (
             "native_export must NOT appear in the effective_platform gate — "
             "it should serve the interactive card, not the export template"
+        )
+        assert "bool(preview)" not in eff_section, (
+            "bool(preview) must NOT appear in the effective_platform gate"
         )
 
     def test_pcprec19_interactive_card_uses_round2_not_integer(self):
@@ -387,3 +395,44 @@ class TestBareUrlRouting:
         assert "↑" in html, "Interactive card must show trend arrow"
         # integer-only rendering would produce "60" without decimal — must not happen
         assert "60</span>" not in html
+
+
+class TestCardEditorIframeFix:
+    """PCPREC-20/21: card editor default-platform iframe uses native_export=1, not
+    platform=instagram_portrait&export=1, so the editor preview shows 2-decimal values."""
+
+    def _editor_tpl_src(self) -> str:
+        import os
+        tpl = os.path.join(
+            os.path.dirname(__file__),
+            "../../../../app/templates/dashboard_card_editor.html",
+        )
+        with open(tpl) as f:
+            return f.read()
+
+    def test_pcprec20_editor_jinja_default_uses_native_export(self):
+        """PCPREC-20: Jinja2 else-branch for active_card_platform == 'default'
+        uses native_export=1 — not platform=instagram_portrait&export=1."""
+        src = self._editor_tpl_src()
+        assert "platform=instagram_portrait&export=1" not in src, (
+            "Editor template must not use portrait export for default platform — "
+            "that renders integers via export_skill_rows"
+        )
+        assert "native_export=1" in src, (
+            "Editor template must use native_export=1 for default platform preview"
+        )
+
+    def test_pcprec21_editor_js_default_uses_native_export(self):
+        """PCPREC-21: JS _cardIframeSrc() default branch (platform === 'default')
+        uses native_export=1 — not platform=instagram_portrait&export=1."""
+        src = self._editor_tpl_src()
+        # Find _cardIframeSrc function body
+        fn_start = src.find("function _cardIframeSrc()")
+        fn_end   = src.find("function _applyIframeSize()")
+        fn_body  = src[fn_start:fn_end]
+        assert "instagram_portrait" not in fn_body, (
+            "_cardIframeSrc default must not reference instagram_portrait"
+        )
+        assert "native_export=1" in fn_body, (
+            "_cardIframeSrc default must use native_export=1"
+        )
