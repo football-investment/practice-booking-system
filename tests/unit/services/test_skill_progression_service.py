@@ -16,6 +16,7 @@ the DB-dependent private helpers via MagicMock db:
 """
 
 import pytest
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from app.services.skill_progression_service import (
@@ -96,8 +97,7 @@ def _part(tournament=None, placement=1, user_id=42):
     p.tournament = tournament
     p.placement = placement
     p.user_id = user_id
-    p.achieved_at = MagicMock()
-    p.achieved_at.isoformat.return_value = "2026-01-01T12:00:00"
+    p.achieved_at = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     return p
 
 
@@ -530,6 +530,7 @@ _PATCH_GBS_VIEWS = f"{_BASE_VIEWS}.get_baseline_skills"
 _PATCH_ETS_VIEWS = f"{_BASE_VIEWS}._extract_tournament_skills"
 _PATCH_OPP_VIEWS = f"{_BASE_VIEWS}._compute_opponent_factor"
 _PATCH_SKV_VIEWS = f"{_BASE_VIEWS}.calculate_skill_value_from_placement"
+_PATCH_VT_EVENTS = f"{_BASE_VIEWS}._collect_vt_timeline_events"
 
 
 @pytest.mark.unit
@@ -720,7 +721,8 @@ class TestGetSkillTimeline:
         q = _fluent_q(all_=[])
         db.query.return_value = q
         with patch(_PATCH_GBS_VIEWS, return_value={"ball_control": 60.0}), \
-             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]):
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
+             patch(_PATCH_VT_EVENTS, return_value=[]):
             result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
         assert result == {
             "skill": "ball_control",
@@ -736,7 +738,8 @@ class TestGetSkillTimeline:
         q = _fluent_q(all_=[p])
         db.query.return_value = q
         with patch(_PATCH_GBS_VIEWS, return_value={"ball_control": 60.0}), \
-             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]):
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
+             patch(_PATCH_VT_EVENTS, return_value=[]):
             result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
         assert result["timeline"] == []
 
@@ -749,7 +752,8 @@ class TestGetSkillTimeline:
         # tournament has "shooting" skill, not "ball_control"
         with patch(_PATCH_GBS_VIEWS, return_value={"ball_control": 60.0}), \
              patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
-             patch(_PATCH_ETS_VIEWS, return_value={"shooting": 1.0}):
+             patch(_PATCH_ETS_VIEWS, return_value={"shooting": 1.0}), \
+             patch(_PATCH_VT_EVENTS, return_value=[]):
             result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
         assert result["timeline"] == []
 
@@ -762,7 +766,8 @@ class TestGetSkillTimeline:
         db.query.side_effect = [q1, q2]
         with patch(_PATCH_GBS_VIEWS, return_value={"ball_control": 60.0}), \
              patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
-             patch(_PATCH_ETS_VIEWS, return_value={"ball_control": 1.0}):
+             patch(_PATCH_ETS_VIEWS, return_value={"ball_control": 1.0}), \
+             patch(_PATCH_VT_EVENTS, return_value=[]):
             result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
         assert result["timeline"] == []
 
@@ -777,7 +782,8 @@ class TestGetSkillTimeline:
              patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
              patch(_PATCH_ETS_VIEWS, return_value={"ball_control": 1.0}), \
              patch(_PATCH_OPP_VIEWS, return_value=1.0), \
-             patch(_PATCH_SKV_VIEWS, return_value=67.0):
+             patch(_PATCH_SKV_VIEWS, return_value=67.0), \
+             patch(_PATCH_VT_EVENTS, return_value=[]):
             result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
         assert len(result["timeline"]) == 1
         entry = result["timeline"][0]
@@ -790,6 +796,186 @@ class TestGetSkillTimeline:
         assert entry["delta_from_previous"] == 7.0   # 67 - 60 (first tournament)
         assert result["current_level"] == 67.0
         assert result["total_delta"] == 7.0
+
+
+# ===========================================================================
+# get_skill_timeline — Virtual Training event integration (VT-TL tests)
+# ===========================================================================
+
+def _vt_event(skill_key, delta, dt=None, name="Color Reaction"):
+    """Build a pre-shaped VT raw event dict as returned by _collect_vt_timeline_events."""
+    dt = dt or datetime(2026, 5, 21, 22, 0, 0, tzinfo=timezone.utc)
+    return {
+        "_type":     "virtual_training",
+        "_sort_dt":  dt,
+        "_vt_delta": delta,
+        "event_type":      "virtual_training",
+        "event_name":      f"Virtual Training — {name}",
+        "achieved_at":     dt.isoformat(),
+        "tournament_id":   None,
+        "tournament_name": None,
+        "placement":       None,
+        "total_players":   None,
+        "placement_skill": None,
+        "skill_weight":    None,
+    }
+
+
+@pytest.mark.unit
+class TestGetSkillTimelineVT:
+    """VT-TL-01..07 — Virtual Training events in get_skill_timeline."""
+
+    def test_vt_tl_01_vt_only_appears_in_timeline(self):
+        """VT-TL-01: valid VT attempt with matching skill delta → 1 entry in timeline."""
+        db = _db()
+        q = _fluent_q(all_=[])
+        db.query.return_value = q
+        ev = _vt_event("reactions", 0.82)
+        with patch(_PATCH_GBS_VIEWS, return_value={"reactions": 60.0}), \
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["reactions"]), \
+             patch(_PATCH_VT_EVENTS, return_value=[ev]):
+            result = get_skill_timeline(db, user_id=42, skill_key="reactions")
+        assert len(result["timeline"]) == 1
+        entry = result["timeline"][0]
+        assert entry["event_type"] == "virtual_training"
+        assert entry["event_name"] == "Virtual Training — Color Reaction"
+        assert entry["placement"] is None
+        assert entry["placement_skill"] is None
+        assert entry["tournament_id"] is None
+        # skill_value_after is raw float (not pre-rounded); delta fields use round(..., 1)
+        assert abs(entry["skill_value_after"] - 60.82) < 0.001
+        assert abs(entry["delta_from_previous"] - 0.8) < 0.01   # round(0.82, 1) = 0.8
+        assert abs(result["current_level"] - 60.82) < 0.001
+        assert abs(result["total_delta"] - 0.8) < 0.01          # round(60.82-60.0, 1) = 0.8
+
+    def test_vt_tl_02_invalid_attempt_excluded(self):
+        """VT-TL-02: _collect_vt_timeline_events returns [] for invalid attempts → empty timeline."""
+        db = _db()
+        q = _fluent_q(all_=[])
+        db.query.return_value = q
+        # Simulate: the DB filter (is_valid=True, xp_awarded>0) already excluded the attempt.
+        with patch(_PATCH_GBS_VIEWS, return_value={"reactions": 60.0}), \
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["reactions"]), \
+             patch(_PATCH_VT_EVENTS, return_value=[]):
+            result = get_skill_timeline(db, user_id=42, skill_key="reactions")
+        assert result["timeline"] == []
+        assert result["current_level"] == 60.0
+
+    def test_vt_tl_03_collect_skips_missing_skill_key(self):
+        """VT-TL-03: _collect_vt_timeline_events filters out attempts whose skill_deltas lack skill_key."""
+        from app.services.skill_progression._views import _collect_vt_timeline_events
+
+        attempt_match = MagicMock()
+        attempt_match.skill_deltas = {"reactions": 0.5, "concentration": 0.3}
+        attempt_match.started_at = datetime(2026, 5, 21, tzinfo=timezone.utc)
+        attempt_match.game.name = "Color Reaction"
+
+        attempt_miss = MagicMock()
+        attempt_miss.skill_deltas = {"passing": 1.0}  # no "reactions" key
+        attempt_miss.started_at = datetime(2026, 5, 22, tzinfo=timezone.utc)
+        attempt_miss.game.name = "Color Reaction"
+
+        db = _db()
+        q = _fluent_q(all_=[attempt_match, attempt_miss])
+        db.query.return_value = q
+
+        events = _collect_vt_timeline_events(db, user_id=42, skill_key="reactions")
+        assert len(events) == 1
+        assert events[0]["_vt_delta"] == 0.5
+
+    def test_vt_tl_04_tournament_then_vt_chronological_order(self):
+        """VT-TL-04: tournament (T1) + VT (T2 > T1) → 2 entries, tournament first."""
+        db = _db()
+        t = _tourn(tid=10, name="Cup 2026")
+        p = _part(tournament=t, placement=1)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=4)
+        db.query.side_effect = [q1, q2]
+        dt_vt = datetime(2026, 5, 22, 10, 0, 0, tzinfo=timezone.utc)
+        ev = _vt_event("ball_control", 0.5, dt=dt_vt)
+        with patch(_PATCH_GBS_VIEWS, return_value={"ball_control": 60.0}), \
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
+             patch(_PATCH_ETS_VIEWS, return_value={"ball_control": 1.0}), \
+             patch(_PATCH_OPP_VIEWS, return_value=1.0), \
+             patch(_PATCH_SKV_VIEWS, return_value=67.0), \
+             patch(_PATCH_VT_EVENTS, return_value=[ev]):
+            result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
+        assert len(result["timeline"]) == 2
+        assert result["timeline"][0]["event_type"] == "tournament"
+        assert result["timeline"][1]["event_type"] == "virtual_training"
+        # VT delta applied on top of tournament value (67.0 + 0.5 = 67.5)
+        assert abs(result["timeline"][1]["skill_value_after"] - 67.5) < 0.01
+        assert abs(result["current_level"] - 67.5) < 0.01
+
+    def test_vt_tl_05_vt_before_tournament_tournament_count_unaffected(self):
+        """VT-TL-05: VT before tournament → tournament_count=1 for tournament, VT used as prev_value."""
+        db = _db()
+        t = _tourn(tid=10, name="Cup 2026")
+        p = _part(tournament=t, placement=1)
+        # participation.achieved_at is a datetime after the VT event
+        p.achieved_at = datetime(2026, 5, 23, tzinfo=timezone.utc)
+        q1 = _fluent_q(all_=[p])
+        q2 = _fluent_q(count=4)
+        db.query.side_effect = [q1, q2]
+        dt_vt = datetime(2026, 5, 21, tzinfo=timezone.utc)  # VT is earlier
+        ev = _vt_event("ball_control", 1.0, dt=dt_vt)
+
+        captured_kwargs = {}
+
+        def capture_skv(**kwargs):
+            captured_kwargs.update(kwargs)
+            return 68.0
+
+        with patch(_PATCH_GBS_VIEWS, return_value={"ball_control": 60.0}), \
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
+             patch(_PATCH_ETS_VIEWS, return_value={"ball_control": 1.0}), \
+             patch(_PATCH_OPP_VIEWS, return_value=1.0), \
+             patch(_PATCH_SKV_VIEWS, side_effect=capture_skv), \
+             patch(_PATCH_VT_EVENTS, return_value=[ev]):
+            result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
+
+        assert len(result["timeline"]) == 2
+        assert result["timeline"][0]["event_type"] == "virtual_training"
+        assert result["timeline"][1]["event_type"] == "tournament"
+        # tournament_count must be 1 (VT does not increment it)
+        assert captured_kwargs.get("tournament_count") == 1
+        # prev_value fed to tournament formula must be baseline + VT delta = 61.0
+        assert abs(captured_kwargs.get("prev_value") - 61.0) < 0.01
+
+    def test_vt_tl_06_current_level_reflects_vt_delta(self):
+        """VT-TL-06: VT-only events → current_level = baseline + sum of VT deltas."""
+        db = _db()
+        q = _fluent_q(all_=[])
+        db.query.return_value = q
+        dt1 = datetime(2026, 5, 21, tzinfo=timezone.utc)
+        dt2 = datetime(2026, 5, 22, tzinfo=timezone.utc)
+        ev1 = _vt_event("reactions", 0.82, dt=dt1)
+        ev2 = _vt_event("reactions", 0.30, dt=dt2)
+        with patch(_PATCH_GBS_VIEWS, return_value={"reactions": 60.0}), \
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["reactions"]), \
+             patch(_PATCH_VT_EVENTS, return_value=[ev1, ev2]):
+            result = get_skill_timeline(db, user_id=42, skill_key="reactions")
+        assert len(result["timeline"]) == 2
+        # After ev1: 60 + 0.82 = 60.82; after ev2: 60.82 + 0.30 = 61.12
+        # current_level is raw float (not pre-rounded); total_delta uses round(..., 1)
+        assert abs(result["current_level"] - 61.12) < 0.001
+        assert abs(result["total_delta"] - 1.1) < 0.01   # round(61.12-60.0, 1) = 1.1
+
+    def test_vt_tl_07_placement_skill_null_in_vt_entry(self):
+        """VT-TL-07: VT timeline entry has placement_skill=None (template guard required)."""
+        db = _db()
+        q = _fluent_q(all_=[])
+        db.query.return_value = q
+        ev = _vt_event("reactions", 0.5)
+        with patch(_PATCH_GBS_VIEWS, return_value={"reactions": 60.0}), \
+             patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["reactions"]), \
+             patch(_PATCH_VT_EVENTS, return_value=[ev]):
+            result = get_skill_timeline(db, user_id=42, skill_key="reactions")
+        entry = result["timeline"][0]
+        assert entry["placement_skill"] is None
+        assert entry["placement"] is None
+        assert entry["total_players"] is None
+        assert entry["tournament_id"] is None
 
 
 # ===========================================================================
@@ -1056,7 +1242,8 @@ class TestSkillProgressionBranchBuffer:
              patch(f"{_BASE_VIEWS}.get_all_skill_keys", return_value=["ball_control"]), \
              patch(_PATCH_ETS_VIEWS, return_value={"ball_control": 1.0}), \
              patch(_PATCH_OPP_VIEWS, return_value=1.0), \
-             patch(_PATCH_SKV_VIEWS, return_value=68.0):
+             patch(_PATCH_SKV_VIEWS, return_value=68.0), \
+             patch(_PATCH_VT_EVENTS, return_value=[]):
             result = get_skill_timeline(db, user_id=42, skill_key="ball_control")
         assert len(result["timeline"]) == 1
         entry = result["timeline"][0]
