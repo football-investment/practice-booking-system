@@ -291,3 +291,99 @@ class TestFifaTemplateCssFix:
             f"Trend arrow ↑ must appear when VT delta > 0, got: {html!r}"
         )
         assert "60.33" in html
+
+
+# ── PCPREC-15..19: bare URL routing — interactive card, not export portrait ───
+
+class TestBareUrlRouting:
+    """Verify that /players/{id}/card (bare URL) serves the interactive FIFA card."""
+
+    _ROUTE_PATH = "app/api/web_routes/public_player.py"
+
+    def _route_src(self) -> str:
+        import os
+        path = os.path.join(
+            os.path.dirname(__file__),
+            "../../../../",
+            self._ROUTE_PATH,
+        )
+        with open(path) as f:
+            return f.read()
+
+    def test_pcprec15_early_return_to_public_page_removed(self):
+        """PCPREC-15: public_player.py no longer early-returns player_card_public.html
+        for bare URL — the export portrait iframe wrapper is retired from this path."""
+        src = self._route_src()
+        assert '"public/player_card_public.html"' not in src, (
+            "Early return to player_card_public.html must be removed from bare URL path"
+        )
+
+    def test_pcprec16_effective_platform_gated_on_explicit_export(self):
+        """PCPREC-16: effective_platform only uses _published_platform when
+        export=True or preview is set — bare URL and native_export=1 resolve to None."""
+        src = self._route_src()
+        assert "bool(export) or bool(preview)" in src, (
+            "effective_platform must gate _published_platform on explicit export/preview signal"
+        )
+
+    def test_pcprec17_export_skill_rows_macro_still_integer(self):
+        """PCPREC-17: export_skill_rows macro (used by explicit export routes) still
+        renders integers — export portrait regression guard."""
+        from jinja2 import Environment, FileSystemLoader
+        import os
+        tpl_root = os.path.join(
+            os.path.dirname(__file__),
+            "../../../../app/templates",
+        )
+        env = Environment(loader=FileSystemLoader(tpl_root))
+        macro_tpl = env.get_template("macros/card_skill_row.html")
+        module = macro_tpl.make_module()
+        fn = getattr(module, "export_skill_rows")
+        cat = MagicMock()
+        skill = MagicMock()
+        skill.key = "decisions"
+        skill.name_en = "Decisions"
+        cat.skills = [skill]
+        html = fn(cat, {"decisions": {"current_level": 60.03}}, {})
+        assert "60.03" not in html, "Export macro must NOT render decimals"
+        assert "60</span>" in html or ">60<" in html, (
+            f"Export macro must render integer '60', got: {html!r}"
+        )
+
+    def test_pcprec18_native_export_not_in_effective_platform_gate(self):
+        """PCPREC-18: ?native_export=1 does NOT activate published_platform fallback
+        → effective_platform stays None → export layer inactive → FIFA card served."""
+        src = self._route_src()
+        # Gate must be: bool(export) or bool(preview)  — NOT including native_export
+        assert "bool(export) or bool(preview)" in src
+        # native_export must NOT appear in the effective_platform gate expression
+        eff_section = src[src.find("effective_platform = platform"):
+                          src.find("platform_preset = _get_preset(effective_platform)")]
+        assert "native_export" not in eff_section, (
+            "native_export must NOT appear in the effective_platform gate — "
+            "it should serve the interactive card, not the export template"
+        )
+
+    def test_pcprec19_interactive_card_uses_round2_not_integer(self):
+        """PCPREC-19: the template served for bare URL (player_card_fifa.html) uses
+        card_skill_rows with round(2) — confirmed by macro render, not export_skill_rows."""
+        from jinja2 import Environment, FileSystemLoader
+        import os
+        tpl_root = os.path.join(
+            os.path.dirname(__file__),
+            "../../../../app/templates",
+        )
+        env = Environment(loader=FileSystemLoader(tpl_root))
+        macro_tpl = env.get_template("macros/card_skill_row.html")
+        module = macro_tpl.make_module()
+        card_fn = getattr(module, "card_skill_rows")
+        cat = MagicMock()
+        skill = MagicMock()
+        skill.key = "decisions"
+        skill.name_en = "Decisions"
+        cat.skills = [skill]
+        html = card_fn(cat, {"decisions": {"current_level": 60.0325}}, {"decisions": 0.03})
+        assert "60.03" in html, "Interactive card must show 60.03"
+        assert "↑" in html, "Interactive card must show trend arrow"
+        # integer-only rendering would produce "60" without decimal — must not happen
+        assert "60</span>" not in html
