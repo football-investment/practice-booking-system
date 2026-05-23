@@ -1,25 +1,30 @@
-"""Hand/Finger Stats service tests — Phase 2.4 (PR #158).
+"""Hand/Finger Stats service tests — Phase 2.4 (PR #158, UX fix).
 
-HFS-01  0 attempts → all 4 finger_rows has_data=False, attempt_count=0
-HFS-02  < _MIN_SAMPLES (2 attempts RI) → has_data=False, attempt_count=2
-HFS-03  >= _MIN_SAMPLES (3 attempts RI) → has_data=True
-HFS-04  all 4 combos ≥3 attempts → 4 rows all has_data=True
+HFS-01  0 attempts → all 4 finger_rows state=no_data, attempt_count=0
+HFS-02  < _MIN_SAMPLES (2 attempts RI) → state=low_sample (not no_data)
+HFS-03  >= _MIN_SAMPLES (3 attempts RI) → state=ready
+HFS-04  all 4 combos ≥3 attempts → 4 rows all state=ready
 HFS-05  finger_rows canonical order: RI, RT, LI, LT
 HFS-06  return dict has all required keys
 HFS-07  min_samples == 3
 HFS-08  game_id=None → no gid param sent to SQL
 HFS-09  game_id=42 → gid=42 in SQL params
 HFS-10  SQL filters on is_valid + assignment_source (no v1/v2/free bleed)
-HFS-11  by_hand right has_data=True when cnt >= 3
-HFS-12  by_hand left has_data=False when cnt == 0
+HFS-11  by_hand right state=ready when cnt >= 3
+HFS-12  by_hand left state=no_data when cnt == 0
 HFS-13  skill_totals accumulated correctly across two rows
 HFS-14  skill_totals empty when no valid skill_deltas rows
 HFS-15  game_id filter is forwarded to all 3 SQL execute calls
+HFS-16  attempt_count=0 → state="no_data"
+HFS-17  attempt_count=1 → state="low_sample", real metrics present
+HFS-18  attempt_count=2 → state="low_sample", real metrics present
+HFS-19  skill_totals returned regardless of state (no has_data gate in service)
+HFS-20  by_hand left state=low_sample when 1 ≤ cnt < 3
 """
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from app.services.virtual_training_service import VirtualTrainingService, _MIN_SAMPLES
 
@@ -63,11 +68,7 @@ def _dr(hand: str, finger: str, skill_deltas: dict | None) -> MagicMock:
     return r
 
 
-def _make_db(
-    finger_rows: list,
-    hand_rows: list,
-    delta_rows: list,
-) -> MagicMock:
+def _make_db(finger_rows: list, hand_rows: list, delta_rows: list) -> MagicMock:
     """Return a DB mock that cycles execute results: finger → hand → delta."""
     db = MagicMock()
     call_count = 0
@@ -97,20 +98,20 @@ def _call(finger_rows, hand_rows, delta_rows=None, game_id=None, user_id=202):
 
 class TestZeroAttempts:
 
-    def test_hfs01_zero_attempts_all_rows_no_data(self):
-        """HFS-01: 0 attempts → all 4 finger_rows has_data=False, attempt_count=0."""
+    def test_hfs01_zero_attempts_all_rows_no_data_state(self):
+        """HFS-01: 0 attempts → all 4 finger_rows state=no_data, attempt_count=0."""
         result = _call([], [], [])
         rows = result["finger_rows"]
         assert len(rows) == 4
         for row in rows:
-            assert row["has_data"] is False
+            assert row["state"] == "no_data"
             assert row["attempt_count"] == 0
 
-    def test_hfs01b_zero_attempts_by_hand_no_data(self):
-        """HFS-01b: 0 attempts → both hands has_data=False."""
+    def test_hfs01b_zero_attempts_by_hand_no_data_state(self):
+        """HFS-01b: 0 attempts → both hands state=no_data."""
         result = _call([], [], [])
-        assert result["by_hand"]["right"]["has_data"] is False
-        assert result["by_hand"]["left"]["has_data"] is False
+        assert result["by_hand"]["right"]["state"] == "no_data"
+        assert result["by_hand"]["left"]["state"] == "no_data"
 
     def test_hfs01c_zero_attempts_skill_totals_empty(self):
         """HFS-01c: 0 attempts → skill_totals == {}."""
@@ -118,46 +119,57 @@ class TestZeroAttempts:
         assert result["skill_totals"] == {}
 
 
-# ── HFS-02/03: _MIN_SAMPLES threshold ────────────────────────────────────────
+# ── HFS-02/03: state thresholds ──────────────────────────────────────────────
 
-class TestMinSamplesThreshold:
+class TestStateThresholds:
 
-    def test_hfs02_below_threshold_has_data_false(self):
-        """HFS-02: 2 RI attempts → has_data=False."""
+    def test_hfs02_below_threshold_is_low_sample(self):
+        """HFS-02: 2 RI attempts → state=low_sample (NOT no_data, NOT hidden)."""
         result = _call(
             [_fr("right", "index", 2)],
             [_hr("right", 2)],
         )
         ri = next(r for r in result["finger_rows"] if r["hand"] == "right" and r["finger"] == "index")
-        assert ri["has_data"] is False
+        assert ri["state"] == "low_sample"
         assert ri["attempt_count"] == 2
 
-    def test_hfs03_at_threshold_has_data_true(self):
-        """HFS-03: 3 RI attempts → has_data=True."""
+    def test_hfs02b_low_sample_metrics_are_present(self):
+        """HFS-02b: low_sample row contains real metric values (not hidden)."""
+        result = _call(
+            [_fr("right", "index", 2, avg_score=40.5, avg_rt_ms=1458)],
+            [_hr("right", 2)],
+        )
+        ri = next(r for r in result["finger_rows"] if r["hand"] == "right" and r["finger"] == "index")
+        assert ri["state"] == "low_sample"
+        assert ri["avg_score"] == 40.5
+        assert ri["avg_rt_ms"] == 1458
+
+    def test_hfs03_at_threshold_is_ready(self):
+        """HFS-03: 3 RI attempts → state=ready."""
         result = _call(
             [_fr("right", "index", 3)],
             [_hr("right", 3)],
         )
         ri = next(r for r in result["finger_rows"] if r["hand"] == "right" and r["finger"] == "index")
-        assert ri["has_data"] is True
+        assert ri["state"] == "ready"
         assert ri["attempt_count"] == 3
 
-    def test_hfs03b_above_threshold_has_data_true(self):
-        """HFS-03b: 10 LT attempts → has_data=True."""
+    def test_hfs03b_above_threshold_is_ready(self):
+        """HFS-03b: 10 LT attempts → state=ready."""
         result = _call(
             [_fr("left", "thumb", 10)],
             [_hr("left", 10)],
         )
         lt = next(r for r in result["finger_rows"] if r["hand"] == "left" and r["finger"] == "thumb")
-        assert lt["has_data"] is True
+        assert lt["state"] == "ready"
 
 
 # ── HFS-04: all 4 combos ─────────────────────────────────────────────────────
 
 class TestAllFourCombos:
 
-    def test_hfs04_all_combos_have_data(self):
-        """HFS-04: all 4 combos ≥3 attempts → 4 rows all has_data=True."""
+    def test_hfs04_all_combos_ready(self):
+        """HFS-04: all 4 combos ≥3 attempts → 4 rows all state=ready."""
         finger_rows = [
             _fr("right", "index", 5),
             _fr("right", "thumb", 4),
@@ -169,7 +181,7 @@ class TestAllFourCombos:
             [_hr("right", 9), _hr("left", 9)],
         )
         for row in result["finger_rows"]:
-            assert row["has_data"] is True, f"{row['label']} should have data"
+            assert row["state"] == "ready", f"{row['label']} should be ready"
 
 
 # ── HFS-05: canonical order ───────────────────────────────────────────────────
@@ -178,7 +190,6 @@ class TestCanonicalOrder:
 
     def test_hfs05_finger_rows_canonical_order(self):
         """HFS-05: finger_rows[0..3] = RI, RT, LI, LT regardless of DB return order."""
-        # DB returns in reverse order
         finger_rows = [
             _fr("left",  "thumb",  4),
             _fr("left",  "index",  3),
@@ -265,26 +276,26 @@ class TestSQLFilterContent:
             assert "assignment_source" in sql_str, "SQL must filter on assignment_source"
 
 
-# ── HFS-11/12: by_hand ────────────────────────────────────────────────────────
+# ── HFS-11/12: by_hand state ─────────────────────────────────────────────────
 
-class TestByHand:
+class TestByHandState:
 
-    def test_hfs11_right_hand_has_data_true(self):
-        """HFS-11: right 3 attempts → by_hand[right] has_data=True."""
+    def test_hfs11_right_hand_ready_at_threshold(self):
+        """HFS-11: right 3 attempts → by_hand[right] state=ready."""
         result = _call(
             [_fr("right", "index", 3)],
             [_hr("right", 3)],
         )
-        assert result["by_hand"]["right"]["has_data"] is True
+        assert result["by_hand"]["right"]["state"] == "ready"
         assert result["by_hand"]["right"]["attempt_count"] == 3
 
-    def test_hfs12_left_hand_has_data_false_when_zero(self):
-        """HFS-12: left 0 attempts → by_hand[left] has_data=False."""
+    def test_hfs12_left_hand_no_data_when_zero(self):
+        """HFS-12: left 0 attempts → by_hand[left] state=no_data."""
         result = _call(
             [_fr("right", "index", 5)],
             [_hr("right", 5)],
         )
-        assert result["by_hand"]["left"]["has_data"] is False
+        assert result["by_hand"]["left"]["state"] == "no_data"
         assert result["by_hand"]["left"]["attempt_count"] == 0
 
 
@@ -312,7 +323,6 @@ class TestSkillTotals:
         result = _call([], [], delta_rows)
         assert abs(result["skill_totals"]["right_index"]["reactions"] - 0.5) < 1e-6
         assert abs(result["skill_totals"]["left_thumb"]["composure"] - 0.3) < 1e-6
-        assert "right_index" not in result["skill_totals"].get("left_thumb", {})
 
     def test_hfs14_no_skill_deltas_returns_empty(self):
         """HFS-14: delta rows with None/empty skill_deltas → skill_totals == {}."""
@@ -346,3 +356,68 @@ class TestGameIdIsolation:
         for idx, params in enumerate(call_params):
             assert params.get("gid") == 7, f"gid missing from query {idx + 1}"
             assert params.get("uid") == 505
+
+
+# ── HFS-16..20: 3-state model correctness ────────────────────────────────────
+
+class TestThreeStateModel:
+
+    def test_hfs16_zero_attempts_state_no_data(self):
+        """HFS-16: attempt_count=0 (unseen combo) → state='no_data'."""
+        result = _call([], [], [])
+        for row in result["finger_rows"]:
+            assert row["state"] == "no_data"
+        for side in ("right", "left"):
+            assert result["by_hand"][side]["state"] == "no_data"
+
+    def test_hfs17_one_attempt_is_low_sample_with_metrics(self):
+        """HFS-17: attempt_count=1 → state=low_sample AND real metrics present."""
+        result = _call(
+            [_fr("right", "index", 1, avg_score=55.0, avg_rt_ms=900)],
+            [_hr("right", 1, avg_score=55.0, avg_rt_ms=900)],
+        )
+        ri = next(r for r in result["finger_rows"] if r["hand"] == "right" and r["finger"] == "index")
+        assert ri["state"] == "low_sample"
+        assert ri["avg_score"] == 55.0
+        assert ri["avg_rt_ms"] == 900
+
+        rh = result["by_hand"]["right"]
+        assert rh["state"] == "low_sample"
+        assert rh["avg_score"] == 55.0
+
+    def test_hfs18_two_attempts_is_low_sample_with_metrics(self):
+        """HFS-18: attempt_count=2 → state=low_sample AND real metrics present."""
+        result = _call(
+            [_fr("right", "index", 2, avg_score=40.5, avg_rt_ms=1458, accuracy_pct=41.0)],
+            [_hr("right", 2, avg_score=40.5, avg_rt_ms=1458)],
+        )
+        ri = next(r for r in result["finger_rows"] if r["hand"] == "right" and r["finger"] == "index")
+        assert ri["state"] == "low_sample"
+        assert ri["avg_score"] == 40.5
+        assert ri["avg_rt_ms"] == 1458
+        assert ri["accuracy_pct"] == 41.0
+
+    def test_hfs19_skill_totals_present_in_low_sample_state(self):
+        """HFS-19: skill_totals accumulate for low_sample combos (no state gate in service)."""
+        delta_rows = [
+            _dr("right", "index", {"reactions": 0.25}),
+        ]
+        # 2 attempts → low_sample; delta must still be in skill_totals
+        result = _call(
+            [_fr("right", "index", 2)],
+            [_hr("right", 2)],
+            delta_rows,
+        )
+        ri = next(r for r in result["finger_rows"] if r["hand"] == "right" and r["finger"] == "index")
+        assert ri["state"] == "low_sample"
+        assert "right_index" in result["skill_totals"]
+        assert abs(result["skill_totals"]["right_index"]["reactions"] - 0.25) < 1e-6
+
+    def test_hfs20_by_hand_low_sample_when_between_thresholds(self):
+        """HFS-20: by_hand left 1 ≤ cnt < 3 → state=low_sample."""
+        result = _call(
+            [_fr("left", "index", 2)],
+            [_hr("left", 2)],
+        )
+        assert result["by_hand"]["left"]["state"] == "low_sample"
+        assert result["by_hand"]["left"]["attempt_count"] == 2

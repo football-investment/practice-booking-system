@@ -502,7 +502,7 @@ class VirtualTrainingService:
                 "finger":        r.finger,
                 "label":         r.label or f"{r.hand.capitalize()} {r.finger.capitalize()}",
                 "attempt_count": cnt,
-                "has_data":      cnt >= _MIN_SAMPLES,
+                "state":         "ready" if cnt >= _MIN_SAMPLES else "low_sample",
                 "avg_score":     float(r.avg_score)    if r.avg_score    is not None else None,
                 "avg_rt_ms":     int(r.avg_rt_ms)      if r.avg_rt_ms    is not None else None,
                 "best_rt_ms":    int(r.best_rt_ms)     if r.best_rt_ms   is not None else None,
@@ -520,7 +520,7 @@ class VirtualTrainingService:
             else:
                 finger_rows.append({
                     "hand": hand, "finger": finger, "label": default_label,
-                    "attempt_count": 0, "has_data": False,
+                    "attempt_count": 0, "state": "no_data",
                 })
 
         # ── 2. Per-hand aggregate metrics ─────────────────────────────────────
@@ -540,15 +540,15 @@ class VirtualTrainingService:
         """)
 
         by_hand: dict[str, dict] = {
-            "right": {"attempt_count": 0, "has_data": False},
-            "left":  {"attempt_count": 0, "has_data": False},
+            "right": {"attempt_count": 0, "state": "no_data"},
+            "left":  {"attempt_count": 0, "state": "no_data"},
         }
         for r in db.execute(hand_sql, params).fetchall():
             if r.hand in by_hand:
                 cnt = int(r.attempt_count)
                 by_hand[r.hand] = {
                     "attempt_count": cnt,
-                    "has_data":      cnt >= _MIN_SAMPLES,
+                    "state":         "ready" if cnt >= _MIN_SAMPLES else "low_sample",
                     "avg_score":     float(r.avg_score)    if r.avg_score    is not None else None,
                     "avg_rt_ms":     int(r.avg_rt_ms)      if r.avg_rt_ms    is not None else None,
                     "accuracy_pct":  float(r.accuracy_pct) if r.accuracy_pct is not None else None,
