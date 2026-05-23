@@ -250,77 +250,52 @@
 
     .cr-footer a:hover { text-decoration: underline; }
 
-    /* ── Protocol chooser ───────────────────────────────────────────────── */
-    .cr-protocol {
+    /* ── System-assigned protocol card ──────────────────────────────────── */
+    .cr-protocol-card {
         background: var(--app-card);
+        border: 1px solid #c7d2fe;
         border-radius: 14px;
-        padding: 1.25rem 1.5rem 1.5rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        padding: 1.1rem 1.4rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
         margin-bottom: 1.5rem;
     }
 
-    .cr-protocol h3 {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--app-text);
-        margin: 0 0 0.25rem;
-    }
-
-    .cr-protocol-desc {
-        font-size: 0.8rem;
-        color: var(--app-text-muted);
-        margin: 0 0 1rem;
-        line-height: 1.5;
-    }
-
-    .cr-protocol-options {
+    .cr-protocol-card-header {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.55rem;
     }
 
-    .cr-protocol-btn {
-        flex: 1 1 calc(50% - 0.25rem);
-        min-width: 140px;
-        background: #f3f4f6;
-        border: 2px solid transparent;
-        border-radius: 10px;
-        padding: 0.6rem 0.75rem;
-        text-align: left;
-        cursor: pointer;
-        transition: background 0.12s, border-color 0.12s;
-    }
-
-    .cr-protocol-btn:hover { background: #e9eaf0; }
-
-    .cr-protocol-btn.selected {
-        background: #eef2ff;
-        border-color: #4f46e5;
-    }
-
-    .cr-protocol-btn-label {
-        display: block;
-        font-size: 0.85rem;
+    .cr-protocol-card-title {
+        font-size: 0.78rem;
         font-weight: 700;
-        color: var(--app-text);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--app-text-muted);
     }
 
-    .cr-protocol-btn-mult {
-        display: block;
-        font-size: 0.75rem;
+    .cr-protocol-card-combo {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #3730a3;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.15rem;
+    }
+
+    .cr-protocol-card-mult {
+        font-size: 0.82rem;
         font-weight: 600;
         color: #4f46e5;
-        margin-top: 0.1rem;
+        margin-bottom: 0.6rem;
     }
 
-    .cr-protocol-warning {
-        font-size: 0.78rem;
-        color: #92400e;
-        background: #fef3c7;
-        border-radius: 8px;
-        padding: 0.55rem 0.8rem;
+    .cr-protocol-card-info {
+        font-size: 0.75rem;
+        color: var(--app-text-muted);
         line-height: 1.5;
+        border-top: 1px solid #e0e7ff;
+        padding-top: 0.5rem;
     }
 </style>
 {% endblock %}
@@ -367,43 +342,23 @@
         </p>
     </div>
 
-    {# ── Protocol chooser ─────────────────────────────────────────────────── #}
-    <div class="cr-protocol" id="crProtocol">
-        <h3>🖐 Training Protocol</h3>
-        <p class="cr-protocol-desc">
-            Which hand and finger are you using? Your choice affects skill deltas only —
-            not XP or score.
-        </p>
-        <div class="cr-protocol-options">
-            <button class="cr-protocol-btn selected" data-hand="right" data-finger="index"
-                    data-label="Right Index" data-mult="1.00" onclick="crSelectProtocol(this)">
-                <span class="cr-protocol-btn-label">Right Index</span>
-                <span class="cr-protocol-btn-mult">×1.00 (standard)</span>
-            </button>
-            <button class="cr-protocol-btn" data-hand="right" data-finger="thumb"
-                    data-label="Right Thumb" data-mult="1.05" onclick="crSelectProtocol(this)">
-                <span class="cr-protocol-btn-label">Right Thumb</span>
-                <span class="cr-protocol-btn-mult">×1.05</span>
-            </button>
-            <button class="cr-protocol-btn" data-hand="left" data-finger="index"
-                    data-label="Left Index" data-mult="1.10" onclick="crSelectProtocol(this)">
-                <span class="cr-protocol-btn-label">Left Index</span>
-                <span class="cr-protocol-btn-mult">×1.10</span>
-            </button>
-            <button class="cr-protocol-btn" data-hand="left" data-finger="thumb"
-                    data-label="Left Thumb" data-mult="1.15" onclick="crSelectProtocol(this)">
-                <span class="cr-protocol-btn-label">Left Thumb</span>
-                <span class="cr-protocol-btn-mult">×1.15</span>
-            </button>
-            <button class="cr-protocol-btn" data-hand="free" data-finger="free"
-                    data-label="Free / No Protocol" data-mult="1.00" onclick="crSelectProtocol(this)">
-                <span class="cr-protocol-btn-label">Free / No Protocol</span>
-                <span class="cr-protocol-btn-mult">×1.00</span>
-            </button>
+    {# ── System-assigned protocol card ────────────────────────────────────── #}
+    {% set _ap = assigned_protocol %}
+    <div class="cr-protocol-card" id="crProtocol">
+        <div class="cr-protocol-card-header">
+            <span>🎯</span>
+            <span class="cr-protocol-card-title">Today's Protocol</span>
         </div>
-        <div class="cr-protocol-warning">
-            This is self-declared. Your protocol choice affects skill deltas, not XP or score.<br>
-            Follow the selected protocol honestly for accurate development tracking.
+        {% if _ap.hand == "free" %}
+        <div class="cr-protocol-card-combo">Free — No Protocol Assigned</div>
+        <div class="cr-protocol-card-mult">×1.00 (standard)</div>
+        {% else %}
+        <div class="cr-protocol-card-combo">{{ _ap.hand | upper }} HAND — {{ _ap.finger | upper }}</div>
+        <div class="cr-protocol-card-mult">Difficulty multiplier: ×{{ "%.2f" | format(_ap.protocol_difficulty_multiplier | float) }}</div>
+        {% endif %}
+        <div class="cr-protocol-card-info">
+            System assigned · Self-declared · Not verified<br>
+            Skill deltas will reflect this protocol. XP and score are unaffected.
         </div>
     </div>
 
@@ -501,15 +456,8 @@
     var lateHandled     = false;
     var windowExpiredAt = null;
 
-    // ── Protocol difficulty (Phase 2.4) ────────────────────────────────────
-    var handProfile = {
-        hand:                          "right",
-        finger:                        "index",
-        label:                         "Right Index",
-        protocol_difficulty_multiplier: 1.00,
-        self_declared:                 true,
-        selected_at_ms:                null
-    };
+    // ── Protocol difficulty (Phase 2.4 — system-assigned) ─────────────────
+    var handProfile = {{ assigned_protocol | tojson }};
 
     // ── DOM refs ───────────────────────────────────────────────────────────
     var arena        = document.getElementById("crArena");
@@ -574,23 +522,6 @@
         }
         return arr;
     }
-
-    // ── Protocol selection ─────────────────────────────────────────────────
-    window.crSelectProtocol = function (btn) {
-        document.querySelectorAll(".cr-protocol-btn").forEach(function(b) {
-            b.classList.remove("selected");
-        });
-        btn.classList.add("selected");
-        var isFree = btn.dataset.hand === "free";
-        handProfile = {
-            hand:                          isFree ? null : btn.dataset.hand,
-            finger:                        isFree ? null : btn.dataset.finger,
-            label:                         btn.dataset.label,
-            protocol_difficulty_multiplier: parseFloat(btn.dataset.mult),
-            self_declared:                 true,
-            selected_at_ms:                Date.now()
-        };
-    };
 
     // ── Public entry ───────────────────────────────────────────────────────
     window.crStart = function () {

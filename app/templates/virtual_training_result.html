@@ -363,7 +363,7 @@
                 ×{{ "%.2f"|format(_hp.get("protocol_difficulty_multiplier", 1.0) | float) }}
             </div>
             <div style="color:#4f46e5;font-size:0.78rem;">
-                Self-declared · Not automatically verified
+                {% if _hp.get("assignment_source") == "system" %}System assigned · {% endif %}Self-declared · Not verified
             </div>
         </div>
         {% endif %}

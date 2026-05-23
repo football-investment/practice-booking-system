@@ -88,6 +88,8 @@ async def virtual_training_color_reaction(
         .count()
     )
 
+    assigned_protocol = VirtualTrainingService.assign_protocol(db, user.id, game.id)
+
     return templates.TemplateResponse(
         "virtual_training_color_reaction.html",
         {
@@ -98,6 +100,7 @@ async def virtual_training_color_reaction(
             "attempts_today": attempts_today,
             "max_daily_attempts": game.max_daily_attempts,
             "attempts_remaining": max(0, game.max_daily_attempts - attempts_today),
+            "assigned_protocol": assigned_protocol,
         },
     )
 
@@ -314,6 +317,8 @@ async def virtual_training_go_no_go(
         .count()
     )
 
+    assigned_protocol = VirtualTrainingService.assign_protocol(db, user.id, game.id)
+
     return templates.TemplateResponse(
         "virtual_training_go_no_go.html",
         {
@@ -324,6 +329,7 @@ async def virtual_training_go_no_go(
             "attempts_today": attempts_today,
             "max_daily_attempts": game.max_daily_attempts,
             "attempts_remaining": max(0, game.max_daily_attempts - attempts_today),
+            "assigned_protocol": assigned_protocol,
         },
     )
 

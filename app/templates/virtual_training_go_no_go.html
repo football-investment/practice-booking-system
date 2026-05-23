@@ -276,77 +276,52 @@
     .gng-submitting.active { display: block; }
     .gng-submitting p { margin: 0.5rem 0 0; }
 
-    /* ── Protocol chooser ───────────────────────────────────────────────── */
-    .gng-protocol {
+    /* ── System-assigned protocol card ──────────────────────────────────── */
+    .gng-protocol-card {
         background: var(--app-card);
+        border: 1px solid #c7d2fe;
         border-radius: 14px;
-        padding: 1.25rem 1.5rem 1.5rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        padding: 1.1rem 1.4rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
         margin-bottom: 1.5rem;
     }
 
-    .gng-protocol h3 {
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--app-text);
-        margin: 0 0 0.25rem;
-    }
-
-    .gng-protocol-desc {
-        font-size: 0.8rem;
-        color: var(--app-text-muted);
-        margin: 0 0 1rem;
-        line-height: 1.5;
-    }
-
-    .gng-protocol-options {
+    .gng-protocol-card-header {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.55rem;
     }
 
-    .gng-protocol-btn {
-        flex: 1 1 calc(50% - 0.25rem);
-        min-width: 140px;
-        background: #f3f4f6;
-        border: 2px solid transparent;
-        border-radius: 10px;
-        padding: 0.6rem 0.75rem;
-        text-align: left;
-        cursor: pointer;
-        transition: background 0.12s, border-color 0.12s;
-    }
-
-    .gng-protocol-btn:hover { background: #e9eaf0; }
-
-    .gng-protocol-btn.selected {
-        background: #eef2ff;
-        border-color: #4f46e5;
-    }
-
-    .gng-protocol-btn-label {
-        display: block;
-        font-size: 0.85rem;
+    .gng-protocol-card-title {
+        font-size: 0.78rem;
         font-weight: 700;
-        color: var(--app-text);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--app-text-muted);
     }
 
-    .gng-protocol-btn-mult {
-        display: block;
-        font-size: 0.75rem;
+    .gng-protocol-card-combo {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #3730a3;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.15rem;
+    }
+
+    .gng-protocol-card-mult {
+        font-size: 0.82rem;
         font-weight: 600;
         color: #4f46e5;
-        margin-top: 0.1rem;
+        margin-bottom: 0.6rem;
     }
 
-    .gng-protocol-warning {
-        font-size: 0.78rem;
-        color: #92400e;
-        background: #fef3c7;
-        border-radius: 8px;
-        padding: 0.55rem 0.8rem;
+    .gng-protocol-card-info {
+        font-size: 0.75rem;
+        color: var(--app-text-muted);
         line-height: 1.5;
+        border-top: 1px solid #e0e7ff;
+        padding-top: 0.5rem;
     }
 </style>
 {% endblock %}
@@ -394,43 +369,23 @@
 
     </div>
 
-    {# ── Protocol chooser ─────────────────────────────────────────────────── #}
-    <div class="gng-protocol" id="gngProtocol">
-        <h3>🖐 Training Protocol</h3>
-        <p class="gng-protocol-desc">
-            Which hand and finger are you using? Your choice affects skill deltas only —
-            not XP or score.
-        </p>
-        <div class="gng-protocol-options">
-            <button class="gng-protocol-btn selected" data-hand="right" data-finger="index"
-                    data-label="Right Index" data-mult="1.00" onclick="gngSelectProtocol(this)">
-                <span class="gng-protocol-btn-label">Right Index</span>
-                <span class="gng-protocol-btn-mult">×1.00 (standard)</span>
-            </button>
-            <button class="gng-protocol-btn" data-hand="right" data-finger="thumb"
-                    data-label="Right Thumb" data-mult="1.05" onclick="gngSelectProtocol(this)">
-                <span class="gng-protocol-btn-label">Right Thumb</span>
-                <span class="gng-protocol-btn-mult">×1.05</span>
-            </button>
-            <button class="gng-protocol-btn" data-hand="left" data-finger="index"
-                    data-label="Left Index" data-mult="1.10" onclick="gngSelectProtocol(this)">
-                <span class="gng-protocol-btn-label">Left Index</span>
-                <span class="gng-protocol-btn-mult">×1.10</span>
-            </button>
-            <button class="gng-protocol-btn" data-hand="left" data-finger="thumb"
-                    data-label="Left Thumb" data-mult="1.15" onclick="gngSelectProtocol(this)">
-                <span class="gng-protocol-btn-label">Left Thumb</span>
-                <span class="gng-protocol-btn-mult">×1.15</span>
-            </button>
-            <button class="gng-protocol-btn" data-hand="free" data-finger="free"
-                    data-label="Free / No Protocol" data-mult="1.00" onclick="gngSelectProtocol(this)">
-                <span class="gng-protocol-btn-label">Free / No Protocol</span>
-                <span class="gng-protocol-btn-mult">×1.00</span>
-            </button>
+    {# ── System-assigned protocol card ────────────────────────────────────── #}
+    {% set _ap = assigned_protocol %}
+    <div class="gng-protocol-card" id="gngProtocol">
+        <div class="gng-protocol-card-header">
+            <span>🎯</span>
+            <span class="gng-protocol-card-title">Today's Protocol</span>
         </div>
-        <div class="gng-protocol-warning">
-            This is self-declared. Your protocol choice affects skill deltas, not XP or score.<br>
-            Follow the selected protocol honestly for accurate development tracking.
+        {% if _ap.hand == "free" %}
+        <div class="gng-protocol-card-combo">Free — No Protocol Assigned</div>
+        <div class="gng-protocol-card-mult">×1.00 (standard)</div>
+        {% else %}
+        <div class="gng-protocol-card-combo">{{ _ap.hand | upper }} HAND — {{ _ap.finger | upper }}</div>
+        <div class="gng-protocol-card-mult">Difficulty multiplier: ×{{ "%.2f" | format(_ap.protocol_difficulty_multiplier | float) }}</div>
+        {% endif %}
+        <div class="gng-protocol-card-info">
+            System assigned · Self-declared · Not verified<br>
+            Skill deltas will reflect this protocol. XP and score are unaffected.
         </div>
     </div>
 
@@ -533,15 +488,8 @@
     var expiredStimType = null;     // "go" | "no_go" captured when window expires
     var expiredStimIdx  = null;     // globalStimIdx captured when window expires
 
-    // ── Protocol difficulty (Phase 2.4) ────────────────────────────────────
-    var handProfile = {
-        hand:                          "right",
-        finger:                        "index",
-        label:                         "Right Index",
-        protocol_difficulty_multiplier: 1.00,
-        self_declared:                 true,
-        selected_at_ms:                null
-    };
+    // ── Protocol difficulty (Phase 2.4 — system-assigned) ─────────────────
+    var handProfile = {{ assigned_protocol | tojson }};
 
     // ── raw_metrics tracking ───────────────────────────────────────────────
     var stimulusLog    = [];        // per-stimulus event objects
@@ -603,23 +551,6 @@
         }
         return PHASES.length - 1;
     }
-
-    // ── Protocol selection ─────────────────────────────────────────────────
-    window.gngSelectProtocol = function (btn) {
-        document.querySelectorAll(".gng-protocol-btn").forEach(function(b) {
-            b.classList.remove("selected");
-        });
-        btn.classList.add("selected");
-        var isFree = btn.dataset.hand === "free";
-        handProfile = {
-            hand:                          isFree ? null : btn.dataset.hand,
-            finger:                        isFree ? null : btn.dataset.finger,
-            label:                         btn.dataset.label,
-            protocol_difficulty_multiplier: parseFloat(btn.dataset.mult),
-            self_declared:                 true,
-            selected_at_ms:                Date.now()
-        };
-    };
 
     // ── Start game ─────────────────────────────────────────────────────────
     elBtnStart.addEventListener("click", function () {
