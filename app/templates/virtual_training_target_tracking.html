@@ -434,6 +434,7 @@ const DIFFICULTIES = {
     expert: _DIFFICULTIES_RAW.expert || _EASY_FALLBACK,
 };
 
+const CSRF_TOKEN = "{{ request.cookies.get('csrf_token', '') }}";
 const BASE_SPEED = 2.0;   /* px per frame at 60 fps, before phase speed multiplier */
 
 /* ── Responsive arena dimensions (read at runtime, not frozen at load) ────── */
@@ -918,7 +919,7 @@ function finishGame() {
 
     fetch(SUBMIT_URL, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
         body:    JSON.stringify(payload),
     })
     .then(function (r) { return r.json(); })

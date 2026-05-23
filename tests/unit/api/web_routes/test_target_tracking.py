@@ -55,6 +55,7 @@ TT-52   Template: frozen const ARENA_W / ARENA_H absent
 TT-53   Template: responsive radius formula uses arenaW / 480
 TT-54   Template: resize + orientationchange listeners registered
 TT-55   Template: object size set from radius * 2 in JS
+TT-56   Template: X-CSRF-Token header present in fetch call
 """
 from __future__ import annotations
 
@@ -1205,3 +1206,9 @@ class TestTTTemplateResponsiveGuards:
         """TT-55: Object element width/height set from radius*2 in JS (not CSS-only)."""
         src = self._src()
         assert "radius * 2" in src
+
+    def test_tt56_csrf_token_in_fetch_header(self):
+        """TT-56: X-CSRF-Token header present in fetch submit call."""
+        src = self._src()
+        assert "CSRF_TOKEN" in src
+        assert "X-CSRF-Token" in src
