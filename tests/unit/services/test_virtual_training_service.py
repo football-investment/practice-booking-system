@@ -24,7 +24,7 @@ VT-25   attempt 4 below-neutral performance → negative skill delta (Phase 2.4)
 VT-26   attempt 6 → empty skill delta regardless of performance
 VT-14   calculate_skill_deltas() produces correct per-skill deltas
 VT-15   calculate_skill_deltas() returns empty dict when xp_awarded=0
-VT-16   seed data: 12 games present; color_reaction active; stroop_challenge show_in_hub=False
+VT-16   seed data: 12 games present; color_reaction+go_no_go+number_color_conflict active; stroop_challenge hidden
 VT-17   get_training_skill_deltas_for_user() merges VT attempt deltas with segment deltas
 """
 from __future__ import annotations
@@ -259,10 +259,10 @@ class TestSkillDeltas:
 class TestSeedData:
 
     def test_vt16_seed_presets_present_and_correct_active_state(self):
-        """VT-16: Seed contains 12 games; color_reaction+go_no_go+memory_sequence+target_tracking+direction_swipe active; stroop_challenge hidden; rest planned."""
+        """VT-16: Seed contains 12 games; color_reaction+go_no_go+memory_sequence+target_tracking+direction_swipe+number_color_conflict active; stroop_challenge hidden; rest planned."""
         from scripts.seed_virtual_training_games import _GAMES
 
-        # 5 active + 1 hidden + 6 planned = 12 total
+        # 6 active + 1 hidden + 5 planned = 12 total
         assert len(_GAMES) == 12
 
         codes = {g["code"] for g in _GAMES}
@@ -283,8 +283,8 @@ class TestSeedData:
 
         game_map = {g["code"]: g for g in _GAMES}
 
-        # Active state — 5 active games
-        _active_games = {"color_reaction", "go_no_go", "memory_sequence", "target_tracking", "direction_swipe"}
+        # Active state — 6 active games
+        _active_games = {"color_reaction", "go_no_go", "memory_sequence", "target_tracking", "direction_swipe", "number_color_conflict"}
         for code in _active_games:
             assert game_map[code]["is_active"] is True, f"{code} must be active"
         for code in codes - _active_games:
@@ -292,6 +292,13 @@ class TestSeedData:
 
         # stroop_challenge hidden from hub
         assert game_map["stroop_challenge"]["config"].get("show_in_hub") is False
+
+        # number_color_conflict has full gameplay config
+        ncc_cfg = game_map["number_color_conflict"]["config"]
+        assert "phases" in ncc_cfg, "number_color_conflict seed missing phases"
+        assert "numbers" in ncc_cfg, "number_color_conflict seed missing numbers"
+        assert "colors" in ncc_cfg, "number_color_conflict seed missing colors"
+        assert "late_grace_ms" in ncc_cfg, "number_color_conflict seed missing late_grace_ms"
 
         # All hub-visible games have football_benefit in config
         hub_games = [g for g in _GAMES if g["config"].get("show_in_hub", True) is not False]

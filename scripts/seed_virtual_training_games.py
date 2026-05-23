@@ -189,7 +189,7 @@ _GAMES = [
             "whether to respond to the number or the colour. Rule-switching tested each round."
         ),
         "game_type": "cognitive_inhibition",
-        "is_active": False,
+        "is_active": True,
         "base_xp": 12,
         "max_daily_attempts": 5,
         "skill_targets": {
@@ -199,6 +199,33 @@ _GAMES = [
             "reactions":     0.10,
         },
         "config": {
+            # ── runtime gameplay keys ──────────────────────────────────────
+            # 3-phase session: 10 + 12 + 14 = 36 stimuli total
+            # rule_switch: "alternating" | "random" | "random_high"
+            "phases": [
+                {"stimuli": 10, "window_ms": 2000, "isi_ms": 900,  "rule_switch": "alternating"},
+                {"stimuli": 12, "window_ms": 1600, "isi_ms": 700,  "rule_switch": "random"},
+                {"stimuli": 14, "window_ms": 1200, "isi_ms": 550,  "rule_switch": "random_high"},
+            ],
+            "numbers": [1, 2, 3, 4],
+            "colors": {
+                "RED":    "#ef4444",
+                "GREEN":  "#22c55e",
+                "BLUE":   "#3b82f6",
+                "YELLOW": "#eab308",
+            },
+            "late_grace_ms": 350,
+            # Score formula (documented for transparency):
+            #   score_raw = 0.55 × hit_rate + 0.25 × (1 − wrong_rate) + 0.20 × speed_factor
+            #   speed_factor = max(0, 1 − avg_rt / 1600)
+            #   score_normalized = round(score_raw × 100)
+            # Outcome mapping:
+            #   correct        → correct_count
+            #   wrong_value    → wrong_click_count (wrong number/color answer)
+            #   wrong_dimension → wrong_click_count (answered wrong dimension)
+            #   missed         → error_count
+            #   late           → late_summary.late_click_count
+            # ── display keys ──────────────────────────────────────────────
             "show_in_hub":      True,
             "icon":             "🔢",
             "football_benefit": (
