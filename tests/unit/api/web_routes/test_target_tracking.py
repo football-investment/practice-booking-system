@@ -678,12 +678,12 @@ _TT_DIFFICULTIES_CFG = {
     },
     "medium": {
         "phases": [
-            {"phase": 0, "rounds": 3, "object_count": 4, "object_speed": 1.20,
-             "highlight_ms": 1500, "tracking_ms": 4500, "window_ms": 2500, "distractor_flash": 0},
-            {"phase": 1, "rounds": 3, "object_count": 5, "object_speed": 1.40,
-             "highlight_ms": 1500, "tracking_ms": 5500, "window_ms": 2500, "distractor_flash": 1},
-            {"phase": 2, "rounds": 3, "object_count": 6, "object_speed": 1.60,
-             "highlight_ms": 1500, "tracking_ms": 7000, "window_ms": 2500, "distractor_flash": 1},
+            {"phase": 0, "rounds": 3, "object_count": 5, "object_speed": 1.60,
+             "highlight_ms": 1500, "tracking_ms": 5000, "window_ms": 2500, "distractor_flash": 1},
+            {"phase": 1, "rounds": 3, "object_count": 6, "object_speed": 1.90,
+             "highlight_ms": 1500, "tracking_ms": 6000, "window_ms": 2500, "distractor_flash": 2},
+            {"phase": 2, "rounds": 3, "object_count": 7, "object_speed": 2.20,
+             "highlight_ms": 1500, "tracking_ms": 7000, "window_ms": 2300, "distractor_flash": 3},
         ],
         "difficulty_multiplier": 1.30,
         "validation_overrides": {
@@ -693,12 +693,12 @@ _TT_DIFFICULTIES_CFG = {
     },
     "hard": {
         "phases": [
-            {"phase": 0, "rounds": 4, "object_count": 5, "object_speed": 1.50,
-             "highlight_ms": 1500, "tracking_ms": 5000, "window_ms": 2000, "distractor_flash": 1},
-            {"phase": 1, "rounds": 4, "object_count": 6, "object_speed": 1.80,
-             "highlight_ms": 1500, "tracking_ms": 6500, "window_ms": 2000, "distractor_flash": 2},
-            {"phase": 2, "rounds": 4, "object_count": 7, "object_speed": 2.00,
-             "highlight_ms": 1500, "tracking_ms": 8000, "window_ms": 2000, "distractor_flash": 3},
+            {"phase": 0, "rounds": 4, "object_count": 6, "object_speed": 2.10,
+             "highlight_ms": 1200, "tracking_ms": 5500, "window_ms": 2200, "distractor_flash": 2},
+            {"phase": 1, "rounds": 4, "object_count": 7, "object_speed": 2.50,
+             "highlight_ms": 1200, "tracking_ms": 6500, "window_ms": 2000, "distractor_flash": 4},
+            {"phase": 2, "rounds": 4, "object_count": 8, "object_speed": 2.90,
+             "highlight_ms": 1200, "tracking_ms": 8000, "window_ms": 1800, "distractor_flash": 5},
         ],
         "difficulty_multiplier": 1.70,
         "validation_overrides": {
@@ -708,14 +708,14 @@ _TT_DIFFICULTIES_CFG = {
     },
     "expert": {
         "phases": [
-            {"phase": 0, "rounds": 3, "object_count": 6, "object_speed": 1.80,
-             "highlight_ms": 1000, "tracking_ms": 5000, "window_ms": 1800, "distractor_flash": 2},
-            {"phase": 1, "rounds": 3, "object_count": 7, "object_speed": 2.10,
-             "highlight_ms": 1000, "tracking_ms": 7000, "window_ms": 1800, "distractor_flash": 3},
-            {"phase": 2, "rounds": 3, "object_count": 8, "object_speed": 2.40,
-             "highlight_ms": 800,  "tracking_ms": 9000, "window_ms": 1800, "distractor_flash": 4},
-            {"phase": 3, "rounds": 3, "object_count": 9, "object_speed": 2.40,
-             "highlight_ms": 800,  "tracking_ms": 10000, "window_ms": 1800, "distractor_flash": 5},
+            {"phase": 0, "rounds": 3, "object_count": 7, "object_speed": 2.60,
+             "highlight_ms": 900, "tracking_ms": 5500, "window_ms": 1800, "distractor_flash": 3},
+            {"phase": 1, "rounds": 3, "object_count": 8, "object_speed": 3.00,
+             "highlight_ms": 900, "tracking_ms": 7000, "window_ms": 1700, "distractor_flash": 5},
+            {"phase": 2, "rounds": 3, "object_count": 9, "object_speed": 3.20,
+             "highlight_ms": 700, "tracking_ms": 8500, "window_ms": 1600, "distractor_flash": 6},
+            {"phase": 3, "rounds": 3, "object_count": 9, "object_speed": 3.20,
+             "highlight_ms": 700, "tracking_ms": 10000, "window_ms": 1600, "distractor_flash": 6},
         ],
         "difficulty_multiplier": 2.20,
         "unlock_threshold": {"min_hard_attempts": 3, "min_hard_score": 70},
@@ -796,7 +796,7 @@ class TestTTGetDifficultyConfig:
         """TT-28: get_difficulty_config(game, 'medium') returns medium phases with 1.30× multiplier."""
         result = self._svc().get_difficulty_config(self._game(), "medium")
         assert result["difficulty_multiplier"] == 1.30
-        assert result["phases"][2]["object_count"] == 6
+        assert result["phases"][2]["object_count"] == 7
 
     def test_tt29_hard_config_returned(self):
         """TT-29: get_difficulty_config(game, 'hard') returns hard phases with 1.70× multiplier."""
@@ -1223,3 +1223,120 @@ class TestTTTemplateResponsiveGuards:
         # Guard must disable each non-easy card
         assert "tt-diff-disabled" in src
         assert "Difficulty configuration unavailable" in src
+
+
+# ── TT-58..TT-72: Track A difficulty scale guards ────────────────────────────
+
+class TestTTDifficultyScaleGuards:
+    """Pin the exact Track A parameter values in the seed and verify progressive escalation."""
+
+    def _difficulties(self):
+        from scripts.seed_virtual_training_games import _GAMES
+        for g in _GAMES:
+            if g["code"] == "target_tracking":
+                return g["config"]["difficulties"]
+        raise AssertionError("target_tracking seed entry not found")
+
+    # ── Medium pin tests ──────────────────────────────────────────────────────
+
+    def test_tt58_medium_ph0_object_count(self):
+        """TT-58: Medium Phase 0 object_count == 5."""
+        d = self._difficulties()
+        assert d["medium"]["phases"][0]["object_count"] == 5
+
+    def test_tt59_medium_ph0_object_speed(self):
+        """TT-59: Medium Phase 0 object_speed == 1.60."""
+        d = self._difficulties()
+        assert d["medium"]["phases"][0]["object_speed"] == pytest.approx(1.60)
+
+    def test_tt60_medium_ph2_distractor_flash(self):
+        """TT-60: Medium Phase 2 distractor_flash == 3."""
+        d = self._difficulties()
+        assert d["medium"]["phases"][2]["distractor_flash"] == 3
+
+    # ── Hard pin tests ────────────────────────────────────────────────────────
+
+    def test_tt61_hard_ph0_object_count(self):
+        """TT-61: Hard Phase 0 object_count == 6."""
+        d = self._difficulties()
+        assert d["hard"]["phases"][0]["object_count"] == 6
+
+    def test_tt62_hard_ph2_object_speed(self):
+        """TT-62: Hard Phase 2 object_speed == 2.90."""
+        d = self._difficulties()
+        assert d["hard"]["phases"][2]["object_speed"] == pytest.approx(2.90)
+
+    def test_tt63_hard_ph2_distractor_flash(self):
+        """TT-63: Hard Phase 2 distractor_flash == 5."""
+        d = self._difficulties()
+        assert d["hard"]["phases"][2]["distractor_flash"] == 5
+
+    # ── Expert pin tests ──────────────────────────────────────────────────────
+
+    def test_tt64_expert_ph0_object_count(self):
+        """TT-64: Expert Phase 0 object_count == 7."""
+        d = self._difficulties()
+        assert d["expert"]["phases"][0]["object_count"] == 7
+
+    def test_tt65_expert_ph3_object_count(self):
+        """TT-65: Expert Phase 3 object_count == 9."""
+        d = self._difficulties()
+        assert d["expert"]["phases"][3]["object_count"] == 9
+
+    def test_tt66_expert_ph3_object_speed(self):
+        """TT-66: Expert Phase 3 object_speed == 3.20."""
+        d = self._difficulties()
+        assert d["expert"]["phases"][3]["object_speed"] == pytest.approx(3.20)
+
+    def test_tt67_expert_ph3_distractor_flash(self):
+        """TT-67: Expert Phase 3 distractor_flash == 6."""
+        d = self._difficulties()
+        assert d["expert"]["phases"][3]["distractor_flash"] == 6
+
+    # ── Escalation checks ─────────────────────────────────────────────────────
+
+    def test_tt68_medium_ph0_faster_than_easy_ph2(self):
+        """TT-68: Medium Phase 0 speed (1.60) is faster than Easy Phase 2 speed (1.30)."""
+        d = self._difficulties()
+        medium_ph0 = d["medium"]["phases"][0]["object_speed"]
+        easy_ph2   = d["easy"]["phases"][2]["object_speed"]
+        assert medium_ph0 > easy_ph2, (
+            f"Medium Ph0 speed {medium_ph0} should exceed Easy Ph2 speed {easy_ph2}"
+        )
+
+    def test_tt69_hard_max_faster_than_medium_max(self):
+        """TT-69: Hard Phase 2 speed (2.90) > Medium Phase 2 speed (2.20) — tier max escalation."""
+        d = self._difficulties()
+        hard_ph2   = d["hard"]["phases"][2]["object_speed"]
+        medium_ph2 = d["medium"]["phases"][2]["object_speed"]
+        assert hard_ph2 > medium_ph2, (
+            f"Hard max speed {hard_ph2} should exceed Medium max speed {medium_ph2}"
+        )
+
+    def test_tt70_expert_max_faster_than_hard_max(self):
+        """TT-70: Expert Phase 3 speed (3.20) > Hard Phase 2 speed (2.90) — tier max escalation."""
+        d = self._difficulties()
+        expert_ph3 = d["expert"]["phases"][3]["object_speed"]
+        hard_ph2   = d["hard"]["phases"][2]["object_speed"]
+        assert expert_ph3 > hard_ph2, (
+            f"Expert max speed {expert_ph3} should exceed Hard max speed {hard_ph2}"
+        )
+
+    def test_tt71_flash_count_monotone_within_each_difficulty(self):
+        """TT-71: distractor_flash count is non-decreasing phase-by-phase within Medium, Hard, Expert."""
+        d = self._difficulties()
+        for level in ("medium", "hard", "expert"):
+            flashes = [ph["distractor_flash"] for ph in d[level]["phases"]]
+            for i in range(1, len(flashes)):
+                assert flashes[i] >= flashes[i - 1], (
+                    f"{level} flash not monotone: phases {i-1}→{i} "
+                    f"({flashes[i-1]}→{flashes[i]})"
+                )
+
+    def test_tt72_difficulty_multipliers_unchanged(self):
+        """TT-72: Difficulty multipliers remain 1.00/1.30/1.70/2.20 (Track A does not touch XP)."""
+        d = self._difficulties()
+        assert d["easy"]["difficulty_multiplier"]   == pytest.approx(1.00)
+        assert d["medium"]["difficulty_multiplier"] == pytest.approx(1.30)
+        assert d["hard"]["difficulty_multiplier"]   == pytest.approx(1.70)
+        assert d["expert"]["difficulty_multiplier"] == pytest.approx(2.20)
