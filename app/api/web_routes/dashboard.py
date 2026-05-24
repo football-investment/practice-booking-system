@@ -440,9 +440,7 @@ async def lfa_player_card_editor(
     }
 
     # Highlight video state — draft and published snapshots for Media tab UI.
-    from ...services.highlight_video_service import (
-        build_youtube_embed_url as _build_yt_embed,
-    )
+    from ...services.highlight_video_service import build_youtube_embed_url as _build_yt_embed
     _dd = card_draft.draft_data or {}
     _pd = card_draft.published_data or {}
     _draft_hv_raw = _dd.get("highlight_video")
@@ -452,20 +450,25 @@ async def lfa_player_card_editor(
         if not raw or not isinstance(raw, dict):
             return None
         vid = raw.get("video_id")
+        provider = raw.get("provider", "youtube")
         if not vid:
             return None
+        embed_url = _build_yt_embed(vid) if provider == "youtube" else None
         return {
+            "provider":   provider,
             "video_id":   vid,
-            "embed_url":  _build_yt_embed(vid),
+            "embed_url":  embed_url,
             "source_url": raw.get("source_url", ""),
         }
 
     draft_highlight_video     = _hv_ctx(_draft_hv_raw)
     published_highlight_video = _hv_ctx(_pub_hv_raw)
-    # draft differs from published when video_ids diverge (includes remove case)
-    _draft_vid = (_draft_hv_raw or {}).get("video_id")
-    _pub_vid   = (_pub_hv_raw   or {}).get("video_id")
-    highlight_video_unpublished = (_draft_vid != _pub_vid)
+    # unpublished when video_id OR provider diverges (includes remove case)
+    _draft_vid  = (_draft_hv_raw or {}).get("video_id")
+    _pub_vid    = (_pub_hv_raw   or {}).get("video_id")
+    _draft_prov = (_draft_hv_raw or {}).get("provider")
+    _pub_prov   = (_pub_hv_raw   or {}).get("provider")
+    highlight_video_unpublished = (_draft_vid != _pub_vid or _draft_prov != _pub_prov)
 
     return templates.TemplateResponse(
         "dashboard_card_editor.html",
@@ -1311,9 +1314,9 @@ async def student_save_highlight_video(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    """Save a YouTube highlight video URL to the player card draft.
+    """Save a YouTube or TikTok highlight video URL to the player card draft.
 
-    Validates YouTube URL, extracts video_id, writes draft_data.highlight_video.
+    Validates URL, extracts provider + video_id, writes draft_data.highlight_video.
     The video is NOT visible on the public profile until the card is published.
     CSRF protection is enforced by the global CSRF middleware.
     """
@@ -1328,10 +1331,13 @@ async def student_save_highlight_video(
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
     hv = (draft.draft_data or {}).get("highlight_video", {})
     video_id = hv.get("video_id", "")
+    provider = hv.get("provider", "youtube")
+    embed_url = _build_yt_embed(video_id) if provider == "youtube" else None
     return JSONResponse({
         "ok":        True,
+        "provider":  provider,
         "video_id":  video_id,
-        "embed_url": _build_yt_embed(video_id),
+        "embed_url": embed_url,
         "status":    "draft",
     })
 

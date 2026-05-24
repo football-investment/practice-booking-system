@@ -60167,7 +60167,7 @@
         ]
       },
       "post": {
-        "description": "Save a YouTube highlight video URL to the player card draft.\n\nValidates YouTube URL, extracts video_id, writes draft_data.highlight_video.\nThe video is NOT visible on the public profile until the card is published.\nCSRF protection is enforced by the global CSRF middleware.",
+        "description": "Save a YouTube or TikTok highlight video URL to the player card draft.\n\nValidates URL, extracts provider + video_id, writes draft_data.highlight_video.\nThe video is NOT visible on the public profile until the card is published.\nCSRF protection is enforced by the global CSRF middleware.",
         "operationId": "student_save_highlight_video_dashboard_lfa_football_player_card_editor_media_highlight_video_post",
         "requestBody": {
           "content": {
