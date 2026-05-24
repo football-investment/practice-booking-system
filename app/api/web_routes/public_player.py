@@ -204,6 +204,10 @@ async def public_player_profile(
     from app.services.highlight_video_service import get_published_highlight_video as _get_hv
     highlight_video = _get_hv(_profile_draft)
 
+    # Profile grid slots — published slot modules for the 5-column layout
+    from app.services.profile_grid_service import build_published_grid_state as _build_pub_grid
+    profile_grid_slots = _build_pub_grid(_profile_draft)
+
     return templates.TemplateResponse(request, "public/player_profile.html", {
         "profile_user":    user,
         "lfa_license":     lfa_license,
@@ -224,7 +228,8 @@ async def public_player_profile(
         "card_orientation": card_orientation,
         "card_platform_id": card_platform_id,
         "card_url":         card_url,
-        "highlight_video":  highlight_video,
+        "highlight_video":    highlight_video,
+        "profile_grid_slots": profile_grid_slots,
     })
 
 

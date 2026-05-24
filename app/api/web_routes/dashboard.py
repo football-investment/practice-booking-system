@@ -1364,3 +1364,128 @@ async def student_remove_highlight_video(
         "status": "removed_from_draft",
         "published_video_still_live": pub_hv is not None,
     })
+
+
+# ── Public Profile Grid Designer routes ───────────────────────────────────────
+
+from app.services.profile_grid_service import (  # noqa: E402
+    build_draft_grid_state  as _build_draft_grid_state,
+    build_published_grid_state as _build_published_grid_state,
+    SLOT_REGISTRY           as _SLOT_REGISTRY,
+)
+
+
+class _SlotModuleRequest(_BaseModel):
+    video_url: str
+    title:     str = ""
+
+
+@router.get(
+    "/dashboard/lfa-football-player/public-profile-editor",
+    response_class=HTMLResponse,
+)
+async def lfa_public_profile_editor(
+    request: Request,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Render the visual Public Profile Grid Designer page."""
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+    draft_slots     = _build_draft_grid_state(draft)
+    published_slots = _build_published_grid_state(draft)
+    is_pub          = _CardDraftService.is_published(draft)
+
+    return templates.TemplateResponse(
+        request,
+        "dashboard/lfa_public_profile_editor.html",
+        {
+            "user":             user,
+            "draft_slots":      draft_slots,
+            "published_slots":  published_slots,
+            "is_published":     is_pub,
+            "profile_url":      f"/players/{user.id}",
+            "card_editor_url":  "/dashboard/lfa-football-player/card-editor",
+        },
+    )
+
+
+@router.post(
+    "/dashboard/lfa-football-player/public-profile-editor/slots/{slot_id}",
+)
+async def lfa_profile_editor_set_slot(
+    slot_id: str,
+    payload: _SlotModuleRequest,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Save a video module to a draft profile grid slot.
+
+    Accepts YouTube (watch/shorts/youtu.be) and canonical TikTok URLs.
+    TikTok short URLs (vm./vt.tiktok.com) are rejected with 400.
+    CSRF protection enforced by global middleware.
+    """
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+    try:
+        _CardDraftService.set_draft_slot(db, draft, slot_id, payload.video_url, payload.title)
+    except ValueError as exc:
+        status = 404 if "Unknown slot_id" in str(exc) else 400
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=status)
+
+    pg = (draft.draft_data or {}).get("profile_grid", {})
+    slot_entry = next(
+        (s for s in pg.get("slots", []) if s["slot_id"] == slot_id), {}
+    )
+    mod = slot_entry.get("module", {})
+    return JSONResponse({
+        "ok":       True,
+        "slot_id":  slot_id,
+        "provider": mod.get("provider"),
+        "video_id": mod.get("video_id"),
+        "title":    mod.get("title", ""),
+        "status":   "draft",
+    })
+
+
+@router.delete(
+    "/dashboard/lfa-football-player/public-profile-editor/slots/{slot_id}",
+)
+async def lfa_profile_editor_remove_slot(
+    slot_id: str,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Remove a module from a draft profile grid slot.
+
+    Publish is required for the removal to be reflected on the public profile.
+    CSRF protection enforced by global middleware.
+    """
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+    try:
+        _CardDraftService.remove_draft_slot(db, draft, slot_id)
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=404)
+
+    pub_pg = (draft.published_data or {}).get("profile_grid")
+    pub_has_slot = any(
+        s["slot_id"] == slot_id
+        for s in (pub_pg or {}).get("slots", [])
+    )
+    return JSONResponse({
+        "ok":                        True,
+        "slot_id":                   slot_id,
+        "status":                    "removed_from_draft",
+        "published_slot_still_live": pub_has_slot,
+    })

@@ -293,6 +293,18 @@
     background: #d1d5db;
 }
 
+/* ── Profile grid video slots — bottom row ─────────────────────────────────── */
+.psp-grid-video-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.psp-grid-video-row > .psp-module {
+    flex: 1;
+    min-width: 180px;
+}
+
 /* ── Recent events (bottom area) ───────────────────────────────────────────── */
 .psp-events-title {
     font-size: 0.7rem;
@@ -367,6 +379,33 @@
 
 {% block content %}
 
+{# ── Grid slot module renderer (YouTube iframe / TikTok CTA) ────────────────── #}
+{% macro render_slot_module(module) %}
+{% if module.provider == "youtube" %}
+<div class="psp-video-wrapper">
+    <iframe
+        src="https://www.youtube-nocookie.com/embed/{{ module.video_id }}?rel=0"
+        loading="lazy"
+        title="{{ module.title or 'Player video' }}"
+        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
+    </iframe>
+</div>
+<div class="psp-video-provider">
+    <span>YouTube</span>
+    <a href="https://www.youtube.com/watch?v={{ module.video_id }}" target="_blank" rel="noopener noreferrer">↗ Open</a>
+</div>
+{% elif module.provider == "tiktok" %}
+<a href="{{ module.source_url }}"
+   target="_blank" rel="noopener noreferrer"
+   class="psp-tiktok-cta">
+    <div class="psp-tiktok-provider">TikTok</div>
+    <div class="psp-tiktok-label">Watch on TikTok ↗</div>
+</a>
+{% endif %}
+{% endmacro %}
+
 {# ── Sticky topbar ──────────────────────────────────────────────────────────── #}
 <div class="psp-topbar">
     <a href="/" class="psp-topbar-brand">🏫 LFA Education Center</a>
@@ -415,6 +454,7 @@
 
                     {% elif fp.state == "own_profile" %}
                     <a href="/profile/lfa-football-player" class="psp-btn psp-btn-cancel">Edit profile</a>
+                    <a href="/dashboard/lfa-football-player/public-profile-editor" class="psp-btn psp-btn-cancel">Edit Grid</a>
 
                     {% elif fp.state == "none" or fp.state == "declined" %}
                     <form method="POST" action="/friends/request/{{ profile_user.id }}" style="margin:0">
@@ -457,6 +497,16 @@
 
     {# ── Left rail ──────────────────────────────────────────────────────────── #}
     <div class="psp-left-rail">
+        {# Profile grid — left zone slots #}
+        {% if profile_grid_slots %}
+        {% for slot in profile_grid_slots %}{% if slot.zone == "left" %}
+        <div class="psp-module">
+            <div class="psp-module-head">{{ slot.module.title or "Video" }}</div>
+            <div style="padding:0">{{ render_slot_module(slot.module) }}</div>
+        </div>
+        {% endif %}{% endfor %}
+        {% endif %}
+
         <div class="psp-module">
             <div class="psp-module-head">Gallery</div>
             <div class="psp-module-placeholder">
@@ -517,6 +567,17 @@
 
     {# ── Right rail ─────────────────────────────────────────────────────────── #}
     <div class="psp-right-rail">
+        {# Profile grid right-zone slots take priority over legacy highlight_video #}
+        {% set right_grid_slots = (profile_grid_slots | selectattr("zone", "equalto", "right") | list) if profile_grid_slots else [] %}
+        {% if right_grid_slots %}
+        {% for slot in right_grid_slots %}
+        <div class="psp-module">
+            <div class="psp-module-head">{{ slot.module.title or "Video" }}</div>
+            <div style="padding:0">{{ render_slot_module(slot.module) }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        {# Legacy highlight_video fallback — used when no profile_grid is published #}
         <div class="psp-module">
             <div class="psp-module-head">Highlight Video</div>
             {% if highlight_video %}
@@ -551,6 +612,7 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
 
         <div class="psp-module">
             <div class="psp-module-head">Latest Result</div>
@@ -581,9 +643,22 @@
         </div>
     </div>
 
-    {# ── Bottom: Recent Events ──────────────────────────────────────────────── #}
-    {% if recent_events %}
+    {# ── Bottom: grid slots + Recent Events ────────────────────────────────── #}
+    {% set bottom_grid_slots = (profile_grid_slots | selectattr("zone", "equalto", "bottom") | list) if profile_grid_slots else [] %}
+    {% if bottom_grid_slots or recent_events %}
     <div class="psp-bottom-area">
+        {% if bottom_grid_slots %}
+        <div class="psp-grid-video-row">
+            {% for slot in bottom_grid_slots %}
+            <div class="psp-module">
+                <div class="psp-module-head">{{ slot.module.title or "Video" }}</div>
+                <div style="padding:0">{{ render_slot_module(slot.module) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if recent_events %}
         <div class="psp-events-title">Recent Events</div>
         {% for ev in recent_events %}
         <div class="psp-event-row">
@@ -595,6 +670,7 @@
             </div>
         </div>
         {% endfor %}
+        {% endif %}
     </div>
     {% endif %}
 

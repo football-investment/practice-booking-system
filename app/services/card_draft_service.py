@@ -14,6 +14,13 @@ from app.services.highlight_video_service import (
     extract_any_video,
     build_youtube_embed_url,
 )
+from app.services.profile_grid_service import (
+    build_video_module as _build_video_module,
+    grid_fingerprint as _grid_fingerprint,
+    remove_slot as _remove_slot,
+    set_slot as _set_slot,
+    validate_slot_id as _validate_slot_id,
+)
 
 
 class CardDraftService:
@@ -137,8 +144,8 @@ class CardDraftService:
 
         Idempotent: calling twice with identical draft state yields same result.
         Sets published_at to now() on every call (tracks most-recent publish).
-        Merges draft_data.highlight_video → published_data.highlight_video;
-        absence of the key in draft_data removes it from published_data.
+        Merges draft_data.highlight_video and draft_data.profile_grid into
+        published_data; absence of a key in draft_data removes it from published_data.
         """
         draft.published_theme    = draft.draft_theme
         draft.published_variant  = draft.draft_variant
@@ -146,14 +153,23 @@ class CardDraftService:
         draft.published_at       = datetime.now(timezone.utc)
         draft.updated_at         = datetime.now(timezone.utc)
 
-        # Merge highlight_video from draft_data into published_data.
-        # Uses copy+reassign pattern so SQLAlchemy detects the JSON mutation.
+        # Copy+reassign so SQLAlchemy detects the JSON mutation.
         published_data: dict[str, Any] = dict(draft.published_data or {})
+
+        # Merge highlight_video
         draft_hv = (draft.draft_data or {}).get("highlight_video")
         if draft_hv:
             published_data["highlight_video"] = draft_hv
         else:
             published_data.pop("highlight_video", None)
+
+        # Merge profile_grid
+        draft_pg = (draft.draft_data or {}).get("profile_grid")
+        if draft_pg:
+            published_data["profile_grid"] = draft_pg
+        else:
+            published_data.pop("profile_grid", None)
+
         draft.published_data = published_data if published_data else None
 
         if commit:
@@ -167,7 +183,7 @@ class CardDraftService:
 
         A draft that was never published (published_theme is None) is always
         considered unpublished regardless of draft field values.
-        Also compares draft_data.highlight_video.video_id vs published equivalent.
+        Compares highlight_video (video_id + provider) and profile_grid fingerprint.
         """
         if draft.published_theme is None:
             return False
@@ -180,10 +196,61 @@ class CardDraftService:
             return False
         draft_hv  = (draft.draft_data    or {}).get("highlight_video") or {}
         pub_hv    = (draft.published_data or {}).get("highlight_video") or {}
-        return (
+        hv_ok = (
             draft_hv.get("video_id") == pub_hv.get("video_id")
             and draft_hv.get("provider") == pub_hv.get("provider")
         )
+        if not hv_ok:
+            return False
+        draft_fp = _grid_fingerprint((draft.draft_data    or {}).get("profile_grid"))
+        pub_fp   = _grid_fingerprint((draft.published_data or {}).get("profile_grid"))
+        return draft_fp == pub_fp
+
+    @staticmethod
+    def set_draft_slot(
+        db: Session, draft: CardDraft, slot_id: str, video_url: str, title: str = "",
+        *, commit: bool = True
+    ) -> CardDraft:
+        """Validate video_url, build module, and write to draft_data.profile_grid.
+
+        Accepts YouTube and canonical TikTok URLs. Short TikTok URLs raise ValueError.
+        source_url is stored for audit only and never used as an iframe src.
+        Raises ValueError for unknown slot_id or invalid URL.
+        """
+        _validate_slot_id(slot_id)
+        module = _build_video_module(video_url, title)
+        draft_data: dict[str, Any] = dict(draft.draft_data or {})
+        existing_pg = draft_data.get("profile_grid")
+        draft_data["profile_grid"] = _set_slot(existing_pg, slot_id, module)
+        draft.draft_data = draft_data
+        draft.updated_at = datetime.now(timezone.utc)
+        if commit:
+            db.commit()
+            db.refresh(draft)
+        return draft
+
+    @staticmethod
+    def remove_draft_slot(
+        db: Session, draft: CardDraft, slot_id: str, *, commit: bool = True
+    ) -> CardDraft:
+        """Remove a slot module from draft_data.profile_grid.
+
+        Publish is required for removal to be reflected on the public profile.
+        """
+        _validate_slot_id(slot_id)
+        draft_data: dict[str, Any] = dict(draft.draft_data or {})
+        existing_pg = draft_data.get("profile_grid")
+        new_pg = _remove_slot(existing_pg, slot_id)
+        if new_pg:
+            draft_data["profile_grid"] = new_pg
+        else:
+            draft_data.pop("profile_grid", None)
+        draft.draft_data = draft_data if draft_data else None
+        draft.updated_at = datetime.now(timezone.utc)
+        if commit:
+            db.commit()
+            db.refresh(draft)
+        return draft
 
     @staticmethod
     def update_draft_highlight_video(

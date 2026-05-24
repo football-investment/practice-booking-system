@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+
+{% block title %}Public Profile Editor — LFA{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+.main-content { padding: 0 !important; max-width: none !important; margin: 0 !important; }
+
+/* ── Page wrapper ───────────────────────────────────────────────────────────── */
+.ppe-page { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+/* ── Header bar ─────────────────────────────────────────────────────────────── */
+.ppe-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+.ppe-header-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #111;
+}
+.ppe-header-sub {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin-top: 0.2rem;
+}
+.ppe-header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+/* ── Status badge ───────────────────────────────────────────────────────────── */
+.ppe-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+}
+.ppe-status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+}
+.ppe-status.published   { background: #d1fae5; color: #065f46; }
+.ppe-status.published .ppe-status-dot { background: #10b981; }
+.ppe-status.unpublished { background: #fef3c7; color: #92400e; }
+.ppe-status.unpublished .ppe-status-dot { background: #f59e0b; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
+.ppe-btn {
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.2s;
+}
+.ppe-btn:hover { opacity: 0.82; }
+.ppe-btn-ghost { background: transparent; border: 1.5px solid #d1d5db; color: #374151; }
+.ppe-btn-publish { background: #0B0B0B; color: #FFD200; }
+.ppe-btn-publish:disabled { opacity: 0.45; cursor: not-allowed; }
+.ppe-btn-view   { background: #e8f0fe; color: #1a56db; }
+.ppe-btn-sm     { padding: 0.28rem 0.65rem; font-size: 0.76rem; }
+.ppe-btn-danger { background: transparent; border: 1px solid #fca5a5; color: #b91c1c; }
+.ppe-btn-danger:hover { background: #fee2e2; opacity: 1; }
+
+/* ── Grid designer ──────────────────────────────────────────────────────────── */
+.ppe-grid {
+    display: grid;
+    grid-template-columns: 1fr 36px minmax(300px, 420px) 36px 1fr;
+    grid-template-areas:
+        "left  ls   center  rs   right"
+        "bottom bottom bottom bottom bottom";
+    gap: 1rem;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .ppe-grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "center center"
+            "left   right"
+            "bottom bottom";
+    }
+    .ppe-ls, .ppe-rs { display: none; }
+}
+@media (max-width: 599px) {
+    .ppe-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas: "center" "left" "right" "bottom";
+    }
+}
+.ppe-left-col   { grid-area: left; }
+.ppe-ls         { grid-area: ls; }
+.ppe-center-col { grid-area: center; }
+.ppe-rs         { grid-area: rs; }
+.ppe-right-col  { grid-area: right; }
+.ppe-bottom-row { grid-area: bottom; }
+
+/* ── Zone labels ────────────────────────────────────────────────────────────── */
+.ppe-zone-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #9ca3af;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Card preview (center) ──────────────────────────────────────────────────── */
+.ppe-card-preview {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.ppe-card-preview-head {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    background: #f3f4f6;
+    border-bottom: 1px solid #e5e7eb;
+}
+.ppe-card-preview-body {
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+}
+.ppe-card-preview-body a {
+    font-size: 0.82rem;
+    color: #1a56db;
+    text-decoration: none;
+}
+.ppe-card-preview-body a:hover { text-decoration: underline; }
+
+/* ── Slot cards ─────────────────────────────────────────────────────────────── */
+.ppe-slot {
+    border-radius: 10px;
+    border: 2px dashed #d1d5db;
+    background: #fafafa;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.15s;
+    overflow: hidden;
+}
+.ppe-slot:last-child { margin-bottom: 0; }
+.ppe-slot.filled { border: 1.5px solid #e5e7eb; background: #fff; }
+.ppe-slot-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+.ppe-slot-head-actions { display: flex; gap: 0.3rem; }
+
+/* Empty slot body */
+.ppe-slot-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 1.25rem 0.75rem;
+    cursor: pointer;
+}
+.ppe-slot-empty:hover { background: #f3f4f6; }
+.ppe-slot-plus {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    color: #9ca3af;
+    line-height: 1;
+}
+.ppe-slot-add-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #9ca3af;
+}
+
+/* Filled slot body */
+.ppe-slot-filled { padding: 0.65rem 0.75rem; }
+.ppe-slot-provider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    margin-bottom: 0.4rem;
+}
+.ppe-badge-youtube { background: #fee2e2; color: #b91c1c; }
+.ppe-badge-tiktok  { background: #f3f4f6; color: #374151; }
+.ppe-slot-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #111;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ppe-slot-vid-id {
+    font-size: 0.72rem;
+    color: #9ca3af;
+    font-family: monospace;
+}
+
+/* ── Bottom row: 3 columns ──────────────────────────────────────────────────── */
+.ppe-bottom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+@media (max-width: 599px) {
+    .ppe-bottom-grid { grid-template-columns: 1fr; }
+}
+.ppe-bottom-grid .ppe-slot { margin-bottom: 0; }
+
+/* ── Add/Edit panel (inline) ────────────────────────────────────────────────── */
+.ppe-panel {
+    display: none;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    padding: 0.85rem 0.85rem 1rem;
+}
+.ppe-panel.open { display: block; }
+.ppe-panel-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.ppe-panel-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.42rem 0.65rem;
+    border: 1.5px solid #d1d5db;
+    border-radius: 7px;
+    font-size: 0.83rem;
+    margin-bottom: 0.5rem;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.ppe-panel-input:focus { border-color: #6366f1; }
+.ppe-panel-error {
+    font-size: 0.76rem;
+    color: #b91c1c;
+    margin-bottom: 0.4rem;
+    display: none;
+}
+.ppe-panel-error.visible { display: block; }
+.ppe-panel-actions { display: flex; gap: 0.4rem; margin-top: 0.1rem; }
+
+/* ── Publish toast ──────────────────────────────────────────────────────────── */
+#ppe-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111;
+    color: #FFD200;
+    padding: 0.65rem 1.4rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 200;
+}
+#ppe-toast.show { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ppe-page">
+
+    {# ── Header ──────────────────────────────────────────────────────────────── #}
+    <div class="ppe-header">
+        <div>
+            <div class="ppe-header-title">Public Profile Editor</div>
+            <div class="ppe-header-sub">
+                Manage the modules shown on your public profile.
+                Changes save as draft — publish to make them live.
+            </div>
+        </div>
+        <div class="ppe-header-actions">
+            <span class="ppe-status {% if is_published %}published{% else %}unpublished{% endif %}" id="ppe-status-badge">
+                <span class="ppe-status-dot"></span>
+                <span id="ppe-status-text">{% if is_published %}Up to date{% else %}Unpublished changes{% endif %}</span>
+            </span>
+            <a href="{{ profile_url }}" target="_blank" class="ppe-btn ppe-btn-view">View public profile ↗</a>
+            <a href="{{ card_editor_url }}" class="ppe-btn ppe-btn-ghost">Card Editor</a>
+            <button class="ppe-btn ppe-btn-publish" id="ppe-publish-btn"
+                    {% if is_published %}disabled{% endif %}
+                    onclick="publishProfile()">Publish Profile</button>
+        </div>
+    </div>
+
+    {# ── 5-column designer grid ──────────────────────────────────────────────── #}
+    <div class="ppe-grid">
+
+        {# ── Left rail ────────────────────────────────────────────────────────── #}
+        <div class="ppe-left-col">
+            <div class="ppe-zone-label">Left Rail</div>
+            {% for slot in draft_slots if slot.zone == "left" %}
+            {{ _render_slot(slot) }}
+            {% endfor %}
+        </div>
+
+        <div class="ppe-ls"></div>
+
+        {# ── Center: card preview (read-only) ─────────────────────────────────── #}
+        <div class="ppe-center-col">
+            <div class="ppe-zone-label">Featured Card (read-only)</div>
+            <div class="ppe-card-preview">
+                <div class="ppe-card-preview-head">Player Card</div>
+                <div class="ppe-card-preview-body">
+                    <a href="{{ card_editor_url }}">Open Card Editor to change your card →</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="ppe-rs"></div>
+
+        {# ── Right rail ───────────────────────────────────────────────────────── #}
+        <div class="ppe-right-col">
+            <div class="ppe-zone-label">Right Rail</div>
+            {% for slot in draft_slots if slot.zone == "right" %}
+            {{ _render_slot(slot) }}
+            {% endfor %}
+        </div>
+
+        {# ── Bottom row ───────────────────────────────────────────────────────── #}
+        <div class="ppe-bottom-row">
+            <div class="ppe-zone-label">Bottom Row</div>
+            <div class="ppe-bottom-grid">
+                {% for slot in draft_slots if slot.zone == "bottom" %}
+                {{ _render_slot(slot) }}
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>{# .ppe-grid #}
+</div>{# .ppe-page #}
+
+<div id="ppe-toast"></div>
+
+{# ── Slot macro ──────────────────────────────────────────────────────────────── #}
+{% macro _render_slot(slot) %}
+<div class="ppe-slot {% if not slot.is_empty %}filled{% endif %}"
+     id="slot-{{ slot.slot_id }}"
+     data-slot="{{ slot.slot_id }}">
+
+    <div class="ppe-slot-head">
+        <span>{{ slot.label }}</span>
+        {% if not slot.is_empty %}
+        <span class="ppe-slot-head-actions">
+            <button class="ppe-btn ppe-btn-sm ppe-btn-ghost"
+                    onclick="openPanel('{{ slot.slot_id }}')">Edit</button>
+            <button class="ppe-btn ppe-btn-sm ppe-btn-danger"
+                    onclick="removeSlot('{{ slot.slot_id }}')">Remove</button>
+        </span>
+        {% endif %}
+    </div>
+
+    {% if slot.is_empty %}
+    <div class="ppe-slot-empty" onclick="openPanel('{{ slot.slot_id }}')">
+        <div class="ppe-slot-plus">+</div>
+        <div class="ppe-slot-add-label">Add content</div>
+    </div>
+    {% else %}
+    <div class="ppe-slot-filled" id="slot-filled-{{ slot.slot_id }}">
+        {% if slot.module.provider == "youtube" %}
+        <div class="ppe-slot-provider-badge ppe-badge-youtube">▶ YouTube</div>
+        {% else %}
+        <div class="ppe-slot-provider-badge ppe-badge-tiktok">♪ TikTok</div>
+        {% endif %}
+        <div class="ppe-slot-title">{{ slot.module.title or slot.module.video_id }}</div>
+        <div class="ppe-slot-vid-id">{{ slot.module.video_id }}</div>
+    </div>
+    {% endif %}
+
+    {# Inline add/edit panel #}
+    <div class="ppe-panel" id="panel-{{ slot.slot_id }}">
+        <label class="ppe-panel-label">Video URL</label>
+        <input class="ppe-panel-input"
+               id="panel-url-{{ slot.slot_id }}"
+               type="url"
+               placeholder="Paste YouTube or TikTok video link"
+               value="{% if not slot.is_empty %}{{ slot.module.source_url }}{% endif %}">
+        <label class="ppe-panel-label">Title (optional)</label>
+        <input class="ppe-panel-input"
+               id="panel-title-{{ slot.slot_id }}"
+               type="text"
+               maxlength="80"
+               placeholder="e.g. Best goal"
+               value="{% if not slot.is_empty %}{{ slot.module.title }}{% endif %}">
+        <div class="ppe-panel-error" id="panel-err-{{ slot.slot_id }}"></div>
+        <div class="ppe-panel-actions">
+            <button class="ppe-btn ppe-btn-ghost ppe-btn-sm"
+                    onclick="closePanel('{{ slot.slot_id }}')">Cancel</button>
+            <button class="ppe-btn ppe-btn-publish ppe-btn-sm"
+                    onclick="saveSlot('{{ slot.slot_id }}')">Save Draft</button>
+        </div>
+    </div>
+
+</div>
+{% endmacro %}
+
+<script>
+(function () {
+    var _CSRF_TOKEN = null;
+    var _BASE = "/dashboard/lfa-football-player/public-profile-editor/slots/";
+
+    // Fetch CSRF token once
+    function getCsrf() {
+        if (_CSRF_TOKEN) return Promise.resolve(_CSRF_TOKEN);
+        return fetch("/csrf-token", {credentials: "same-origin"})
+            .then(function (r) { return r.json(); })
+            .then(function (d) { _CSRF_TOKEN = d.csrf_token; return _CSRF_TOKEN; })
+            .catch(function () { return ""; });
+    }
+
+    function toast(msg) {
+        var t = document.getElementById("ppe-toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(function () { t.classList.remove("show"); }, 2500);
+    }
+
+    function setUnpublished() {
+        var badge = document.getElementById("ppe-status-badge");
+        var text  = document.getElementById("ppe-status-text");
+        var btn   = document.getElementById("ppe-publish-btn");
+        if (badge)  { badge.className = "ppe-status unpublished"; }
+        if (text)   { text.textContent = "Unpublished changes"; }
+        if (btn)    { btn.disabled = false; }
+    }
+
+    // ── Open / close inline panel ──────────────────────────────────────────────
+    window.openPanel = function (slotId) {
+        document.querySelectorAll(".ppe-panel.open").forEach(function (p) {
+            p.classList.remove("open");
+        });
+        var panel = document.getElementById("panel-" + slotId);
+        if (panel) panel.classList.add("open");
+    };
+
+    window.closePanel = function (slotId) {
+        var panel = document.getElementById("panel-" + slotId);
+        if (panel) panel.classList.remove("open");
+    };
+
+    // ── Save slot ──────────────────────────────────────────────────────────────
+    window.saveSlot = function (slotId) {
+        var urlEl   = document.getElementById("panel-url-" + slotId);
+        var titleEl = document.getElementById("panel-title-" + slotId);
+        var errEl   = document.getElementById("panel-err-" + slotId);
+        var videoUrl = urlEl ? urlEl.value.trim() : "";
+        var title    = titleEl ? titleEl.value.trim() : "";
+
+        if (!videoUrl) {
+            errEl.textContent = "Please enter a video URL.";
+            errEl.classList.add("visible");
+            return;
+        }
+        errEl.classList.remove("visible");
+
+        getCsrf().then(function (csrf) {
+            return fetch(_BASE + encodeURIComponent(slotId), {
+                method:  "POST",
+                headers: {
+                    "Content-Type":  "application/json",
+                    "X-CSRF-Token":  csrf,
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({video_url: videoUrl, title: title}),
+            });
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data.ok) {
+                errEl.textContent = data.error || "Failed to save.";
+                errEl.classList.add("visible");
+                return;
+            }
+            // Update slot UI
+            var slotEl  = document.getElementById("slot-" + slotId);
+            var filledEl = document.getElementById("slot-filled-" + slotId);
+            var panel   = document.getElementById("panel-" + slotId);
+
+            var badge = data.provider === "youtube"
+                ? '<div class="ppe-slot-provider-badge ppe-badge-youtube">▶ YouTube</div>'
+                : '<div class="ppe-slot-provider-badge ppe-badge-tiktok">♪ TikTok</div>';
+            var displayTitle = data.title || data.video_id;
+
+            var filledHtml = badge +
+                '<div class="ppe-slot-title">' + escHtml(displayTitle) + '</div>' +
+                '<div class="ppe-slot-vid-id">' + escHtml(data.video_id) + '</div>';
+
+            if (filledEl) {
+                filledEl.innerHTML = filledHtml;
+            } else {
+                // Was empty — replace empty body
+                var emptyEl = slotEl.querySelector(".ppe-slot-empty");
+                if (emptyEl) emptyEl.remove();
+                var newFilled = document.createElement("div");
+                newFilled.className = "ppe-slot-filled";
+                newFilled.id = "slot-filled-" + slotId;
+                newFilled.innerHTML = filledHtml;
+                slotEl.insertBefore(newFilled, panel);
+                // Add Edit/Remove buttons to header
+                var headActions = slotEl.querySelector(".ppe-slot-head-actions");
+                if (!headActions) {
+                    var head = slotEl.querySelector(".ppe-slot-head");
+                    if (head) {
+                        var actSpan = document.createElement("span");
+                        actSpan.className = "ppe-slot-head-actions";
+                        actSpan.innerHTML =
+                            '<button class="ppe-btn ppe-btn-sm ppe-btn-ghost" onclick="openPanel(\'' + slotId + '\')">Edit</button>' +
+                            '<button class="ppe-btn ppe-btn-sm ppe-btn-danger" onclick="removeSlot(\'' + slotId + '\')">Remove</button>';
+                        head.appendChild(actSpan);
+                    }
+                }
+                slotEl.classList.add("filled");
+                slotEl.style.borderStyle = "solid";
+            }
+            panel.classList.remove("open");
+            setUnpublished();
+            toast("Saved to draft.");
+        }).catch(function () {
+            errEl.textContent = "Network error. Please try again.";
+            errEl.classList.add("visible");
+        });
+    };
+
+    // ── Remove slot ────────────────────────────────────────────────────────────
+    window.removeSlot = function (slotId) {
+        if (!confirm("Remove this module from the draft?")) return;
+        getCsrf().then(function (csrf) {
+            return fetch(_BASE + encodeURIComponent(slotId), {
+                method:  "DELETE",
+                headers: { "X-CSRF-Token": csrf },
+                credentials: "same-origin",
+            });
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data.ok) { alert(data.error || "Failed to remove."); return; }
+            // Reset slot to empty state
+            var slotEl  = document.getElementById("slot-" + slotId);
+            var filledEl = document.getElementById("slot-filled-" + slotId);
+            if (filledEl) filledEl.remove();
+            var headActions = slotEl.querySelector(".ppe-slot-head-actions");
+            if (headActions) headActions.remove();
+            // Re-insert empty body before panel
+            var panel = document.getElementById("panel-" + slotId);
+            var emptyDiv = document.createElement("div");
+            emptyDiv.className = "ppe-slot-empty";
+            emptyDiv.onclick = function () { openPanel(slotId); };
+            emptyDiv.innerHTML =
+                '<div class="ppe-slot-plus">+</div>' +
+                '<div class="ppe-slot-add-label">Add content</div>';
+            slotEl.insertBefore(emptyDiv, panel);
+            slotEl.classList.remove("filled");
+            slotEl.style.borderStyle = "dashed";
+            panel.classList.remove("open");
+            setUnpublished();
+            toast("Removed from draft.");
+        }).catch(function () { alert("Network error."); });
+    };
+
+    // ── Publish ────────────────────────────────────────────────────────────────
+    window.publishProfile = function () {
+        var btn = document.getElementById("ppe-publish-btn");
+        btn.disabled = true;
+        getCsrf().then(function (csrf) {
+            return fetch("/dashboard/publish-card", {
+                method:  "POST",
+                headers: { "X-CSRF-Token": csrf },
+                credentials: "same-origin",
+            });
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data.ok) { alert(data.error || "Publish failed."); btn.disabled = false; return; }
+            var badge = document.getElementById("ppe-status-badge");
+            var text  = document.getElementById("ppe-status-text");
+            if (badge)  badge.className = "ppe-status published";
+            if (text)   text.textContent = "Up to date";
+            toast("Profile published!");
+        }).catch(function () { alert("Network error."); btn.disabled = false; });
+    };
+
+    // ── XSS-safe HTML escaping ─────────────────────────────────────────────────
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+})();
+</script>
+{% endblock %}

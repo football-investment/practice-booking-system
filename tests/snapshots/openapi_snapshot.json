@@ -22017,6 +22017,24 @@
         "title": "_HighlightVideoRequest",
         "type": "object"
       },
+      "_SlotModuleRequest": {
+        "properties": {
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "video_url": {
+            "title": "Video Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "video_url"
+        ],
+        "title": "_SlotModuleRequest",
+        "type": "object"
+      },
       "app__api__api_v1__endpoints__coach__licenses__LicenseCreate": {
         "description": "Request body for creating a new Coach license",
         "example": {
@@ -60200,6 +60218,118 @@
           }
         },
         "summary": "Student Save Highlight Video",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-football-player/public-profile-editor": {
+      "get": {
+        "description": "Render the visual Public Profile Grid Designer page.",
+        "operationId": "lfa_public_profile_editor_dashboard_lfa_football_player_public_profile_editor_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lfa Public Profile Editor",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-football-player/public-profile-editor/slots/{slot_id}": {
+      "delete": {
+        "description": "Remove a module from a draft profile grid slot.\n\nPublish is required for the removal to be reflected on the public profile.\nCSRF protection enforced by global middleware.",
+        "operationId": "lfa_profile_editor_remove_slot_dashboard_lfa_football_player_public_profile_editor_slots__slot_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lfa Profile Editor Remove Slot",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Save a video module to a draft profile grid slot.\n\nAccepts YouTube (watch/shorts/youtu.be) and canonical TikTok URLs.\nTikTok short URLs (vm./vt.tiktok.com) are rejected with 400.\nCSRF protection enforced by global middleware.",
+        "operationId": "lfa_profile_editor_set_slot_dashboard_lfa_football_player_public_profile_editor_slots__slot_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_SlotModuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lfa Profile Editor Set Slot",
         "tags": [
           "web"
         ]
