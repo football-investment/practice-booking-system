@@ -139,6 +139,68 @@
     .footer-links a { color: #667eea; text-decoration: none; margin: 0 1rem; font-weight: 600; }
     .footer-links a:hover { text-decoration: underline; }
 
+    /* ── Social Module ───────────────────────────────────────────────────────── */
+    .mod-social-section {
+        background: var(--app-card);
+        border-radius: 16px;
+        padding: 1.1rem 1.4rem 1.0rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+    }
+    .mod-social-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.85rem;
+    }
+    .mod-social-hdr-icon  { font-size: 1.25rem; }
+    .mod-social-hdr-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--app-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .mod-social-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+    .mod-social-action {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.9rem 1.1rem;
+        background: var(--app-card-alt, #f8fafc);
+        border-radius: 10px;
+        text-decoration: none;
+        color: var(--app-text);
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 2px solid transparent;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+    .mod-social-action:hover {
+        border-color: rgba(0,0,0,0.10);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+    .mod-social-badge {
+        background: #e74c3c;
+        color: white;
+        border-radius: 10px;
+        padding: 1px 7px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        min-width: 18px;
+        text-align: center;
+        line-height: 1.6;
+    }
+    @media (max-width: 480px) {
+        .mod-social-actions { grid-template-columns: 1fr; }
+    }
+
     /* ── Loading ─────────────────────────────────────────────────────────────── */
     .s-loading { color: #a0aec0; font-size: 0.9rem; padding: 0.5rem 0; }
 
@@ -253,6 +315,28 @@
             <a href="/achievements" class="mod-nav-card">
                 <span class="mod-nav-icon">🏅</span>
                 <span class="mod-nav-title">Achievements</span>
+            </a>
+        </div>
+    </section>
+
+    {# ── Social Module (Friends + Challenges) ────────────────────────────────── #}
+    <section class="mod-social-section">
+        <div class="mod-social-header">
+            <span class="mod-social-hdr-icon">👥</span>
+            <span class="mod-social-hdr-title">Social</span>
+        </div>
+        <div class="mod-social-actions">
+            <a href="/friends" class="mod-social-action">
+                <span>👥 Friends</span>
+                {% if social_pending_friends > 0 %}
+                <span class="mod-social-badge">{{ social_pending_friends }}</span>
+                {% endif %}
+            </a>
+            <a href="/challenges" class="mod-social-action">
+                <span>⚔ Challenges</span>
+                {% if (social_pending_challenges + social_active_challenges) > 0 %}
+                <span class="mod-social-badge">{{ social_pending_challenges + social_active_challenges }}</span>
+                {% endif %}
             </a>
         </div>
     </section>
