@@ -336,8 +336,8 @@
                     <span class="tt-diff-mult">1.30×</span>
                     <div class="tt-diff-name">Medium</div>
                     <div class="tt-diff-meta">
-                        4–6 objects &nbsp;·&nbsp; 9 rounds<br>
-                        1 flash distractor (Phase 2–3)
+                        5–7 objects &nbsp;·&nbsp; 9 rounds<br>
+                        1–3 flashes per round
                     </div>
                 </div>
 
@@ -346,8 +346,8 @@
                     <span class="tt-diff-mult">1.70×</span>
                     <div class="tt-diff-name">Hard</div>
                     <div class="tt-diff-meta">
-                        5–7 objects &nbsp;·&nbsp; 12 rounds<br>
-                        1–3 flash distractors per round
+                        6–8 objects &nbsp;·&nbsp; 12 rounds<br>
+                        2 concurrent flashes · direction change
                     </div>
                 </div>
 
@@ -357,15 +357,15 @@
                     <span class="tt-diff-mult">2.20×</span>
                     <div class="tt-diff-name">Expert</div>
                     <div class="tt-diff-meta">
-                        6–9 objects &nbsp;·&nbsp; 12 rounds<br>
-                        2–5 flash distractors per round
+                        7–9 objects &nbsp;·&nbsp; 12 rounds<br>
+                        3 concurrent flashes · fast direction change
                     </div>
                 </div>
                 {% else %}
                 <div class="tt-diff-card tt-diff-disabled" id="tt-diff-expert">
                     <span class="tt-diff-mult">2.20×</span>
                     <div class="tt-diff-name">Expert 🔒</div>
-                    <div class="tt-diff-meta">6–9 objects · 12 rounds</div>
+                    <div class="tt-diff-meta">7–9 objects · 12 rounds</div>
                     <div class="tt-diff-locked">Unlock: 70%+ on 3 Hard attempts</div>
                 </div>
                 {% endif %}
@@ -380,7 +380,7 @@
 
         <!-- Flash warning (shown for Medium+) -->
         <div class="tt-flash-notice" id="tt-flash-notice">
-            ⚠ Distractor flashes may appear during tracking (amber colour). Ignore them — only follow the original target.
+            ⚠ Distractor flashes appear during tracking (amber colour). On Hard/Expert, multiple objects may flash simultaneously — ignore them and keep tracking your target.
         </div>
 
         {% if attempts_today >= max_daily_attempts %}
@@ -534,11 +534,13 @@ let roundResults = [];
 let startedAt    = null;
 
 /* Flash tracking per round */
-let activeFlashes   = [];  /* [{distractor_index, start_ms, duration_ms, color, t_offset_ms}] */
-let flashEventLog   = [];  /* all flashes in current round */
-let totalFlashShown = 0;
-let tapsDuringFlash = 0;
-let tapWasDuringFlash = false;
+let activeFlashes      = [];  /* [{distractor_index, start_ms, duration_ms, color, t_offset_ms}] */
+let flashEventLog      = [];  /* all flashes in current round */
+let totalFlashShown    = 0;
+let tapsDuringFlash    = 0;
+let tapWasDuringFlash  = false;
+let currentDirChangeCount = 0; /* direction changes in the current round */
+let totalDirChanges    = 0;    /* accumulates over all rounds */
 
 /* ── DOM helpers ──────────────────────────────────────────────────────────── */
 const arena      = document.getElementById('tt-arena');
@@ -600,7 +602,7 @@ function spawnObjects(count) {
         el.style.left = (x - radius) + 'px';
         el.style.top  = (y - radius) + 'px';
         arena.appendChild(el);
-        objects.push({ x: x, y: y, vx: 0, vy: 0, el: el });
+        objects.push({ x: x, y: y, vx: 0, vy: 0, el: el, _flashCount: 0 });
     }
 }
 
@@ -619,57 +621,88 @@ function moveObjects() {
 }
 
 /* ── Flash schedule generator ─────────────────────────────────────────────── */
-function generateFlashSchedule(flashCount, trackingMs, objectCount) {
-    /* Returns list of {distractor_index, t_offset_ms} ensuring:
-       - only non-target objects flash
-       - no two flashes on same distractor per round
-       - minimum FLASH_MIN_GAP_MS between flash starts
-       - earliest/latest pct constraints
+function generateFlashSchedule(flashCount, trackingMs, objectCount, flashConfig) {
+    /* Generates flash events supporting:
+       - concurrent flash (max_concurrent_flashes > 1): multiple objects flash simultaneously
+       - repeat flash (allow_repeat_flash): same distractor can flash again after repeat_gap_ms
+       - per-difficulty duration and gap (flash_duration_ms, flash_gap_ms)
+       - target never flashes (targetIdx excluded)
+       Each event: {distractor_index, t_offset_ms, duration_ms, color,
+                    concurrent_group_id, repeat, is_target}
     */
+    var flashDuration = (flashConfig && flashConfig.flash_duration_ms) || FLASH_DURATION_MS;
+    var flashGap      = (flashConfig && flashConfig.flash_gap_ms)      || FLASH_MIN_GAP_MS;
+    var maxConcurrent = (flashConfig && flashConfig.max_concurrent_flashes) || 1;
+    var allowRepeat   = !!(flashConfig && flashConfig.allow_repeat_flash);
+    var repeatGap     = (flashConfig && flashConfig.repeat_gap_ms) || 2000;
+
     if (flashCount <= 0 || objectCount <= 1) return [];
 
     var nonTargets = [];
     for (var i = 0; i < objectCount; i++) {
         if (i !== targetIdx) nonTargets.push(i);
     }
-
-    /* Shuffle non-targets */
-    for (var j = nonTargets.length - 1; j > 0; j--) {
-        var k = Math.floor(Math.random() * (j + 1));
-        var tmp = nonTargets[j]; nonTargets[j] = nonTargets[k]; nonTargets[k] = tmp;
-    }
+    if (nonTargets.length === 0) return [];
 
     var earliest = Math.floor(trackingMs * FLASH_EARLIEST_PCT);
-    var latest   = Math.floor(trackingMs * FLASH_LATEST_PCT - FLASH_DURATION_MS);
+    var latest   = Math.floor(trackingMs * FLASH_LATEST_PCT - flashDuration);
     if (latest <= earliest) return [];
 
-    var schedule = [];
-    var usedDistractors = new Set();
-    var lastStart = -FLASH_MIN_GAP_MS * 2;
+    var schedule  = [];
+    var usedOnce  = new Set();   /* non-repeat mode: exhausted distractors */
+    var lastEndMs = {};          /* distractor → last flash end ms (for repeat gap) */
+    var seenOnce  = new Set();   /* tracks `repeat` field: has this distractor appeared before? */
+    var groupId   = 0;
+    var tCursor   = earliest;
+    var placed    = 0;
+    var safeBreak = 0;
 
-    for (var f = 0; f < Math.min(flashCount, nonTargets.length); f++) {
-        /* Pick a non-target not used yet in this round */
-        var distIdx = -1;
-        for (var d = 0; d < nonTargets.length; d++) {
-            if (!usedDistractors.has(nonTargets[d])) {
-                distIdx = nonTargets[d];
-                break;
+    while (placed < flashCount && tCursor <= latest) {
+        if (++safeBreak > 500) break;
+
+        /* Build available pool at current tCursor */
+        var pool = nonTargets.filter(function (idx) {
+            if (!allowRepeat && usedOnce.has(idx)) return false;
+            if (allowRepeat && lastEndMs[idx] !== undefined) {
+                if (tCursor < lastEndMs[idx] + repeatGap) return false;
             }
+            return true;
+        });
+
+        if (pool.length === 0) {
+            if (!allowRepeat) break;
+            tCursor += Math.max(flashGap, 200);
+            continue;
         }
-        if (distIdx === -1) break;
 
-        /* Pick a time offset respecting gap constraint */
-        var attempts = 0, tOffset;
-        do {
-            tOffset = earliest + Math.floor(Math.random() * (latest - earliest));
-            attempts++;
-        } while (Math.abs(tOffset - lastStart) < FLASH_MIN_GAP_MS && attempts < 30);
+        /* Shuffle pool */
+        for (var j = pool.length - 1; j > 0; j--) {
+            var k = Math.floor(Math.random() * (j + 1));
+            var tmp = pool[j]; pool[j] = pool[k]; pool[k] = tmp;
+        }
 
-        if (Math.abs(tOffset - lastStart) < FLASH_MIN_GAP_MS) break;
+        var batchSize = Math.min(maxConcurrent, pool.length, flashCount - placed);
+        var batch     = pool.slice(0, batchSize);
+        var gid       = batch.length > 1 ? ++groupId : null;
 
-        usedDistractors.add(distIdx);
-        lastStart = tOffset;
-        schedule.push({ distractor_index: distIdx, t_offset_ms: tOffset });
+        batch.forEach(function (distIdx) {
+            var isRepeat = seenOnce.has(distIdx);
+            schedule.push({
+                distractor_index:    distIdx,
+                t_offset_ms:         tCursor,
+                duration_ms:         flashDuration,
+                color:               '#f59e0b',
+                concurrent_group_id: gid,
+                repeat:              isRepeat,
+                is_target:           false,
+            });
+            usedOnce.add(distIdx);
+            seenOnce.add(distIdx);
+            lastEndMs[distIdx] = tCursor + flashDuration;
+            placed++;
+        });
+
+        tCursor += flashDuration + flashGap;
     }
 
     return schedule;
@@ -695,6 +728,8 @@ function startGame() {
                 trackingMs:       p.tracking_ms,
                 windowMs:         p.window_ms,
                 distractorFlash:  p.distractor_flash || 0,
+                flashConfig:      diff.flash_config     || null,
+                directionChange:  diff.direction_change || null,
             });
         }
     });
@@ -705,6 +740,7 @@ function startGame() {
     roundResults = [];
     totalFlashShown = 0;
     tapsDuringFlash = 0;
+    totalDirChanges = 0;
 
     document.getElementById('tt-intro').style.display    = 'none';
     document.getElementById('tt-game-wrap').style.display = 'block';
@@ -722,9 +758,10 @@ function startRound() {
     setDot(roundIdx, 'active');
     setStatus('Get ready…');
     clearObjects();
-    activeFlashes  = [];
-    flashEventLog  = [];
-    tapWasDuringFlash = false;
+    activeFlashes         = [];
+    flashEventLog         = [];
+    tapWasDuringFlash     = false;
+    currentDirChangeCount = 0;
 
     targetIdx = Math.floor(Math.random() * round.objectCount);
     spawnObjects(round.objectCount);
@@ -751,8 +788,14 @@ function trackingPhase(round) {
         o.vy = Math.sin(angle) * spd;
     });
 
-    /* Build flash schedule for this round */
-    var schedule = generateFlashSchedule(round.distractorFlash, round.trackingMs, round.objectCount);
+    /* Direction change config */
+    var dirEnabled  = !!(round.directionChange && round.directionChange.enabled);
+    var dirInterval = dirEnabled ? (round.directionChange.interval_ms || 2000) : 0;
+    var lastDirChange = 0;
+    currentDirChangeCount = 0;
+
+    /* Build flash schedule — supports concurrent + repeat flash */
+    var schedule = generateFlashSchedule(round.distractorFlash, round.trackingMs, round.objectCount, round.flashConfig);
 
     var trackingStart = Date.now();
     var deadline      = trackingStart + round.trackingMs;
@@ -763,34 +806,44 @@ function trackingPhase(round) {
 
         moveObjects();
 
-        /* Process flash schedule */
+        /* Direction change — velocity direction only, speed preserved */
+        if (dirEnabled && elapsed > 0 && elapsed - lastDirChange >= dirInterval) {
+            lastDirChange = elapsed;
+            currentDirChangeCount++;
+            objects.forEach(function (o) {
+                var angle = Math.random() * Math.PI * 2;
+                o.vx = Math.cos(angle) * spd;
+                o.vy = Math.sin(angle) * spd;
+            });
+        }
+
+        /* Process flash schedule — ref-counted _flashCount, per-event start/end flags */
         schedule.forEach(function (ev) {
-            var isActive = (elapsed >= ev.t_offset_ms && elapsed < ev.t_offset_ms + FLASH_DURATION_MS);
+            var isActive = (elapsed >= ev.t_offset_ms && elapsed < ev.t_offset_ms + ev.duration_ms);
             var obj      = objects[ev.distractor_index];
             if (!obj) return;
             if (isActive) {
-                if (!obj._flashing) {
-                    obj._flashing = true;
-                    obj.el.classList.add('tt-flash');
-                    /* Log the flash event once */
-                    var alreadyLogged = flashEventLog.some(function (e) {
-                        return e.distractor_index === ev.distractor_index;
+                if (!ev._started) {
+                    ev._started = true;
+                    obj._flashCount = (obj._flashCount || 0) + 1;
+                    if (obj._flashCount === 1) obj.el.classList.add('tt-flash');
+                    flashEventLog.push({
+                        t_offset_ms:         ev.t_offset_ms,
+                        distractor_index:    ev.distractor_index,
+                        target_index:        targetIdx,
+                        is_target:           false,
+                        duration_ms:         ev.duration_ms,
+                        color:               ev.color || '#f59e0b',
+                        concurrent_group_id: ev.concurrent_group_id || null,
+                        repeat:              ev.repeat || false,
                     });
-                    if (!alreadyLogged) {
-                        flashEventLog.push({
-                            t_offset_ms:      ev.t_offset_ms,
-                            distractor_index: ev.distractor_index,
-                            target_index:     targetIdx,
-                            duration_ms:      FLASH_DURATION_MS,
-                            color:            '#f59e0b',
-                        });
-                        totalFlashShown++;
-                    }
+                    totalFlashShown++;
                 }
             } else {
-                if (obj._flashing) {
-                    obj._flashing = false;
-                    obj.el.classList.remove('tt-flash');
+                if (ev._started && !ev._ended) {
+                    ev._ended = true;
+                    obj._flashCount = Math.max(0, (obj._flashCount || 0) - 1);
+                    if (obj._flashCount === 0) obj.el.classList.remove('tt-flash');
                 }
             }
         });
@@ -799,9 +852,8 @@ function trackingPhase(round) {
             rafId = requestAnimationFrame(loop);
         } else {
             cancelAnimationFrame(rafId);
-            /* Clear any active flashes */
             objects.forEach(function (o) {
-                o._flashing = false;
+                o._flashCount = 0;
                 o.el.classList.remove('tt-flash');
             });
             responsePhase(round);
@@ -834,27 +886,29 @@ function handleTap(tappedIdx, round) {
     var responseMs = Date.now() - roundStartMs;
     var correct    = tappedIdx === targetIdx;
 
-    /* Check if tap coincided with any active flash */
-    var duringFlash = objects.some(function (o) { return o._flashing; });
+    var duringFlash = objects.some(function (o) { return (o._flashCount || 0) > 0; });
     if (duringFlash) tapsDuringFlash++;
 
-    objects.forEach(function (o) { o.el.onclick = null; o._flashing = false; o.el.classList.remove('tt-flash'); });
+    objects.forEach(function (o) { o.el.onclick = null; o._flashCount = 0; o.el.classList.remove('tt-flash'); });
     objects[targetIdx].el.classList.add('tt-reveal');
     objects[tappedIdx].el.classList.add(correct ? 'tt-correct' : 'tt-wrong');
 
     setStatus(correct ? '✓ Correct!' : '✗ Wrong object');
     setDot(roundIdx, correct ? 'done' : 'wrong');
 
+    totalDirChanges += currentDirChangeCount;
+
     roundResults.push({
-        round:             roundIdx,
-        phase:             round.phase,
-        object_count:      round.objectCount,
-        outcome:           correct ? 'correct' : 'wrong',
-        response_ms:       responseMs,
-        tapped_index:      tappedIdx,
-        target_index:      targetIdx,
-        flash_events:      flashEventLog.slice(),
-        tapped_during_flash: duringFlash,
+        round:                  roundIdx,
+        phase:                  round.phase,
+        object_count:           round.objectCount,
+        outcome:                correct ? 'correct' : 'wrong',
+        response_ms:            responseMs,
+        tapped_index:           tappedIdx,
+        target_index:           targetIdx,
+        flash_events:           flashEventLog.slice(),
+        tapped_during_flash:    duringFlash,
+        direction_change_count: currentDirChangeCount,
     });
 
     setTimeout(function () { roundIdx++; startRound(); }, 900);
@@ -864,22 +918,25 @@ function handleTimeout(round) {
     if (responded) return;
     responded = true;
 
-    objects.forEach(function (o) { o.el.onclick = null; o._flashing = false; o.el.classList.remove('tt-flash'); });
+    objects.forEach(function (o) { o.el.onclick = null; o._flashCount = 0; o.el.classList.remove('tt-flash'); });
     objects[targetIdx].el.classList.add('tt-reveal');
 
     setStatus('⏱ Time up!');
     setDot(roundIdx, 'timeout');
 
+    totalDirChanges += currentDirChangeCount;
+
     roundResults.push({
-        round:             roundIdx,
-        phase:             round.phase,
-        object_count:      round.objectCount,
-        outcome:           'timeout',
-        response_ms:       null,
-        tapped_index:      null,
-        target_index:      targetIdx,
-        flash_events:      flashEventLog.slice(),
-        tapped_during_flash: false,
+        round:                  roundIdx,
+        phase:                  round.phase,
+        object_count:           round.objectCount,
+        outcome:                'timeout',
+        response_ms:            null,
+        tapped_index:           null,
+        target_index:           targetIdx,
+        flash_events:           flashEventLog.slice(),
+        tapped_during_flash:    false,
+        direction_change_count: currentDirChangeCount,
     });
 
     setTimeout(function () { roundIdx++; startRound(); }, 900);
@@ -949,9 +1006,10 @@ function finishGame() {
             per_round:            roundResults,
             per_phase:            per_phase,
             late_summary: {
-                total_flashes_shown:   totalFlashShown,
-                taps_during_flash:     tapsDuringFlash,
-                flash_distraction_rate: flashRate,
+                total_flashes_shown:     totalFlashShown,
+                taps_during_flash:       tapsDuringFlash,
+                flash_distraction_rate:  flashRate,
+                total_direction_changes: totalDirChanges,
             },
         },
     };

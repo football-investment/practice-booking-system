@@ -354,6 +354,17 @@ _GAMES = [
                          "distractor_flash": 0},
                     ],
                     "difficulty_multiplier": 1.00,
+                    "flash_config": {
+                        "flash_duration_ms":      400,
+                        "flash_gap_ms":           500,
+                        "max_concurrent_flashes": 1,
+                        "allow_repeat_flash":     False,
+                        "repeat_gap_ms":          None,
+                    },
+                    "direction_change": {
+                        "enabled":    False,
+                        "interval_ms": None,
+                    },
                     "validation_overrides": {
                         "min_stimuli_count":         3,
                         "min_duration_seconds":      20.0,
@@ -374,6 +385,17 @@ _GAMES = [
                          "distractor_flash": 3},
                     ],
                     "difficulty_multiplier": 1.30,
+                    "flash_config": {
+                        "flash_duration_ms":      400,
+                        "flash_gap_ms":           450,
+                        "max_concurrent_flashes": 1,
+                        "allow_repeat_flash":     False,
+                        "repeat_gap_ms":          None,
+                    },
+                    "direction_change": {
+                        "enabled":    False,
+                        "interval_ms": None,
+                    },
                     "validation_overrides": {
                         "min_stimuli_count":         3,
                         "min_duration_seconds":      25.0,
@@ -394,6 +416,17 @@ _GAMES = [
                          "distractor_flash": 5},
                     ],
                     "difficulty_multiplier": 1.70,
+                    "flash_config": {
+                        "flash_duration_ms":      350,
+                        "flash_gap_ms":           350,
+                        "max_concurrent_flashes": 2,
+                        "allow_repeat_flash":     True,
+                        "repeat_gap_ms":          2000,
+                    },
+                    "direction_change": {
+                        "enabled":    True,
+                        "interval_ms": 1800,
+                    },
                     "validation_overrides": {
                         "min_stimuli_count":         4,
                         "min_duration_seconds":      30.0,
@@ -417,6 +450,17 @@ _GAMES = [
                          "distractor_flash": 6},
                     ],
                     "difficulty_multiplier": 2.20,
+                    "flash_config": {
+                        "flash_duration_ms":      300,
+                        "flash_gap_ms":           250,
+                        "max_concurrent_flashes": 3,
+                        "allow_repeat_flash":     True,
+                        "repeat_gap_ms":          1500,
+                    },
+                    "direction_change": {
+                        "enabled":    True,
+                        "interval_ms": 1200,
+                    },
                     "unlock_threshold": {
                         "min_hard_attempts": 3,
                         "min_hard_score":    70,

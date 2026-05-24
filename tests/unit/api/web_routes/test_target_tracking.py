@@ -1340,3 +1340,154 @@ class TestTTDifficultyScaleGuards:
         assert d["medium"]["difficulty_multiplier"] == pytest.approx(1.30)
         assert d["hard"]["difficulty_multiplier"]   == pytest.approx(1.70)
         assert d["expert"]["difficulty_multiplier"] == pytest.approx(2.20)
+
+
+# ── TT-B01..TT-B17: Track B — concurrent flash + direction change ─────────────
+
+class TestTTTrackBFlashMotion:
+    """Track B: concurrent flash, repeat flash, per-difficulty flash config, direction change."""
+
+    def _difficulties(self):
+        from scripts.seed_virtual_training_games import _GAMES
+        for g in _GAMES:
+            if g["code"] == "target_tracking":
+                return g["config"]["difficulties"]
+        raise AssertionError("target_tracking seed entry not found")
+
+    @staticmethod
+    def _src() -> str:
+        with open(_TT_TEMPLATE_PATH, encoding="utf-8") as f:
+            return f.read()
+
+    # ── Seed pin tests ────────────────────────────────────────────────────────
+
+    def test_ttb01_hard_max_concurrent_flashes(self):
+        """TT-B01: Seed: hard flash_config.max_concurrent_flashes == 2."""
+        d = self._difficulties()
+        assert d["hard"]["flash_config"]["max_concurrent_flashes"] == 2
+
+    def test_ttb02_expert_max_concurrent_flashes(self):
+        """TT-B02: Seed: expert flash_config.max_concurrent_flashes == 3."""
+        d = self._difficulties()
+        assert d["expert"]["flash_config"]["max_concurrent_flashes"] == 3
+
+    def test_ttb03_hard_allow_repeat_flash(self):
+        """TT-B03: Seed: hard flash_config.allow_repeat_flash == True."""
+        d = self._difficulties()
+        assert d["hard"]["flash_config"]["allow_repeat_flash"] is True
+
+    def test_ttb04_expert_allow_repeat_flash(self):
+        """TT-B04: Seed: expert flash_config.allow_repeat_flash == True."""
+        d = self._difficulties()
+        assert d["expert"]["flash_config"]["allow_repeat_flash"] is True
+
+    def test_ttb05_easy_medium_no_repeat_flash(self):
+        """TT-B05: Seed: easy and medium allow_repeat_flash == False."""
+        d = self._difficulties()
+        assert d["easy"]["flash_config"]["allow_repeat_flash"]   is False
+        assert d["medium"]["flash_config"]["allow_repeat_flash"] is False
+
+    def test_ttb06_hard_direction_change_enabled(self):
+        """TT-B06: Seed: hard direction_change.enabled == True."""
+        d = self._difficulties()
+        assert d["hard"]["direction_change"]["enabled"] is True
+
+    def test_ttb07_expert_direction_change_enabled(self):
+        """TT-B07: Seed: expert direction_change.enabled == True."""
+        d = self._difficulties()
+        assert d["expert"]["direction_change"]["enabled"] is True
+
+    def test_ttb08_easy_medium_direction_change_disabled(self):
+        """TT-B08: Seed: easy and medium direction_change.enabled == False."""
+        d = self._difficulties()
+        assert d["easy"]["direction_change"]["enabled"]   is False
+        assert d["medium"]["direction_change"]["enabled"] is False
+
+    # ── Template static guards ────────────────────────────────────────────────
+
+    def test_ttb09_template_uses_flash_count_ref_counter(self):
+        """TT-B09: Template uses _flashCount ref-counter (not boolean _flashing) for flash state."""
+        src = self._src()
+        assert "_flashCount" in src
+        assert "obj._flashCount" in src or "o._flashCount" in src
+
+    def test_ttb10_template_logs_concurrent_group_id(self):
+        """TT-B10: Template flash event log contains concurrent_group_id field."""
+        src = self._src()
+        assert "concurrent_group_id" in src
+
+    def test_ttb11_template_logs_repeat_field(self):
+        """TT-B11: Template flash event log contains repeat field."""
+        src = self._src()
+        assert "repeat:" in src or '"repeat"' in src
+
+    def test_ttb12_template_logs_is_target_false(self):
+        """TT-B12: Template flash event log contains is_target: false."""
+        src = self._src()
+        assert "is_target" in src
+
+    def test_ttb13_template_logs_direction_change_count(self):
+        """TT-B13: Template logs direction_change_count per round in roundResults."""
+        src = self._src()
+        assert "direction_change_count" in src
+
+    def test_ttb14_flash_duration_comes_from_config(self):
+        """TT-B14: Flash duration reads from flashConfig, not only from hardcoded constant."""
+        src = self._src()
+        assert "flash_duration_ms" in src
+        assert "flashDuration" in src
+
+    def test_ttb15_flash_gap_comes_from_config(self):
+        """TT-B15: Flash gap reads from flashConfig, not only from hardcoded constant."""
+        src = self._src()
+        assert "flash_gap_ms" in src
+        assert "flashGap" in src
+
+    def test_ttb16_total_direction_changes_in_late_summary(self):
+        """TT-B16: total_direction_changes field present in late_summary payload."""
+        src = self._src()
+        assert "total_direction_changes" in src
+
+    def test_ttb17_result_page_backward_compat_v3_missing_new_fields(self):
+        """TT-B17: Result page renders without error when v=3 raw_metrics lacks Track B fields."""
+        from datetime import datetime, timezone
+        from unittest.mock import MagicMock
+
+        user    = _onboarded_student(user_id=42)
+        game    = _mock_tt_game(is_active=True)
+        # Pre-Track-B v=3 payload: no concurrent_group_id, no direction_change_count
+        old_v3_raw = {
+            "v": 3,
+            "difficulty_level":      "hard",
+            "difficulty_multiplier": 1.70,
+            "per_round": [
+                {"round": 0, "phase": 0, "object_count": 6, "outcome": "correct",
+                 "response_ms": 900, "tapped_index": 2, "target_index": 2,
+                 "flash_events": [
+                     {"t_offset_ms": 1200, "distractor_index": 4, "target_index": 2,
+                      "duration_ms": 350, "color": "#f59e0b"}
+                 ],
+                 "tapped_during_flash": False},
+            ],
+            "per_phase": [{"phase": 0, "rounds": 1, "correct": 1, "wrong": 0, "timeout": 0, "object_count": 6}],
+            "late_summary": {
+                "total_flashes_shown": 1,
+                "taps_during_flash": 0,
+                "flash_distraction_rate": 0.0,
+            },
+        }
+        attempt = _mock_tt_attempt(user_id=42, raw_metrics=old_v3_raw, skill_deltas=None)
+        attempt.skill_deltas = None
+
+        db = MagicMock()
+        q  = MagicMock()
+        q.filter.return_value = q
+        q.first.return_value  = attempt
+        db.query.return_value = q
+
+        with patch(f"{_ROUTE_BASE}.VirtualTrainingService.get_hub_games", return_value=[game]), \
+             patch(f"{_ROUTE_BASE}._spec_ctx", return_value={}):
+            client = _make_client(user, db)
+            resp   = client.get("/virtual-training/target-tracking/result/201")
+
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
