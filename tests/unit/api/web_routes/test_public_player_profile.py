@@ -1,4 +1,4 @@
-"""PSP-01..PSP-30 — Public Player Profile page + cancel / next= social actions.
+"""PSP-01..PSP-48 — Public Player Profile page + cancel / next= social actions.
 
 PSP-01  Anonymous user gets 200, friendship_panel state=anonymous
 PSP-02  Logged-in user views own profile → state=own_profile
@@ -14,14 +14,32 @@ PSP-11  POST /friends/cancel/{id} — non-PENDING row → error redirect
 PSP-12  next= param — /players/ prefix accepted in cancel
 PSP-13  next= param — /friends prefix accepted in accept
 PSP-14  next= param — external URL falls back to default /friends
-PSP-15  Portrait variant (fifa) → card_is_landscape=False, card_native_w=820, card_native_h=1080
-PSP-16  Landscape variant (showcase) → card_is_landscape=True, card_native_w=720, card_native_h=700
-PSP-17  Unknown variant → fallback portrait defaults (is_landscape=False, native_w=820)
+PSP-15  Portrait variant (fifa) → orientation=portrait, card_native_w=820, card_native_h=1080
+PSP-16  Landscape variant (showcase) → orientation=landscape, card_native_w=720, card_native_h=700
+PSP-17  Unknown variant → fallback portrait defaults (orientation=portrait, native_w=820)
 PSP-18  Narrow variant (compact) → card_native_w=520
 PSP-19  Template: psp-showcase-grid class present
 PSP-20  Template: data-card-w and data-card-h attributes present
 PSP-21  Template: Left rail Gallery placeholder present
 PSP-22  Template: Right rail Highlight Video placeholder present
+PSP-31  instagram_square platform → card_native_w=1080, card_native_h=1080, orientation=square
+PSP-32  instagram_portrait platform → card_native_w=1080, card_native_h=1350, orientation=portrait
+PSP-33  instagram_story platform → card_native_w=1080, card_native_h=1920, orientation=portrait
+PSP-34  facebook_landscape platform → card_native_w=1200, card_native_h=630, orientation=landscape
+PSP-35  platform overrides variant sizing: square platform + showcase_bg variant → square dims
+PSP-36  card_url contains ?platform= when published_platform is set
+PSP-37  card_url has no ?platform= when published_platform is None/MagicMock
+PSP-38  card_url contains ?v= only when published_at is set (platform path)
+PSP-39  card_platform_id matches published_platform when platform set, "default" when not
+PSP-40  Template: card_url variable used for iframe src (not inline building)
+PSP-41  Template CSS: viewport-based --psp-card-max-h custom property present
+PSP-42  Template CSS: max-height: var(--psp-card-max-h) on .psp-card-slot
+PSP-43  Template JS: scale formula contains slotW / nativeW (width axis)
+PSP-44  Template JS: scale formula contains maxH / nativeH (height axis)
+PSP-45  Template CSS: landscape grid uses "center center center" full-width row
+PSP-46  Template CSS: mobile ≤599px breakpoint single-column stack
+PSP-47  Template JS: slot.style.height explicit assignment present
+PSP-48  Template JS: ResizeObserver or window.resize fallback present
 """
 from __future__ import annotations
 
@@ -395,33 +413,33 @@ class TestProfileVariantContext:
             ctx = mock_tmpl.TemplateResponse.call_args
         return ctx[0][2] if ctx else ctx.args[2]
 
-    # PSP-15 — portrait (fifa): is_landscape=False, native_w=820, native_h=1080
+    # PSP-15 — portrait (fifa): orientation=portrait, native_w=820, native_h=1080
     def test_psp15_portrait_fifa_context(self):
         ctx = self._call_variant("fifa")
         assert ctx["card_variant_id"] == "fifa"
-        assert ctx["card_is_landscape"] is False
+        assert ctx["card_orientation"] == "portrait"
         assert ctx["card_native_w"] == 820
         assert ctx["card_native_h"] == 1080
 
-    # PSP-16 — landscape (showcase): is_landscape=True, native_w=720, native_h=700
+    # PSP-16 — landscape (showcase): orientation=landscape, native_w=720, native_h=700
     def test_psp16_showcase_landscape_context(self):
         ctx = self._call_variant("showcase")
         assert ctx["card_variant_id"] == "showcase"
-        assert ctx["card_is_landscape"] is True
+        assert ctx["card_orientation"] == "landscape"
         assert ctx["card_native_w"] == 720
         assert ctx["card_native_h"] == 700
 
-    # PSP-17 — unknown variant: fallback to portrait defaults
+    # PSP-17 — unknown variant: fallback portrait defaults
     def test_psp17_unknown_variant_fallback_portrait(self):
         ctx = self._call_variant("unknown_xyz")
-        assert ctx["card_is_landscape"] is False
+        assert ctx["card_orientation"] == "portrait"
         assert ctx["card_native_w"] == 820
         assert ctx["card_native_h"] == 1080
 
     # PSP-18 — narrow variant (compact): native_w=520
     def test_psp18_compact_narrow_width(self):
         ctx = self._call_variant("compact")
-        assert ctx["card_is_landscape"] is False
+        assert ctx["card_orientation"] == "portrait"
         assert ctx["card_native_w"] == 520
         assert ctx["card_native_h"] == 1080
 
@@ -477,17 +495,17 @@ class TestProfileLayoutTemplate:
         assert "Pragma" in src
         assert "no-cache" in src
 
-    # PSP-24 — profile template iframe src has versioned ?v= conditional
-    def test_psp24_iframe_src_version_param_conditional(self):
+    # PSP-24 — profile template iframe src uses pre-built card_url variable
+    def test_psp24_iframe_src_uses_card_url(self):
         html = self._html()
-        assert "{% if card_published_v %}?v={{ card_published_v }}{% endif %}" in html
+        assert 'src="{{ card_url }}"' in html
 
-    # PSP-28 — template conditional: ?v= appears only when card_published_v is truthy
-    def test_psp28_iframe_no_hardcoded_v_param(self):
+    # PSP-28 — template has no legacy inline URL building for iframe
+    def test_psp28_iframe_no_inline_url_building(self):
         html = self._html()
-        # Must be conditional, not a hardcoded bare ?v= suffix
-        assert '"/card?v=' not in html
-        assert "{% if card_published_v %}" in html
+        # card_url is pre-built in the route; no Jinja URL concatenation in template
+        assert "{% if card_published_v %}" not in html
+        assert "card_published_v" not in html
 
 
 # ── PSP-25..PSP-27, PSP-29..PSP-30: card_published_v context ─────────────────
@@ -512,18 +530,19 @@ class TestCardPublishedVersion:
             ctx = mock_tmpl.TemplateResponse.call_args
         return ctx[0][2] if ctx else ctx.args[2]
 
-    # PSP-25 — card_published_v > 0 when published_at is set
-    def test_psp25_published_at_gives_positive_version(self):
+    # PSP-25 — card_url contains ?v=<unix_ts> when published_at is set
+    def test_psp25_published_at_gives_versioned_card_url(self):
         from datetime import datetime, timezone
         published_at = datetime(2026, 5, 24, 17, 18, 21, tzinfo=timezone.utc)
         ctx = self._call_with_published_at(published_at)
-        assert ctx["card_published_v"] == int(published_at.timestamp())
-        assert ctx["card_published_v"] > 0
+        expected_v = int(published_at.timestamp())
+        assert f"v={expected_v}" in ctx["card_url"]
 
-    # PSP-26 — card_published_v == 0 when published_at is None
-    def test_psp26_no_published_at_gives_zero(self):
+    # PSP-26 — card_url has no ?v= param when published_at is None
+    def test_psp26_no_published_at_gives_bare_card_url(self):
         ctx = self._call_with_published_at(None)
-        assert ctx["card_published_v"] == 0
+        assert "?v=" not in ctx["card_url"]
+        assert "&v=" not in ctx["card_url"]
 
     # PSP-27 — preview= param on card route: source still contains preview handling
     def test_psp27_card_route_preview_param_present(self):
@@ -555,7 +574,7 @@ class TestCardPublishedVersion:
             ctx = mock_tmpl.TemplateResponse.call_args[0][2]
         assert ctx["card_variant_id"] == "atlas"
 
-    # PSP-30 — showcase_bg also gets landscape h=700 (consistent with showcase)
+    # PSP-30 — showcase_bg: orientation=landscape, h=700, w=720
     def test_psp30_showcase_bg_landscape_native_h_700(self):
         from app.api.web_routes.public_player import public_player_profile
         profile_user = _user(uid=2)
@@ -571,6 +590,184 @@ class TestCardPublishedVersion:
              patch(f"{_DRAFT_SVC}.get_player_card_draft", return_value=_draft):
             _run(public_player_profile(request=_req(), user_id=2, db=db, current_user=None))
             ctx = mock_tmpl.TemplateResponse.call_args[0][2]
-        assert ctx["card_is_landscape"] is True
+        assert ctx["card_orientation"] == "landscape"
         assert ctx["card_native_h"] == 700
         assert ctx["card_native_w"] == 720
+
+
+# ── PSP-31..PSP-40: platform-first card sizing + card_url ────────────────────
+
+class TestPlatformFirstCardSizing:
+    """Published platform drives canvas size, orientation, and iframe URL."""
+
+    def _call_with_platform(self, platform, variant="fifa", published_at=None):
+        from app.api.web_routes.public_player import public_player_profile
+        profile_user = _user(uid=2)
+        lic = _license(user_id=2)
+        lic.published_card_variant = None
+        db  = _profile_db(user=profile_user, license=lic)
+        _draft = MagicMock()
+        _draft.published_variant  = variant
+        _draft.published_platform = platform
+        _draft.published_at       = published_at
+        with patch(f"{_BASE_PP}.templates") as mock_tmpl, \
+             patch(f"{_SKILL_SVC}.get_skill_profile", return_value={"average_level": 65.0, "skills": {}, "total_tournaments": 3}), \
+             patch(f"{_FRIEND_MOD}.get_friendship_panel_ctx", return_value=_PANEL_NONE), \
+             patch(f"{_DRAFT_SVC}.get_player_card_draft", return_value=_draft):
+            _run(public_player_profile(request=_req(), user_id=2, db=db, current_user=None))
+            ctx = mock_tmpl.TemplateResponse.call_args[0][2]
+        return ctx
+
+    # PSP-31 — instagram_square → 1080×1080, orientation=square
+    def test_psp31_instagram_square_platform(self):
+        ctx = self._call_with_platform("instagram_square")
+        assert ctx["card_native_w"] == 1080
+        assert ctx["card_native_h"] == 1080
+        assert ctx["card_orientation"] == "square"
+
+    # PSP-32 — instagram_portrait → 1080×1350, orientation=portrait
+    def test_psp32_instagram_portrait_platform(self):
+        ctx = self._call_with_platform("instagram_portrait")
+        assert ctx["card_native_w"] == 1080
+        assert ctx["card_native_h"] == 1350
+        assert ctx["card_orientation"] == "portrait"
+
+    # PSP-33 — instagram_story → 1080×1920, orientation=portrait
+    def test_psp33_instagram_story_platform(self):
+        ctx = self._call_with_platform("instagram_story")
+        assert ctx["card_native_w"] == 1080
+        assert ctx["card_native_h"] == 1920
+        assert ctx["card_orientation"] == "portrait"
+
+    # PSP-34 — facebook_landscape → 1200×630, orientation=landscape
+    def test_psp34_facebook_landscape_platform(self):
+        ctx = self._call_with_platform("facebook_landscape")
+        assert ctx["card_native_w"] == 1200
+        assert ctx["card_native_h"] == 630
+        assert ctx["card_orientation"] == "landscape"
+
+    # PSP-35 — platform overrides variant: square platform + showcase_bg → square dims
+    def test_psp35_platform_overrides_variant_sizing(self):
+        ctx = self._call_with_platform("instagram_square", variant="showcase_bg")
+        assert ctx["card_native_w"] == 1080
+        assert ctx["card_native_h"] == 1080
+        assert ctx["card_orientation"] == "square"
+
+    # PSP-36 — card_url has ?platform= when published_platform is set
+    def test_psp36_card_url_contains_platform_param(self):
+        ctx = self._call_with_platform("instagram_square")
+        assert "platform=instagram_square" in ctx["card_url"]
+
+    # PSP-37 — card_url has no ?platform= when published_platform is None/MagicMock
+    def test_psp37_no_platform_no_platform_param_in_url(self):
+        # Use None explicitly → falls through to variant-based path
+        from app.api.web_routes.public_player import public_player_profile
+        profile_user = _user(uid=2)
+        lic = _license(user_id=2)
+        lic.published_card_variant = None
+        db  = _profile_db(user=profile_user, license=lic)
+        _draft = MagicMock()
+        _draft.published_variant  = "fifa"
+        _draft.published_platform = None   # explicit None
+        _draft.published_at       = None
+        with patch(f"{_BASE_PP}.templates") as mock_tmpl, \
+             patch(f"{_SKILL_SVC}.get_skill_profile", return_value={"average_level": 65.0, "skills": {}, "total_tournaments": 3}), \
+             patch(f"{_FRIEND_MOD}.get_friendship_panel_ctx", return_value=_PANEL_NONE), \
+             patch(f"{_DRAFT_SVC}.get_player_card_draft", return_value=_draft):
+            _run(public_player_profile(request=_req(), user_id=2, db=db, current_user=None))
+            ctx = mock_tmpl.TemplateResponse.call_args[0][2]
+        assert "platform=" not in ctx["card_url"]
+
+    # PSP-38 — card_url contains ?v= version when published_at set (platform path)
+    def test_psp38_card_url_has_version_when_platform_and_published_at_set(self):
+        from datetime import datetime, timezone
+        published_at = datetime(2026, 5, 24, 12, 0, 0, tzinfo=timezone.utc)
+        ctx = self._call_with_platform("instagram_square", published_at=published_at)
+        expected_v = int(published_at.timestamp())
+        assert f"v={expected_v}" in ctx["card_url"]
+        assert "platform=instagram_square" in ctx["card_url"]
+
+    # PSP-39 — card_platform_id matches platform when set, "default" when not
+    def test_psp39_card_platform_id(self):
+        ctx_sq = self._call_with_platform("instagram_square")
+        assert ctx_sq["card_platform_id"] == "instagram_square"
+
+        ctx_no = self._call_with_platform(None)
+        assert ctx_no["card_platform_id"] == "default"
+
+    # PSP-40 — template uses {{ card_url }} as iframe src (structural)
+    def test_psp40_template_uses_card_url_for_iframe(self):
+        import os
+        tmpl_path = os.path.normpath(os.path.join(
+            os.path.dirname(__file__),
+            "..", "..", "..", "..",
+            "app", "templates", "public", "player_profile.html",
+        ))
+        with open(tmpl_path, encoding="utf-8") as f:
+            html = f.read()
+        assert 'src="{{ card_url }}"' in html
+        assert "{% if card_published_v %}" not in html
+
+
+# ── PSP-41..PSP-48: responsive layout/CSS/JS structural assertions ────────────
+
+import os as _os2
+
+class TestResponsiveLayoutTemplate:
+    """Structural string assertions on CSS and JS inside player_profile.html."""
+
+    _TEMPLATE_PATH = _os2.path.normpath(_os2.path.join(
+        _os2.path.dirname(__file__),
+        "..", "..", "..", "..",
+        "app", "templates", "public", "player_profile.html",
+    ))
+
+    def _src(self):
+        with open(self._TEMPLATE_PATH, encoding="utf-8") as f:
+            return f.read()
+
+    # PSP-41 — CSS custom property --psp-card-max-h present (viewport-based)
+    def test_psp41_css_card_max_h_custom_property(self):
+        src = self._src()
+        assert "--psp-card-max-h" in src
+        assert "100vh" in src                      # viewport-relative value
+        assert "clamp(" in src                     # responsive clamp
+
+    # PSP-42 — max-height: var(--psp-card-max-h) applied to .psp-card-slot
+    def test_psp42_card_slot_max_height_var(self):
+        src = self._src()
+        assert "max-height: var(--psp-card-max-h)" in src
+
+    # PSP-43 — JS scale formula includes width axis (slotW / nativeW)
+    def test_psp43_js_scale_width_axis(self):
+        src = self._src()
+        assert "slotW / nativeW" in src
+
+    # PSP-44 — JS scale formula includes height axis (maxH / nativeH)
+    def test_psp44_js_scale_height_axis(self):
+        src = self._src()
+        assert "maxH / nativeH" in src
+
+    # PSP-45 — landscape grid uses full-width center row ("center center center")
+    def test_psp45_landscape_grid_full_width_center_row(self):
+        src = self._src()
+        assert '"center   center   center"' in src or \
+               '"center center center"' in src or \
+               "center   center   center" in src
+
+    # PSP-46 — mobile ≤599px breakpoint with single-column stack
+    def test_psp46_mobile_599px_single_column_breakpoint(self):
+        src = self._src()
+        assert "max-width: 599px" in src
+        assert "grid-template-columns: 1fr" in src
+
+    # PSP-47 — JS sets slot.style.height explicitly (shrinks slot to card size)
+    def test_psp47_js_slot_height_explicit(self):
+        src = self._src()
+        assert "slot.style.height" in src
+
+    # PSP-48 — JS has ResizeObserver with window.resize fallback
+    def test_psp48_js_resize_observer_with_fallback(self):
+        src = self._src()
+        assert "ResizeObserver" in src
+        assert "window.addEventListener('resize'" in src

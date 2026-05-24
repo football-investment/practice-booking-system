@@ -153,24 +153,52 @@ async def public_player_profile(
     parts    = (user.name or user.email).split()
     initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
 
-    # Card variant context for profile layout (variant-aware sizing, no route change)
+    # Card display state — platform-first sizing
     from app.services.card_draft_service import CardDraftService as _CardDraftSvc
+    from app.services.card_constants import CANVAS_SIZES as _CANVAS_SIZES
     _profile_draft = _CardDraftSvc.get_player_card_draft(db, user_id=lfa_license.user_id)
     card_variant_id = (
         _profile_draft.published_variant
         or lfa_license.published_card_variant
         or "fifa"
     )
-    _LANDSCAPE_VARIANTS = frozenset({"showcase", "showcase_bg"})
-    _NARROW_VARIANTS    = frozenset({"compact", "compact_bg"})
-    card_is_landscape   = card_variant_id in _LANDSCAPE_VARIANTS
-    card_native_w       = 720 if card_is_landscape else (520 if card_variant_id in _NARROW_VARIANTS else 820)
-    card_native_h       = 700 if card_is_landscape else 1080
-    card_published_v    = (
+    card_published_v = (
         int(_profile_draft.published_at.timestamp())
         if _profile_draft and _profile_draft.published_at
         else 0
     )
+
+    # Resolve published platform; guard against MagicMock in tests
+    _pub_platform = _profile_draft.published_platform if _profile_draft else None
+    if not isinstance(_pub_platform, str):
+        _pub_platform = None
+
+    if _pub_platform and _pub_platform in _CANVAS_SIZES:
+        card_native_w, card_native_h = _CANVAS_SIZES[_pub_platform]
+        if card_native_w == card_native_h:
+            card_orientation = "square"
+        elif card_native_w > card_native_h:
+            card_orientation = "landscape"
+        else:
+            card_orientation = "portrait"
+        card_platform_id = _pub_platform
+    else:
+        _LANDSCAPE_VARIANTS = frozenset({"showcase", "showcase_bg"})
+        _NARROW_VARIANTS    = frozenset({"compact", "compact_bg"})
+        card_is_landscape   = card_variant_id in _LANDSCAPE_VARIANTS
+        card_native_w       = 720 if card_is_landscape else (520 if card_variant_id in _NARROW_VARIANTS else 820)
+        card_native_h       = 700 if card_is_landscape else 1080
+        card_orientation    = "landscape" if card_is_landscape else "portrait"
+        card_platform_id    = "default"
+
+    # Build iframe URL with platform and cache-bust version
+    _v_suffix = f"&v={card_published_v}" if card_published_v else ""
+    if _pub_platform:
+        card_url = f"/players/{user_id}/card?platform={_pub_platform}{_v_suffix}"
+    elif card_published_v:
+        card_url = f"/players/{user_id}/card?v={card_published_v}"
+    else:
+        card_url = f"/players/{user_id}/card"
 
     return templates.TemplateResponse(request, "public/player_profile.html", {
         "profile_user":    user,
@@ -187,10 +215,11 @@ async def public_player_profile(
         "initials":        initials,
         "photo_url":       lfa_license.player_card_photo_url,
         "card_variant_id":  card_variant_id,
-        "card_is_landscape": card_is_landscape,
         "card_native_w":    card_native_w,
         "card_native_h":    card_native_h,
-        "card_published_v": card_published_v,
+        "card_orientation": card_orientation,
+        "card_platform_id": card_platform_id,
+        "card_url":         card_url,
     })
 
 
