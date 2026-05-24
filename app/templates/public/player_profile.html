@@ -107,15 +107,13 @@
 .psp-btn-remove  { background: #fff5f5; color: #c53030; border: 1px solid #fed7d7; }
 .psp-btn-login   { background: #667eea; color: white; }
 
-/* ── Two-column ────────────────────────────────────────────────────────────── */
-.psp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-
 /* ── Card preview ──────────────────────────────────────────────────────────── */
 .psp-card-panel {
     background: white;
     border-radius: 16px;
     padding: 1.2rem;
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    margin-bottom: 1rem;
 }
 .psp-section-title { font-size: 0.82rem; font-weight: 700; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
 .psp-card-wrap { position: relative; overflow: hidden; }
@@ -124,22 +122,6 @@
     display: block;
     transform-origin: top left;
 }
-
-/* ── Skill snapshot ────────────────────────────────────────────────────────── */
-.psp-skills-panel {
-    background: white;
-    border-radius: 16px;
-    padding: 1.2rem;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-}
-.psp-skill-category { margin-bottom: 1rem; }
-.psp-cat-name { font-size: 0.8rem; font-weight: 700; color: #4a5568; margin-bottom: 0.4rem; text-transform: uppercase; }
-.psp-skill-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
-.psp-skill-name { font-size: 0.82rem; color: #4a5568; width: 120px; flex-shrink: 0; }
-.psp-skill-bar-bg { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
-.psp-skill-bar-fill { height: 100%; border-radius: 3px; background: #667eea; }
-.psp-skill-val { font-size: 0.78rem; font-weight: 700; color: #2d3748; width: 32px; text-align: right; }
-.psp-no-skills { font-size: 0.9rem; color: #a0aec0; text-align: center; padding: 2rem 0; }
 
 /* ── Recent events ─────────────────────────────────────────────────────────── */
 .psp-events-panel {
@@ -165,7 +147,6 @@
 .psp-no-events { font-size: 0.9rem; color: #a0aec0; text-align: center; padding: 2rem 0; }
 
 @media (max-width: 640px) {
-    .psp-grid { grid-template-columns: 1fr; }
     .psp-hero { flex-direction: column; align-items: center; text-align: center; }
     .psp-social { justify-content: center; }
 }
@@ -258,44 +239,13 @@
         </div>
     </div>
 
-    {# ── Card preview + Skill snapshot ──────────────────────────────────────── #}
-    <div class="psp-grid">
-
-        {# Card preview #}
-        <div class="psp-card-panel">
-            <div class="psp-section-title">Player Card</div>
-            <div class="psp-card-wrap" id="psp-card-wrap">
-                <iframe id="psp-card-iframe"
-                        src="/players/{{ profile_user.id }}/card"
-                        scrolling="no" title="Player Card"></iframe>
-            </div>
-        </div>
-
-        {# Skill snapshot #}
-        <div class="psp-skills-panel">
-            <div class="psp-section-title">Skill Snapshot</div>
-            {% if skills_data %}
-            {% for cat in skill_categories %}
-            {% set cat_skills = cat.skills | selectattr("key", "in", skills_data) | list %}
-            {% if cat_skills %}
-            <div class="psp-skill-category">
-                <div class="psp-cat-name">{{ cat.emoji }} {{ cat.name_en }}</div>
-                {% for sk in cat_skills[:4] %}
-                {% set val = (skills_data[sk.key].current_level | default(50)) | round(1) %}
-                <div class="psp-skill-row">
-                    <span class="psp-skill-name">{{ sk.name_en }}</span>
-                    <div class="psp-skill-bar-bg">
-                        <div class="psp-skill-bar-fill" style="width:{{ val }}%"></div>
-                    </div>
-                    <span class="psp-skill-val">{{ val }}</span>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% endfor %}
-            {% else %}
-            <div class="psp-no-skills">Skills not yet available</div>
-            {% endif %}
+    {# ── Card preview ───────────────────────────────────────────────────────── #}
+    <div class="psp-card-panel">
+        <div class="psp-section-title">Player Card</div>
+        <div class="psp-card-wrap" id="psp-card-wrap">
+            <iframe id="psp-card-iframe"
+                    src="/players/{{ profile_user.id }}/card"
+                    scrolling="no" title="Player Card"></iframe>
         </div>
     </div>
 
