@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "G\u0101nCuju\u2122\u00a9 Education Center",
+    "title": "GānCuju™© Education Center",
     "description": "LFA Education Center - Comprehensive Football Education Platform featuring LFA Player Development, Coach Training, Internship Programs, and Gamification with Parallel Specialization Tracks",
     "version": "2.0.0"
   },
@@ -1542,7 +1542,7 @@
           "scheduling"
         ],
         "summary": "Generate Sessions",
-        "description": "Generate weekly training sessions for a MINI_SEASON or ACADEMY_SEASON semester.\n\nValidations (in order):\n  1. Semester exists \u2192 404\n  2. semester_category in (MINI_SEASON, ACADEMY_SEASON) \u2192 400\n  3. start_date + end_date set \u2192 400\n  4. sessions already generated \u2192 409\n  5. campus_id belongs to semester's location \u2192 400\n  6. pitch_id belongs to resolved campus \u2192 400",
+        "description": "Generate weekly training sessions for a MINI_SEASON or ACADEMY_SEASON semester.\n\nValidations (in order):\n  1. Semester exists → 404\n  2. semester_category in (MINI_SEASON, ACADEMY_SEASON) → 400\n  3. start_date + end_date set → 400\n  4. sessions already generated → 409\n  5. campus_id belongs to semester's location → 400\n  6. pitch_id belongs to resolved campus → 400",
         "operationId": "generate_sessions_api_v1_semesters__semester_id__generate_sessions_post",
         "security": [
           {
@@ -2612,7 +2612,7 @@
           "sessions"
         ],
         "summary": "Check In To Session",
-        "description": "Instructor checks in to session (marks PENDING \u2192 STARTED).\n\n**Authorization:** Instructor only, must be assigned to session\n**Performance Target:** p95 < 200ms\n\n**Business Logic:**\n1. Verify session exists\n2. Verify current user is assigned instructor\n3. Verify session status is 'scheduled' or 'pending'\n4. Update session status to 'in_progress'\n\n**Returns:**\n- Success status\n- Session ID\n- Updated session status ('in_progress')\n- Check-in timestamp\n\n**Raises:**\n- 403: User is not an instructor OR not assigned to session\n- 404: Session not found\n- 400: Session already in_progress or completed",
+        "description": "Instructor checks in to session (marks PENDING → STARTED).\n\n**Authorization:** Instructor only, must be assigned to session\n**Performance Target:** p95 < 200ms\n\n**Business Logic:**\n1. Verify session exists\n2. Verify current user is assigned instructor\n3. Verify session status is 'scheduled' or 'pending'\n4. Update session status to 'in_progress'\n\n**Returns:**\n- Success status\n- Session ID\n- Updated session status ('in_progress')\n- Check-in timestamp\n\n**Raises:**\n- 403: User is not an instructor OR not assigned to session\n- 404: Session not found\n- 400: Session already in_progress or completed",
         "operationId": "check_in_to_session_api_v1_sessions__session_id__check_in_post",
         "security": [
           {
@@ -2786,7 +2786,7 @@
           "session-segments"
         ],
         "summary": "Soft-delete a session segment",
-        "description": "Soft-delete a segment by setting ``is_active=False``.\n\n- **Admin**: may delete segments on any session.\n- **Instructor**: may only delete segments on sessions they own.\n- Idempotent: deleting an already-inactive segment returns 200 with no error.\n- Segment results (``session_segment_results``) are preserved \u2014 no cascade delete.",
+        "description": "Soft-delete a segment by setting ``is_active=False``.\n\n- **Admin**: may delete segments on any session.\n- **Instructor**: may only delete segments on sessions they own.\n- Idempotent: deleting an already-inactive segment returns 200 with no error.\n- Segment results (``session_segment_results``) are preserved — no cascade delete.",
         "operationId": "delete_session_segment_api_v1_sessions__session_id__segments__segment_id__delete",
         "security": [
           {
@@ -3209,7 +3209,7 @@
           "bookings"
         ],
         "summary": "Create Booking",
-        "description": "Create new booking - STUDENTS ONLY\n\n\ud83c\udfaf REFACTORED: Uses spec services for validation\n- Session-based (LFA Player): Requires only UserLicense\n- Semester-based (Coach/Internship): Requires UserLicense + SemesterEnrollment + payment",
+        "description": "Create new booking - STUDENTS ONLY\n\n🎯 REFACTORED: Uses spec services for validation\n- Session-based (LFA Player): Requires only UserLicense\n- Semester-based (Coach/Internship): Requires UserLicense + SemesterEnrollment + payment",
         "operationId": "create_booking_api_v1_bookings__post",
         "security": [
           {
@@ -4121,7 +4121,7 @@
           "feedback"
         ],
         "summary": "Create Feedback",
-        "description": "Create feedback for a session\n\n\ud83d\udd12 RULE #4: Feedback can only be submitted within 24 hours after session ends",
+        "description": "Create feedback for a session\n\n🔒 RULE #4: Feedback can only be submitted within 24 hours after session ends",
         "operationId": "create_feedback_api_v1_feedback__post",
         "security": [
           {
@@ -5501,7 +5501,7 @@
           "quizzes"
         ],
         "summary": "Get Quiz For Taking",
-        "description": "Get quiz details for taking (without correct answers)\n\n\ud83d\udd12 RULE #5: For hybrid/virtual sessions, quiz is only available during session time",
+        "description": "Get quiz details for taking (without correct answers)\n\n🔒 RULE #5: For hybrid/virtual sessions, quiz is only available during session time",
         "operationId": "get_quiz_for_taking_api_v1_quizzes__quiz_id__get",
         "security": [
           {
@@ -6418,7 +6418,7 @@
           "enrollment"
         ],
         "summary": "Complete Enrollment Quiz",
-        "description": "\u00c9rt\u00e9keli a jelentkez\u00e9si quiz eredm\u00e9ny\u00e9t \u00e9s meghat\u00e1rozza a rangsorol\u00e1si poz\u00edci\u00f3t",
+        "description": "Értékeli a jelentkezési quiz eredményét és meghatározza a rangsorolási pozíciót",
         "operationId": "complete_enrollment_quiz_api_v1_projects__project_id__enrollment_quiz_post",
         "security": [
           {
@@ -6474,7 +6474,7 @@
           "projects"
         ],
         "summary": "Get Enrollment Quiz Info",
-        "description": "Lek\u00e9ri a projekt enrollment quiz inform\u00e1ci\u00f3it",
+        "description": "Lekéri a projekt enrollment quiz információit",
         "operationId": "get_enrollment_quiz_info_api_v1_projects__project_id__enrollment_quiz_get",
         "security": [
           {
@@ -6524,7 +6524,7 @@
           "enrollment"
         ],
         "summary": "Confirm Project Enrollment",
-        "description": "Meger\u0151s\u00edti a projekt jelentkez\u00e9st",
+        "description": "Megerősíti a projekt jelentkezést",
         "operationId": "confirm_project_enrollment_api_v1_projects__project_id__confirm_enrollment_post",
         "security": [
           {
@@ -6750,7 +6750,7 @@
           "projects"
         ],
         "summary": "Add Quiz To Project",
-        "description": "Hozz\u00e1ad egy quiz-t a projekthez (Admin/Instructor only)",
+        "description": "Hozzáad egy quiz-t a projekthez (Admin/Instructor only)",
         "operationId": "add_quiz_to_project_api_v1_projects__project_id__quizzes_post",
         "security": [
           {
@@ -6807,7 +6807,7 @@
           "projects"
         ],
         "summary": "Get Project Quizzes",
-        "description": "Lek\u00e9ri a projekthez kapcsol\u00f3d\u00f3 quiz-eket",
+        "description": "Lekéri a projekthez kapcsolódó quiz-eket",
         "operationId": "get_project_quizzes_api_v1_projects__project_id__quizzes_get",
         "security": [
           {
@@ -6860,7 +6860,7 @@
           "projects"
         ],
         "summary": "Remove Quiz From Project",
-        "description": "Elt\u00e1vol\u00edt egy quiz-t a projektb\u0151l",
+        "description": "Eltávolít egy quiz-t a projektből",
         "operationId": "remove_quiz_from_project_api_v1_projects__project_id__quizzes__quiz_connection_id__delete",
         "security": [
           {
@@ -8302,7 +8302,7 @@
           "specializations"
         ],
         "summary": "List Specializations",
-        "description": "Get available specializations with descriptions (HYBRID: DB + JSON)\n\ud83c\udf93 PUBLIC ENDPOINT - no authentication required for onboarding\n\nProcess:\n1. Load active specializations from DB\n2. Load full content from JSON configs\n3. Return merged data",
+        "description": "Get available specializations with descriptions (HYBRID: DB + JSON)\n🎓 PUBLIC ENDPOINT - no authentication required for onboarding\n\nProcess:\n1. Load active specializations from DB\n2. Load full content from JSON configs\n3. Return merged data",
         "operationId": "list_specializations_api_v1_specializations__get",
         "responses": {
           "200": {
@@ -8354,7 +8354,7 @@
           "specializations"
         ],
         "summary": "Set User Specialization",
-        "description": "Set current user's specialization (HYBRID: with age/consent validation)\n\ud83c\udf93 CRITICAL: This is used during onboarding and profile updates\n\nProcess:\n1. Validate specialization enum\n2. Check DB existence + is_active\n3. Validate age requirements (JSON)\n4. Validate parental consent (for LFA_COACH under 18)\n5. Update user specialization",
+        "description": "Set current user's specialization (HYBRID: with age/consent validation)\n🎓 CRITICAL: This is used during onboarding and profile updates\n\nProcess:\n1. Validate specialization enum\n2. Check DB existence + is_active\n3. Validate age requirements (JSON)\n4. Validate parental consent (for LFA_COACH under 18)\n5. Update user specialization",
         "operationId": "set_user_specialization_api_v1_specializations_me_post",
         "requestBody": {
           "content": {
@@ -10105,7 +10105,7 @@
           "licenses"
         ],
         "summary": "Get Football Skills",
-        "description": "Get football skills for a specific license (LFA Player specializations only).\n\nReturns the raw football_skills JSONB for the license. Each skill entry contains:\n- `current_level`   \u2014 EMA-updated visible skill level (starts at SYSTEM_BASELINE = 60.0)\n- `system_baseline` \u2014 fixed EMA anchor, always 60.0 for post-onboarding players\n- `baseline`        \u2014 backward-compatible alias for system_baseline (60.0)\n- `self_assessment` \u2014 onboarding self-evaluation entered by the player (0-100 scale).\n                      **Motivational reference only. Not a skill level. Never used\n                      as input by EMA, baseline extraction, or any calculation service.**\n- `assessment_delta`\u2014 computed from FootballSkillAssessment rows (coach evaluations),\n                      NOT from self_assessment\n- `tournament_delta`\u2014 cumulative EMA delta from tournament placements\n\n- **license_id**: UserLicense ID",
+        "description": "Get football skills for a specific license (LFA Player specializations only).\n\nReturns the raw football_skills JSONB for the license. Each skill entry contains:\n- `current_level`   — EMA-updated visible skill level (starts at SYSTEM_BASELINE = 60.0)\n- `system_baseline` — fixed EMA anchor, always 60.0 for post-onboarding players\n- `baseline`        — backward-compatible alias for system_baseline (60.0)\n- `self_assessment` — onboarding self-evaluation entered by the player (0-100 scale).\n                      **Motivational reference only. Not a skill level. Never used\n                      as input by EMA, baseline extraction, or any calculation service.**\n- `assessment_delta`— computed from FootballSkillAssessment rows (coach evaluations),\n                      NOT from self_assessment\n- `tournament_delta`— cumulative EMA delta from tournament placements\n\n- **license_id**: UserLicense ID",
         "operationId": "get_football_skills_api_v1_licenses__license_id__football_skills_get",
         "security": [
           {
@@ -10264,7 +10264,7 @@
           "licenses"
         ],
         "summary": "Create Skill Assessment",
-        "description": "Create individual skill assessment (INSTRUCTOR ONLY)\n\nCreates new assessment with state=ASSESSED. If identical assessment exists,\nreturns existing (idempotent). If different assessment exists, archives old\nand creates new.\n\n**State transition:** NOT_ASSESSED \u2192 ASSESSED\n\n**Permissions:** INSTRUCTOR or ADMIN only\n\n**Idempotency:**\n- Identical data (same points) \u2192 returns existing (created=False)\n- Different data \u2192 archives old + creates new (created=True)\n\n**Business Rules:**\n- `requires_validation` auto-determined by:\n  - License level 5+ \u2192 requires validation\n  - Instructor tenure < 6 months \u2192 requires validation\n  - Critical skills (mental, set_pieces) \u2192 requires validation\n\n**Args:**\n- license_id: UserLicense ID\n- skill_name: Skill identifier (e.g., 'ball_control', 'passing')\n- points_earned: Points scored (0-N)\n- points_total: Total possible points (must be > 0)\n- notes: Optional instructor notes\n\n**Returns:**\n- success: True if operation succeeded\n- created: True if new assessment created, False if existing returned\n- message: Human-readable status message\n- assessment: Full assessment object",
+        "description": "Create individual skill assessment (INSTRUCTOR ONLY)\n\nCreates new assessment with state=ASSESSED. If identical assessment exists,\nreturns existing (idempotent). If different assessment exists, archives old\nand creates new.\n\n**State transition:** NOT_ASSESSED → ASSESSED\n\n**Permissions:** INSTRUCTOR or ADMIN only\n\n**Idempotency:**\n- Identical data (same points) → returns existing (created=False)\n- Different data → archives old + creates new (created=True)\n\n**Business Rules:**\n- `requires_validation` auto-determined by:\n  - License level 5+ → requires validation\n  - Instructor tenure < 6 months → requires validation\n  - Critical skills (mental, set_pieces) → requires validation\n\n**Args:**\n- license_id: UserLicense ID\n- skill_name: Skill identifier (e.g., 'ball_control', 'passing')\n- points_earned: Points scored (0-N)\n- points_total: Total possible points (must be > 0)\n- notes: Optional instructor notes\n\n**Returns:**\n- success: True if operation succeeded\n- created: True if new assessment created, False if existing returned\n- message: Human-readable status message\n- assessment: Full assessment object",
         "operationId": "create_skill_assessment_api_v1_licenses__license_id__skills__skill_name__assess_post",
         "security": [
           {
@@ -10450,7 +10450,7 @@
           "licenses"
         ],
         "summary": "Validate Assessment",
-        "description": "Validate skill assessment (ADMIN/INSTRUCTOR ONLY)\n\nTransitions assessment from ASSESSED \u2192 VALIDATED.\n\n**State transition:** ASSESSED \u2192 VALIDATED\n\n**Permissions:** ADMIN or INSTRUCTOR only\n\n**Idempotency:**\n- If already VALIDATED \u2192 returns existing (no error)\n\n**Invalid transitions:**\n- NOT_ASSESSED \u2192 VALIDATED (must assess first)\n- ARCHIVED \u2192 VALIDATED (cannot restore archived)\n\n**Args:**\n- assessment_id: Assessment ID\n\n**Returns:**\n- success: True\n- message: Status message\n- assessment: Updated assessment object",
+        "description": "Validate skill assessment (ADMIN/INSTRUCTOR ONLY)\n\nTransitions assessment from ASSESSED → VALIDATED.\n\n**State transition:** ASSESSED → VALIDATED\n\n**Permissions:** ADMIN or INSTRUCTOR only\n\n**Idempotency:**\n- If already VALIDATED → returns existing (no error)\n\n**Invalid transitions:**\n- NOT_ASSESSED → VALIDATED (must assess first)\n- ARCHIVED → VALIDATED (cannot restore archived)\n\n**Args:**\n- assessment_id: Assessment ID\n\n**Returns:**\n- success: True\n- message: Status message\n- assessment: Updated assessment object",
         "operationId": "validate_assessment_api_v1_licenses_assessments__assessment_id__validate_post",
         "security": [
           {
@@ -10498,7 +10498,7 @@
           "licenses"
         ],
         "summary": "Archive Assessment",
-        "description": "Archive skill assessment (ADMIN/INSTRUCTOR ONLY)\n\nTransitions assessment from ASSESSED/VALIDATED \u2192 ARCHIVED.\n\n**State transition:** ASSESSED/VALIDATED \u2192 ARCHIVED\n\n**Permissions:** ADMIN or INSTRUCTOR only\n\n**Idempotency:**\n- If already ARCHIVED \u2192 returns existing (no error)\n\n**Invalid transitions:**\n- NOT_ASSESSED \u2192 ARCHIVED (must assess first)\n- ARCHIVED \u2192 ARCHIVED (already archived - idempotent)\n\n**Query Parameters:**\n- reason: Optional reason for archiving (default: \"Manually archived by instructor\")\n\n**Args:**\n- assessment_id: Assessment ID\n\n**Returns:**\n- success: True\n- message: Status message\n- assessment: Updated assessment object",
+        "description": "Archive skill assessment (ADMIN/INSTRUCTOR ONLY)\n\nTransitions assessment from ASSESSED/VALIDATED → ARCHIVED.\n\n**State transition:** ASSESSED/VALIDATED → ARCHIVED\n\n**Permissions:** ADMIN or INSTRUCTOR only\n\n**Idempotency:**\n- If already ARCHIVED → returns existing (no error)\n\n**Invalid transitions:**\n- NOT_ASSESSED → ARCHIVED (must assess first)\n- ARCHIVED → ARCHIVED (already archived - idempotent)\n\n**Query Parameters:**\n- reason: Optional reason for archiving (default: \"Manually archived by instructor\")\n\n**Args:**\n- assessment_id: Assessment ID\n\n**Returns:**\n- success: True\n- message: Status message\n- assessment: Updated assessment object",
         "operationId": "archive_assessment_api_v1_licenses_assessments__assessment_id__archive_post",
         "security": [
           {
@@ -10943,7 +10943,7 @@
           "progression"
         ],
         "summary": "Get Skill Profile",
-        "description": "Get player's dynamic skill profile with placement-based calculation\n\nNEW V2 System:\n    - Skills calculated from tournament placement (not points)\n    - Can both INCREASE and DECREASE based on performance\n    - 1st place \u2192 ~95-100, Last place \u2192 ~40-50\n    - Weighted average: baseline + placement-based value\n\nReturns:\n    - Current skill levels (baseline + tournament deltas)\n    - Baseline values from onboarding\n    - Tournament participation count per skill\n    - Assessment count per skill\n    - Average skill level (dynamically calculated)\n    - Skill tiers (BEGINNER, DEVELOPING, INTERMEDIATE, ADVANCED, MASTER)",
+        "description": "Get player's dynamic skill profile with placement-based calculation\n\nNEW V2 System:\n    - Skills calculated from tournament placement (not points)\n    - Can both INCREASE and DECREASE based on performance\n    - 1st place → ~95-100, Last place → ~40-50\n    - Weighted average: baseline + placement-based value\n\nReturns:\n    - Current skill levels (baseline + tournament deltas)\n    - Baseline values from onboarding\n    - Tournament participation count per skill\n    - Assessment count per skill\n    - Average skill level (dynamically calculated)\n    - Skill tiers (BEGINNER, DEVELOPING, INTERMEDIATE, ADVANCED, MASTER)",
         "operationId": "get_skill_profile_api_v1_progression_skill_profile_get",
         "responses": {
           "200": {
@@ -14510,7 +14510,7 @@
           "semester-enrollments"
         ],
         "summary": "Get Payment Info",
-        "description": "\ud83d\udcc4 Get payment information for an enrollment (payment code, instructions, etc.)\n\nReturns:\n- payment_reference_code: Unique code for bank transfer\n- bank_details: Bank account information\n- amount: Payment amount\n- enrollment_details: Specialization, semester info",
+        "description": "📄 Get payment information for an enrollment (payment code, instructions, etc.)\n\nReturns:\n- payment_reference_code: Unique code for bank transfer\n- bank_details: Bank account information\n- amount: Payment amount\n- enrollment_details: Specialization, semester info",
         "operationId": "get_payment_info_api_v1_semester_enrollments__enrollment_id__payment_info_get",
         "parameters": [
           {
@@ -14552,7 +14552,7 @@
           "semester-enrollments"
         ],
         "summary": "Verify Payment By Code",
-        "description": "\u2705 Admin verifies payment using the payment reference code\n\nFlow:\n1. Admin receives bank transfer with payment code in comment\n2. Admin enters the code here\n3. System finds the enrollment and marks payment as verified",
+        "description": "✅ Admin verifies payment using the payment reference code\n\nFlow:\n1. Admin receives bank transfer with payment code in comment\n2. Admin enters the code here\n3. System finds the enrollment and marks payment as verified",
         "operationId": "verify_payment_by_code_api_v1_semester_enrollments_verify_by_code_post",
         "parameters": [
           {
@@ -14594,7 +14594,7 @@
           "semester-enrollments"
         ],
         "summary": "Approve Enrollment Request",
-        "description": "\u2705 Admin or Master Instructor approves a PENDING enrollment request\n\n**Who can approve:**\n- \ud83e\udd4b Master Instructor of the semester\n- \ud83d\udc51 Admin (can override)\n\nChanges:\n- request_status: PENDING \u2192 APPROVED\n- is_active: False \u2192 True\n- approved_at: set to now\n- approved_by: set to current_user.id",
+        "description": "✅ Admin or Master Instructor approves a PENDING enrollment request\n\n**Who can approve:**\n- 🥋 Master Instructor of the semester\n- 👑 Admin (can override)\n\nChanges:\n- request_status: PENDING → APPROVED\n- is_active: False → True\n- approved_at: set to now\n- approved_by: set to current_user.id",
         "operationId": "approve_enrollment_request_api_v1_semester_enrollments__enrollment_id__approve_post",
         "parameters": [
           {
@@ -14636,7 +14636,7 @@
           "semester-enrollments"
         ],
         "summary": "Reject Enrollment Request",
-        "description": "\u274c Admin or Master Instructor rejects a PENDING enrollment request\n\n**Who can reject:**\n- \ud83e\udd4b Master Instructor of the semester\n- \ud83d\udc51 Admin (can override)\n\nChanges:\n- request_status: PENDING \u2192 REJECTED\n- is_active: False (remains)\n- approved_at: set to now\n- approved_by: set to current_user.id\n- rejection_reason: set to provided reason",
+        "description": "❌ Admin or Master Instructor rejects a PENDING enrollment request\n\n**Who can reject:**\n- 🥋 Master Instructor of the semester\n- 👑 Admin (can override)\n\nChanges:\n- request_status: PENDING → REJECTED\n- is_active: False (remains)\n- approved_at: set to now\n- approved_by: set to current_user.id\n- rejection_reason: set to provided reason",
         "operationId": "reject_enrollment_request_api_v1_semester_enrollments__enrollment_id__reject_post",
         "parameters": [
           {
@@ -14688,7 +14688,7 @@
           "semester-enrollments"
         ],
         "summary": "Override Age Category",
-        "description": "\ud83c\udfaf Override age category for a student enrollment.\n\n**Permissions**:\n- \ud83e\udd4b Instructor (any instructor)\n- \ud83d\udc51 Admin (can override any, with warnings)\n\n**Business Rules**:\n- \u2705 14+ year-olds can be moved between YOUTH/AMATEUR/PRO anytime (even mid-season)\n- \u274c 5-13 year-olds MUST stay in PRE (cannot override)\n- \ud83d\udd12 Season lock: Category is determined at July 1 and stays fixed\n- \ud83d\udcdd Override is audited (who, when)\n\n**Example**:\n- Student born 2007-12-06, season 2025/26 (July 1, 2025)\n- Age at season start: 17 years\n- Default: YOUTH\n- Instructor can override to: AMATEUR or PRO",
+        "description": "🎯 Override age category for a student enrollment.\n\n**Permissions**:\n- 🥋 Instructor (any instructor)\n- 👑 Admin (can override any, with warnings)\n\n**Business Rules**:\n- ✅ 14+ year-olds can be moved between YOUTH/AMATEUR/PRO anytime (even mid-season)\n- ❌ 5-13 year-olds MUST stay in PRE (cannot override)\n- 🔒 Season lock: Category is determined at July 1 and stays fixed\n- 📝 Override is audited (who, when)\n\n**Example**:\n- Student born 2007-12-06, season 2025/26 (July 1, 2025)\n- Age at season start: 17 years\n- Default: YOUTH\n- Instructor can override to: AMATEUR or PRO",
         "operationId": "override_age_category_api_v1_semester_enrollments__enrollment_id__override_category_post",
         "parameters": [
           {
@@ -15416,7 +15416,7 @@
           "coupons"
         ],
         "summary": "Apply Coupon",
-        "description": "Apply a coupon code to the current user's account.\n\n**Coupon Types:**\n- BONUS_CREDITS: Instant free credits (no purchase required)\n- PURCHASE_DISCOUNT_PERCENT: Percentage discount on credit purchase (requires invoice + admin approval)\n- PURCHASE_BONUS_CREDITS: Bonus credits after credit purchase (requires invoice + admin approval)\n\n**Legacy types (auto-migrated to BONUS_CREDITS):**\n- PERCENT, FIXED, CREDITS \u2192 All treated as instant bonus credits\n\n**Authorization:** Authenticated user\n\n**Validations:**\n- Coupon exists\n- Coupon is valid (active, not expired, not at max uses)\n- User has not already used this coupon\n- Coupon type allows instant redemption (not purchase-only)\n\n**Actions:**\n- For BONUS_CREDITS: Adds credits immediately to user's balance\n- For PURCHASE_* types: Rejects with error (can only be used during purchase)\n- Creates CouponUsage record\n- Increments coupon usage count\n\n**Returns:**\n- Success message\n- Credits awarded (if applicable)\n- User's new credit balance",
+        "description": "Apply a coupon code to the current user's account.\n\n**Coupon Types:**\n- BONUS_CREDITS: Instant free credits (no purchase required)\n- PURCHASE_DISCOUNT_PERCENT: Percentage discount on credit purchase (requires invoice + admin approval)\n- PURCHASE_BONUS_CREDITS: Bonus credits after credit purchase (requires invoice + admin approval)\n\n**Legacy types (auto-migrated to BONUS_CREDITS):**\n- PERCENT, FIXED, CREDITS → All treated as instant bonus credits\n\n**Authorization:** Authenticated user\n\n**Validations:**\n- Coupon exists\n- Coupon is valid (active, not expired, not at max uses)\n- User has not already used this coupon\n- Coupon type allows instant redemption (not purchase-only)\n\n**Actions:**\n- For BONUS_CREDITS: Adds credits immediately to user's balance\n- For PURCHASE_* types: Rejects with error (can only be used during purchase)\n- Creates CouponUsage record\n- Increments coupon usage count\n\n**Returns:**\n- Success message\n- Credits awarded (if applicable)\n- User's new credit balance",
         "operationId": "apply_coupon_api_v1_coupons_apply_post",
         "requestBody": {
           "content": {
@@ -15700,7 +15700,7 @@
           "lfa-player"
         ],
         "summary": "Create License",
-        "description": "Create a new LFA Player license \u2014 **DEPRECATED (410 Gone)**\n\nLicense creation is now handled via the specialization unlock flow.\nUse POST /onboarding/specialization to unlock LFA Football Player.",
+        "description": "Create a new LFA Player license — **DEPRECATED (410 Gone)**\n\nLicense creation is now handled via the specialization unlock flow.\nUse POST /onboarding/specialization to unlock LFA Football Player.",
         "operationId": "create_license_api_v1_lfa_player_licenses_post",
         "requestBody": {
           "content": {
@@ -15772,7 +15772,7 @@
           "lfa-player"
         ],
         "summary": "Update Skill",
-        "description": "Update a skill average \u2014 **DEPRECATED (410 Gone)**\n\nSkill updates are now handled via the 44-skill system.\nUse PUT /licenses/{license_id}/football-skills instead.",
+        "description": "Update a skill average — **DEPRECATED (410 Gone)**\n\nSkill updates are now handled via the 44-skill system.\nUse PUT /licenses/{license_id}/football-skills instead.",
         "operationId": "update_skill_api_v1_lfa_player_licenses__license_id__skills_put",
         "security": [
           {
@@ -15993,7 +15993,7 @@
           "gancuju"
         ],
         "summary": "List All Licenses",
-        "description": "Get all G\u0101nCuju licenses (Admin only)",
+        "description": "Get all GānCuju licenses (Admin only)",
         "operationId": "list_all_licenses_api_v1_gancuju_licenses_get",
         "responses": {
           "200": {
@@ -16016,7 +16016,7 @@
           "gancuju"
         ],
         "summary": "Create License",
-        "description": "Create a new G\u0101nCuju license for the current user.\n\n**Cost:** 100 credits (deducted from user's credit_balance)\n\n- **starting_level**: Initial level (1-8), defaults to 1\n\nReturns the created license with all fields.",
+        "description": "Create a new GānCuju license for the current user.\n\n**Cost:** 100 credits (deducted from user's credit_balance)\n\n- **starting_level**: Initial level (1-8), defaults to 1\n\nReturns the created license with all fields.",
         "operationId": "create_license_api_v1_gancuju_licenses_post",
         "requestBody": {
           "content": {
@@ -16063,7 +16063,7 @@
           "gancuju"
         ],
         "summary": "Get My License",
-        "description": "Get the current user's active G\u0101nCuju license.\n\nReturns 404 if no active license is found.",
+        "description": "Get the current user's active GānCuju license.\n\nReturns 404 if no active license is found.",
         "operationId": "get_my_license_api_v1_gancuju_licenses_me_get",
         "responses": {
           "200": {
@@ -17149,7 +17149,7 @@
           "motivation-assessment"
         ],
         "summary": "Submit Motivation Assessment",
-        "description": "Submit motivation/preference assessment after specialization unlock\n\n**Workflow:**\n1. User unlocks specialization (100 credits)\n2. User completes THIS motivation assessment (ONCE per specialization)\n3. User can start semester enrollments\n\n**Specialization-specific assessments:**\n- **LFA Player:** 7 skill self-ratings (1-10 scale)\n- **G\u0101nCuju:** Character type selection (Warrior/Teacher)\n- **Coach:** Age group + Role + Specialization preferences\n- **Internship:** Position selection (45 positions)\n\n**Storage:** Saved to `user_licenses.motivation_scores` (JSON field)",
+        "description": "Submit motivation/preference assessment after specialization unlock\n\n**Workflow:**\n1. User unlocks specialization (100 credits)\n2. User completes THIS motivation assessment (ONCE per specialization)\n3. User can start semester enrollments\n\n**Specialization-specific assessments:**\n- **LFA Player:** 7 skill self-ratings (1-10 scale)\n- **GānCuju:** Character type selection (Warrior/Teacher)\n- **Coach:** Age group + Role + Specialization preferences\n- **Internship:** Position selection (45 positions)\n\n**Storage:** Saved to `user_licenses.motivation_scores` (JSON field)",
         "operationId": "submit_motivation_assessment_api_v1_licenses_motivation_assessment_post",
         "requestBody": {
           "content": {
@@ -17237,7 +17237,7 @@
           "public-profile"
         ],
         "summary": "Get Basic Profile",
-        "description": "Get basic profile for OTHER specializations (G\u0101nCuju, Coach, Internship)\n\nReturns:\n- User basic info\n- Active licenses list\n- Simple stats (no detailed skills)",
+        "description": "Get basic profile for OTHER specializations (GānCuju, Coach, Internship)\n\nReturns:\n- User basic info\n- Active licenses list\n- Simple stats (no detailed skills)",
         "operationId": "get_basic_profile_api_v1_public_users__user_id__profile_basic_get",
         "parameters": [
           {
@@ -17319,7 +17319,7 @@
           "semester-generator"
         ],
         "summary": "Generate Semesters",
-        "description": "Generate semesters for a specific year, specialization, and age group.\n\n**Admin only** - Automatically creates all semesters based on templates.\n\nExamples:\n- LFA_PLAYER + PRE \u2192 12 monthly semesters (M01-M12)\n- LFA_PLAYER + YOUTH \u2192 4 quarterly semesters (Q1-Q4)\n- LFA_PLAYER + AMATEUR \u2192 2 semi-annual semesters (Fall, Spring)\n- LFA_PLAYER + PRO \u2192 1 annual semester (Season)",
+        "description": "Generate semesters for a specific year, specialization, and age group.\n\n**Admin only** - Automatically creates all semesters based on templates.\n\nExamples:\n- LFA_PLAYER + PRE → 12 monthly semesters (M01-M12)\n- LFA_PLAYER + YOUTH → 4 quarterly semesters (Q1-Q4)\n- LFA_PLAYER + AMATEUR → 2 semi-annual semesters (Fall, Spring)\n- LFA_PLAYER + PRO → 1 annual semester (Season)",
         "operationId": "generate_semesters_api_v1_admin_semesters_generate_post",
         "requestBody": {
           "content": {
@@ -17634,7 +17634,7 @@
           "locations"
         ],
         "summary": "Create Location",
-        "description": "Create a new LFA Education Center location.\n\n**Admin only**\n\nExample:\n```json\n{\n    \"name\": \"LFA Education Center - Budapest\",\n    \"city\": \"Budapest\",\n    \"country\": \"Hungary\",\n    \"address\": \"1011 Budapest, F\u0151 utca 1.\",\n    \"notes\": \"Main campus in Hungary\",\n    \"is_active\": true\n}\n```",
+        "description": "Create a new LFA Education Center location.\n\n**Admin only**\n\nExample:\n```json\n{\n    \"name\": \"LFA Education Center - Budapest\",\n    \"city\": \"Budapest\",\n    \"country\": \"Hungary\",\n    \"address\": \"1011 Budapest, Fő utca 1.\",\n    \"notes\": \"Main campus in Hungary\",\n    \"is_active\": true\n}\n```",
         "operationId": "create_location_api_v1_admin_locations__post",
         "security": [
           {
@@ -18501,7 +18501,7 @@
           "instructor-assignments"
         ],
         "summary": "Get Instructor Assignment Requests",
-        "description": "Get all assignment requests for a specific instructor with advanced filtering.\n\nInstructors can only see their own requests, admins can see all.\n\nFilters available:\n- status_filter: PENDING, ACCEPTED, DECLINED, CANCELLED\n- specialization_type: LFA_PLAYER, GANCUJU, INTERNSHIP, COACH\n- age_group: PRE, YOUTH, ADULT, etc.\n- location_city: Budapest, Buda\u00f6rs, etc.\n- priority_min: Only show requests with priority >= this value (1-10)",
+        "description": "Get all assignment requests for a specific instructor with advanced filtering.\n\nInstructors can only see their own requests, admins can see all.\n\nFilters available:\n- status_filter: PENDING, ACCEPTED, DECLINED, CANCELLED\n- specialization_type: LFA_PLAYER, GANCUJU, INTERNSHIP, COACH\n- age_group: PRE, YOUTH, ADULT, etc.\n- location_city: Budapest, Budaörs, etc.\n- priority_min: Only show requests with priority >= this value (1-10)",
         "operationId": "get_instructor_assignment_requests_api_v1_instructor_assignments_requests_instructor__instructor_id__get",
         "security": [
           {
@@ -18585,10 +18585,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by city: Budapest, Buda\u00f6rs, etc.",
+              "description": "Filter by city: Budapest, Budaörs, etc.",
               "title": "Location City"
             },
-            "description": "Filter by city: Budapest, Buda\u00f6rs, etc."
+            "description": "Filter by city: Budapest, Budaörs, etc."
           },
           {
             "name": "priority_min",
@@ -18697,7 +18697,7 @@
           "instructor-assignments"
         ],
         "summary": "Accept Assignment Request",
-        "description": "Instructor accepts an assignment request.\n\nWhen accepted:\n1. Request status \u2192 ACCEPTED\n2. semester.master_instructor_id = instructor.id",
+        "description": "Instructor accepts an assignment request.\n\nWhen accepted:\n1. Request status → ACCEPTED\n2. semester.master_instructor_id = instructor.id",
         "operationId": "accept_assignment_request_api_v1_instructor_assignments_requests__request_id__accept_patch",
         "security": [
           {
@@ -19618,7 +19618,7 @@
           "spec-info"
         ],
         "summary": "Check Age Eligibility",
-        "description": "Check if current user's age meets requirements for a specialization.\n\n**Examples:**\n- `specialization_type=LFA_PLAYER_PRE` \u2192 Check if age 6-11\n- `specialization_type=LFA_COACH&target_group=PRO_HEAD` \u2192 Check if age 23+\n- `specialization_type=INTERNSHIP` \u2192 Check if age 18+\n- `specialization_type=GANCUJU_PLAYER` \u2192 Check if age 5+\n\n**Example Response:**\n```json\n{\n    \"specialization_type\": \"LFA_COACH\",\n    \"target_group\": \"PRO_HEAD\",\n    \"user_age\": 25,\n    \"is_eligible\": true,\n    \"reason\": \"Eligible for LFA Coach (age 25)\"\n}\n```",
+        "description": "Check if current user's age meets requirements for a specialization.\n\n**Examples:**\n- `specialization_type=LFA_PLAYER_PRE` → Check if age 6-11\n- `specialization_type=LFA_COACH&target_group=PRO_HEAD` → Check if age 23+\n- `specialization_type=INTERNSHIP` → Check if age 18+\n- `specialization_type=GANCUJU_PLAYER` → Check if age 5+\n\n**Example Response:**\n```json\n{\n    \"specialization_type\": \"LFA_COACH\",\n    \"target_group\": \"PRO_HEAD\",\n    \"user_age\": 25,\n    \"is_eligible\": true,\n    \"reason\": \"Eligible for LFA Coach (age 25)\"\n}\n```",
         "operationId": "check_age_eligibility_api_v1_spec_info_age_eligibility_get",
         "security": [
           {
@@ -19712,7 +19712,7 @@
           "Master Hiring - Direct"
         ],
         "summary": "Create Direct Hire Offer",
-        "description": "Admin: Create direct hire offer (Pathway A)\n\nSends offer to instructor \u2192 Instructor must accept/decline\n\nBusiness Rules:\n- Only one active master per location\n- Instructor cannot have active master position elsewhere\n- Availability validation is ADVISORY only (admin can override)\n- Offer has deadline (default 14 days)",
+        "description": "Admin: Create direct hire offer (Pathway A)\n\nSends offer to instructor → Instructor must accept/decline\n\nBusiness Rules:\n- Only one active master per location\n- Instructor cannot have active master position elsewhere\n- Availability validation is ADVISORY only (admin can override)\n- Offer has deadline (default 14 days)",
         "operationId": "create_direct_hire_offer_api_v1_instructor_management_masters_direct_hire_post",
         "requestBody": {
           "content": {
@@ -19761,7 +19761,7 @@
           "Master Hiring - Applications"
         ],
         "summary": "Hire From Application",
-        "description": "Admin: Accept application and create master offer (Pathway B)\n\nWorkflow:\n1. Admin accepts application\n2. Creates OFFERED contract (instructor still must accept!)\n3. Auto-declines other PENDING applications for position\n4. Marks position as FILLED\n\nBusiness Rule: Application acceptance \u2260 contract acceptance!\nInstructor applied = intent, but still must formally accept contract.",
+        "description": "Admin: Accept application and create master offer (Pathway B)\n\nWorkflow:\n1. Admin accepts application\n2. Creates OFFERED contract (instructor still must accept!)\n3. Auto-declines other PENDING applications for position\n4. Marks position as FILLED\n\nBusiness Rule: Application acceptance ≠ contract acceptance!\nInstructor applied = intent, but still must formally accept contract.",
         "operationId": "hire_from_application_api_v1_instructor_management_masters_hire_from_application_post",
         "requestBody": {
           "content": {
@@ -19810,7 +19810,7 @@
           "Master Hiring - Offers"
         ],
         "summary": "Respond To Offer",
-        "description": "Instructor: Accept or decline master instructor offer\n\nBusiness Rules:\n- Offer must belong to current user\n- Offer must be in OFFERED status\n- Offer deadline must not have passed\n- When accepting:\n  - Instructor cannot have another active master position\n  - All other OFFERED contracts for this instructor auto-decline\n  - Semesters transition: DRAFT \u2192 INSTRUCTOR_ASSIGNED",
+        "description": "Instructor: Accept or decline master instructor offer\n\nBusiness Rules:\n- Offer must belong to current user\n- Offer must be in OFFERED status\n- Offer deadline must not have passed\n- When accepting:\n  - Instructor cannot have another active master position\n  - All other OFFERED contracts for this instructor auto-decline\n  - Semesters transition: DRAFT → INSTRUCTOR_ASSIGNED",
         "operationId": "respond_to_offer_api_v1_instructor_management_masters_offers__offer_id__respond_patch",
         "security": [
           {
@@ -21220,7 +21220,7 @@
           "session-groups"
         ],
         "summary": "Auto Assign Groups",
-        "description": "Auto-assign present students to groups\n\nAlgorithm:\n- Gets all students marked PRESENT\n- Gets available instructors\n- Distributes students evenly\n\nExample:\n- 2 instructors, 6 students \u2192 2 groups of 3\n- 2 instructors, 7 students \u2192 1 group of 4, 1 group of 3\n\nAuthorization: Head coach or instructor for this session",
+        "description": "Auto-assign present students to groups\n\nAlgorithm:\n- Gets all students marked PRESENT\n- Gets available instructors\n- Distributes students evenly\n\nExample:\n- 2 instructors, 6 students → 2 groups of 3\n- 2 instructors, 7 students → 1 group of 4, 1 group of 3\n\nAuthorization: Head coach or instructor for this session",
         "operationId": "auto_assign_groups_api_v1_session_groups_auto_assign_post",
         "requestBody": {
           "content": {
@@ -21531,7 +21531,7 @@
           "tournaments"
         ],
         "summary": "Update Tournament",
-        "description": "Update tournament fields (Admin only)\n\n**Authorization:** Admin only\n\n**Allowed updates:**\n- name: Tournament name\n- enrollment_cost: Credits required to enroll\n- max_players: Maximum participant capacity (cannot be reduced below current enrollment count)\n- age_group: Age group classification\n- description: Tournament description\n- start_date: Tournament start date (ISO format)\n- end_date: Tournament end date (ISO format)\n- specialization_type: Specialization type\n- assignment_type: OPEN_ASSIGNMENT or APPLICATION_BASED\n- participant_type: INDIVIDUAL, TEAM, or MIXED\n- tournament_type_id: Tournament type (\u26a0\ufe0f Auto-deletes sessions if changed)\n- tournament_status: Tournament status (\u26a0\ufe0f ADMIN OVERRIDE: Bypasses state machine validation)\n\n**Important Notes:**\n- max_players cannot be reduced below current enrollment count\n- tournament_type_id: Automatically deletes existing sessions if changed\n- tournament_status: Admin can set ANY status (state machine validation bypassed)",
+        "description": "Update tournament fields (Admin only)\n\n**Authorization:** Admin only\n\n**Allowed updates:**\n- name: Tournament name\n- enrollment_cost: Credits required to enroll\n- max_players: Maximum participant capacity (cannot be reduced below current enrollment count)\n- age_group: Age group classification\n- description: Tournament description\n- start_date: Tournament start date (ISO format)\n- end_date: Tournament end date (ISO format)\n- specialization_type: Specialization type\n- assignment_type: OPEN_ASSIGNMENT or APPLICATION_BASED\n- participant_type: INDIVIDUAL, TEAM, or MIXED\n- tournament_type_id: Tournament type (⚠️ Auto-deletes sessions if changed)\n- tournament_status: Tournament status (⚠️ ADMIN OVERRIDE: Bypasses state machine validation)\n\n**Important Notes:**\n- max_players cannot be reduced below current enrollment count\n- tournament_type_id: Automatically deletes existing sessions if changed\n- tournament_status: Admin can set ANY status (state machine validation bypassed)",
         "operationId": "update_tournament_api_v1_tournaments__tournament_id__patch",
         "security": [
           {
@@ -21862,7 +21862,7 @@
           "tournaments"
         ],
         "summary": "Send Instructor Request",
-        "description": "Send instructor assignment request for tournament (Admin only)\n\n**Authorization:** Admin only\n\n**IMPORTANT:** This sends a PENDING request to the instructor (grandmaster).\nTournament activates only when instructor ACCEPTS the request.\n\nWorkflow:\n1. Admin sends request \u2192 Status: PENDING\n2. Instructor sees request in their dashboard\n3. Instructor accepts \u2192 Tournament status: READY_FOR_ENROLLMENT\n4. Instructor declines \u2192 Tournament status: SEEKING_INSTRUCTOR (can send new request)\n\n**Example:**\n```json\n{\n  \"instructor_id\": 2,\n  \"message\": \"Would you like to lead the Winter Cup tournament?\"\n}\n```",
+        "description": "Send instructor assignment request for tournament (Admin only)\n\n**Authorization:** Admin only\n\n**IMPORTANT:** This sends a PENDING request to the instructor (grandmaster).\nTournament activates only when instructor ACCEPTS the request.\n\nWorkflow:\n1. Admin sends request → Status: PENDING\n2. Instructor sees request in their dashboard\n3. Instructor accepts → Tournament status: READY_FOR_ENROLLMENT\n4. Instructor declines → Tournament status: SEEKING_INSTRUCTOR (can send new request)\n\n**Example:**\n```json\n{\n  \"instructor_id\": 2,\n  \"message\": \"Would you like to lead the Winter Cup tournament?\"\n}\n```",
         "operationId": "send_instructor_request_api_v1_tournaments__tournament_id__send_instructor_request_post",
         "security": [
           {
@@ -22020,7 +22020,7 @@
           "tournaments"
         ],
         "summary": "Get Tournament Summary",
-        "description": "Get tournament summary\n\n**Authorization:** Any authenticated user\n\n# TICKET-UI-01: Extend response with seeding metrics post-generation\n# Add to TournamentSummaryResponse (and get_tournament_summary service):\n#   seeded_count    : int | None  \u2014 number of players in the bracket pool\n#   checked_in_count: int | None  \u2014 confirmed check-ins at generation time\n#   pool_label      : str | None  \u2014 \"check-in confirmed\" | \"fallback: all approved\"\n# These fields are available in session_generator.py after generate_sessions() runs.\n# Consumer: Tournament Monitor header (Enrolled / Confirmed / Seeded display).\n# Priority: UX improvement, not a correctness fix. Does NOT block current release.",
+        "description": "Get tournament summary\n\n**Authorization:** Any authenticated user\n\n# TICKET-UI-01: Extend response with seeding metrics post-generation\n# Add to TournamentSummaryResponse (and get_tournament_summary service):\n#   seeded_count    : int | None  — number of players in the bracket pool\n#   checked_in_count: int | None  — confirmed check-ins at generation time\n#   pool_label      : str | None  — \"check-in confirmed\" | \"fallback: all approved\"\n# These fields are available in session_generator.py after generate_sessions() runs.\n# Consumer: Tournament Monitor header (Enrolled / Confirmed / Seeded display).\n# Priority: UX improvement, not a correctness fix. Does NOT block current release.",
         "operationId": "get_tournament_summary_api_v1_tournaments__tournament_id__summary_get",
         "security": [
           {
@@ -22548,7 +22548,7 @@
           "tournaments"
         ],
         "summary": "Accept Instructor Assignment",
-        "description": "Instructor accepts tournament assignment.\n\nThis endpoint transitions a tournament to INSTRUCTOR_CONFIRMED status.\nSupports two scenarios:\n1. APPLICATION_BASED: Tournament status SEEKING_INSTRUCTOR \u2192 INSTRUCTOR_CONFIRMED\n2. OPEN_ASSIGNMENT: Tournament status PENDING_INSTRUCTOR_ACCEPTANCE \u2192 INSTRUCTOR_CONFIRMED\n\n**Authorization:** INSTRUCTOR role only\n\n**Validations:**\n- Current user is INSTRUCTOR\n- Current user has active LFA_COACH license\n- Tournament exists\n- Tournament status is SEEKING_INSTRUCTOR or PENDING_INSTRUCTOR_ACCEPTANCE\n\n**Actions Performed:**\n- Updates semester.master_instructor_id = current_user.id\n- Updates semester.tournament_status = INSTRUCTOR_CONFIRMED\n- Updates all associated sessions.instructor_id = current_user.id\n\n**Returns:**\n- Tournament details\n- Number of sessions updated\n- Confirmation message\n\n**Example Response:**\n```json\n{\n    \"message\": \"Tournament assignment accepted successfully\",\n    \"tournament_id\": 123,\n    \"tournament_name\": \"Youth Football Tournament 2026\",\n    \"tournament_status\": \"INSTRUCTOR_CONFIRMED\",\n    \"instructor_id\": 5,\n    \"instructor_name\": \"Coach Smith\",\n    \"sessions_updated\": 3\n}\n```\n\n**Raises:**\n- 403 FORBIDDEN: User is not an instructor or lacks LFA_COACH license\n- 404 NOT FOUND: Tournament not found\n- 400 BAD REQUEST: Tournament is not in valid status for acceptance",
+        "description": "Instructor accepts tournament assignment.\n\nThis endpoint transitions a tournament to INSTRUCTOR_CONFIRMED status.\nSupports two scenarios:\n1. APPLICATION_BASED: Tournament status SEEKING_INSTRUCTOR → INSTRUCTOR_CONFIRMED\n2. OPEN_ASSIGNMENT: Tournament status PENDING_INSTRUCTOR_ACCEPTANCE → INSTRUCTOR_CONFIRMED\n\n**Authorization:** INSTRUCTOR role only\n\n**Validations:**\n- Current user is INSTRUCTOR\n- Current user has active LFA_COACH license\n- Tournament exists\n- Tournament status is SEEKING_INSTRUCTOR or PENDING_INSTRUCTOR_ACCEPTANCE\n\n**Actions Performed:**\n- Updates semester.master_instructor_id = current_user.id\n- Updates semester.tournament_status = INSTRUCTOR_CONFIRMED\n- Updates all associated sessions.instructor_id = current_user.id\n\n**Returns:**\n- Tournament details\n- Number of sessions updated\n- Confirmation message\n\n**Example Response:**\n```json\n{\n    \"message\": \"Tournament assignment accepted successfully\",\n    \"tournament_id\": 123,\n    \"tournament_name\": \"Youth Football Tournament 2026\",\n    \"tournament_status\": \"INSTRUCTOR_CONFIRMED\",\n    \"instructor_id\": 5,\n    \"instructor_name\": \"Coach Smith\",\n    \"sessions_updated\": 3\n}\n```\n\n**Raises:**\n- 403 FORBIDDEN: User is not an instructor or lacks LFA_COACH license\n- 404 NOT FOUND: Tournament not found\n- 400 BAD REQUEST: Tournament is not in valid status for acceptance",
         "operationId": "accept_instructor_assignment_api_v1_tournaments__tournament_id__instructor_assignment_accept_post",
         "security": [
           {
@@ -23661,7 +23661,7 @@
           "tournaments"
         ],
         "summary": "Distribute Tournament Rewards",
-        "description": "DEPRECATED \u2014 use POST /{tournament_id}/distribute-rewards-v2\n\nReturns HTTP 410 Gone. The V2 endpoint runs the full EMA skill\npropagation pipeline (Phase 3) and issues idempotent credit/XP grants.",
+        "description": "DEPRECATED — use POST /{tournament_id}/distribute-rewards-v2\n\nReturns HTTP 410 Gone. The V2 endpoint runs the full EMA skill\npropagation pipeline (Phase 3) and issues idempotent credit/XP grants.",
         "operationId": "distribute_tournament_rewards_api_v1_tournaments__tournament_id__distribute_rewards_post",
         "security": [
           {
@@ -24248,7 +24248,7 @@
           "tournaments"
         ],
         "summary": "Save Tournament Reward Config",
-        "description": "Save reward configuration for a tournament.\n\n\u26a0\ufe0f VALIDATION: At least 1 skill must be enabled.\n\nArgs:\n    tournament_id: Tournament (semester) ID\n    reward_config: Reward configuration to save\n\nReturns:\n    Saved reward configuration\n\nRaises:\n    403: If user is not admin\n    404: If tournament not found\n    400: If validation fails (no enabled skills, invalid config, etc.)",
+        "description": "Save reward configuration for a tournament.\n\n⚠️ VALIDATION: At least 1 skill must be enabled.\n\nArgs:\n    tournament_id: Tournament (semester) ID\n    reward_config: Reward configuration to save\n\nReturns:\n    Saved reward configuration\n\nRaises:\n    403: If user is not admin\n    404: If tournament not found\n    400: If validation fails (no enabled skills, invalid config, etc.)",
         "operationId": "save_tournament_reward_config_api_v1_tournaments__tournament_id__reward_config_post",
         "security": [
           {
@@ -24671,7 +24671,7 @@
           "tournaments"
         ],
         "summary": "Update Schedule Config",
-        "description": "Update the global schedule configuration for a tournament.\n\nOnly provided fields are updated (PATCH semantics \u2014 NULL fields are ignored).\nTo clear a value back to type defaults, set it to null in the request.\n\n**Authorization:** Admin only\n\n**Effect:** Values are persisted to `tournament_configurations` table\nand will be used as defaults in all subsequent session generation calls.\nPer-campus overrides (set via PUT /campus-schedules) take precedence.",
+        "description": "Update the global schedule configuration for a tournament.\n\nOnly provided fields are updated (PATCH semantics — NULL fields are ignored).\nTo clear a value back to type defaults, set it to null in the request.\n\n**Authorization:** Admin only\n\n**Effect:** Values are persisted to `tournament_configurations` table\nand will be used as defaults in all subsequent session generation calls.\nPer-campus overrides (set via PUT /campus-schedules) take precedence.",
         "operationId": "update_schedule_config_api_v1_tournaments__tournament_id__schedule_config_patch",
         "security": [
           {
@@ -24731,7 +24731,7 @@
           "session-generation"
         ],
         "summary": "Preview Tournament Sessions",
-        "description": "Preview tournament session structure WITHOUT creating sessions in database\n\n**Authorization:** Admin only\n\n**Parameters:**\n- `tournament_id`: Tournament (Semester) ID\n- `parallel_fields`: Number of fields for parallel matches (default: 1)\n- `session_duration_minutes`: Session duration (default: 90)\n- `break_minutes`: Break between sessions (default: 15)\n\n**Returns:**\n- Tournament info\n- Tournament type config\n- Player count (enrolled)\n- Estimated sessions (preview)\n\n**Response Example:**\n```json\n{\n    \"tournament_id\": 121,\n    \"tournament_name\": \"\ud83c\udded\ud83c\uddfa HU - Winter Cup - Budapest\",\n    \"tournament_type\": \"League (Round Robin)\",\n    \"player_count\": 8,\n    \"parallel_fields\": 1,\n    \"estimated_sessions\": [\n        {\n            \"title\": \"Winter Cup - Round 1 - Match 1\",\n            \"date_start\": \"2026-01-20T09:00:00\",\n            \"date_end\": \"2026-01-20T10:30:00\",\n            \"game_type\": \"Round 1\",\n            \"tournament_phase\": \"League\",\n            \"tournament_round\": 1,\n            \"tournament_match_number\": 1\n        }\n    ],\n    \"total_matches\": 28,\n    \"total_rounds\": 7,\n    \"estimated_duration_minutes\": 1260\n}\n```",
+        "description": "Preview tournament session structure WITHOUT creating sessions in database\n\n**Authorization:** Admin only\n\n**Parameters:**\n- `tournament_id`: Tournament (Semester) ID\n- `parallel_fields`: Number of fields for parallel matches (default: 1)\n- `session_duration_minutes`: Session duration (default: 90)\n- `break_minutes`: Break between sessions (default: 15)\n\n**Returns:**\n- Tournament info\n- Tournament type config\n- Player count (enrolled)\n- Estimated sessions (preview)\n\n**Response Example:**\n```json\n{\n    \"tournament_id\": 121,\n    \"tournament_name\": \"🇭🇺 HU - Winter Cup - Budapest\",\n    \"tournament_type\": \"League (Round Robin)\",\n    \"player_count\": 8,\n    \"parallel_fields\": 1,\n    \"estimated_sessions\": [\n        {\n            \"title\": \"Winter Cup - Round 1 - Match 1\",\n            \"date_start\": \"2026-01-20T09:00:00\",\n            \"date_end\": \"2026-01-20T10:30:00\",\n            \"game_type\": \"Round 1\",\n            \"tournament_phase\": \"League\",\n            \"tournament_round\": 1,\n            \"tournament_match_number\": 1\n        }\n    ],\n    \"total_matches\": 28,\n    \"total_rounds\": 7,\n    \"estimated_duration_minutes\": 1260\n}\n```",
         "operationId": "preview_tournament_sessions_api_v1_tournaments__tournament_id__preview_sessions_get",
         "security": [
           {
@@ -24871,7 +24871,7 @@
           "session-generation"
         ],
         "summary": "Get Generation Status",
-        "description": "Poll the status of a background session-generation task.\n\nWorks for both Celery tasks (when Redis is running) and in-process thread tasks.\n\n**Authorization:** Admin only\n\nReturns one of:\n- `{\"status\": \"pending\"}` \u2014 queued, not yet started\n- `{\"status\": \"running\"}` \u2014 generation in progress\n- `{\"status\": \"done\", \"sessions_count\": N, \"message\": \"...\"}` \u2014 completed successfully\n- `{\"status\": \"error\", \"message\": \"...\"}` \u2014 generation failed\n- `{\"status\": \"retrying\"}` \u2014 Celery is retrying after a transient error\n\nThe task_id is returned by `POST /tournaments/{id}/generate-sessions` when\nplayer_count >= 128 and async generation is used.",
+        "description": "Poll the status of a background session-generation task.\n\nWorks for both Celery tasks (when Redis is running) and in-process thread tasks.\n\n**Authorization:** Admin only\n\nReturns one of:\n- `{\"status\": \"pending\"}` — queued, not yet started\n- `{\"status\": \"running\"}` — generation in progress\n- `{\"status\": \"done\", \"sessions_count\": N, \"message\": \"...\"}` — completed successfully\n- `{\"status\": \"error\", \"message\": \"...\"}` — generation failed\n- `{\"status\": \"retrying\"}` — Celery is retrying after a transient error\n\nThe task_id is returned by `POST /tournaments/{id}/generate-sessions` when\nplayer_count >= 128 and async generation is used.",
         "operationId": "get_generation_status_api_v1_tournaments__tournament_id__generation_status__task_id__get",
         "security": [
           {
@@ -27380,7 +27380,7 @@
           "web"
         ],
         "summary": "Lfa Player Onboarding Web Submit",
-        "description": "Web-compatible LFA Player onboarding submit.\nCalled via AJAX fetch from lfa_player_onboarding.html (cookie session auth).\n\nAccepts the same JSON body as /specialization/lfa-player/onboarding-submit\n(Bearer JWT endpoint for Streamlit) but uses get_current_user_web so that\nbrowser-session users can submit the 6-step onboarding form.\n\nRequest body (JSON):\n    position   : str  \u2014 STRIKER | MIDFIELDER | DEFENDER | GOALKEEPER\n    goals      : str  \u2014 dropdown value\n    motivation : str  \u2014 free text\n    skills     : dict \u2014 all 44 skill keys (0-99 scale, step=1)\n\nReturns JSON {\"success\": true} on success; {\"error\": \"...\"} on failure.",
+        "description": "Web-compatible LFA Player onboarding submit.\nCalled via AJAX fetch from lfa_player_onboarding.html (cookie session auth).\n\nAccepts the same JSON body as /specialization/lfa-player/onboarding-submit\n(Bearer JWT endpoint for Streamlit) but uses get_current_user_web so that\nbrowser-session users can submit the 6-step onboarding form.\n\nRequest body (JSON):\n    position   : str  — STRIKER | MIDFIELDER | DEFENDER | GOALKEEPER\n    goals      : str  — dropdown value\n    motivation : str  — free text\n    skills     : dict — all 44 skill keys (0-99 scale, step=1)\n\nReturns JSON {\"success\": true} on success; {\"error\": \"...\"} on failure.",
         "operationId": "lfa_player_onboarding_web_submit_specialization_lfa_player_onboarding_web_post",
         "responses": {
           "200": {
@@ -27551,7 +27551,7 @@
           "web"
         ],
         "summary": "Lfa Player Profile Positions Submit",
-        "description": "Update only the player's positions (primary + secondaries, max 4 total).\n\nAccepts:\n  position      \u2014 canonical primary position (snake_case)\n  positions_raw \u2014 JSON array of all positions including primary, e.g. '[\"striker\",\"left_wing\"]'\n\nValidates: canonical values, 1\u20134 count, primary is first element.\nNever touches foot scores, goals, height, weight, or any other field.",
+        "description": "Update only the player's positions (primary + secondaries, max 4 total).\n\nAccepts:\n  position      — canonical primary position (snake_case)\n  positions_raw — JSON array of all positions including primary, e.g. '[\"striker\",\"left_wing\"]'\n\nValidates: canonical values, 1–4 count, primary is first element.\nNever touches foot scores, goals, height, weight, or any other field.",
         "operationId": "lfa_player_profile_positions_submit_profile_lfa_football_player_positions_post",
         "requestBody": {
           "content": {
@@ -27712,7 +27712,7 @@
           "web"
         ],
         "summary": "Onboarding Welcome Card",
-        "description": "Welcome Card preview \u2014 private self-assessment view.\n\nData source: football_skills[*].self_assessment ONLY.\nNEVER reads current_level, baseline, system_baseline, tournament_delta,\nassessment_delta, or any EMA output.\n\nWithout ?platform=: renders the gallery hub (iframe + download buttons).\nWith ?platform=X:   renders the FIFA Classic card for that platform size.\nWith ?export=1:     switches the FIFA template to export-mode (Playwright use).\n\nAuth: cookie session (browser) OR short-lived render JWT (Playwright export).\nrender_token is generated by export_onboarding_welcome_card, expires in 60 s,\nand is only accepted when purpose==\"wc_render\".\nVisibility: private, no-index (meta tag in template).",
+        "description": "Welcome Card preview — private self-assessment view.\n\nData source: football_skills[*].self_assessment ONLY.\nNEVER reads current_level, baseline, system_baseline, tournament_delta,\nassessment_delta, or any EMA output.\n\nWithout ?platform=: renders the gallery hub (iframe + download buttons).\nWith ?platform=X:   renders the FIFA Classic card for that platform size.\nWith ?export=1:     switches the FIFA template to export-mode (Playwright use).\n\nAuth: cookie session (browser) OR short-lived render JWT (Playwright export).\nrender_token is generated by export_onboarding_welcome_card, expires in 60 s,\nand is only accepted when purpose==\"wc_render\".\nVisibility: private, no-index (meta tag in template).",
         "operationId": "onboarding_welcome_card_profile_onboarding_card_get",
         "parameters": [
           {
@@ -27938,7 +27938,7 @@
           "web"
         ],
         "summary": "Skills Data Endpoint",
-        "description": "JSON endpoint \u2014 returns full skill profile for lazy-load widgets.",
+        "description": "JSON endpoint — returns full skill profile for lazy-load widgets.",
         "operationId": "skills_data_endpoint_skills_data_get",
         "responses": {
           "200": {
@@ -27958,7 +27958,7 @@
           "web"
         ],
         "summary": "Skills Page",
-        "description": "Student skill progression page \u2014 all 44 skills, lazy-loaded.",
+        "description": "Student skill progression page — all 44 skills, lazy-loaded.",
         "operationId": "skills_page_skills_get",
         "responses": {
           "200": {
@@ -27980,7 +27980,7 @@
           "web"
         ],
         "summary": "Skills History Data Endpoint",
-        "description": "JSON endpoint \u2014 EMA timeline for a single skill, used by the skill history chart.",
+        "description": "JSON endpoint — EMA timeline for a single skill, used by the skill history chart.",
         "operationId": "skills_history_data_endpoint_skills_history_data_get",
         "parameters": [
           {
@@ -28024,7 +28024,7 @@
           "web"
         ],
         "summary": "Skills History Page",
-        "description": "Student skill history page \u2014 per-skill EMA timeline chart.",
+        "description": "Student skill history page — per-skill EMA timeline chart.",
         "operationId": "skills_history_page_skills_history_get",
         "parameters": [
           {
@@ -30758,7 +30758,7 @@
           "web"
         ],
         "summary": "Admin Renew License",
-        "description": "Admin: renew a license \u2014 set new expires_at + record LicenseProgression('RENEWED').",
+        "description": "Admin: renew a license — set new expires_at + record LicenseProgression('RENEWED').",
         "operationId": "admin_renew_license_admin_users__user_id__renew_license__license_id__post",
         "parameters": [
           {
@@ -31110,7 +31110,7 @@
           "web"
         ],
         "summary": "Admin Patch Session Instructor",
-        "description": "Override the instructor on a single auto-generated session.\n\nBody: {\"instructor_id\": <int>}   \u2014 set to specific instructor\n      {\"instructor_id\": null}    \u2014 clear override (reverts to semester default)",
+        "description": "Override the instructor on a single auto-generated session.\n\nBody: {\"instructor_id\": <int>}   — set to specific instructor\n      {\"instructor_id\": null}    — clear override (reverts to semester default)",
         "operationId": "admin_patch_session_instructor_admin_semesters__semester_id__sessions__session_id__instructor_patch",
         "parameters": [
           {
@@ -31261,7 +31261,7 @@
           "web"
         ],
         "summary": "Admin Location Detail Page",
-        "description": "Admin-only: Location detail \u2014 hierarchical view of campus, programs, sessions, instructors.",
+        "description": "Admin-only: Location detail — hierarchical view of campus, programs, sessions, instructors.",
         "operationId": "admin_location_detail_page_admin_locations__location_id__get",
         "parameters": [
           {
@@ -31474,7 +31474,7 @@
           "web"
         ],
         "summary": "Admin Location Events Page",
-        "description": "Admin-only: Per-location event management \u2014 all event types CRUD in one place.",
+        "description": "Admin-only: Per-location event management — all event types CRUD in one place.",
         "operationId": "admin_location_events_page_admin_events_locations__location_id__get",
         "parameters": [
           {
@@ -31567,7 +31567,7 @@
           "web"
         ],
         "summary": "Admin Campus Detail Page",
-        "description": "Admin-only: Campus detail \u2014 programs, upcoming sessions, location instructors.",
+        "description": "Admin-only: Campus detail — programs, upcoming sessions, location instructors.",
         "operationId": "admin_campus_detail_page_admin_campuses__campus_id__get",
         "parameters": [
           {
@@ -31986,7 +31986,7 @@
           "web"
         ],
         "summary": "Admin Sessions Page",
-        "description": "Admin-only: Session management \u2014 hierarchical view (Location \u2192 Spec \u2192 Semester \u2192 Session)",
+        "description": "Admin-only: Session management — hierarchical view (Location → Spec → Semester → Session)",
         "operationId": "admin_sessions_page_admin_sessions_get",
         "parameters": [
           {
@@ -32389,7 +32389,7 @@
           "web"
         ],
         "summary": "Admin Invoice Unverify",
-        "description": "Unverify invoice (reverts credits) \u2014 cookie auth.",
+        "description": "Unverify invoice (reverts credits) — cookie auth.",
         "operationId": "admin_invoice_unverify_admin_invoices__invoice_id__unverify_post",
         "parameters": [
           {
@@ -33590,7 +33590,7 @@
           "web"
         ],
         "summary": "Admin Events Hub Page",
-        "description": "Admin-only: Event Management hub \u2014 tournaments, camps, training sessions, match sessions.",
+        "description": "Admin-only: Event Management hub — tournaments, camps, training sessions, match sessions.",
         "operationId": "admin_events_hub_page_admin_events_get",
         "responses": {
           "200": {
@@ -33812,7 +33812,7 @@
           "web"
         ],
         "summary": "Admin Camps Page",
-        "description": "Admin-only: Camp management \u2014 list of CAMP-category semesters.",
+        "description": "Admin-only: Camp management — list of CAMP-category semesters.",
         "operationId": "admin_camps_page_admin_camps_get",
         "parameters": [
           {
@@ -34310,7 +34310,7 @@
           "web"
         ],
         "summary": "Admin Sponsor Promotion Create",
-        "description": "Admin: create one INDIVIDUAL promotion event per selected age category for a sponsor.\n\nSponsor-only flow \u2014 no Club, no Team, no TournamentTeamEnrollment.\nEach age group produces one Semester record with:\n  organizer_sponsor_id    = sponsor.id\n  organizer_campaign_id   = campaign.id  (required \u2014 campaign audience feeds the event)\n  organizer_club_id       = NULL  (explicit)\n  participant_type        = INDIVIDUAL",
+        "description": "Admin: create one INDIVIDUAL promotion event per selected age category for a sponsor.\n\nSponsor-only flow — no Club, no Team, no TournamentTeamEnrollment.\nEach age group produces one Semester record with:\n  organizer_sponsor_id    = sponsor.id\n  organizer_campaign_id   = campaign.id  (required — campaign audience feeds the event)\n  organizer_club_id       = NULL  (explicit)\n  participant_type        = INDIVIDUAL",
         "operationId": "admin_sponsor_promotion_create_admin_sponsors__sponsor_id__promotion_post",
         "parameters": [
           {
@@ -35014,7 +35014,7 @@
           "web"
         ],
         "summary": " Redirect Audience To Campaigns",
-        "description": "Legacy URL \u2014 redirects to campaign list on sponsor detail.",
+        "description": "Legacy URL — redirects to campaign list on sponsor detail.",
         "operationId": "_redirect_audience_to_campaigns_admin_sponsors__sponsor_id__audience_get",
         "parameters": [
           {
@@ -35057,7 +35057,7 @@
           "web"
         ],
         "summary": " Redirect Csv Import To Campaigns",
-        "description": "Legacy URL \u2014 redirects to sponsor detail (create a campaign there first).",
+        "description": "Legacy URL — redirects to sponsor detail (create a campaign there first).",
         "operationId": "_redirect_csv_import_to_campaigns_admin_sponsors__sponsor_id__csv_import_get",
         "parameters": [
           {
@@ -35100,7 +35100,7 @@
           "web"
         ],
         "summary": " Legacy Rollback Redirect",
-        "description": "Legacy rollback URL \u2014 redirects to sponsor detail with guidance.",
+        "description": "Legacy rollback URL — redirects to sponsor detail with guidance.",
         "operationId": "_legacy_rollback_redirect_admin_sponsors__sponsor_id__csv_import__log_id__rollback_post",
         "parameters": [
           {
@@ -36714,7 +36714,7 @@
           "web"
         ],
         "summary": "Admin Start Tournament",
-        "description": "Admin: advance ENROLLMENT_CLOSED \u2192 IN_PROGRESS.",
+        "description": "Admin: advance ENROLLMENT_CLOSED → IN_PROGRESS.",
         "operationId": "admin_start_tournament_admin_tournaments__tournament_id__start_post",
         "parameters": [
           {
@@ -36822,7 +36822,7 @@
           "web"
         ],
         "summary": "Admin Rollback Tournament",
-        "description": "Admin: rollback stuck IN_PROGRESS \u2192 ENROLLMENT_CLOSED for re-generation.",
+        "description": "Admin: rollback stuck IN_PROGRESS → ENROLLMENT_CLOSED for re-generation.",
         "operationId": "admin_rollback_tournament_admin_tournaments__tournament_id__rollback_post",
         "parameters": [
           {
@@ -36858,7 +36858,7 @@
           "web"
         ],
         "summary": "Admin Tournament Edit Page",
-        "description": "Admin: tournament edit page \u2014 all lifecycle management in one place.",
+        "description": "Admin: tournament edit page — all lifecycle management in one place.",
         "operationId": "admin_tournament_edit_page_admin_tournaments__tournament_id__edit_get",
         "parameters": [
           {
@@ -36901,7 +36901,7 @@
           "web"
         ],
         "summary": "Admin Instructors Page",
-        "description": "Admin instructor list \u2014 all users with role=INSTRUCTOR.",
+        "description": "Admin instructor list — all users with role=INSTRUCTOR.",
         "operationId": "admin_instructors_page_admin_instructors_get",
         "responses": {
           "200": {
@@ -36923,7 +36923,7 @@
           "web"
         ],
         "summary": "Admin Instructor Detail Page",
-        "description": "Admin instructor detail \u2014 licenses, assignments, availability, requests.",
+        "description": "Admin instructor detail — licenses, assignments, availability, requests.",
         "operationId": "admin_instructor_detail_page_admin_instructors__instructor_id__get",
         "parameters": [
           {
@@ -37591,7 +37591,7 @@
           "web"
         ],
         "summary": "Admin Enroll Player",
-        "description": "Bulk-enroll one or more players (admin bypass \u2014 no credit deduction).",
+        "description": "Bulk-enroll one or more players (admin bypass — no credit deduction).",
         "operationId": "admin_enroll_player_admin_tournaments__tournament_id__enroll_player_post",
         "security": [
           {
@@ -37964,7 +37964,7 @@
           "web"
         ],
         "summary": "Admin Apply Fallback",
-        "description": "Apply the fallback plan \u2014 reassign sessions + update parallel_fields.",
+        "description": "Apply the fallback plan — reassign sessions + update parallel_fields.",
         "operationId": "admin_apply_fallback_admin_tournaments__tournament_id__apply_fallback_post",
         "parameters": [
           {
@@ -38315,7 +38315,7 @@
           "events"
         ],
         "summary": "Events Hub",
-        "description": "Events hub \u2014 navigation hub for Camps, Tournaments, Academy Season, Mini Season.",
+        "description": "Events hub — navigation hub for Camps, Tournaments, Academy Season, Mini Season.",
         "operationId": "events_hub_events_get",
         "responses": {
           "200": {
@@ -38338,7 +38338,7 @@
           "adaptive-learning"
         ],
         "summary": "Adaptive Learning Page",
-        "description": "Adaptive Learning entry point \u2014 XP summary + disabled CTA until full engine lands.",
+        "description": "Adaptive Learning entry point — XP summary + disabled CTA until full engine lands.",
         "operationId": "adaptive_learning_page_adaptive_learning_get",
         "responses": {
           "200": {
@@ -38510,7 +38510,7 @@
           "adaptive-learning"
         ],
         "summary": "Al Session Start",
-        "description": "Start a new adaptive learning session scoped to a specific module.\n\nDecision matrix:\n  - No active session                                      \u2192 CREATE  (resumed=false)\n  - Active session, expired                               \u2192 retire  \u2192 CREATE\n  - Active session, force_new=true                        \u2192 retire  \u2192 CREATE  (previous_session_retired=true)\n  - Active session, any of lang/cat/module differs        \u2192 retire  \u2192 CREATE  (previous_session_retired=true)\n  - Active session, exact lang+cat+module match           \u2192 RESUME             (resumed=true)",
+        "description": "Start a new adaptive learning session scoped to a specific module.\n\nDecision matrix:\n  - No active session                                      → CREATE  (resumed=false)\n  - Active session, expired                               → retire  → CREATE\n  - Active session, force_new=true                        → retire  → CREATE  (previous_session_retired=true)\n  - Active session, any of lang/cat/module differs        → retire  → CREATE  (previous_session_retired=true)\n  - Active session, exact lang+cat+module match           → RESUME             (resumed=true)",
         "operationId": "al_session_start_adaptive_learning_session_start_post",
         "parameters": [
           {
@@ -38782,7 +38782,7 @@
           "training"
         ],
         "summary": "Training Hub Page",
-        "description": "Training hub \u2014 top-level entry point for all training modes.",
+        "description": "Training hub — top-level entry point for all training modes.",
         "operationId": "training_hub_page_training_get",
         "responses": {
           "200": {
@@ -38805,7 +38805,7 @@
           "virtual-training"
         ],
         "summary": "Virtual Training Hub",
-        "description": "Virtual Games hub \u2014 lists all hub-visible games (active + planned).",
+        "description": "Virtual Games hub — lists all hub-visible games (active + planned).",
         "operationId": "virtual_training_hub_virtual_training_get",
         "responses": {
           "200": {
@@ -38828,7 +38828,7 @@
           "virtual-training"
         ],
         "summary": "Virtual Training Color Reaction",
-        "description": "Color Reaction game page \u2014 instructions + Vanilla JS game loop.",
+        "description": "Color Reaction game page — instructions + Vanilla JS game loop.",
         "operationId": "virtual_training_color_reaction_virtual_training_color_reaction_get",
         "responses": {
           "200": {
@@ -39004,7 +39004,7 @@
           "virtual-training"
         ],
         "summary": "Virtual Training Go No Go",
-        "description": "Go / No-Go Reaction game page \u2014 instructions + Vanilla JS game loop.",
+        "description": "Go / No-Go Reaction game page — instructions + Vanilla JS game loop.",
         "operationId": "virtual_training_go_no_go_virtual_training_go_no_go_get",
         "responses": {
           "200": {
@@ -39092,7 +39092,7 @@
           "virtual-training"
         ],
         "summary": "Virtual Training Target Tracking",
-        "description": "Target Tracking game page \u2014 instruction + MOT arena (moving objects).",
+        "description": "Target Tracking game page — instruction + MOT arena (moving objects).",
         "operationId": "virtual_training_target_tracking_virtual_training_target_tracking_get",
         "responses": {
           "200": {
@@ -39196,7 +39196,7 @@
           "virtual-training"
         ],
         "summary": "Virtual Training History",
-        "description": "Attempt history \u2014 last 20 valid attempts across all VT games.",
+        "description": "Attempt history — last 20 valid attempts across all VT games.",
         "operationId": "virtual_training_history_virtual_training_history_get",
         "responses": {
           "200": {
@@ -39219,7 +39219,7 @@
           "virtual-training"
         ],
         "summary": "Virtual Training Memory Sequence",
-        "description": "Memory Sequence game page \u2014 instruction + 3\u00d74 grid recall game loop.",
+        "description": "Memory Sequence game page — instruction + 3×4 grid recall game loop.",
         "operationId": "virtual_training_memory_sequence_virtual_training_memory_sequence_get",
         "responses": {
           "200": {
@@ -39314,6 +39314,94 @@
             }
           }
         }
+      }
+    },
+    "/virtual-training/number-color-conflict": {
+      "get": {
+        "description": "Number-Color Conflict game page — instructions + Vanilla JS game loop.",
+        "operationId": "virtual_training_number_color_conflict_virtual_training_number_color_conflict_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training Number Color Conflict",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/number-color-conflict/result/{attempt_id}": {
+      "get": {
+        "description": "Result screen for a completed Number-Color Conflict attempt.",
+        "operationId": "virtual_training_number_color_conflict_result_virtual_training_number_color_conflict_result__attempt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "title": "Attempt Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Virtual Training Number Color Conflict Result",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/number-color-conflict/submit": {
+      "post": {
+        "description": "Record a Number-Color Conflict attempt. Returns attempt_id, xp_awarded, is_valid.",
+        "operationId": "virtual_training_number_color_conflict_submit_virtual_training_number_color_conflict_submit_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training Number Color Conflict Submit",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
       }
     },
     "/notifications": {
@@ -40204,7 +40292,7 @@
           "web"
         ],
         "summary": "Public Player Profile",
-        "description": "Public player profile page \u2014 auth-optional, social panel, card preview.",
+        "description": "Public player profile page — auth-optional, social panel, card preview.",
         "operationId": "public_player_profile_players__user_id__get",
         "parameters": [
           {
@@ -40651,7 +40739,7 @@
           "web"
         ],
         "summary": "Sd Enroll Team",
-        "description": "Enroll a club team in the tournament (SD/admin bypass \u2014 no credit cost).",
+        "description": "Enroll a club team in the tournament (SD/admin bypass — no credit cost).",
         "operationId": "sd_enroll_team_sport_director_tournaments__tournament_id__teams__team_id__enroll_post",
         "parameters": [
           {
@@ -40752,7 +40840,7 @@
           "my-cards"
         ],
         "summary": "My Cards Hub",
-        "description": "Hub page listing all card types \u2014 active (v\u22651) and coming-soon (v0).",
+        "description": "Hub page listing all card types — active (v≥1) and coming-soon (v0).",
         "operationId": "my_cards_hub_my_cards_get",
         "responses": {
           "200": {
@@ -40775,7 +40863,7 @@
           "my-cards"
         ],
         "summary": "My Cards Player Card",
-        "description": "Detail entry point for Player Card \u2014 redirects to the card editor.",
+        "description": "Detail entry point for Player Card — redirects to the card editor.",
         "operationId": "my_cards_player_card_my_cards_player_card_get",
         "responses": {
           "200": {
@@ -40796,7 +40884,7 @@
           "my-cards"
         ],
         "summary": "My Cards Welcome Card",
-        "description": "Detail entry point for Welcome Card \u2014 redirects to the onboarding card.",
+        "description": "Detail entry point for Welcome Card — redirects to the onboarding card.",
         "operationId": "my_cards_welcome_card_my_cards_welcome_card_get",
         "responses": {
           "200": {
@@ -40858,7 +40946,7 @@
           "web"
         ],
         "summary": "Send Friend Request By Identifier",
-        "description": "Add Friend form \u2014 looks up target by email or nickname, then delegates.",
+        "description": "Add Friend form — looks up target by email or nickname, then delegates.",
         "operationId": "send_friend_request_by_identifier_friends_send_post",
         "requestBody": {
           "content": {
@@ -43330,7 +43418,7 @@
             "type": "string",
             "title": "Icon",
             "description": "Badge emoji icon",
-            "default": "\ud83c\udfc6"
+            "default": "🏆"
           },
           "title": {
             "type": "string",
@@ -43393,7 +43481,7 @@
           },
           "description": "Won 1st place in {tournament_name}",
           "enabled": true,
-          "icon": "\ud83e\udd47",
+          "icon": "🥇",
           "rarity": "EPIC",
           "title": "Champion"
         }
@@ -43408,7 +43496,7 @@
             "maxItems": 1024,
             "minItems": 1,
             "title": "Players",
-            "description": "List of players to create (1\u20131024 per call)"
+            "description": "List of players to create (1–1024 per call)"
           },
           "specialization": {
             "type": "string",
@@ -47470,7 +47558,7 @@
         "title": "CompetitionRecord",
         "description": "Request body for recording a competition result",
         "example": {
-          "competition_name": "Budapest G\u0101nCuju Championship",
+          "competition_name": "Budapest GānCuju Championship",
           "notes": "Final score: 3-1",
           "opponent": "Team Alpha",
           "won": true
@@ -48198,7 +48286,7 @@
           "can_confirm"
         ],
         "title": "EnrollmentPriorityResponse",
-        "description": "Rangsorol\u00e1si inform\u00e1ci\u00f3k"
+        "description": "Rangsorolási információk"
       },
       "EnrollmentRejection": {
         "properties": {
@@ -49085,7 +49173,7 @@
           "teacher"
         ],
         "title": "GanCujuCharacterType",
-        "description": "Character path selection for G\u0101nCuju specialization"
+        "description": "Character path selection for GānCuju specialization"
       },
       "GanCujuMotivation": {
         "properties": {
@@ -49099,7 +49187,7 @@
           "character_type"
         ],
         "title": "GanCujuMotivation",
-        "description": "G\u0101nCuju character type selection\n\nDetermines student's focus:\n- Warrior: Competition-focused, winning mindset\n- Teacher: Knowledge transfer, teaching others"
+        "description": "GānCuju character type selection\n\nDetermines student's focus:\n- Warrior: Competition-focused, winning mindset\n- Teacher: Knowledge transfer, teaching others"
       },
       "GeneratedSemesterInfo": {
         "properties": {
@@ -53008,7 +53096,7 @@
             "maximum": 1024.0,
             "minimum": 0.0,
             "title": "Player Count",
-            "description": "Number of players to seed + enroll (0\u20131024). Use 0 for testing enrollment workflows.",
+            "description": "Number of players to seed + enroll (0–1024). Use 0 for testing enrollment workflows.",
             "default": 1024
           },
           "max_players": {
@@ -53141,7 +53229,7 @@
               "accelerated"
             ],
             "title": "Simulation Mode",
-            "description": "Controls result auto-simulation: 'manual' \u2014 sessions created, no auto-simulation (observe live); 'auto_immediate' \u2014 results simulated but lifecycle not completed; 'accelerated' \u2014 full lifecycle completed synchronously (default).",
+            "description": "Controls result auto-simulation: 'manual' — sessions created, no auto-simulation (observe live); 'auto_immediate' — results simulated but lifecycle not completed; 'accelerated' — full lifecycle completed synchronously (default).",
             "default": "accelerated"
           },
           "game_preset_id": {
@@ -53154,7 +53242,7 @@
               }
             ],
             "title": "Game Preset Id",
-            "description": "Game preset ID (e.g., G\u0101nFootvolley=1). When provided, skills and game config are auto-synced from the preset. Overrides the default hardcoded skill list."
+            "description": "Game preset ID (e.g., GānFootvolley=1). When provided, skills and game config are auto-synced from the preset. Overrides the default hardcoded skill list."
           },
           "reward_config": {
             "anyOf": [
@@ -53180,7 +53268,7 @@
               }
             ],
             "title": "Number Of Rounds",
-            "description": "Number of rounds for INDIVIDUAL_RANKING tournaments (1\u201320). Defaults to 1 if omitted."
+            "description": "Number of rounds for INDIVIDUAL_RANKING tournaments (1–20). Defaults to 1 if omitted."
           },
           "player_ids": {
             "anyOf": [
@@ -53195,7 +53283,7 @@
               }
             ],
             "title": "Player Ids",
-            "description": "Explicit list of user IDs to enroll. When provided, overrides player_count and skips the @lfa-seed.hu pool lookup \u2014 any active users can be selected. player_count is ignored when player_ids is set."
+            "description": "Explicit list of user IDs to enroll. When provided, overrides player_count and skips the @lfa-seed.hu pool lookup — any active users can be selected. player_count is ignored when player_ids is set."
           },
           "campus_ids": {
             "items": {
@@ -53204,7 +53292,7 @@
             "type": "array",
             "minItems": 1,
             "title": "Campus Ids",
-            "description": "Explicit campus IDs for session distribution (required, min 1). Sessions are assigned round-robin across the provided campus IDs. Auto-discovery is disabled \u2014 campuses must be specified explicitly."
+            "description": "Explicit campus IDs for session distribution (required, min 1). Sessions are assigned round-robin across the provided campus IDs. Auto-discovery is disabled — campuses must be specified explicitly."
           },
           "participant_type": {
             "type": "string",
@@ -53213,7 +53301,7 @@
               "TEAM"
             ],
             "title": "Participant Type",
-            "description": "Participant type for the tournament. 'INDIVIDUAL' (default): players enroll and compete as individuals. 'TEAM': teams enroll as units \u2014 requires tournament_format='HEAD_TO_HEAD' and simulation_mode='manual' (TEAM auto-simulation is not implemented). 'MIXED' is not supported via the ops endpoint.",
+            "description": "Participant type for the tournament. 'INDIVIDUAL' (default): players enroll and compete as individuals. 'TEAM': teams enroll as units — requires tournament_format='HEAD_TO_HEAD' and simulation_mode='manual' (TEAM auto-simulation is not implemented). 'MIXED' is not supported via the ops endpoint.",
             "default": "INDIVIDUAL"
           },
           "auto_generate_sessions": {
@@ -53622,7 +53710,7 @@
             {
               "badge_type": "CHAMPION",
               "enabled": true,
-              "icon": "\ud83e\udd47",
+              "icon": "🥇",
               "rarity": "EPIC",
               "title": "Champion"
             }
@@ -58413,7 +58501,7 @@
               }
             ],
             "title": "Campus Ids",
-            "description": "Explicit list of campus IDs for multi-venue group_knockout tournaments. Admin: multiple campuses allowed. Instructor: exactly 1 campus allowed \u2014 request is rejected if more than 1 ID is provided."
+            "description": "Explicit list of campus IDs for multi-venue group_knockout tournaments. Admin: multiple campuses allowed. Instructor: exactly 1 campus allowed — request is rejected if more than 1 ID is provided."
           },
           "campus_schedule_overrides": {
             "anyOf": [
@@ -58522,7 +58610,7 @@
               }
             ],
             "title": "Skill Targets",
-            "description": "Map of skill_key \u2192 weight. NULL = inherit from session game_preset at result time. All weights must be > 0."
+            "description": "Map of skill_key → weight. NULL = inherit from session game_preset at result time. All weights must be > 0."
           }
         },
         "type": "object",
@@ -58678,7 +58766,7 @@
         },
         "type": "object",
         "title": "SessionSegmentUpdate",
-        "description": "Partial update schema for a session segment.\n\nAll fields are optional \u2014 omit a field to leave it unchanged.\n``null`` is valid only for ``duration_minutes`` and ``skill_targets``\n(it clears the field); ``label``, ``position``, and ``is_active``\nreject explicit null.  An empty body ``{}`` is rejected with 422."
+        "description": "Partial update schema for a session segment.\n\nAll fields are optional — omit a field to leave it unchanged.\n``null`` is valid only for ``duration_minutes`` and ``skill_targets``\n(it clears the field); ``label``, ``position``, and ``is_active``\nreject explicit null.  An empty body ``{}`` is rejected with 422."
       },
       "SessionSummaryResponse": {
         "properties": {
@@ -59315,7 +59403,7 @@
           "ema_path"
         ],
         "title": "SkillAuditRow",
-        "description": "One audit row: one tournament \u00d7 one mapped skill"
+        "description": "One audit row: one tournament × one mapped skill"
       },
       "SkillData": {
         "properties": {
@@ -59654,7 +59742,7 @@
           "LFA_PLAYER_PRO_ACADEMY"
         ],
         "title": "SpecializationType",
-        "description": "Specialization types for users and semesters/seasons\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n4 USER LICENSE TYPES (what users can BE in user_licenses table):\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n- LFA_COACH: Coach license (8 levels, teaches players/coaches)\n- LFA_FOOTBALL_PLAYER: Player license (8 levels, ONE unified specialization)\n- GANCUJU_PLAYER: G\u0101nCuju player (8 belt system)\n- INTERNSHIP: Internship program (3 levels)\n\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n11 SEMESTER/SEASON TYPES (what semesters teach - semesters table ONLY):\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n- LFA_PLAYER_PRE: Mini Seasons for PRE age group (5-13 years, monthly M01-M12) - SEASON TYPE ONLY\n- LFA_PLAYER_YOUTH: Mini Seasons for YOUTH age group (14-18 years, quarterly Q1-Q4) - SEASON TYPE ONLY\n- LFA_PLAYER_AMATEUR: Mini Seasons for AMATEUR age group (14+ years, quarterly Q1-Q4) - SEASON TYPE ONLY\n- LFA_PLAYER_PRO: Mini Seasons for PRO age group (14+ years, quarterly Q1-Q4) - SEASON TYPE ONLY\n- LFA_PLAYER_PRE_ACADEMY: Academy Season for PRE (5-13 years, full year Jul-Jun) - SEASON TYPE ONLY\n- LFA_PLAYER_YOUTH_ACADEMY: Academy Season for YOUTH (14-18 years, full year Jul-Jun) - SEASON TYPE ONLY\n- LFA_PLAYER_AMATEUR_ACADEMY: Academy Season for AMATEUR (14+ years, full year Jul-Jun) - SEASON TYPE ONLY\n- LFA_PLAYER_PRO_ACADEMY: Academy Season for PRO (14+ years, full year Jul-Jun) - SEASON TYPE ONLY\n- GANCUJU_PLAYER: Also used for seasons\n- LFA_COACH: Also used for seasons\n- INTERNSHIP: Also used for seasons\n\n\u26a0\ufe0f CRITICAL RULES:\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n1. Users can ONLY have these in user_licenses.specialization_type:\n   - LFA_COACH\n   - LFA_FOOTBALL_PLAYER (NOT PRE/YOUTH/AMATEUR/PRO!)\n   - GANCUJU_PLAYER\n   - INTERNSHIP\n\n2. Semesters can have these in semesters.specialization_type:\n   - LFA_PLAYER_PRE/YOUTH/AMATEUR/PRO (for age-specific semesters)\n   - LFA_FOOTBALL_PLAYER (for tournaments/general sessions)\n   - LFA_COACH, GANCUJU_PLAYER, INTERNSHIP\n\n3. Age groups (PRE/YOUTH/AMATEUR/PRO) are determined by:\n   - User's age AT SEASON START (July 1)\n   - Season lock: stays fixed for entire season (July 1 - June 30)\n   - Follows international football practice"
+        "description": "Specialization types for users and semesters/seasons\n\n═══════════════════════════════════════════════════════════════════════════\n4 USER LICENSE TYPES (what users can BE in user_licenses table):\n═══════════════════════════════════════════════════════════════════════════\n- LFA_COACH: Coach license (8 levels, teaches players/coaches)\n- LFA_FOOTBALL_PLAYER: Player license (8 levels, ONE unified specialization)\n- GANCUJU_PLAYER: GānCuju player (8 belt system)\n- INTERNSHIP: Internship program (3 levels)\n\n═══════════════════════════════════════════════════════════════════════════\n11 SEMESTER/SEASON TYPES (what semesters teach - semesters table ONLY):\n═══════════════════════════════════════════════════════════════════════════\n- LFA_PLAYER_PRE: Mini Seasons for PRE age group (5-13 years, monthly M01-M12) - SEASON TYPE ONLY\n- LFA_PLAYER_YOUTH: Mini Seasons for YOUTH age group (14-18 years, quarterly Q1-Q4) - SEASON TYPE ONLY\n- LFA_PLAYER_AMATEUR: Mini Seasons for AMATEUR age group (14+ years, quarterly Q1-Q4) - SEASON TYPE ONLY\n- LFA_PLAYER_PRO: Mini Seasons for PRO age group (14+ years, quarterly Q1-Q4) - SEASON TYPE ONLY\n- LFA_PLAYER_PRE_ACADEMY: Academy Season for PRE (5-13 years, full year Jul-Jun) - SEASON TYPE ONLY\n- LFA_PLAYER_YOUTH_ACADEMY: Academy Season for YOUTH (14-18 years, full year Jul-Jun) - SEASON TYPE ONLY\n- LFA_PLAYER_AMATEUR_ACADEMY: Academy Season for AMATEUR (14+ years, full year Jul-Jun) - SEASON TYPE ONLY\n- LFA_PLAYER_PRO_ACADEMY: Academy Season for PRO (14+ years, full year Jul-Jun) - SEASON TYPE ONLY\n- GANCUJU_PLAYER: Also used for seasons\n- LFA_COACH: Also used for seasons\n- INTERNSHIP: Also used for seasons\n\n⚠️ CRITICAL RULES:\n═══════════════════════════════════════════════════════════════════════════\n1. Users can ONLY have these in user_licenses.specialization_type:\n   - LFA_COACH\n   - LFA_FOOTBALL_PLAYER (NOT PRE/YOUTH/AMATEUR/PRO!)\n   - GANCUJU_PLAYER\n   - INTERNSHIP\n\n2. Semesters can have these in semesters.specialization_type:\n   - LFA_PLAYER_PRE/YOUTH/AMATEUR/PRO (for age-specific semesters)\n   - LFA_FOOTBALL_PLAYER (for tournaments/general sessions)\n   - LFA_COACH, GANCUJU_PLAYER, INTERNSHIP\n\n3. Age groups (PRE/YOUTH/AMATEUR/PRO) are determined by:\n   - User's age AT SEASON START (July 1)\n   - Season lock: stays fixed for entire season (July 1 - June 30)\n   - Follows international football practice"
       },
       "StartSessionRequest": {
         "properties": {
@@ -60172,7 +60260,7 @@
         "description": "Request body for recording teaching hours",
         "example": {
           "hours": 3,
-          "session_description": "Taught beginner class on basic G\u0101nCuju techniques"
+          "session_description": "Taught beginner class on basic GānCuju techniques"
         }
       },
       "TeachingHoursResponse": {
@@ -60744,7 +60832,7 @@
         },
         "type": "object",
         "title": "TournamentRewardConfig",
-        "description": "Complete reward configuration for a tournament.\n\nThis schema defines:\n- Skill mappings (which skills earn points)\n- Badge configurations (placement-based and conditional)\n- Credit bonuses per placement\n- XP multipliers\n\n\u26a0\ufe0f IMPORTANT: Skills must be explicitly enabled per tournament.\nAt least 1 skill must be enabled, or validation fails.",
+        "description": "Complete reward configuration for a tournament.\n\nThis schema defines:\n- Skill mappings (which skills earn points)\n- Badge configurations (placement-based and conditional)\n- Credit bonuses per placement\n- XP multipliers\n\n⚠️ IMPORTANT: Skills must be explicitly enabled per tournament.\nAt least 1 skill must be enabled, or validation fails.",
         "example": {
           "custom_config": false,
           "first_place": {
@@ -60752,7 +60840,7 @@
               {
                 "badge_type": "CHAMPION",
                 "enabled": true,
-                "icon": "\ud83e\udd47",
+                "icon": "🥇",
                 "rarity": "EPIC",
                 "title": "Champion"
               }
@@ -61114,7 +61202,7 @@
               }
             ],
             "title": "Tournament Type Id",
-            "description": "Tournament type ID (\u26a0\ufe0f WARNING: Can only change if no sessions generated)"
+            "description": "Tournament type ID (⚠️ WARNING: Can only change if no sessions generated)"
           },
           "tournament_status": {
             "anyOf": [
@@ -61126,7 +61214,7 @@
               }
             ],
             "title": "Tournament Status",
-            "description": "Tournament status (\u26a0\ufe0f ADMIN OVERRIDE: Bypasses state machine validation)"
+            "description": "Tournament status (⚠️ ADMIN OVERRIDE: Bypasses state machine validation)"
           },
           "format": {
             "anyOf": [
@@ -61188,7 +61276,7 @@
               }
             ],
             "title": "Number Of Rounds",
-            "description": "Number of rounds for INDIVIDUAL_RANKING tournaments (\u26a0\ufe0f WARNING: Triggers session regeneration if changed)"
+            "description": "Number of rounds for INDIVIDUAL_RANKING tournaments (⚠️ WARNING: Triggers session regeneration if changed)"
           },
           "campus_id": {
             "anyOf": [
@@ -64010,7 +64098,7 @@
         },
         "type": "object",
         "title": "LicenseCreate",
-        "description": "Request body for creating a new G\u0101nCuju license",
+        "description": "Request body for creating a new GānCuju license",
         "example": {
           "starting_level": 1
         }
@@ -64091,7 +64179,7 @@
           "updated_at"
         ],
         "title": "LicenseResponse",
-        "description": "Response model for G\u0101nCuju license data",
+        "description": "Response model for GānCuju license data",
         "example": {
           "competitions_entered": 10,
           "competitions_won": 7,
@@ -64647,7 +64735,7 @@
           "age_group"
         ],
         "title": "LicenseCreate",
-        "description": "Request to create LFA Player license \u2014 kept for schema compat, endpoint is deprecated"
+        "description": "Request to create LFA Player license — kept for schema compat, endpoint is deprecated"
       },
       "app__api__api_v1__endpoints__lfa_player__licenses__LicenseResponse": {
         "properties": {
@@ -64882,7 +64970,7 @@
             "type": "array",
             "maxItems": 20,
             "title": "Skills To Test",
-            "description": "Skills to develop in this tournament (weight=1.0 each). Optional if game_preset_id is provided \u2014 the preset's skills_tested and weights are used automatically."
+            "description": "Skills to develop in this tournament (weight=1.0 each). Optional if game_preset_id is provided — the preset's skills_tested and weights are used automatically."
           },
           "reward_config": {
             "items": {
@@ -64903,7 +64991,7 @@
               }
             ],
             "title": "Game Preset Id",
-            "description": "Game preset ID (e.g., G\u0101nFootvolley=1, G\u0101nFoottennis=2). When provided, the preset's skills_tested and skill_weights are automatically synced to tournament_skill_mappings with converted reactivity multipliers. Takes priority over skills_to_test."
+            "description": "Game preset ID (e.g., GānFootvolley=1, GānFoottennis=2). When provided, the preset's skills_tested and skill_weights are automatically synced to tournament_skill_mappings with converted reactivity multipliers. Takes priority over skills_to_test."
           },
           "game_config": {
             "anyOf": [
@@ -65201,6 +65289,94 @@
       "HTTPBearer": {
         "type": "http",
         "scheme": "bearer"
+      }
+    },
+    "/virtual-training/number-color-conflict": {
+      "get": {
+        "description": "Number-Color Conflict game page — instructions + Vanilla JS game loop.",
+        "operationId": "virtual_training_number_color_conflict_virtual_training_number_color_conflict_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training Number Color Conflict",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/number-color-conflict/result/{attempt_id}": {
+      "get": {
+        "description": "Result screen for a completed Number-Color Conflict attempt.",
+        "operationId": "virtual_training_number_color_conflict_result_virtual_training_number_color_conflict_result__attempt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "title": "Attempt Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Virtual Training Number Color Conflict Result",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
+      }
+    },
+    "/virtual-training/number-color-conflict/submit": {
+      "post": {
+        "description": "Record a Number-Color Conflict attempt. Returns attempt_id, xp_awarded, is_valid.",
+        "operationId": "virtual_training_number_color_conflict_submit_virtual_training_number_color_conflict_submit_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Virtual Training Number Color Conflict Submit",
+        "tags": [
+          "web",
+          "virtual-training"
+        ]
       }
     }
   }
