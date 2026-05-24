@@ -153,6 +153,20 @@ async def public_player_profile(
     parts    = (user.name or user.email).split()
     initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
 
+    # Card variant context for profile layout (variant-aware sizing, no route change)
+    from app.services.card_draft_service import CardDraftService as _CardDraftSvc
+    _profile_draft = _CardDraftSvc.get_player_card_draft(db, user_id=lfa_license.user_id)
+    card_variant_id = (
+        _profile_draft.published_variant
+        or lfa_license.published_card_variant
+        or "fifa"
+    )
+    _LANDSCAPE_VARIANTS = frozenset({"showcase", "showcase_bg"})
+    _NARROW_VARIANTS    = frozenset({"compact", "compact_bg"})
+    card_is_landscape   = card_variant_id in _LANDSCAPE_VARIANTS
+    card_native_w       = 720 if card_is_landscape else (520 if card_variant_id in _NARROW_VARIANTS else 820)
+    card_native_h       = 405 if card_is_landscape else 1080
+
     return templates.TemplateResponse(request, "public/player_profile.html", {
         "profile_user":    user,
         "lfa_license":     lfa_license,
@@ -167,6 +181,10 @@ async def public_player_profile(
         "friendship_panel": friendship_panel,
         "initials":        initials,
         "photo_url":       lfa_license.player_card_photo_url,
+        "card_variant_id":  card_variant_id,
+        "card_is_landscape": card_is_landscape,
+        "card_native_w":    card_native_w,
+        "card_native_h":    card_native_h,
     })
 
 

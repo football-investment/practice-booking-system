@@ -1,4 +1,4 @@
-"""PSP-01..PSP-14 — Public Player Profile page + cancel / next= social actions.
+"""PSP-01..PSP-22 — Public Player Profile page + cancel / next= social actions.
 
 PSP-01  Anonymous user gets 200, friendship_panel state=anonymous
 PSP-02  Logged-in user views own profile → state=own_profile
@@ -14,6 +14,14 @@ PSP-11  POST /friends/cancel/{id} — non-PENDING row → error redirect
 PSP-12  next= param — /players/ prefix accepted in cancel
 PSP-13  next= param — /friends prefix accepted in accept
 PSP-14  next= param — external URL falls back to default /friends
+PSP-15  Portrait variant (fifa) → card_is_landscape=False, card_native_w=820, card_native_h=1080
+PSP-16  Landscape variant (showcase) → card_is_landscape=True, card_native_w=720, card_native_h=405
+PSP-17  Unknown variant → fallback portrait defaults (is_landscape=False, native_w=820)
+PSP-18  Narrow variant (compact) → card_native_w=520
+PSP-19  Template: psp-showcase-grid class present
+PSP-20  Template: data-card-w and data-card-h attributes present
+PSP-21  Template: Left rail Gallery placeholder present
+PSP-22  Template: Right rail Highlight Video placeholder present
 """
 from __future__ import annotations
 
@@ -25,10 +33,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.models.friendship import FriendshipStatus, get_friendship_panel_ctx
 
-_BASE_PP  = "app.api.web_routes.public_player"
-_BASE_FR  = "app.api.web_routes.friends"
-_SKILL_SVC = "app.services.skill_progression_service"
+_BASE_PP    = "app.api.web_routes.public_player"
+_BASE_FR    = "app.api.web_routes.friends"
+_SKILL_SVC  = "app.services.skill_progression_service"
 _FRIEND_MOD = "app.models.friendship"
+_DRAFT_SVC  = "app.services.card_draft_service.CardDraftService"
 
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -107,15 +116,19 @@ _PANEL_RECEIVED   = {"state": "pending_received",  "friendship_id": 10,   "can_a
 
 class TestPublicPlayerProfile:
 
-    def _call(self, user=None, license=None, current_user=None, panel=None):
+    def _call(self, user=None, license=None, current_user=None, panel=None,
+              draft_variant="fifa"):
         from app.api.web_routes.public_player import public_player_profile
         profile_user = user or _user(uid=2)
         lic          = license or _license(user_id=2)
         db           = _profile_db(user=profile_user, license=lic)
         _panel       = panel if panel is not None else _PANEL_NONE
+        _draft       = MagicMock()
+        _draft.published_variant = draft_variant
         with patch(f"{_BASE_PP}.templates") as mock_tmpl, \
              patch(f"{_SKILL_SVC}.get_skill_profile", return_value={"average_level": 65.0, "skills": {}, "total_tournaments": 3}), \
-             patch(f"{_FRIEND_MOD}.get_friendship_panel_ctx", return_value=_panel):
+             patch(f"{_FRIEND_MOD}.get_friendship_panel_ctx", return_value=_panel), \
+             patch(f"{_DRAFT_SVC}.get_player_card_draft", return_value=_draft):
             result = _run(public_player_profile(
                 request=_req(), user_id=profile_user.id, db=db, current_user=current_user,
             ))
@@ -359,3 +372,93 @@ class TestGetFriendshipPanelCtx:
         assert ctx["can_add"] is False
         assert ctx["can_cancel"] is False
         assert ctx["can_remove"] is False
+
+
+# ── PSP-15..PSP-18: card variant context ──────────────────────────────────────
+
+class TestProfileVariantContext:
+    """Variant-aware card sizing context injected by GET /players/{user_id}."""
+
+    def _call_variant(self, draft_variant, license_variant=None):
+        from app.api.web_routes.public_player import public_player_profile
+        profile_user = _user(uid=2)
+        lic = _license(user_id=2)
+        lic.published_card_variant = license_variant
+        db  = _profile_db(user=profile_user, license=lic)
+        _draft = MagicMock()
+        _draft.published_variant = draft_variant
+        with patch(f"{_BASE_PP}.templates") as mock_tmpl, \
+             patch(f"{_SKILL_SVC}.get_skill_profile", return_value={"average_level": 65.0, "skills": {}, "total_tournaments": 3}), \
+             patch(f"{_FRIEND_MOD}.get_friendship_panel_ctx", return_value=_PANEL_NONE), \
+             patch(f"{_DRAFT_SVC}.get_player_card_draft", return_value=_draft):
+            _run(public_player_profile(request=_req(), user_id=2, db=db, current_user=None))
+            ctx = mock_tmpl.TemplateResponse.call_args
+        return ctx[0][2] if ctx else ctx.args[2]
+
+    # PSP-15 — portrait (fifa): is_landscape=False, native_w=820, native_h=1080
+    def test_psp15_portrait_fifa_context(self):
+        ctx = self._call_variant("fifa")
+        assert ctx["card_variant_id"] == "fifa"
+        assert ctx["card_is_landscape"] is False
+        assert ctx["card_native_w"] == 820
+        assert ctx["card_native_h"] == 1080
+
+    # PSP-16 — landscape (showcase): is_landscape=True, native_w=720, native_h=405
+    def test_psp16_showcase_landscape_context(self):
+        ctx = self._call_variant("showcase")
+        assert ctx["card_variant_id"] == "showcase"
+        assert ctx["card_is_landscape"] is True
+        assert ctx["card_native_w"] == 720
+        assert ctx["card_native_h"] == 405
+
+    # PSP-17 — unknown variant: fallback to portrait defaults
+    def test_psp17_unknown_variant_fallback_portrait(self):
+        ctx = self._call_variant("unknown_xyz")
+        assert ctx["card_is_landscape"] is False
+        assert ctx["card_native_w"] == 820
+        assert ctx["card_native_h"] == 1080
+
+    # PSP-18 — narrow variant (compact): native_w=520
+    def test_psp18_compact_narrow_width(self):
+        ctx = self._call_variant("compact")
+        assert ctx["card_is_landscape"] is False
+        assert ctx["card_native_w"] == 520
+        assert ctx["card_native_h"] == 1080
+
+
+# ── PSP-19..PSP-22: template structural assertions ────────────────────────────
+
+import os as _os
+
+class TestProfileLayoutTemplate:
+    """Structural string assertions on the rendered template source."""
+
+    _TEMPLATE_PATH = _os.path.normpath(_os.path.join(
+        _os.path.dirname(__file__),
+        "..", "..", "..", "..",
+        "app", "templates", "public", "player_profile.html",
+    ))
+
+    def _html(self):
+        with open(self._TEMPLATE_PATH, encoding="utf-8") as f:
+            return f.read()
+
+    # PSP-19 — grid class present
+    def test_psp19_showcase_grid_class(self):
+        assert "psp-showcase-grid" in self._html()
+
+    # PSP-20 — data-card-w and data-card-h template variables present
+    def test_psp20_card_data_attrs(self):
+        html = self._html()
+        assert 'data-card-w="{{ card_native_w }}"' in html
+        assert 'data-card-h="{{ card_native_h }}"' in html
+
+    # PSP-21 — left rail Gallery placeholder present
+    def test_psp21_left_gallery_placeholder(self):
+        html = self._html()
+        assert "Gallery" in html
+        assert "Coming Soon" in html
+
+    # PSP-22 — right rail Highlight Video placeholder present
+    def test_psp22_right_highlight_video_placeholder(self):
+        assert "Highlight Video" in self._html()
