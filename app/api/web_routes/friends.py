@@ -39,7 +39,7 @@ from ...models.notification import NotificationType
 from ...models.user import User
 from ...services import notification_service
 
-BASE_DIR  = pathlib.Path(__file__).resolve().parents[3]
+BASE_DIR  = pathlib.Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter()
