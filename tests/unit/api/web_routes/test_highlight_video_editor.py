@@ -127,13 +127,18 @@ class TestInvalidUrls:
         assert draft.draft_data is None, "draft_data must not be modified on error"
         db.commit.assert_not_called()
 
-    def test_hve_05_tiktok_url_rejected(self):
-        """HVE-05: TikTok URL raises ValueError (only YouTube accepted)."""
+    def test_hve_05_tiktok_short_url_rejected(self):
+        """HVE-05: TikTok short URL (vm.tiktok.com) raises ValueError.
+
+        Phase 1 rejected all TikTok URLs. Phase 2 accepts canonical TikTok URLs
+        (tiktok.com/@user/video/{id}) but still rejects short-form URLs that
+        would require a backend redirect to resolve.
+        """
         draft = _draft(draft_data=None)
         db = _db()
         with pytest.raises(ValueError):
             CardDraftService.update_draft_highlight_video(
-                db, draft, "https://www.tiktok.com/@user/video/1234567890123456789"
+                db, draft, "https://vm.tiktok.com/ZMeABCDEF/"
             )
         assert draft.draft_data is None
 

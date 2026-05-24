@@ -512,6 +512,31 @@
 .hv-badge-pending   { background: rgba(255,100,0,0.18);  color: #ff8c00; }
 .hv-badge-will-remove { background: rgba(220,53,69,0.18); color: #dc3545; }
 .hv-error { color: #ff6b6b; font-size: 12px; margin-top: 6px; }
+.hv-tiktok-cta {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.hv-tiktok-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+}
+.hv-tiktok-link {
+    color: #a78bfa;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+}
+.hv-tiktok-link:hover { text-decoration: underline; }
+.hv-tiktok-id { font-size: 11px; color: rgba(255,255,255,0.35); font-family: monospace; }
 
 /* ── RIGHT: Preview area ─────────────────────────────────────────────────────── */
 .ce-preview-area {
@@ -1001,7 +1026,7 @@
                         <div id="hv-no-video">
                             <div class="hv-url-row">
                                 <input id="hv-url-input" class="hv-url-input" type="url"
-                                       placeholder="https://www.youtube.com/watch?v=..."
+                                       placeholder="Paste YouTube or TikTok video link"
                                        oninput="document.getElementById('hv-error').textContent=''">
                                 <button class="btn-hv-save" onclick="saveHighlightVideo()">Save Draft</button>
                             </div>
@@ -1011,6 +1036,7 @@
                         {# State 2 / 3 / 4 / 5 — draft video exists #}
                         {% else %}
                         <div id="hv-has-video">
+                            {% if draft_highlight_video.provider == "youtube" %}
                             <div class="hv-preview-wrap">
                                 <iframe id="hv-iframe"
                                         src="{{ draft_highlight_video.embed_url }}"
@@ -1018,6 +1044,16 @@
                                         allowfullscreen
                                         loading="lazy"></iframe>
                             </div>
+                            {% else %}
+                            {# TikTok — link-only preview (no iframe, no script) #}
+                            <div class="hv-tiktok-cta">
+                                <span class="hv-tiktok-badge">TikTok</span>
+                                <a href="{{ draft_highlight_video.source_url }}"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="hv-tiktok-link">Watch on TikTok ↗</a>
+                                <div class="hv-tiktok-id">ID: {{ draft_highlight_video.video_id }}</div>
+                            </div>
+                            {% endif %}
 
                             {% if not published_highlight_video %}
                                 {# State 2: draft saved, never published #}
@@ -1033,7 +1069,7 @@
                             <div class="hv-url-row" style="margin-top:10px;">
                                 <input id="hv-url-input" class="hv-url-input" type="url"
                                        value="{{ draft_highlight_video.source_url }}"
-                                       placeholder="https://www.youtube.com/watch?v=..."
+                                       placeholder="Paste YouTube or TikTok video link"
                                        oninput="document.getElementById('hv-error').textContent=''">
                                 <button class="btn-hv-save" onclick="saveHighlightVideo()">Update</button>
                             </div>
@@ -1574,7 +1610,7 @@ async function saveHighlightVideo() {
     const errEl = document.getElementById('hv-error');
     if (!input) return;
     const video_url = input.value.trim();
-    if (!video_url) { if (errEl) errEl.textContent = 'Please enter a YouTube URL.'; return; }
+    if (!video_url) { if (errEl) errEl.textContent = 'Please enter a YouTube or TikTok video link.'; return; }
     if (errEl) errEl.textContent = '';
     try {
         const r = await fetch('/dashboard/lfa-football-player/card-editor/media/highlight-video', {
@@ -1585,7 +1621,7 @@ async function saveHighlightVideo() {
         const data = await r.json();
         if (r.status === 403) { alert('Session expired — reloading page.'); location.reload(); return; }
         if (!data.ok) {
-            if (errEl) errEl.textContent = data.error || 'Invalid URL. Only YouTube URLs are accepted.';
+            if (errEl) errEl.textContent = data.error || 'Invalid URL. Paste a YouTube or TikTok video link.';
             return;
         }
         _updateHvAfterSave(data);
@@ -1602,16 +1638,18 @@ function _updateHvAfterSave(data) {
         return;
     }
     if (hasVideoDiv) {
-        // Already showing preview — update iframe src and badge.
+        if (!data.embed_url) {
+            // TikTok (link-only) — reload so Jinja2 renders the CTA box correctly.
+            location.reload();
+            return;
+        }
+        // YouTube — update iframe src in-place.
         const iframe = document.getElementById('hv-iframe');
-        if (iframe && data.embed_url) iframe.src = data.embed_url;
-        // Update badge to "draft saved / unpublished"
+        if (iframe) iframe.src = data.embed_url;
         const badges = hasVideoDiv.querySelectorAll('.hv-badge');
         badges.forEach(b => { b.className = 'hv-badge hv-badge-draft'; b.textContent = 'Draft saved — not yet published'; });
-        // Remove "will be removed" notice if present
         const willRemove = document.getElementById('hv-will-remove-notice');
         if (willRemove) willRemove.style.display = 'none';
-        // Mark overall card as having unpublished HV changes → enables Publish Card button.
         _hvUnpublished = true;
         _updatePublishIndicator();
     }

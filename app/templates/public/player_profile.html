@@ -167,6 +167,34 @@
 }
 .psp-video-provider a { color: #6b7280; text-decoration: none; }
 .psp-video-provider a:hover { color: #374151; }
+.psp-tiktok-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.25rem 1rem;
+    background: #f9fafb;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+    text-decoration: none;
+    color: inherit;
+    width: 100%;
+    box-sizing: border-box;
+}
+.psp-tiktok-cta:hover { background: #f3f4f6; }
+.psp-tiktok-provider {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #9ca3af;
+}
+.psp-tiktok-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+}
 
 /* ── Card slot — viewport-aware max-height ─────────────────────────────────── */
 .psp-card-slot {
@@ -456,6 +484,7 @@
         <div class="psp-module">
             <div class="psp-module-head">Highlight Video</div>
             {% if highlight_video %}
+            {% if highlight_video.provider == "youtube" %}
             <div class="psp-video-wrapper">
                 <iframe
                     src="{{ highlight_video.embed_url }}"
@@ -470,6 +499,15 @@
                 <span>YouTube</span>
                 <a href="{{ highlight_video.watch_url }}" target="_blank" rel="noopener noreferrer">↗ Open</a>
             </div>
+            {% elif highlight_video.provider == "tiktok" and highlight_video.watch_url %}
+            {# TikTok — link-only CTA (no iframe, no script, no CSP change) #}
+            <a href="{{ highlight_video.watch_url }}"
+               target="_blank" rel="noopener noreferrer"
+               class="psp-tiktok-cta">
+                <div class="psp-tiktok-provider">TikTok</div>
+                <div class="psp-tiktok-label">Watch on TikTok ↗</div>
+            </a>
+            {% endif %}
             {% else %}
             <div class="psp-module-placeholder">
                 <div class="psp-module-dot"></div>

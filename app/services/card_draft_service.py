@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.card_draft import CardDraft
 from app.models.license import UserLicense
 from app.services.highlight_video_service import (
-    extract_youtube_id,
+    extract_any_video,
     build_youtube_embed_url,
 )
 
@@ -180,26 +180,36 @@ class CardDraftService:
             return False
         draft_hv  = (draft.draft_data    or {}).get("highlight_video") or {}
         pub_hv    = (draft.published_data or {}).get("highlight_video") or {}
-        return draft_hv.get("video_id") == pub_hv.get("video_id")
+        return (
+            draft_hv.get("video_id") == pub_hv.get("video_id")
+            and draft_hv.get("provider") == pub_hv.get("provider")
+        )
 
     @staticmethod
     def update_draft_highlight_video(
         db: Session, draft: CardDraft, video_url: str, *, commit: bool = True
     ) -> CardDraft:
-        """Validate YouTube URL, extract video_id, write into draft_data.highlight_video.
+        """Validate YouTube or TikTok URL, extract video_id, write into draft_data.highlight_video.
 
-        Raises ValueError for invalid / non-YouTube URLs.
+        Raises ValueError for invalid / unsupported URLs, including TikTok short URLs
+        (vm./vt.tiktok.com) with an informative message guiding the user to paste
+        the full canonical link.
         source_url is stored for audit/prefill only — never used as iframe src.
         """
-        video_id = extract_youtube_id(video_url)
-        if video_id is None:
+        try:
+            parsed = extract_any_video(video_url)
+        except ValueError:
+            raise  # propagate informative short-URL message
+        if parsed is None:
             raise ValueError(
-                "Invalid or unsupported video URL. Only YouTube watch/shorts/youtu.be URLs are accepted."
+                "Invalid or unsupported video URL. "
+                "Paste a YouTube link (youtube.com/watch?v=...) or "
+                "full TikTok link (tiktok.com/@user/video/...)."
             )
         draft_data: dict[str, Any] = dict(draft.draft_data or {})
         draft_data["highlight_video"] = {
-            "provider":   "youtube",
-            "video_id":   video_id,
+            "provider":   parsed["provider"],
+            "video_id":   parsed["video_id"],
             "source_url": video_url,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
