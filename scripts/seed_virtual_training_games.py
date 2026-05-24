@@ -205,16 +205,70 @@ _GAMES = [
             "clicking the targets in the same pattern. Sequence length increases each round."
         ),
         "game_type": "memory_span",
-        "is_active": False,
+        "is_active": True,
         "base_xp": 12,
         "max_daily_attempts": 5,
         "skill_targets": {
-            "concentration":    0.35,
+            "concentration":      0.35,
             "tactical_awareness": 0.25,
-            "decisions":        0.25,
-            "composure":        0.15,
+            "decisions":          0.25,
+            "composure":          0.15,
         },
         "config": {
+            # ── runtime gameplay keys ──────────────────────────────────────
+            # 3-phase session: 3+3+3 = 9 rounds, max 45 expected positions
+            # No hand/finger protocol — raw_metrics v=2 (pure memory task)
+            # Score formula:
+            #   hit_rate      = correct_positions / total_expected_positions (45)
+            #   wrong_rate    = wrong_positions / total_expected_positions
+            #   miss_rate     = timed_out_positions / total_expected_positions
+            #   completion    = attempted_positions / total_expected_positions
+            #   speed_factor  = max(0, 1 − avg_first_tap_ms / 13000)
+            #   score_raw     = 0.55×hit_rate + 0.25×completion + 0.20×speed_factor
+            "phases": [
+                {
+                    "phase": 0,
+                    "sequence_length":  3,
+                    "rounds":           3,
+                    "show_ms_per_item": 800,
+                    "isi_ms":           500,
+                    "recall_window_ms": 8000,
+                },
+                {
+                    "phase": 1,
+                    "sequence_length":  5,
+                    "rounds":           3,
+                    "show_ms_per_item": 650,
+                    "isi_ms":           400,
+                    "recall_window_ms": 13000,
+                },
+                {
+                    "phase": 2,
+                    "sequence_length":  7,
+                    "rounds":           3,
+                    "show_ms_per_item": 500,
+                    "isi_ms":           300,
+                    "recall_window_ms": 18000,
+                },
+            ],
+            # 3×4 grid — 12 uniquely coloured tiles
+            "grid_rows":    3,
+            "grid_cols":    4,
+            "tile_colors": [
+                "#ef4444",  # 0  red
+                "#f97316",  # 1  orange
+                "#eab308",  # 2  yellow
+                "#22c55e",  # 3  green
+                "#14b8a6",  # 4  teal
+                "#3b82f6",  # 5  blue
+                "#8b5cf6",  # 6  violet
+                "#ec4899",  # 7  pink
+                "#6b7280",  # 8  grey
+                "#78716c",  # 9  stone
+                "#0ea5e9",  # 10 sky
+                "#84cc16",  # 11 lime
+            ],
+            # ── display keys ──────────────────────────────────────────────
             "show_in_hub":      True,
             "icon":             "🧩",
             "football_benefit": (
@@ -233,7 +287,7 @@ _GAMES = [
             "while distractors overlap and change direction."
         ),
         "game_type": "tracking",
-        "is_active": False,
+        "is_active": True,
         "base_xp": 12,
         "max_daily_attempts": 5,
         "skill_targets": {
@@ -243,6 +297,149 @@ _GAMES = [
             "reactions":          0.10,
         },
         "config": {
+            # ── runtime gameplay keys ──────────────────────────────────────
+            # Easy = baseline: 3-phase × 3 rounds = 9 rounds, MOT paradigm
+            # No hand/finger protocol — raw_metrics v=3 (with difficulty_level)
+            # Score formula (all difficulty levels):
+            #   hit_rate     = correct_count / stimuli_count
+            #   miss_rate    = error_count / stimuli_count (timeouts only)
+            #   speed_factor = max(0, 1 − avg_reaction_ms / 3000)
+            #   score_raw    = 0.60×hit_rate + 0.25×(1−miss_rate) + 0.15×speed_factor
+            # Difficulty multiplier affects skill delta only (XP unchanged).
+            # `phases` top-level kept as Easy fallback for backward compat.
+            "phases": [
+                {
+                    "phase":            0,
+                    "rounds":           3,
+                    "object_count":     3,
+                    "object_speed":     1.00,
+                    "highlight_ms":     1500,
+                    "tracking_ms":      4000,
+                    "window_ms":        3000,
+                    "distractor_flash": 0,
+                },
+                {
+                    "phase":            1,
+                    "rounds":           3,
+                    "object_count":     4,
+                    "object_speed":     1.15,
+                    "highlight_ms":     1500,
+                    "tracking_ms":      5000,
+                    "window_ms":        3000,
+                    "distractor_flash": 0,
+                },
+                {
+                    "phase":            2,
+                    "rounds":           3,
+                    "object_count":     5,
+                    "object_speed":     1.30,
+                    "highlight_ms":     1500,
+                    "tracking_ms":      6000,
+                    "window_ms":        3000,
+                    "distractor_flash": 0,
+                },
+            ],
+            # ── multi-difficulty config ────────────────────────────────────
+            "difficulties": {
+                "easy": {
+                    "phases": [
+                        {"phase": 0, "rounds": 3, "object_count": 3, "object_speed": 1.00,
+                         "highlight_ms": 1500, "tracking_ms": 4000, "window_ms": 3000,
+                         "distractor_flash": 0},
+                        {"phase": 1, "rounds": 3, "object_count": 4, "object_speed": 1.15,
+                         "highlight_ms": 1500, "tracking_ms": 5000, "window_ms": 3000,
+                         "distractor_flash": 0},
+                        {"phase": 2, "rounds": 3, "object_count": 5, "object_speed": 1.30,
+                         "highlight_ms": 1500, "tracking_ms": 6000, "window_ms": 3000,
+                         "distractor_flash": 0},
+                    ],
+                    "difficulty_multiplier": 1.00,
+                    "validation_overrides": {
+                        "min_stimuli_count":         3,
+                        "min_duration_seconds":      20.0,
+                        "bot_threshold_ms":          200,
+                        "random_clicking_threshold": 0.70,
+                    },
+                },
+                "medium": {
+                    "phases": [
+                        {"phase": 0, "rounds": 3, "object_count": 5, "object_speed": 1.60,
+                         "highlight_ms": 1500, "tracking_ms": 5000, "window_ms": 2500,
+                         "distractor_flash": 1},
+                        {"phase": 1, "rounds": 3, "object_count": 6, "object_speed": 1.90,
+                         "highlight_ms": 1500, "tracking_ms": 6000, "window_ms": 2500,
+                         "distractor_flash": 2},
+                        {"phase": 2, "rounds": 3, "object_count": 7, "object_speed": 2.20,
+                         "highlight_ms": 1500, "tracking_ms": 7000, "window_ms": 2300,
+                         "distractor_flash": 3},
+                    ],
+                    "difficulty_multiplier": 1.30,
+                    "validation_overrides": {
+                        "min_stimuli_count":         3,
+                        "min_duration_seconds":      25.0,
+                        "bot_threshold_ms":          200,
+                        "random_clicking_threshold": 0.70,
+                    },
+                },
+                "hard": {
+                    "phases": [
+                        {"phase": 0, "rounds": 4, "object_count": 6, "object_speed": 2.10,
+                         "highlight_ms": 1200, "tracking_ms": 5500, "window_ms": 2200,
+                         "distractor_flash": 2},
+                        {"phase": 1, "rounds": 4, "object_count": 7, "object_speed": 2.50,
+                         "highlight_ms": 1200, "tracking_ms": 6500, "window_ms": 2000,
+                         "distractor_flash": 4},
+                        {"phase": 2, "rounds": 4, "object_count": 8, "object_speed": 2.90,
+                         "highlight_ms": 1200, "tracking_ms": 8000, "window_ms": 1800,
+                         "distractor_flash": 5},
+                    ],
+                    "difficulty_multiplier": 1.70,
+                    "validation_overrides": {
+                        "min_stimuli_count":         4,
+                        "min_duration_seconds":      30.0,
+                        "bot_threshold_ms":          200,
+                        "random_clicking_threshold": 0.70,
+                    },
+                },
+                "expert": {
+                    "phases": [
+                        {"phase": 0, "rounds": 3, "object_count": 7, "object_speed": 2.60,
+                         "highlight_ms": 900, "tracking_ms": 5500, "window_ms": 1800,
+                         "distractor_flash": 3},
+                        {"phase": 1, "rounds": 3, "object_count": 8, "object_speed": 3.00,
+                         "highlight_ms": 900, "tracking_ms": 7000, "window_ms": 1700,
+                         "distractor_flash": 5},
+                        {"phase": 2, "rounds": 3, "object_count": 9, "object_speed": 3.20,
+                         "highlight_ms": 700, "tracking_ms": 8500, "window_ms": 1600,
+                         "distractor_flash": 6},
+                        {"phase": 3, "rounds": 3, "object_count": 9, "object_speed": 3.20,
+                         "highlight_ms": 700, "tracking_ms": 10000, "window_ms": 1600,
+                         "distractor_flash": 6},
+                    ],
+                    "difficulty_multiplier": 2.20,
+                    "unlock_threshold": {
+                        "min_hard_attempts": 3,
+                        "min_hard_score":    70,
+                    },
+                    "validation_overrides": {
+                        "min_stimuli_count":         4,
+                        "min_duration_seconds":      35.0,
+                        "bot_threshold_ms":          200,
+                        "random_clicking_threshold": 0.70,
+                    },
+                },
+            },
+            "object_radius_px": 40,
+            "arena_width":      480,
+            "arena_height":     360,
+            # Anti-farming overrides — fallback for Easy (used when no difficulty_level in payload)
+            "validation_overrides": {
+                "min_stimuli_count":           3,
+                "min_duration_seconds":        20.0,
+                "bot_threshold_ms":            200,
+                "random_clicking_threshold":   0.70,
+            },
+            # ── display keys ──────────────────────────────────────────────
             "show_in_hub":      True,
             "icon":             "👁️",
             "football_benefit": (

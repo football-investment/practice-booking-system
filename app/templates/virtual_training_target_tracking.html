@@ -1,0 +1,999 @@
+{% extends "student_base.html" %}
+
+{% block title %}Target Tracking — Virtual Games{% endblock %}
+{% block active_page %}lfa-player{% endblock %}
+
+{% block student_header %}
+{% set _page_icon = '👁️' %}
+{% set _page_name = 'Target Tracking' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ── Page shell ─────────────────────────────────────────────────────────── */
+    .tt-container {
+        max-width: 580px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    /* ── Intro card ─────────────────────────────────────────────────────────── */
+    .tt-intro {
+        background: var(--app-card);
+        border-radius: 14px;
+        padding: 1.6rem 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    .tt-intro h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--app-text);
+        margin: 0 0 0.75rem;
+    }
+
+    .tt-how-to {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        margin-bottom: 1.2rem;
+        font-size: 0.88rem;
+        color: #0369a1;
+        line-height: 1.6;
+    }
+
+    .tt-how-to strong { display: block; margin-bottom: 0.3rem; color: #075985; }
+
+    .tt-cap-warn {
+        background: #fef9c3;
+        border: 1px solid #fde047;
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        font-size: 0.85rem;
+        color: #713f12;
+        margin-bottom: 1rem;
+    }
+
+    /* ── Difficulty selector ────────────────────────────────────────────────── */
+    .tt-difficulty-section {
+        margin-bottom: 1.25rem;
+    }
+
+    .tt-difficulty-section h3 {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--app-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin: 0 0 0.6rem;
+    }
+
+    .tt-diff-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+    }
+
+    @media (max-width: 440px) {
+        .tt-diff-grid { grid-template-columns: 1fr; }
+    }
+
+    .tt-diff-card {
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.75rem 0.9rem;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+        background: var(--app-card);
+        text-align: left;
+        position: relative;
+    }
+
+    .tt-diff-card:hover:not(.tt-diff-disabled) { border-color: #a5b4fc; }
+
+    .tt-diff-card.tt-diff-selected {
+        border-color: #4f46e5;
+        background: #eef2ff;
+    }
+
+    .tt-diff-card.tt-diff-disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #f9fafb;
+    }
+
+    .tt-diff-name {
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: var(--app-text);
+        margin-bottom: 0.25rem;
+    }
+
+    .tt-diff-meta {
+        font-size: 0.75rem;
+        color: var(--app-text-muted);
+        line-height: 1.5;
+    }
+
+    .tt-diff-mult {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.6rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        background: #f3f4f6;
+        color: #374151;
+        padding: 0.15rem 0.45rem;
+        border-radius: 20px;
+    }
+
+    .tt-diff-card.tt-diff-selected .tt-diff-mult {
+        background: #4f46e5;
+        color: #fff;
+    }
+
+    .tt-diff-locked {
+        font-size: 0.72rem;
+        color: #9ca3af;
+        margin-top: 0.25rem;
+    }
+
+    /* Config unavailable warning ───────────────────────────────────────────────*/
+    .tt-config-warn {
+        background: #fef2f2;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        font-size: 0.83rem;
+        color: #7f1d1d;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    /* Flash notice ────────────────────────────────────────────────────────────*/
+    .tt-flash-notice {
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 0.55rem 0.85rem;
+        font-size: 0.83rem;
+        color: #78350f;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    /* ── Start button ───────────────────────────────────────────────────────── */
+    .tt-btn-start {
+        display: inline-block;
+        background: #4f46e5;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 700;
+        padding: 0.7rem 2rem;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .tt-btn-start:hover { background: #4338ca; }
+    .tt-btn-start:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* ── Game wrap (hidden until started) ──────────────────────────────────── */
+    .tt-game-wrap { display: none; }
+
+    .tt-hud {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.6rem;
+        font-size: 0.85rem;
+        color: var(--app-text-muted);
+    }
+
+    .tt-hud-round {
+        font-weight: 700;
+        color: var(--app-text);
+        font-size: 0.95rem;
+    }
+
+    .tt-status {
+        text-align: center;
+        font-size: 1.05rem;
+        font-weight: 700;
+        min-height: 1.6rem;
+        color: var(--app-text);
+        margin-bottom: 0.5rem;
+    }
+
+    /* ── Arena ──────────────────────────────────────────────────────────────── */
+    .tt-arena {
+        position: relative;
+        width: min(480px, 100%);
+        max-width: 100%;
+        aspect-ratio: 4 / 3;
+        background: #1e1b4b;
+        border-radius: 14px;
+        overflow: hidden;
+        margin: 0 auto;
+        touch-action: none;
+        user-select: none;
+    }
+
+    /* ── Moving objects ─────────────────────────────────────────────────────── */
+    .tt-obj {
+        position: absolute;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #6366f1;
+        border: 4px solid rgba(255,255,255,0.25);
+        cursor: pointer;
+        transition: border-color 0.1s;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    /* Highlighted target during show phase */
+    .tt-obj.tt-highlight {
+        background: #ef4444;
+        border-color: #f87171;
+        box-shadow: 0 0 20px rgba(239,68,68,0.8), 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    /* Distractor flash during tracking — amber, never confusable with target red */
+    .tt-obj.tt-flash {
+        background: #f59e0b;
+        border-color: #fbbf24;
+        box-shadow: 0 0 16px rgba(245,158,11,0.7);
+        transform: scale(1.08);
+    }
+
+    /* After response: reveal target */
+    .tt-obj.tt-reveal {
+        background: #22c55e;
+        border-color: #4ade80;
+    }
+
+    /* Correct tap */
+    .tt-obj.tt-correct {
+        background: #22c55e;
+        border-color: #4ade80;
+        box-shadow: 0 0 24px rgba(34,197,94,0.8);
+    }
+
+    /* Wrong tap */
+    .tt-obj.tt-wrong {
+        background: #ef4444;
+        border-color: #f87171;
+        box-shadow: 0 0 20px rgba(239,68,68,0.7);
+    }
+
+    /* ── Phase progress dots ────────────────────────────────────────────────── */
+    .tt-phase-dots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        justify-content: center;
+        margin-top: 0.6rem;
+    }
+
+    .tt-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #e5e7eb;
+    }
+
+    .tt-dot.done    { background: #22c55e; }
+    .tt-dot.wrong   { background: #ef4444; }
+    .tt-dot.timeout { background: #f59e0b; }
+    .tt-dot.active  { background: #4f46e5; }
+
+    /* ── Submit overlay ─────────────────────────────────────────────────────── */
+    .tt-submitting {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+        font-size: 1rem;
+        color: var(--app-text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="tt-container">
+
+    <!-- ── Intro ──────────────────────────────────────────────────────────── -->
+    <div class="tt-intro" id="tt-intro">
+        <h2>👁️ Target Tracking</h2>
+
+        <div class="tt-how-to">
+            <strong>How to play</strong>
+            One object is <span style="color:#dc2626;font-weight:700;">highlighted in red</span> at the start of each round.<br>
+            All objects then become identical and start moving. <strong>Track it mentally.</strong><br>
+            When the objects stop, tap the one you believe was the target.
+        </div>
+
+        <!-- Difficulty selector -->
+        <div class="tt-difficulty-section">
+            <h3>Select difficulty</h3>
+            <div class="tt-diff-grid">
+
+                <!-- Easy -->
+                <div class="tt-diff-card tt-diff-selected" id="tt-diff-easy" onclick="selectDifficulty('easy')">
+                    <span class="tt-diff-mult">1.00×</span>
+                    <div class="tt-diff-name">Easy</div>
+                    <div class="tt-diff-meta">
+                        3–5 objects &nbsp;·&nbsp; 9 rounds<br>
+                        No flash distractors
+                    </div>
+                </div>
+
+                <!-- Medium -->
+                <div class="tt-diff-card" id="tt-diff-medium" onclick="selectDifficulty('medium')">
+                    <span class="tt-diff-mult">1.30×</span>
+                    <div class="tt-diff-name">Medium</div>
+                    <div class="tt-diff-meta">
+                        4–6 objects &nbsp;·&nbsp; 9 rounds<br>
+                        1 flash distractor (Phase 2–3)
+                    </div>
+                </div>
+
+                <!-- Hard -->
+                <div class="tt-diff-card" id="tt-diff-hard" onclick="selectDifficulty('hard')">
+                    <span class="tt-diff-mult">1.70×</span>
+                    <div class="tt-diff-name">Hard</div>
+                    <div class="tt-diff-meta">
+                        5–7 objects &nbsp;·&nbsp; 12 rounds<br>
+                        1–3 flash distractors per round
+                    </div>
+                </div>
+
+                <!-- Expert -->
+                {% if expert_unlocked %}
+                <div class="tt-diff-card" id="tt-diff-expert" onclick="selectDifficulty('expert')">
+                    <span class="tt-diff-mult">2.20×</span>
+                    <div class="tt-diff-name">Expert</div>
+                    <div class="tt-diff-meta">
+                        6–9 objects &nbsp;·&nbsp; 12 rounds<br>
+                        2–5 flash distractors per round
+                    </div>
+                </div>
+                {% else %}
+                <div class="tt-diff-card tt-diff-disabled" id="tt-diff-expert">
+                    <span class="tt-diff-mult">2.20×</span>
+                    <div class="tt-diff-name">Expert 🔒</div>
+                    <div class="tt-diff-meta">6–9 objects · 12 rounds</div>
+                    <div class="tt-diff-locked">Unlock: 70%+ on 3 Hard attempts</div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <!-- Config unavailable guard (shown if DB difficulties key missing) -->
+        <div class="tt-config-warn" id="tt-config-warn">
+            ⚠ Difficulty configuration unavailable. Running Easy mode only.
+        </div>
+
+        <!-- Flash warning (shown for Medium+) -->
+        <div class="tt-flash-notice" id="tt-flash-notice">
+            ⚠ Distractor flashes may appear during tracking (amber colour). Ignore them — only follow the original target.
+        </div>
+
+        {% if attempts_today >= max_daily_attempts %}
+        <div class="tt-cap-warn">
+            ✓ You've completed all {{ max_daily_attempts }} attempts for today. Come back tomorrow!
+        </div>
+        {% else %}
+        <p style="font-size:0.85rem;color:var(--app-text-muted);margin-bottom:1rem;">
+            Attempts today: <strong>{{ attempts_today }}/{{ max_daily_attempts }}</strong>
+            &nbsp;·&nbsp; {{ attempts_remaining }} remaining
+        </p>
+        {% endif %}
+
+        <button class="tt-btn-start" id="tt-btn-start"
+                {% if attempts_today >= max_daily_attempts %}disabled{% endif %}
+                onclick="startGame()">
+            ▶ Start Game
+        </button>
+
+        <div style="margin-top:1.25rem;">
+            <a href="/virtual-training" style="font-size:0.85rem;color:#667eea;">← Back to Virtual Games</a>
+        </div>
+    </div>
+
+    <!-- ── Game ───────────────────────────────────────────────────────────── -->
+    <div class="tt-game-wrap" id="tt-game-wrap">
+
+        <div class="tt-hud">
+            <span class="tt-hud-round" id="tt-hud-round">Round 1 / 9</span>
+            <span id="tt-hud-phase">Phase 1 · 3 objects</span>
+        </div>
+
+        <div class="tt-status" id="tt-status">Get ready…</div>
+
+        <div class="tt-arena" id="tt-arena"></div>
+
+        <div class="tt-phase-dots" id="tt-dots"></div>
+    </div>
+
+    <!-- ── Submitting overlay ─────────────────────────────────────────────── -->
+    <div class="tt-submitting" id="tt-submitting">
+        <p style="font-size:2rem;">⏳</p>
+        <p>Saving your result…</p>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+'use strict';
+
+/* ── Difficulty configs from server ───────────────────────────────────────── */
+const _DIFFICULTIES_RAW = {{ (game.config.get('difficulties', {}) if game.config else {}) | tojson }};
+const EXPERT_UNLOCKED   = {{ 'true' if expert_unlocked else 'false' }};
+
+/* Fallback easy config from top-level phases (backward compat) */
+const _EASY_FALLBACK = {
+    phases: {{ (game.config.get('phases', []) if game.config else []) | tojson }},
+    difficulty_multiplier: 1.00,
+};
+
+const DIFFICULTIES = {
+    easy:   _DIFFICULTIES_RAW.easy   || _EASY_FALLBACK,
+    medium: _DIFFICULTIES_RAW.medium || _EASY_FALLBACK,
+    hard:   _DIFFICULTIES_RAW.hard   || _EASY_FALLBACK,
+    expert: _DIFFICULTIES_RAW.expert || _EASY_FALLBACK,
+};
+
+const CSRF_TOKEN = "{{ request.cookies.get('csrf_token', '') }}";
+const BASE_SPEED = 2.0;   /* px per frame at 60 fps, before phase speed multiplier */
+
+/* ── Difficulty config guard ──────────────────────────────────────────────── */
+const _DIFF_CONFIG_OK = Boolean(
+    _DIFFICULTIES_RAW.medium &&
+    _DIFFICULTIES_RAW.hard &&
+    _DIFFICULTIES_RAW.expert
+);
+if (!_DIFF_CONFIG_OK) {
+    console.warn('[TT] Difficulty configuration missing from game config — ' +
+                 'running Easy mode only. Re-run seed_virtual_training_games.py.');
+    /* Disable non-easy selector cards so user cannot pick unavailable levels */
+    ['medium', 'hard', 'expert'].forEach(function (l) {
+        var card = document.getElementById('tt-diff-' + l);
+        if (card) {
+            card.classList.add('tt-diff-disabled');
+            card.onclick = null;
+        }
+    });
+    /* Show the config-warn banner */
+    var _warnEl = document.getElementById('tt-config-warn');
+    if (_warnEl) _warnEl.style.display = 'block';
+}
+
+/* ── Responsive arena dimensions (read at runtime, not frozen at load) ────── */
+let arenaW, arenaH;
+
+function getArenaDimensions() {
+    arenaW = arena.clientWidth  || 480;
+    arenaH = arena.clientHeight || 360;
+}
+
+function getRadius() {
+    var scale = arenaW / 480;
+    return Math.max(24, Math.round(40 * scale));
+}
+
+const SUBMIT_URL = '/virtual-training/target-tracking/submit';
+
+/* Flash mechanic constants */
+const FLASH_DURATION_MS  = 400;
+const FLASH_MIN_GAP_MS   = 500;
+const FLASH_EARLIEST_PCT = 0.15;
+const FLASH_LATEST_PCT   = 0.85;
+
+/* ── Difficulty selection state ───────────────────────────────────────────── */
+let selectedDifficulty = 'easy';
+
+function selectDifficulty(level) {
+    if (level === 'expert' && !EXPERT_UNLOCKED) return;
+    selectedDifficulty = level;
+    ['easy', 'medium', 'hard', 'expert'].forEach(function (l) {
+        var card = document.getElementById('tt-diff-' + l);
+        if (card && !card.classList.contains('tt-diff-disabled')) {
+            card.classList.toggle('tt-diff-selected', l === level);
+        }
+    });
+    var notice = document.getElementById('tt-flash-notice');
+    if (notice) {
+        notice.style.display = (level === 'medium' || level === 'hard' || level === 'expert') ? 'block' : 'none';
+    }
+}
+
+/* Expose for onclick in markup */
+window.selectDifficulty = selectDifficulty;
+
+/* ── Game state ───────────────────────────────────────────────────────────── */
+let PHASES       = [];
+let ROUNDS       = [];
+let TOTAL_ROUNDS = 0;
+let DIFF_MULT    = 1.00;
+
+let roundIdx     = 0;
+let objects      = [];          /* [{x, y, vx, vy, el}] */
+let targetIdx    = 0;
+let rafId        = null;
+let responded    = false;
+let roundStartMs = 0;
+let roundResults = [];
+let startedAt    = null;
+
+/* Flash tracking per round */
+let activeFlashes   = [];  /* [{distractor_index, start_ms, duration_ms, color, t_offset_ms}] */
+let flashEventLog   = [];  /* all flashes in current round */
+let totalFlashShown = 0;
+let tapsDuringFlash = 0;
+let tapWasDuringFlash = false;
+
+/* ── DOM helpers ──────────────────────────────────────────────────────────── */
+const arena      = document.getElementById('tt-arena');
+const statusEl   = document.getElementById('tt-status');
+const roundLabel = document.getElementById('tt-hud-round');
+const phaseLabel = document.getElementById('tt-hud-phase');
+const dotsEl     = document.getElementById('tt-dots');
+
+function setStatus(msg) { statusEl.textContent = msg; }
+
+function updateHUD() {
+    roundLabel.textContent = 'Round ' + (roundIdx + 1) + ' / ' + TOTAL_ROUNDS;
+    var r = ROUNDS[Math.min(roundIdx, TOTAL_ROUNDS - 1)];
+    phaseLabel.textContent = 'Phase ' + (r.phase + 1) + ' · ' + r.objectCount + ' objects';
+}
+
+function buildDots() {
+    dotsEl.innerHTML = '';
+    for (var i = 0; i < TOTAL_ROUNDS; i++) {
+        var d = document.createElement('div');
+        d.className = 'tt-dot';
+        d.id = 'tt-dot-' + i;
+        dotsEl.appendChild(d);
+    }
+}
+
+function setDot(i, cls) {
+    var d = document.getElementById('tt-dot-' + i);
+    if (d) d.className = 'tt-dot ' + cls;
+}
+
+/* ── Object management ────────────────────────────────────────────────────── */
+function clearObjects() {
+    objects.forEach(function (o) { if (o.el.parentNode) o.el.parentNode.removeChild(o.el); });
+    objects = [];
+}
+
+function spawnObjects(count) {
+    var radius = getRadius();
+    for (var i = 0; i < count; i++) {
+        var el = document.createElement('div');
+        el.className = 'tt-obj';
+        el.dataset.idx = i;
+        el.style.width  = (radius * 2) + 'px';
+        el.style.height = (radius * 2) + 'px';
+
+        var x, y, ok, tries = 0;
+        do {
+            ok = true;
+            x = radius + Math.random() * (arenaW - 2 * radius);
+            y = radius + Math.random() * (arenaH - 2 * radius);
+            for (var j = 0; j < objects.length; j++) {
+                var dx = x - objects[j].x;
+                var dy = y - objects[j].y;
+                if (Math.sqrt(dx*dx + dy*dy) < radius * 2.8) { ok = false; break; }
+            }
+        } while (!ok && ++tries < 80);
+
+        el.style.left = (x - radius) + 'px';
+        el.style.top  = (y - radius) + 'px';
+        arena.appendChild(el);
+        objects.push({ x: x, y: y, vx: 0, vy: 0, el: el });
+    }
+}
+
+function moveObjects() {
+    var radius = getRadius();
+    objects.forEach(function (o) {
+        o.x += o.vx;
+        o.y += o.vy;
+        if (o.x < radius)           { o.x = radius;           o.vx =  Math.abs(o.vx); }
+        if (o.x > arenaW - radius)  { o.x = arenaW - radius;  o.vx = -Math.abs(o.vx); }
+        if (o.y < radius)           { o.y = radius;            o.vy =  Math.abs(o.vy); }
+        if (o.y > arenaH - radius)  { o.y = arenaH - radius;  o.vy = -Math.abs(o.vy); }
+        o.el.style.left = (o.x - radius) + 'px';
+        o.el.style.top  = (o.y - radius) + 'px';
+    });
+}
+
+/* ── Flash schedule generator ─────────────────────────────────────────────── */
+function generateFlashSchedule(flashCount, trackingMs, objectCount) {
+    /* Returns list of {distractor_index, t_offset_ms} ensuring:
+       - only non-target objects flash
+       - no two flashes on same distractor per round
+       - minimum FLASH_MIN_GAP_MS between flash starts
+       - earliest/latest pct constraints
+    */
+    if (flashCount <= 0 || objectCount <= 1) return [];
+
+    var nonTargets = [];
+    for (var i = 0; i < objectCount; i++) {
+        if (i !== targetIdx) nonTargets.push(i);
+    }
+
+    /* Shuffle non-targets */
+    for (var j = nonTargets.length - 1; j > 0; j--) {
+        var k = Math.floor(Math.random() * (j + 1));
+        var tmp = nonTargets[j]; nonTargets[j] = nonTargets[k]; nonTargets[k] = tmp;
+    }
+
+    var earliest = Math.floor(trackingMs * FLASH_EARLIEST_PCT);
+    var latest   = Math.floor(trackingMs * FLASH_LATEST_PCT - FLASH_DURATION_MS);
+    if (latest <= earliest) return [];
+
+    var schedule = [];
+    var usedDistractors = new Set();
+    var lastStart = -FLASH_MIN_GAP_MS * 2;
+
+    for (var f = 0; f < Math.min(flashCount, nonTargets.length); f++) {
+        /* Pick a non-target not used yet in this round */
+        var distIdx = -1;
+        for (var d = 0; d < nonTargets.length; d++) {
+            if (!usedDistractors.has(nonTargets[d])) {
+                distIdx = nonTargets[d];
+                break;
+            }
+        }
+        if (distIdx === -1) break;
+
+        /* Pick a time offset respecting gap constraint */
+        var attempts = 0, tOffset;
+        do {
+            tOffset = earliest + Math.floor(Math.random() * (latest - earliest));
+            attempts++;
+        } while (Math.abs(tOffset - lastStart) < FLASH_MIN_GAP_MS && attempts < 30);
+
+        if (Math.abs(tOffset - lastStart) < FLASH_MIN_GAP_MS) break;
+
+        usedDistractors.add(distIdx);
+        lastStart = tOffset;
+        schedule.push({ distractor_index: distIdx, t_offset_ms: tOffset });
+    }
+
+    return schedule;
+}
+
+/* ── Game flow ────────────────────────────────────────────────────────────── */
+function startGame() {
+    /* Lock in selected difficulty config */
+    var diff = DIFFICULTIES[selectedDifficulty] || DIFFICULTIES.easy;
+    PHASES = diff.phases || [];
+    DIFF_MULT = diff.difficulty_multiplier || 1.00;
+
+    /* Build flat round list */
+    ROUNDS = [];
+    PHASES.forEach(function (p, pi) {
+        for (var r = 0; r < p.rounds; r++) {
+            ROUNDS.push({
+                phase:            pi,
+                roundInPhase:     r,
+                objectCount:      p.object_count,
+                speed:            p.object_speed,
+                highlightMs:      p.highlight_ms,
+                trackingMs:       p.tracking_ms,
+                windowMs:         p.window_ms,
+                distractorFlash:  p.distractor_flash || 0,
+            });
+        }
+    });
+    TOTAL_ROUNDS = ROUNDS.length;
+
+    startedAt    = new Date().toISOString();
+    roundIdx     = 0;
+    roundResults = [];
+    totalFlashShown = 0;
+    tapsDuringFlash = 0;
+
+    document.getElementById('tt-intro').style.display    = 'none';
+    document.getElementById('tt-game-wrap').style.display = 'block';
+    buildDots();
+    startRound();
+}
+
+window.startGame = startGame;
+
+function startRound() {
+    if (roundIdx >= TOTAL_ROUNDS) { finishGame(); return; }
+    getArenaDimensions();
+    var round = ROUNDS[roundIdx];
+    updateHUD();
+    setDot(roundIdx, 'active');
+    setStatus('Get ready…');
+    clearObjects();
+    activeFlashes  = [];
+    flashEventLog  = [];
+    tapWasDuringFlash = false;
+
+    targetIdx = Math.floor(Math.random() * round.objectCount);
+    spawnObjects(round.objectCount);
+
+    setTimeout(function () { highlightPhase(round); }, 400);
+}
+
+function highlightPhase(round) {
+    setStatus('Memorise the target!');
+    objects[targetIdx].el.classList.add('tt-highlight');
+
+    setTimeout(function () {
+        objects[targetIdx].el.classList.remove('tt-highlight');
+        trackingPhase(round);
+    }, round.highlightMs);
+}
+
+function trackingPhase(round) {
+    setStatus('Track it…');
+    var spd = BASE_SPEED * round.speed;
+    objects.forEach(function (o) {
+        var angle = Math.random() * Math.PI * 2;
+        o.vx = Math.cos(angle) * spd;
+        o.vy = Math.sin(angle) * spd;
+    });
+
+    /* Build flash schedule for this round */
+    var schedule = generateFlashSchedule(round.distractorFlash, round.trackingMs, round.objectCount);
+
+    var trackingStart = Date.now();
+    var deadline      = trackingStart + round.trackingMs;
+
+    rafId = requestAnimationFrame(function loop() {
+        var now     = Date.now();
+        var elapsed = now - trackingStart;
+
+        moveObjects();
+
+        /* Process flash schedule */
+        schedule.forEach(function (ev) {
+            var isActive = (elapsed >= ev.t_offset_ms && elapsed < ev.t_offset_ms + FLASH_DURATION_MS);
+            var obj      = objects[ev.distractor_index];
+            if (!obj) return;
+            if (isActive) {
+                if (!obj._flashing) {
+                    obj._flashing = true;
+                    obj.el.classList.add('tt-flash');
+                    /* Log the flash event once */
+                    var alreadyLogged = flashEventLog.some(function (e) {
+                        return e.distractor_index === ev.distractor_index;
+                    });
+                    if (!alreadyLogged) {
+                        flashEventLog.push({
+                            t_offset_ms:      ev.t_offset_ms,
+                            distractor_index: ev.distractor_index,
+                            target_index:     targetIdx,
+                            duration_ms:      FLASH_DURATION_MS,
+                            color:            '#f59e0b',
+                        });
+                        totalFlashShown++;
+                    }
+                }
+            } else {
+                if (obj._flashing) {
+                    obj._flashing = false;
+                    obj.el.classList.remove('tt-flash');
+                }
+            }
+        });
+
+        if (now < deadline) {
+            rafId = requestAnimationFrame(loop);
+        } else {
+            cancelAnimationFrame(rafId);
+            /* Clear any active flashes */
+            objects.forEach(function (o) {
+                o._flashing = false;
+                o.el.classList.remove('tt-flash');
+            });
+            responsePhase(round);
+        }
+    });
+}
+
+function _anyFlashActive() {
+    var now = Date.now();
+    return activeFlashes.some(function (f) { return now < f.endMs; });
+}
+
+function responsePhase(round) {
+    setStatus('Tap the object you tracked!');
+    responded    = false;
+    roundStartMs = Date.now();
+
+    objects.forEach(function (o, i) {
+        o.el.onclick = function () { handleTap(i, round); };
+    });
+
+    setTimeout(function () {
+        if (!responded) { handleTimeout(round); }
+    }, round.windowMs);
+}
+
+function handleTap(tappedIdx, round) {
+    if (responded) return;
+    responded = true;
+    var responseMs = Date.now() - roundStartMs;
+    var correct    = tappedIdx === targetIdx;
+
+    /* Check if tap coincided with any active flash */
+    var duringFlash = objects.some(function (o) { return o._flashing; });
+    if (duringFlash) tapsDuringFlash++;
+
+    objects.forEach(function (o) { o.el.onclick = null; o._flashing = false; o.el.classList.remove('tt-flash'); });
+    objects[targetIdx].el.classList.add('tt-reveal');
+    objects[tappedIdx].el.classList.add(correct ? 'tt-correct' : 'tt-wrong');
+
+    setStatus(correct ? '✓ Correct!' : '✗ Wrong object');
+    setDot(roundIdx, correct ? 'done' : 'wrong');
+
+    roundResults.push({
+        round:             roundIdx,
+        phase:             round.phase,
+        object_count:      round.objectCount,
+        outcome:           correct ? 'correct' : 'wrong',
+        response_ms:       responseMs,
+        tapped_index:      tappedIdx,
+        target_index:      targetIdx,
+        flash_events:      flashEventLog.slice(),
+        tapped_during_flash: duringFlash,
+    });
+
+    setTimeout(function () { roundIdx++; startRound(); }, 900);
+}
+
+function handleTimeout(round) {
+    if (responded) return;
+    responded = true;
+
+    objects.forEach(function (o) { o.el.onclick = null; o._flashing = false; o.el.classList.remove('tt-flash'); });
+    objects[targetIdx].el.classList.add('tt-reveal');
+
+    setStatus('⏱ Time up!');
+    setDot(roundIdx, 'timeout');
+
+    roundResults.push({
+        round:             roundIdx,
+        phase:             round.phase,
+        object_count:      round.objectCount,
+        outcome:           'timeout',
+        response_ms:       null,
+        tapped_index:      null,
+        target_index:      targetIdx,
+        flash_events:      flashEventLog.slice(),
+        tapped_during_flash: false,
+    });
+
+    setTimeout(function () { roundIdx++; startRound(); }, 900);
+}
+
+/* ── Finish & submit ──────────────────────────────────────────────────────── */
+function finishGame() {
+    document.getElementById('tt-game-wrap').style.display  = 'none';
+    document.getElementById('tt-submitting').style.display = 'block';
+
+    var stimuli_count     = roundResults.length;
+    var correct_count     = roundResults.filter(function (r) { return r.outcome === 'correct';  }).length;
+    var wrong_click_count = roundResults.filter(function (r) { return r.outcome === 'wrong';    }).length;
+    var error_count       = roundResults.filter(function (r) { return r.outcome === 'timeout';  }).length;
+
+    var rts = roundResults
+        .filter(function (r) { return r.response_ms !== null; })
+        .map(function (r) { return r.response_ms; });
+    var avg_reaction_ms = rts.length
+        ? Math.round(rts.reduce(function (a, b) { return a + b; }, 0) / rts.length)
+        : null;
+    var min_reaction_ms = rts.length ? Math.min.apply(null, rts) : null;
+
+    var durationSec = (Date.now() - new Date(startedAt).getTime()) / 1000;
+
+    var safe        = Math.max(stimuli_count, 1);
+    var hit_rate    = correct_count  / safe;
+    var miss_rate   = error_count    / safe;
+    var speed_factor = avg_reaction_ms !== null
+        ? Math.max(0, 1 - avg_reaction_ms / 3000)
+        : 0.5;
+    var score_raw  = 0.60 * hit_rate + 0.25 * (1 - miss_rate) + 0.15 * speed_factor;
+    var score_norm = Math.round(score_raw * 100);
+
+    var per_phase = PHASES.map(function (p, pi) {
+        var pr = roundResults.filter(function (r) { return r.phase === pi; });
+        return {
+            phase:        pi,
+            rounds:       pr.length,
+            correct:      pr.filter(function (r) { return r.outcome === 'correct'; }).length,
+            wrong:        pr.filter(function (r) { return r.outcome === 'wrong';   }).length,
+            timeout:      pr.filter(function (r) { return r.outcome === 'timeout'; }).length,
+            object_count: p.object_count,
+        };
+    });
+
+    var flashRate = totalFlashShown > 0
+        ? Math.round((tapsDuringFlash / totalFlashShown) * 1000) / 1000
+        : 0.0;
+
+    var payload = {
+        started_at:        startedAt,
+        duration_seconds:  Math.round(durationSec * 10) / 10,
+        stimuli_count:     stimuli_count,
+        correct_count:     correct_count,
+        error_count:       error_count,
+        wrong_click_count: wrong_click_count,
+        avg_reaction_ms:   avg_reaction_ms,
+        min_reaction_ms:   min_reaction_ms,
+        score_raw:         Math.round(score_raw * 1000) / 1000,
+        score_normalized:  score_norm,
+        difficulty_level:  selectedDifficulty,
+        raw_metrics: {
+            v:                    3,
+            difficulty_level:     selectedDifficulty,
+            difficulty_multiplier: DIFF_MULT,
+            per_round:            roundResults,
+            per_phase:            per_phase,
+            late_summary: {
+                total_flashes_shown:   totalFlashShown,
+                taps_during_flash:     tapsDuringFlash,
+                flash_distraction_rate: flashRate,
+            },
+        },
+    };
+
+    fetch(SUBMIT_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body:    JSON.stringify(payload),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.attempt_id) {
+            window.location.href = '/virtual-training/target-tracking/result/' + data.attempt_id;
+        } else {
+            document.getElementById('tt-submitting').innerHTML =
+                '<p style="color:#ef4444">⚠ Could not save result. <a href="/virtual-training">Back to hub</a></p>';
+        }
+    })
+    .catch(function () {
+        document.getElementById('tt-submitting').innerHTML =
+            '<p style="color:#ef4444">⚠ Network error. <a href="/virtual-training">Back to hub</a></p>';
+    });
+}
+
+/* ── Resize / orientation handler ─────────────────────────────────────────── */
+function handleResize() {
+    getArenaDimensions();
+    if (!objects.length) return;
+    var radius = getRadius();
+    objects.forEach(function (o) {
+        o.x = Math.max(radius, Math.min(arenaW - radius, o.x));
+        o.y = Math.max(radius, Math.min(arenaH - radius, o.y));
+        o.el.style.left   = (o.x - radius) + 'px';
+        o.el.style.top    = (o.y - radius) + 'px';
+        o.el.style.width  = (radius * 2) + 'px';
+        o.el.style.height = (radius * 2) + 'px';
+    });
+}
+
+window.addEventListener('resize',            handleResize);
+window.addEventListener('orientationchange', handleResize);
+
+})();
+</script>
+{% endblock %}
