@@ -10,7 +10,7 @@ from datetime import date
 import logging
 import re
 
-from sqlalchemy import func as sqlfunc
+from sqlalchemy import func as sqlfunc, or_, and_
 
 from ...database import get_db
 from ...dependencies import get_current_user_web
@@ -26,6 +26,8 @@ from ...models.audit_log import AuditLog
 from ...models.coupon import Coupon
 from ...utils.age_requirements import get_available_specializations
 from .helpers import get_lfa_age_category
+from ...models.friendship import Friendship, FriendshipStatus
+from ...models.vt_challenge import VirtualTrainingChallenge, ChallengeStatus
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -605,6 +607,31 @@ async def spec_dashboard(
     # Get user credit balance
     credit_balance = user.credit_balance if hasattr(user, 'credit_balance') else 0
 
+    # Social card counts — all three are indexed FK count queries (no joins, no hydration)
+    social_pending_friends = db.query(sqlfunc.count(Friendship.id)).filter(
+        Friendship.addressee_id == user.id,
+        Friendship.status == FriendshipStatus.PENDING,
+    ).scalar() or 0
+
+    social_pending_challenges = db.query(sqlfunc.count(VirtualTrainingChallenge.id)).filter(
+        VirtualTrainingChallenge.challenged_id == user.id,
+        VirtualTrainingChallenge.status == ChallengeStatus.PENDING,
+    ).scalar() or 0
+
+    social_active_challenges = db.query(sqlfunc.count(VirtualTrainingChallenge.id)).filter(
+        VirtualTrainingChallenge.status == ChallengeStatus.ACCEPTED,
+        or_(
+            and_(
+                VirtualTrainingChallenge.challenger_id == user.id,
+                VirtualTrainingChallenge.challenger_attempt_id.is_(None),
+            ),
+            and_(
+                VirtualTrainingChallenge.challenged_id == user.id,
+                VirtualTrainingChallenge.challenged_attempt_id.is_(None),
+            ),
+        ),
+    ).scalar() or 0
+
     # Map spec type to header gradient class
     _spec_header_map = {
         "LFA_FOOTBALL_PLAYER": "hdr-football",
@@ -640,6 +667,9 @@ async def spec_dashboard(
             "age_description": age_description,
             "user_age": user_age,
             "spec_header_class": spec_header_class,
+            "social_pending_friends": social_pending_friends,
+            "social_pending_challenges": social_pending_challenges,
+            "social_active_challenges": social_active_challenges,
         }
     )
 
