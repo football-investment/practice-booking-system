@@ -4219,6 +4219,17 @@
       },
       "Body_send_challenge_challenges_send_post": {
         "properties": {
+          "challenge_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Challenge Mode"
+          },
           "challenged_user_id": {
             "title": "Challenged User Id",
             "type": "integer"
@@ -65486,6 +65497,24 @@
       "get": {
         "description": "Memory Sequence game page \u2014 instruction + 3\u00d74 grid recall game loop.",
         "operationId": "virtual_training_memory_sequence_virtual_training_memory_sequence_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "challenge_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Challenge Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -65496,6 +65525,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Virtual Training Memory Sequence",
@@ -65678,6 +65717,24 @@
       "get": {
         "description": "Target Tracking game page \u2014 instruction + MOT arena (moving objects).",
         "operationId": "virtual_training_target_tracking_virtual_training_target_tracking_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "challenge_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Challenge Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -65688,6 +65745,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Virtual Training Target Tracking",
