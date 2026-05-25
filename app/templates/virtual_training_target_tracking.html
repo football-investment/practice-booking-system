@@ -868,13 +868,24 @@ function trackingPhase(round, snapRd) {
     });
 
     /* Direction change config */
-    var dirEnabled  = !!(round.directionChange && round.directionChange.enabled);
-    var dirInterval = dirEnabled ? (round.directionChange.interval_ms || 2000) : 0;
+    var dirEnabled    = !!(round.directionChange && round.directionChange.enabled);
+    var dirInterval   = dirEnabled ? (round.directionChange.interval_ms || 2000) : 0;
     var lastDirChange = 0;
+    var dirChangeIdx  = 0;   /* index into snapRd.direction_changes (challenge mode) */
     currentDirChangeCount = 0;
 
-    /* Build flash schedule — supports concurrent + repeat flash */
-    var schedule = generateFlashSchedule(round.distractorFlash, round.trackingMs, round.objectCount, round.flashConfig);
+    /* Build flash schedule.
+       Challenge mode: use server-pre-generated schedule from the fairness snapshot so
+       both players see the identical distractor sequence (TT-FAIR fix).
+       Normal training mode: generate client-side as before. */
+    var schedule;
+    if (snapRd && snapRd.flash_schedule) {
+        // Challenge mode — snapshot schedule (fairness)
+        schedule = snapRd.flash_schedule;
+    } else {
+        // Normal training mode — legacy client-side generation
+        schedule = generateFlashSchedule(round.distractorFlash, round.trackingMs, round.objectCount, round.flashConfig);
+    }
 
     var trackingStart = Date.now();
     var deadline      = trackingStart + round.trackingMs;
@@ -885,12 +896,18 @@ function trackingPhase(round, snapRd) {
 
         moveObjects();
 
-        /* Direction change — velocity direction only, speed preserved */
+        /* Direction change — velocity direction only, speed preserved.
+           Challenge mode: angles come from server-pre-drawn snapshot (TT-FAIR fix).
+           Normal training mode / old snapshots without direction_changes: Math.random(). */
         if (dirEnabled && elapsed > 0 && elapsed - lastDirChange >= dirInterval) {
             lastDirChange = elapsed;
             currentDirChangeCount++;
-            objects.forEach(function (o) {
-                var angle = Math.random() * Math.PI * 2;
+            var _snapAngles = (snapRd && snapRd.direction_changes && snapRd.direction_changes[dirChangeIdx]) || null;
+            dirChangeIdx++;
+            objects.forEach(function (o, i) {
+                var angle = (_snapAngles && _snapAngles[i] != null)
+                    ? _snapAngles[i]
+                    : Math.random() * Math.PI * 2; /* legacy fallback for old/absent snapshot */
                 o.vx = Math.cos(angle) * spd;
                 o.vy = Math.sin(angle) * spd;
             });
