@@ -187,7 +187,7 @@ def build_published_grid_state(draft: Any) -> list[dict] | None:
     ]
 
 
-def _zone_slot_ids(zone: str) -> list[str]:
+def zone_slot_ids(zone: str) -> list[str]:
     """Return slot_ids for a zone ordered by sort_order."""
     return [
         s["slot_id"]
@@ -197,24 +197,30 @@ def _zone_slot_ids(zone: str) -> list[str]:
         )
     ]
 
+_zone_slot_ids = zone_slot_ids  # internal alias
+
 
 def reorder_zone(
     profile_grid: dict | None,
     zone: str,
     slot_ids: list[str],
 ) -> dict | None:
-    """Reorder filled modules within a zone by reassigning to sorted slot positions.
+    """Reorder modules within a zone using positional mapping.
 
-    slot_ids: the slot_ids of the zone's slots in their desired visual order
-    (may include empty slots; they are ignored — only filled entries are moved).
-    Returns the same profile_grid object unchanged when ≤1 filled slot (no-op).
+    slot_ids: the zone's slot_ids in their desired visual order (filled and empty).
+    Positional semantics: the module at slot_ids[i] moves to the canonical zone
+    slot at position i.  Empty source positions produce no stored entry.
+    Zone slots not covered by the provided list are preserved unchanged.
+
+    Returns the same profile_grid object when no filled slot changes position (no-op).
     Raises ValueError for unknown zone or slot_ids not belonging to that zone.
     """
     if zone not in VALID_ZONES:
         raise ValueError(
             f"Unknown zone: {zone!r}. Valid zones: {sorted(VALID_ZONES)}"
         )
-    zone_sid_set = frozenset(_zone_slot_ids(zone))
+    canon = zone_slot_ids(zone)
+    zone_sid_set = frozenset(canon)
     for sid in slot_ids:
         if sid not in SLOT_IDS:
             raise ValueError(
@@ -229,34 +235,30 @@ def reorder_zone(
         return None
 
     occupied = _slot_map(profile_grid)
-    filled_ordered = [
-        (sid, occupied[sid])
-        for sid in slot_ids
-        if sid in occupied and occupied[sid] is not None
-    ]
+    n = min(len(slot_ids), len(canon))
 
-    if len(filled_ordered) <= 1:
-        return profile_grid  # no-op — return same object so caller can detect
+    # No-op: every provided filled slot already sits at its own canonical position.
+    if all(occupied.get(slot_ids[i]) is None or slot_ids[i] == canon[i] for i in range(n)):
+        return profile_grid
 
-    # Same-order check: if the desired order matches the current stored order, no-op.
-    current_zone_order = [
-        s["slot_id"]
-        for s in profile_grid.get("slots", [])
-        if s["slot_id"] in zone_sid_set and s.get("module") is not None
-    ]
-    if [sid for sid, _ in filled_ordered] == current_zone_order:
-        return profile_grid  # same order — no-op, return same object
-
-    target_slots = _zone_slot_ids(zone)
+    # Positional mapping: module at slot_ids[i] → canon[i].
+    covered = {canon[i] for i in range(n)}
     other_slots = [
+        s for s in profile_grid.get("slots", []) if s["slot_id"] not in zone_sid_set
+    ]
+    mapped = [
+        {"slot_id": canon[i], "module": occupied[slot_ids[i]]}
+        for i in range(n)
+        if occupied.get(slot_ids[i]) is not None
+    ]
+    # Preserve modules from zone slots not touched by this reorder (partial-list safety).
+    preserved = [
         s for s in profile_grid.get("slots", [])
-        if s["slot_id"] not in zone_sid_set
+        if s["slot_id"] in zone_sid_set
+        and s["slot_id"] not in covered
+        and s.get("module") is not None
     ]
-    new_zone_entries = [
-        {"slot_id": target_slots[i], "module": filled_ordered[i][1]}
-        for i in range(len(filled_ordered))
-    ]
-    return {"version": 1, "slots": other_slots + new_zone_entries}
+    return {"version": 1, "slots": other_slots + mapped + preserved}
 
 
 def grid_fingerprint(profile_grid: dict | None) -> frozenset:

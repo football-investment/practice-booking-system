@@ -608,13 +608,14 @@ class TestReorderZone:
         assert slot_map["side_b_2"]["provider"] == "youtube", "side_b_2 should now be YouTube"
         assert slot_map["side_b_2"]["video_id"] == "VID_A"
 
-    def test_wt_02_reorder_one_filled_slot_is_noop(self):
-        """WT-02: reorder_zone with 1 filled slot returns the same profile_grid object (no-op)."""
+    def test_wt_02_reorder_one_filled_slot_same_position_is_noop(self):
+        """WT-02: reorder_zone with 1 filled slot in the SAME position returns the same object (no-op)."""
         profile_grid = {"version": 1, "slots": [
             {"slot_id": "side_b_1", "module": {"provider": "youtube", "video_id": "VID_A"}},
         ]}
+        # side_b_1 stays at position 0 — no movement
         result = reorder_zone(profile_grid, "side_b", ["side_b_1", "side_b_2", "side_b_3"])
-        assert result is profile_grid, "Should return the same object for no-op"
+        assert result is profile_grid, "Should return the same object when position unchanged"
 
     def test_wt_03_reorder_zero_filled_slots_is_noop(self):
         """WT-03: reorder_zone with no filled slots in zone returns same profile_grid (no-op)."""
@@ -913,3 +914,42 @@ class TestTemplateStructure:
         assert "evt.oldIndex === evt.newIndex" in src, (
             "onEnd must guard against same-position drop via evt.oldIndex === evt.newIndex"
         )
+
+
+# ── WT-24..25: Positional mapping — drag to empty slot ────────────────────────
+
+class TestPositionalReorder:
+
+    def test_wt_24_single_filled_slot_drag_to_different_position_moves_module(self):
+        """WT-24: Dragging a single filled slot to a different zone position moves the module.
+
+        Regression for the compaction bug where 1 filled slot was always a no-op.
+        """
+        profile_grid = {"version": 1, "slots": [
+            {"slot_id": "side_b_1", "module": {"provider": "youtube", "video_id": "VID_A"}},
+        ]}
+        # User drags side_b_1 to visual position 3 — DOM becomes [side_b_2, side_b_3, side_b_1]
+        result = reorder_zone(profile_grid, "side_b", ["side_b_2", "side_b_3", "side_b_1"])
+        assert result is not profile_grid, "Must NOT be the same object (a real move happened)"
+        slot_map = {s["slot_id"]: s.get("module") for s in result["slots"]}
+        assert slot_map.get("side_b_3", {}).get("video_id") == "VID_A", (
+            "Module must land at side_b_3 (canonical position 2)"
+        )
+        assert "side_b_1" not in slot_map or slot_map["side_b_1"] is None, (
+            "side_b_1 must be empty after the move"
+        )
+        assert "side_b_2" not in slot_map or slot_map["side_b_2"] is None, (
+            "side_b_2 must remain empty"
+        )
+
+    def test_wt_25_filled_slot_drag_across_empty_to_last_position(self):
+        """WT-25: Drag filled slot across two empty slots to the last position — module moves."""
+        profile_grid = {"version": 1, "slots": [
+            {"slot_id": "side_a_1", "module": {"provider": "tiktok", "video_id": "TT1"}},
+        ]}
+        # User drags side_a_1 to the last slot — DOM becomes [side_a_2, side_a_3, side_a_1]
+        result = reorder_zone(profile_grid, "side_a", ["side_a_2", "side_a_3", "side_a_1"])
+        slot_map = {s["slot_id"]: s.get("module") for s in result["slots"]}
+        assert slot_map.get("side_a_3", {}).get("video_id") == "TT1"
+        assert "side_a_1" not in slot_map or slot_map["side_a_1"] is None
+        assert "side_a_2" not in slot_map or slot_map["side_a_2"] is None

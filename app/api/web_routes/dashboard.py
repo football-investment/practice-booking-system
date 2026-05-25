@@ -1401,6 +1401,7 @@ from app.services.profile_grid_service import (  # noqa: E402
     SLOT_REGISTRY              as _SLOT_REGISTRY,
     MAX_SLOTS                  as _MAX_SLOTS,
     VALID_ZONES                as _VALID_ZONES,
+    zone_slot_ids              as _zone_slot_ids,
 )
 
 
@@ -1545,22 +1546,19 @@ async def lfa_profile_editor_reorder_zone(
 
     draft = _CardDraftService.get_player_card_draft(db, user.id)
 
-    # Pre-compute noop conditions before calling service (for response status).
+    # Pre-compute noop using same positional logic as the service (for response status).
     existing_pg = (draft.draft_data or {}).get("profile_grid")
     _occupied = {
         s["slot_id"]: s.get("module")
         for s in (existing_pg or {}).get("slots", [])
         if isinstance(s.get("slot_id"), str)
     }
-    filled_in_request = [sid for sid in payload.slot_ids if _occupied.get(sid) is not None]
-    filled_count = len(filled_in_request)
-    # Same-order check mirrors service-layer logic — no DB write when order unchanged.
-    current_zone_order = [
-        s["slot_id"]
-        for s in (existing_pg or {}).get("slots", [])
-        if s.get("slot_id") in frozenset(filled_in_request) and s.get("module") is not None
-    ]
-    is_noop = filled_count <= 1 or filled_in_request == current_zone_order
+    _canon = _zone_slot_ids(payload.zone)  # [] for invalid zone — service will raise ValueError
+    _n = min(len(payload.slot_ids), len(_canon))
+    is_noop = all(
+        _occupied.get(payload.slot_ids[i]) is None or payload.slot_ids[i] == _canon[i]
+        for i in range(_n)
+    )
 
     try:
         _CardDraftService.reorder_draft_zone(db, draft, payload.zone, payload.slot_ids)
