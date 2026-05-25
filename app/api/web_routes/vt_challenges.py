@@ -669,7 +669,22 @@ async def challenge_lobby_state(
     apply_post_start_timeout_if_expired(db, challenge, now)
     db.commit()
 
-    return JSONResponse(get_lobby_state(challenge, now))
+    state = get_lobby_state(challenge, now)
+
+    # Compute game_url so the frontend can redirect without relying on
+    # the template-rendered PLAY_URL (defensive — also used by tests).
+    game = db.query(VirtualTrainingGame).filter(
+        VirtualTrainingGame.id == challenge.game_id
+    ).first()
+    diff = challenge.difficulty_level or "easy"
+    if game and game.code == "memory_sequence":
+        state["game_url"] = f"/virtual-training/memory-sequence?challenge_id={challenge.id}"
+    elif game and game.code == "target_tracking":
+        state["game_url"] = f"/virtual-training/target-tracking?challenge_id={challenge.id}&difficulty={diff}"
+    else:
+        state["game_url"] = "/virtual-training"
+
+    return JSONResponse(state)
 
 
 # ── POST /challenges/{id}/ready ───────────────────────────────────────────────

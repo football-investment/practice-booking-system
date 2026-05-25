@@ -171,6 +171,13 @@
     const POLL_MS       = 2000;
     const LIVE_COUNTDOWN_SECONDS = 5;
 
+    function getCsrf() {
+        var pair = document.cookie.split('; ').find(function (r) {
+            return r.startsWith('csrf_token=');
+        });
+        return pair ? pair.split('=')[1] : '';
+    }
+
     {% if lobby_expires_at %}
     const LOBBY_EXPIRES = new Date({{ lobby_expires_at.isoformat() | tojson }});
     {% else %}
@@ -281,11 +288,14 @@
             fetch('/challenges/' + CHALLENGE_ID + '/ready', {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Accept': 'application/json' },
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-Token': getCsrf(),
+                },
             })
             .then(function (r) { return r.json(); })
             .then(function (data) { applyState(data); })
-            .catch(function () {});
+            .catch(function (err) { console.error('Ready POST failed:', err); });
         });
     }
 

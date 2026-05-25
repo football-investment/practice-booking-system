@@ -977,14 +977,24 @@ class TestLobbyStatePollRoute:
 
     def test_live12_lobby_state_returns_json(self):
         from app.api.web_routes.vt_challenges import challenge_lobby_state
+        from app.models.virtual_training import VirtualTrainingGame as VTGame
         user = _user(uid=1)
         row = _challenge(
             challenger_id=1, challenged_id=2,
             status=ChallengeStatus.LIVE_LOBBY,
             lobby_expires_at=datetime.now(timezone.utc) + timedelta(seconds=300),
         )
+        game = _game(gid=1, code="memory_sequence")
         db = _db()
-        db.query.return_value.filter.return_value.first.return_value = row
+
+        def _qry(model):
+            m = MagicMock()
+            if model is VTGame:
+                m.filter.return_value.first.return_value = game
+            else:
+                m.filter.return_value.first.return_value = row
+            return m
+        db.query.side_effect = _qry
 
         fake_state = {"status": "live_lobby", "challenger_ready": False,
                       "challenged_ready": False, "live_start_at": None,
@@ -999,6 +1009,7 @@ class TestLobbyStatePollRoute:
         import json
         body = json.loads(resp.body)
         assert body["status"] == "live_lobby"
+        assert "game_url" in body
 
 
 class TestInboxLiveOutcomes:
@@ -1031,3 +1042,246 @@ class TestInboxLiveOutcomes:
         )
         row = _build_inbox_row(ch, 1, {99: MagicMock(score_normalized=0.8)}, {}, {})
         assert row["outcome"] == "live_waiting_for_opponent"
+
+
+# ── LIVE-BUG-01..07 ───────────────────────────────────────────────────────────
+
+class TestLiveBugFixes:
+    """Regression tests for the ready→countdown→game-start bug fix.
+
+    Root cause: lobby template fetch POST omitted X-CSRF-Token header →
+    CSRF middleware blocked all POST /ready requests with 403 →
+    challenger_ready_at / challenged_ready_at never written →
+    status never transitioned to LIVE_IN_PROGRESS.
+
+    LIVE-BUG-01  both ready → status LIVE_IN_PROGRESS (service level)
+    LIVE-BUG-02  both ready → live_start_at not None (service level)
+    LIVE-BUG-03  lobby-state after both ready → status=live_in_progress + game_url present
+    LIVE-BUG-04  lobby template JS contains live_in_progress branch (static analysis)
+    LIVE-BUG-05  lobby-state status string is lowercase 'live_in_progress' (frontend match)
+    LIVE-BUG-06  game_url for memory_sequence is correct
+    LIVE-BUG-07  game_url for target_tracking includes difficulty
+    """
+
+    # ── LIVE-BUG-01 / 02 ──────────────────────────────────────────────────────
+
+    def test_live_bug01_both_ready_status_live_in_progress(self):
+        from app.services.live_lobby_service import set_ready
+        from app.models.vt_challenge import VirtualTrainingChallenge
+        from unittest.mock import MagicMock, patch
+
+        _NOW = datetime(2026, 5, 25, 12, 0, 0, tzinfo=timezone.utc)
+        _PAST = _NOW - timedelta(minutes=5)
+
+        c = MagicMock(spec=VirtualTrainingChallenge)
+        c.id = 10
+        c.status = ChallengeStatus.LIVE_LOBBY
+        c.challenger_id = 1
+        c.challenged_id = 2
+        c.challenger_ready_at = _PAST   # challenger already ready
+        c.challenged_ready_at = None
+        c.live_start_at = None
+        c.lobby_expires_at = _NOW + timedelta(minutes=10)
+        c.challenger_attempt_id = None
+        c.challenged_attempt_id = None
+        c.winner_id = None
+        c.is_draw = False
+        c.forfeit_user_id = None
+        c.forfeit_reason = None
+        c.completed_at = None
+        c.updated_at = None
+
+        with patch("app.services.live_lobby_service.notification_service"):
+            set_ready(MagicMock(), c, 2, _NOW)   # challenged marks ready
+
+        assert c.status == ChallengeStatus.LIVE_IN_PROGRESS
+
+    def test_live_bug02_both_ready_live_start_at_set(self):
+        from app.services.live_lobby_service import set_ready
+        from app.models.vt_challenge import VirtualTrainingChallenge
+        from unittest.mock import MagicMock, patch
+
+        _NOW = datetime(2026, 5, 25, 12, 0, 0, tzinfo=timezone.utc)
+        _PAST = _NOW - timedelta(minutes=5)
+
+        c = MagicMock(spec=VirtualTrainingChallenge)
+        c.id = 10
+        c.status = ChallengeStatus.LIVE_LOBBY
+        c.challenger_id = 1
+        c.challenged_id = 2
+        c.challenger_ready_at = _PAST
+        c.challenged_ready_at = None
+        c.live_start_at = None
+        c.lobby_expires_at = _NOW + timedelta(minutes=10)
+        c.challenger_attempt_id = None
+        c.challenged_attempt_id = None
+        c.winner_id = None
+        c.is_draw = False
+        c.forfeit_user_id = None
+        c.forfeit_reason = None
+        c.completed_at = None
+        c.updated_at = None
+
+        with patch("app.services.live_lobby_service.notification_service"):
+            set_ready(MagicMock(), c, 2, _NOW)
+
+        assert c.live_start_at == _NOW
+
+    # ── LIVE-BUG-03 ───────────────────────────────────────────────────────────
+
+    def test_live_bug03_lobby_state_both_ready_game_url_present(self):
+        from app.api.web_routes.vt_challenges import challenge_lobby_state
+        from app.models.virtual_training import VirtualTrainingGame as VTGame
+
+        _NOW = datetime(2026, 5, 25, 12, 0, 0, tzinfo=timezone.utc)
+
+        user = _user(uid=1)
+        ch = _challenge(
+            challenger_id=1, challenged_id=2,
+            status=ChallengeStatus.LIVE_IN_PROGRESS,
+            live_start_at=_NOW,
+        )
+        game = _game(gid=1, code="memory_sequence")
+        db = _db()
+
+        def _qry(model):
+            m = MagicMock()
+            if model is VTGame:
+                m.filter.return_value.first.return_value = game
+            else:
+                m.filter.return_value.first.return_value = ch
+            return m
+        db.query.side_effect = _qry
+
+        in_progress_state = {
+            "status": "live_in_progress",
+            "challenger_ready": True, "challenged_ready": True,
+            "live_start_at": _NOW.isoformat(),
+            "lobby_expires_at": None, "post_start_deadline": None,
+            "server_now": _NOW.isoformat(),
+        }
+
+        with patch(f"{_BASE}.apply_lobby_timeout_if_expired", return_value=False), \
+             patch(f"{_BASE}.apply_post_start_timeout_if_expired", return_value=False), \
+             patch(f"{_BASE}.get_lobby_state", return_value=in_progress_state):
+            resp = _run(challenge_lobby_state(challenge_id=10, db=db, user=user))
+
+        import json
+        body = json.loads(resp.body)
+        assert body["status"] == "live_in_progress"
+        assert "game_url" in body
+        assert body["game_url"]  # not empty / None
+
+    # ── LIVE-BUG-04 ───────────────────────────────────────────────────────────
+
+    def test_live_bug04_lobby_template_js_has_live_in_progress_branch(self):
+        template_path = "app/templates/vt_challenge_lobby.html"
+        with open(template_path) as f:
+            src = f.read()
+        assert "status === 'live_in_progress'" in src, (
+            "lobby JS must have live_in_progress branch in applyState()"
+        )
+        assert "getCsrf" in src, (
+            "lobby JS must have getCsrf() helper for X-CSRF-Token on POST /ready"
+        )
+        assert "X-CSRF-Token" in src, (
+            "lobby JS fetch POST must include X-CSRF-Token header"
+        )
+
+    # ── LIVE-BUG-05 ───────────────────────────────────────────────────────────
+
+    def test_live_bug05_lobby_state_status_string_is_lowercase(self):
+        from app.services.live_lobby_service import get_lobby_state
+        from app.models.vt_challenge import VirtualTrainingChallenge
+
+        _NOW = datetime(2026, 5, 25, 12, 0, 0, tzinfo=timezone.utc)
+
+        c = MagicMock(spec=VirtualTrainingChallenge)
+        c.id = 10
+        c.status = ChallengeStatus.LIVE_IN_PROGRESS
+        c.challenger_id = 1
+        c.challenged_id = 2
+        c.challenger_ready_at = _NOW - timedelta(seconds=10)
+        c.challenged_ready_at = _NOW - timedelta(seconds=8)
+        c.live_start_at = _NOW
+        c.lobby_expires_at = None
+        c.challenger_attempt_id = None
+        c.challenged_attempt_id = None
+        c.winner_id = None
+        c.is_draw = False
+        c.forfeit_user_id = None
+        c.forfeit_reason = None
+        c.completed_at = None
+        c.updated_at = None
+
+        state = get_lobby_state(c, _NOW)
+        # Frontend checks: status === 'live_in_progress' (lowercase, no underscores)
+        assert state["status"] == "live_in_progress"
+        assert state["challenger_ready"] is True
+        assert state["challenged_ready"] is True
+
+    # ── LIVE-BUG-06 / 07 ──────────────────────────────────────────────────────
+
+    def test_live_bug06_game_url_memory_sequence(self):
+        from app.api.web_routes.vt_challenges import challenge_lobby_state
+        from app.models.virtual_training import VirtualTrainingGame as VTGame
+
+        user = _user(uid=1)
+        ch = _challenge(challenger_id=1, challenged_id=2,
+                        status=ChallengeStatus.LIVE_LOBBY)
+        game = _game(gid=1, code="memory_sequence")
+        db = _db()
+
+        def _qry(model):
+            m = MagicMock()
+            if model is VTGame:
+                m.filter.return_value.first.return_value = game
+            else:
+                m.filter.return_value.first.return_value = ch
+            return m
+        db.query.side_effect = _qry
+
+        with patch(f"{_BASE}.apply_lobby_timeout_if_expired", return_value=False), \
+             patch(f"{_BASE}.apply_post_start_timeout_if_expired", return_value=False), \
+             patch(f"{_BASE}.get_lobby_state", return_value={"status": "live_lobby",
+                   "challenger_ready": False, "challenged_ready": False,
+                   "live_start_at": None, "lobby_expires_at": None,
+                   "post_start_deadline": None, "server_now": ""}):
+            resp = _run(challenge_lobby_state(challenge_id=10, db=db, user=user))
+
+        import json
+        body = json.loads(resp.body)
+        assert body["game_url"] == f"/virtual-training/memory-sequence?challenge_id={ch.id}"
+
+    def test_live_bug07_game_url_target_tracking_includes_difficulty(self):
+        from app.api.web_routes.vt_challenges import challenge_lobby_state
+        from app.models.virtual_training import VirtualTrainingGame as VTGame
+
+        user = _user(uid=1)
+        ch = _challenge(challenger_id=1, challenged_id=2,
+                        status=ChallengeStatus.LIVE_LOBBY)
+        ch.difficulty_level = "medium"
+        game = _game(gid=2, code="target_tracking")
+        db = _db()
+
+        def _qry(model):
+            m = MagicMock()
+            if model is VTGame:
+                m.filter.return_value.first.return_value = game
+            else:
+                m.filter.return_value.first.return_value = ch
+            return m
+        db.query.side_effect = _qry
+
+        with patch(f"{_BASE}.apply_lobby_timeout_if_expired", return_value=False), \
+             patch(f"{_BASE}.apply_post_start_timeout_if_expired", return_value=False), \
+             patch(f"{_BASE}.get_lobby_state", return_value={"status": "live_lobby",
+                   "challenger_ready": False, "challenged_ready": False,
+                   "live_start_at": None, "lobby_expires_at": None,
+                   "post_start_deadline": None, "server_now": ""}):
+            resp = _run(challenge_lobby_state(challenge_id=10, db=db, user=user))
+
+        import json
+        body = json.loads(resp.body)
+        expected = f"/virtual-training/target-tracking?challenge_id={ch.id}&difficulty=medium"
+        assert body["game_url"] == expected
