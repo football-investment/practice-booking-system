@@ -17,9 +17,12 @@ Phase 1 module types: video_youtube, video_tiktok (link-only).
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 from app.services.highlight_video_service import extract_any_video
 
@@ -45,6 +48,19 @@ SLOT_IDS: frozenset[str] = frozenset(s["slot_id"] for s in SLOT_REGISTRY)
 VALID_ZONES: frozenset[str] = frozenset(s["zone"] for s in SLOT_REGISTRY)
 MAX_SLOTS: int = 15
 TITLE_MAX_LEN: int = 80
+
+TEXT_CONTENT_MAX_LEN: int = 300
+TEXT_HEADING_MAX_LEN: int = 80
+IMAGE_ALT_MAX_LEN: int = 200
+IMAGE_CAPTION_MAX_LEN: int = 150
+
+WIDGET_REGISTRY: dict[str, dict] = {
+    "video_youtube": {"required": ["video_url"], "optional": ["title"]},
+    "video_tiktok":  {"required": ["video_url"], "optional": ["title"]},
+    "text_bio":      {"required": ["content"],   "optional": ["heading"]},
+    "image_url":     {"required": ["url", "alt_text"], "optional": ["caption"]},
+}
+VALID_WIDGET_TYPES: frozenset[str] = frozenset(WIDGET_REGISTRY)
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
@@ -94,6 +110,80 @@ def build_video_module(video_url: str, title: str = "") -> dict[str, Any]:
         "source_url": video_url,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def build_text_module(content: str, heading: str = "") -> dict[str, Any]:
+    """Validate and build a text_bio module dict.
+
+    content: required, max 300 chars, HTML tags stripped.
+    heading: optional, max 80 chars, HTML tags stripped.
+    Raises ValueError for missing/too-long content or heading.
+    """
+    cleaned_content = _HTML_TAG_RE.sub("", content).strip()
+    if not cleaned_content:
+        raise ValueError("content is required for text_bio widget.")
+    if len(cleaned_content) > TEXT_CONTENT_MAX_LEN:
+        raise ValueError(f"content must be {TEXT_CONTENT_MAX_LEN} characters or fewer.")
+    cleaned_heading = _HTML_TAG_RE.sub("", heading).strip() if heading else ""
+    if len(cleaned_heading) > TEXT_HEADING_MAX_LEN:
+        raise ValueError(f"heading must be {TEXT_HEADING_MAX_LEN} characters or fewer.")
+    return {
+        "type":       "text_bio",
+        "content":    cleaned_content,
+        "heading":    cleaned_heading,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def build_image_module(url: str, alt_text: str, caption: str = "") -> dict[str, Any]:
+    """Validate and build an image_url module dict.
+
+    url: required, must be HTTPS with a valid host.
+    alt_text: required, max 200 chars, HTML tags stripped.
+    caption: optional, max 150 chars, HTML tags stripped.
+    Raises ValueError for HTTP URLs, missing fields, or length violations.
+    """
+    parsed_url = urlparse(url)
+    if parsed_url.scheme != "https":
+        raise ValueError("image URL must use HTTPS.")
+    if not parsed_url.netloc:
+        raise ValueError("image URL must be a valid URL with a host.")
+    cleaned_alt = _HTML_TAG_RE.sub("", alt_text).strip()
+    if not cleaned_alt:
+        raise ValueError("alt_text is required for image_url widget.")
+    if len(cleaned_alt) > IMAGE_ALT_MAX_LEN:
+        raise ValueError(f"alt_text must be {IMAGE_ALT_MAX_LEN} characters or fewer.")
+    cleaned_caption = _HTML_TAG_RE.sub("", caption).strip() if caption else ""
+    if len(cleaned_caption) > IMAGE_CAPTION_MAX_LEN:
+        raise ValueError(f"caption must be {IMAGE_CAPTION_MAX_LEN} characters or fewer.")
+    return {
+        "type":       "image_url",
+        "url":        url,
+        "alt_text":   cleaned_alt,
+        "caption":    cleaned_caption,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def build_module(widget_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Dispatch to the appropriate builder by widget_type.
+
+    Raises ValueError for unknown widget_type or missing required payload fields.
+    """
+    if widget_type not in VALID_WIDGET_TYPES:
+        raise ValueError(
+            f"Unknown widget_type: {widget_type!r}. "
+            f"Valid types: {sorted(VALID_WIDGET_TYPES)}"
+        )
+    if widget_type in ("video_youtube", "video_tiktok"):
+        return build_video_module(payload["video_url"], payload.get("title", ""))
+    if widget_type == "text_bio":
+        return build_text_module(payload["content"], payload.get("heading", ""))
+    if widget_type == "image_url":
+        return build_image_module(
+            payload["url"], payload["alt_text"], payload.get("caption", "")
+        )
+    raise ValueError(f"Unhandled widget_type: {widget_type!r}")  # safety net
 
 
 # ── Profile grid mutation helpers (pure — return new dicts, never mutate) ─────
@@ -324,18 +414,52 @@ def move_slot(
     return {"version": 1, "slots": new_slots}
 
 
-def grid_fingerprint(profile_grid: dict | None) -> frozenset:
-    """Stable fingerprint for is_published() comparison.
+def _module_fingerprint(module: dict | None) -> str:
+    """Return a stable SHA256-based fingerprint string for a single module.
 
-    Format per slot: "slot_id:provider:video_id"
+    video_youtube / video_tiktok (and legacy modules with only provider):
+      "provider:video_id"  — same as before; backward-compat guaranteed.
+    text_bio:
+      "text:<sha256(heading + NUL + content)[:16]>"
+    image_url:
+      "img:<sha256(url + NUL + alt_text + NUL + caption)[:16]>"
+    unknown / None:
+      "unknown:<sha256(stable JSON)[:16]>"
+    """
+    if not module:
+        return ""
+    mtype = module.get("type", "")
+    # Backward-compat: old video modules stored only provider/video_id, no type field.
+    if mtype.startswith("video_") or (not mtype and module.get("provider")):
+        return f"{module.get('provider', '')}:{module.get('video_id', '')}"
+    if mtype == "text_bio":
+        raw = (module.get("heading") or "") + "\x00" + (module.get("content") or "")
+        h = hashlib.sha256(raw.encode()).hexdigest()[:16]
+        return f"text:{h}"
+    if mtype == "image_url":
+        raw = "\x00".join([
+            module.get("url") or "",
+            module.get("alt_text") or "",
+            module.get("caption") or "",
+        ])
+        h = hashlib.sha256(raw.encode()).hexdigest()[:16]
+        return f"img:{h}"
+    h = hashlib.sha256(
+        json.dumps(module, sort_keys=True, default=str).encode()
+    ).hexdigest()[:16]
+    return f"unknown:{h}"
+
+
+def grid_fingerprint(profile_grid: dict | None) -> frozenset:
+    """Stable SHA256-based fingerprint for is_published() comparison.
+
+    Each slot contributes "slot_id:<module_fingerprint>" to the frozenset.
+    Backward-compat: existing video_youtube / video_tiktok slots produce the
+    same fingerprint as before ("provider:video_id").
     """
     if not profile_grid:
         return frozenset()
     return frozenset(
-        "{sid}:{prov}:{vid}".format(
-            sid=s.get("slot_id", ""),
-            prov=(s.get("module") or {}).get("provider", ""),
-            vid=(s.get("module") or {}).get("video_id", ""),
-        )
+        f"{s.get('slot_id', '')}:{_module_fingerprint(s.get('module'))}"
         for s in profile_grid.get("slots", [])
     )

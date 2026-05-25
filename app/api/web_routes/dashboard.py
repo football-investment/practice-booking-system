@@ -1401,13 +1401,24 @@ from app.services.profile_grid_service import (  # noqa: E402
     SLOT_REGISTRY              as _SLOT_REGISTRY,
     MAX_SLOTS                  as _MAX_SLOTS,
     VALID_ZONES                as _VALID_ZONES,
+    VALID_WIDGET_TYPES         as _VALID_WIDGET_TYPES,
     zone_slot_ids              as _zone_slot_ids,
 )
 
 
-class _SlotModuleRequest(_BaseModel):
-    video_url: str
+class _SlotWidgetRequest(_BaseModel):
+    # Widget type — None triggers backward-compat video path when video_url present.
+    widget_type: str | None = None
+    # Video fields (video_youtube / video_tiktok)
+    video_url: str | None = None
     title:     str = ""
+    # text_bio fields
+    content:   str | None = None
+    heading:   str = ""
+    # image_url fields
+    url:       str | None = None
+    alt_text:  str | None = None
+    caption:   str = ""
 
 
 class _ReorderRequest(_BaseModel):
@@ -1460,26 +1471,77 @@ async def lfa_public_profile_editor(
 )
 async def lfa_profile_editor_set_slot(
     slot_id: str,
-    payload: _SlotModuleRequest,
+    payload: _SlotWidgetRequest,
     db:   Session = Depends(get_db),
     user: User    = Depends(get_current_user_web),
 ):
-    """Save a video module to a draft profile grid slot.
+    """Save a widget module to a draft profile grid slot.
 
-    Accepts YouTube (watch/shorts/youtu.be) and canonical TikTok URLs.
-    TikTok short URLs (vm./vt.tiktok.com) are rejected with 400.
+    Accepts widget_type (text_bio, image_url, video_youtube, video_tiktok).
+    Backward-compat: omit widget_type and pass video_url for video modules.
     CSRF protection enforced by global middleware.
     """
     lfa_license = _get_lfa_license(db, user.id)
     if not lfa_license:
         return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
 
+    wtype = payload.widget_type
+
+    # Validate widget_type when explicitly provided.
+    if wtype is not None and wtype not in _VALID_WIDGET_TYPES:
+        return JSONResponse(
+            {"ok": False, "error": f"Unknown widget_type: {wtype!r}. Valid: {sorted(_VALID_WIDGET_TYPES)}"},
+            status_code=422,
+        )
+
+    # Require either widget_type or video_url (backward-compat video path).
+    if wtype is None and not payload.video_url:
+        return JSONResponse(
+            {"ok": False, "error": "widget_type or video_url is required."},
+            status_code=422,
+        )
+
+    # Build per-type payload dict for the service.
+    if wtype is None or wtype in ("video_youtube", "video_tiktok"):
+        if not payload.video_url:
+            return JSONResponse(
+                {"ok": False, "error": "video_url is required for video widgets."},
+                status_code=422,
+            )
+        svc_payload: dict | None = None  # service handles legacy path via video_url positional
+    elif wtype == "text_bio":
+        if not payload.content:
+            return JSONResponse(
+                {"ok": False, "error": "content is required for text_bio widget."},
+                status_code=422,
+            )
+        svc_payload = {"content": payload.content, "heading": payload.heading or ""}
+    elif wtype == "image_url":
+        if not payload.url or not payload.alt_text:
+            return JSONResponse(
+                {"ok": False, "error": "url and alt_text are required for image_url widget."},
+                status_code=422,
+            )
+        svc_payload = {
+            "url":      payload.url,
+            "alt_text": payload.alt_text,
+            "caption":  payload.caption or "",
+        }
+    else:
+        svc_payload = None
+
     draft = _CardDraftService.get_player_card_draft(db, user.id)
     try:
-        _CardDraftService.set_draft_slot(db, draft, slot_id, payload.video_url, payload.title)
-    except ValueError as exc:
-        status = 404 if "Unknown slot_id" in str(exc) else 400
-        return JSONResponse({"ok": False, "error": str(exc)}, status_code=status)
+        _CardDraftService.set_draft_slot(
+            db, draft, slot_id,
+            payload.video_url,
+            payload.title,
+            widget_type=wtype,
+            payload=svc_payload,
+        )
+    except (ValueError, KeyError) as exc:
+        http_status = 404 if "Unknown slot_id" in str(exc) else 422
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=http_status)
 
     pg = (draft.draft_data or {}).get("profile_grid", {})
     slot_entry = next(
@@ -1487,12 +1549,13 @@ async def lfa_profile_editor_set_slot(
     )
     mod = slot_entry.get("module", {})
     return JSONResponse({
-        "ok":       True,
-        "slot_id":  slot_id,
-        "provider": mod.get("provider"),
-        "video_id": mod.get("video_id"),
-        "title":    mod.get("title", ""),
-        "status":   "draft",
+        "ok":          True,
+        "slot_id":     slot_id,
+        "widget_type": mod.get("type"),
+        "provider":    mod.get("provider"),
+        "video_id":    mod.get("video_id"),
+        "title":       mod.get("title", ""),
+        "status":      "draft",
     })
 
 

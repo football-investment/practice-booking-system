@@ -47,8 +47,12 @@ from app.services.profile_grid_service import (
     MAX_SLOTS,
     SLOT_IDS,
     SLOT_REGISTRY,
+    VALID_WIDGET_TYPES,
     build_draft_grid_state,
+    build_image_module,
+    build_module,
     build_published_grid_state,
+    build_text_module,
     grid_fingerprint,
     move_slot,
     set_slot,
@@ -1188,3 +1192,325 @@ class TestMoveRoute:
         data = json.loads(resp.body)
         assert data["ok"] is False
         assert "occupied" in data["error"]
+
+
+# ── WB: Widget Builder MVP ─────────────────────────────────────────────────────
+
+# ── WB-01..06: build_text_module ──────────────────────────────────────────────
+
+class TestBuildTextModule:
+
+    def test_wb_01_valid_content_and_heading(self):
+        """WB-01: build_text_module with valid content + heading returns correct dict."""
+        mod = build_text_module("Hello world", "My heading")
+        assert mod["type"] == "text_bio"
+        assert mod["content"] == "Hello world"
+        assert mod["heading"] == "My heading"
+        assert "updated_at" in mod
+
+    def test_wb_02_heading_defaults_to_empty(self):
+        """WB-02: build_text_module without heading defaults to empty string."""
+        mod = build_text_module("Some content")
+        assert mod["heading"] == ""
+
+    def test_wb_03_content_at_max_length_accepted(self):
+        """WB-03: content exactly 300 chars is accepted."""
+        mod = build_text_module("x" * 300)
+        assert len(mod["content"]) == 300
+
+    def test_wb_04_content_exceeds_max_raises_value_error(self):
+        """WB-04: content > 300 chars raises ValueError."""
+        with pytest.raises(ValueError, match="300"):
+            build_text_module("x" * 301)
+
+    def test_wb_05_html_tags_stripped_from_content(self):
+        """WB-05: HTML tags are stripped from content."""
+        mod = build_text_module("<b>Bold</b> text")
+        assert mod["content"] == "Bold text"
+        assert "<b>" not in mod["content"]
+
+    def test_wb_06_empty_content_raises_value_error(self):
+        """WB-06: empty or whitespace-only content raises ValueError."""
+        with pytest.raises(ValueError, match="required"):
+            build_text_module("   ")
+        with pytest.raises(ValueError, match="required"):
+            build_text_module("")
+
+
+# ── WB-07..12: build_image_module ─────────────────────────────────────────────
+
+class TestBuildImageModule:
+
+    def test_wb_07_valid_https_url_and_alt_text(self):
+        """WB-07: build_image_module with HTTPS URL + alt_text returns correct dict."""
+        mod = build_image_module("https://cdn.example.com/photo.jpg", "Player photo")
+        assert mod["type"] == "image_url"
+        assert mod["url"] == "https://cdn.example.com/photo.jpg"
+        assert mod["alt_text"] == "Player photo"
+        assert mod["caption"] == ""
+        assert "updated_at" in mod
+
+    def test_wb_08_http_url_raises_value_error(self):
+        """WB-08: HTTP (non-HTTPS) URL raises ValueError."""
+        with pytest.raises(ValueError, match="HTTPS"):
+            build_image_module("http://example.com/img.jpg", "Alt")
+
+    def test_wb_09_no_scheme_raises_value_error(self):
+        """WB-09: URL without scheme raises ValueError."""
+        with pytest.raises(ValueError):
+            build_image_module("example.com/img.jpg", "Alt")
+
+    def test_wb_10_empty_alt_text_raises_value_error(self):
+        """WB-10: empty alt_text raises ValueError."""
+        with pytest.raises(ValueError, match="required"):
+            build_image_module("https://cdn.example.com/photo.jpg", "")
+
+    def test_wb_11_alt_text_max_length(self):
+        """WB-11: alt_text > 200 chars raises ValueError."""
+        with pytest.raises(ValueError, match="200"):
+            build_image_module("https://cdn.example.com/photo.jpg", "a" * 201)
+
+    def test_wb_12_caption_optional(self):
+        """WB-12: caption is optional; defaults to empty string."""
+        mod = build_image_module("https://cdn.example.com/photo.jpg", "Alt")
+        assert mod["caption"] == ""
+        mod2 = build_image_module("https://cdn.example.com/photo.jpg", "Alt", "Nice photo")
+        assert mod2["caption"] == "Nice photo"
+
+
+# ── WB-13..17: grid_fingerprint content-aware ─────────────────────────────────
+
+class TestGridFingerprintContentAware:
+
+    def _pg(self, slot_id, module):
+        return {"version": 1, "slots": [{"slot_id": slot_id, "module": module}]}
+
+    def test_wb_13_text_bio_content_change_changes_fingerprint(self):
+        """WB-13: changing text_bio content produces a different fingerprint."""
+        mod1 = {"type": "text_bio", "content": "Hello", "heading": ""}
+        mod2 = {"type": "text_bio", "content": "World", "heading": ""}
+        fp1 = grid_fingerprint(self._pg("side_a_1", mod1))
+        fp2 = grid_fingerprint(self._pg("side_a_1", mod2))
+        assert fp1 != fp2
+
+    def test_wb_14_text_bio_heading_change_changes_fingerprint(self):
+        """WB-14: changing text_bio heading produces a different fingerprint."""
+        mod1 = {"type": "text_bio", "content": "Same", "heading": "Old"}
+        mod2 = {"type": "text_bio", "content": "Same", "heading": "New"}
+        fp1 = grid_fingerprint(self._pg("side_a_1", mod1))
+        fp2 = grid_fingerprint(self._pg("side_a_1", mod2))
+        assert fp1 != fp2
+
+    def test_wb_15_image_url_change_changes_fingerprint(self):
+        """WB-15: changing image URL produces a different fingerprint."""
+        mod1 = {"type": "image_url", "url": "https://a.com/1.jpg", "alt_text": "Alt", "caption": ""}
+        mod2 = {"type": "image_url", "url": "https://a.com/2.jpg", "alt_text": "Alt", "caption": ""}
+        fp1 = grid_fingerprint(self._pg("side_b_1", mod1))
+        fp2 = grid_fingerprint(self._pg("side_b_1", mod2))
+        assert fp1 != fp2
+
+    def test_wb_16_image_alt_caption_change_changes_fingerprint(self):
+        """WB-16: changing alt_text or caption of image_url changes fingerprint."""
+        base = {"type": "image_url", "url": "https://a.com/img.jpg", "alt_text": "Old", "caption": ""}
+        mod2 = dict(base, alt_text="New")
+        fp1 = grid_fingerprint(self._pg("side_c_1", base))
+        fp2 = grid_fingerprint(self._pg("side_c_1", mod2))
+        assert fp1 != fp2
+
+    def test_wb_17_video_fingerprint_backward_compat_unchanged(self):
+        """WB-17: old video module (provider + video_id, no type) fingerprint unchanged."""
+        old_mod = {"provider": "youtube", "video_id": "abc123"}
+        pg = self._pg("side_a_1", old_mod)
+        fp = grid_fingerprint(pg)
+        # Must contain the legacy "provider:video_id" form
+        assert any("youtube:abc123" in entry for entry in fp)
+
+
+# ── WB-18..21: build_module factory ──────────────────────────────────────────
+
+class TestBuildModuleFactory:
+
+    def test_wb_18_text_bio_dispatch(self):
+        """WB-18: build_module('text_bio', payload) builds text_bio module."""
+        mod = build_module("text_bio", {"content": "Hello", "heading": "Hi"})
+        assert mod["type"] == "text_bio"
+        assert mod["content"] == "Hello"
+
+    def test_wb_19_image_url_dispatch(self):
+        """WB-19: build_module('image_url', payload) builds image_url module."""
+        mod = build_module("image_url", {
+            "url": "https://cdn.example.com/img.jpg",
+            "alt_text": "A photo",
+        })
+        assert mod["type"] == "image_url"
+        assert mod["url"] == "https://cdn.example.com/img.jpg"
+
+    def test_wb_20_video_youtube_dispatch(self):
+        """WB-20: build_module('video_youtube', payload) builds video_youtube module."""
+        mod = build_module("video_youtube", {"video_url": _YT_URL})
+        assert mod["type"] == "video_youtube"
+        assert mod["video_id"] == _YT_VID
+
+    def test_wb_21_unknown_widget_type_raises_value_error(self):
+        """WB-21: build_module with unknown widget_type raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown widget_type"):
+            build_module("stat_badge", {"value": "47"})
+
+
+# ── WB-22..30: POST /slots endpoint (widget-type-aware) ──────────────────────
+
+class TestSlotRouteWidgetTypes:
+
+    _BASE = "app.api.web_routes.dashboard"
+
+    def _run_slot(self, payload_dict, draft, *, license_present=True):
+        from app.api.web_routes.dashboard import lfa_profile_editor_set_slot, _SlotWidgetRequest
+        import json as _json
+        db = MagicMock()
+        payload = _SlotWidgetRequest(**payload_dict)
+        with patch(f"{self._BASE}._get_lfa_license", return_value=MagicMock() if license_present else None), \
+             patch(f"{self._BASE}._CardDraftService") as MockCDS:
+            MockCDS.get_player_card_draft.return_value = draft
+            MockCDS.set_draft_slot.side_effect = (
+                lambda db, d, slot_id, video_url=None, title="", *, widget_type=None, payload=None, commit=True:
+                    CardDraftService.set_draft_slot(
+                        db, d, slot_id, video_url, title,
+                        widget_type=widget_type, payload=payload, commit=False,
+                    )
+            )
+            resp = asyncio.run(lfa_profile_editor_set_slot(
+                slot_id="side_a_1",
+                payload=payload,
+                db=db,
+                user=MagicMock(),
+            ))
+        return resp
+
+    def test_wb_22_text_bio_save_returns_ok(self):
+        """WB-22: POST /slots text_bio valid payload returns 200 ok."""
+        import json
+        draft = _draft()
+        resp = self._run_slot(
+            {"widget_type": "text_bio", "content": "My bio text", "heading": "About"},
+            draft,
+        )
+        assert resp.status_code == 200
+        data = json.loads(resp.body)
+        assert data["ok"] is True
+        assert data["widget_type"] == "text_bio"
+
+    def test_wb_23_image_url_save_returns_ok(self):
+        """WB-23: POST /slots image_url valid payload returns 200 ok."""
+        import json
+        draft = _draft()
+        resp = self._run_slot(
+            {"widget_type": "image_url", "url": "https://cdn.example.com/img.jpg", "alt_text": "Photo"},
+            draft,
+        )
+        assert resp.status_code == 200
+        data = json.loads(resp.body)
+        assert data["ok"] is True
+        assert data["widget_type"] == "image_url"
+
+    def test_wb_24_unknown_widget_type_returns_422(self):
+        """WB-24: POST /slots unknown widget_type returns 422."""
+        import json
+        draft = _draft()
+        resp = self._run_slot({"widget_type": "stat_badge"}, draft)
+        assert resp.status_code == 422
+        data = json.loads(resp.body)
+        assert data["ok"] is False
+
+    def test_wb_25_text_bio_missing_content_returns_422(self):
+        """WB-25: POST /slots text_bio without content returns 422."""
+        import json
+        draft = _draft()
+        resp = self._run_slot({"widget_type": "text_bio", "heading": "Hi"}, draft)
+        assert resp.status_code == 422
+        data = json.loads(resp.body)
+        assert data["ok"] is False
+
+    def test_wb_26_image_url_missing_alt_text_returns_422(self):
+        """WB-26: POST /slots image_url without alt_text returns 422."""
+        import json
+        draft = _draft()
+        resp = self._run_slot({"widget_type": "image_url", "url": "https://cdn.example.com/img.jpg"}, draft)
+        assert resp.status_code == 422
+        data = json.loads(resp.body)
+        assert data["ok"] is False
+
+    def test_wb_27_backward_compat_video_url_no_widget_type(self):
+        """WB-27: POST /slots with only video_url (no widget_type) saves as video (backward compat)."""
+        import json
+        draft = _draft()
+        resp = self._run_slot({"video_url": _YT_URL, "title": "My goal"}, draft)
+        assert resp.status_code == 200
+        data = json.loads(resp.body)
+        assert data["ok"] is True
+
+    def test_wb_28_no_widget_type_no_video_url_returns_422(self):
+        """WB-28: POST /slots with neither widget_type nor video_url returns 422."""
+        import json
+        draft = _draft()
+        resp = self._run_slot({}, draft)
+        assert resp.status_code == 422
+        data = json.loads(resp.body)
+        assert data["ok"] is False
+
+    def test_wb_29_publish_draft_text_bio_in_published_data(self):
+        """WB-29: publish_draft after text_bio save → published_data contains text_bio module."""
+        draft = _draft()
+        db = MagicMock()
+        CardDraftService.set_draft_slot(
+            db, draft, "side_a_1",
+            widget_type="text_bio",
+            payload={"content": "Hello world", "heading": ""},
+            commit=False,
+        )
+        CardDraftService.publish_draft(db, draft, commit=False)
+        pub_pg = (draft.published_data or {}).get("profile_grid", {})
+        slots = {s["slot_id"]: s["module"] for s in pub_pg.get("slots", [])}
+        assert slots.get("side_a_1", {}).get("type") == "text_bio"
+        assert slots["side_a_1"]["content"] == "Hello world"
+
+    def test_wb_30_draft_isolation_text_bio(self):
+        """WB-30: text_bio save updates draft_data but not published_data."""
+        original_pub = {"highlight_video": {"provider": "youtube", "video_id": "pub123"}}
+        draft = _draft(published_data=original_pub)
+        db = MagicMock()
+        CardDraftService.set_draft_slot(
+            db, draft, "side_a_1",
+            widget_type="text_bio",
+            payload={"content": "Draft only", "heading": ""},
+            commit=False,
+        )
+        assert draft.published_data == original_pub, "published_data must not change on draft save"
+        assert (draft.draft_data or {}).get("profile_grid") is not None
+
+
+# ── WB-31..35: Public render (player_profile.html template) ──────────────────
+
+class TestPublicRenderWidgetTypes:
+
+    def test_wb_31_player_html_text_bio_class_present(self):
+        """WB-31: player_profile.html render_slot_module contains psp-slot-text-bio class."""
+        assert "psp-slot-text-bio" in _PLAYER_HTML
+
+    def test_wb_32_player_html_image_url_class_present(self):
+        """WB-32: player_profile.html render_slot_module contains psp-slot-image class."""
+        assert "psp-slot-image" in _PLAYER_HTML
+
+    def test_wb_33_backward_compat_youtube_render_present(self):
+        """WB-33: player_profile.html still has YouTube nocookie iframe (backward compat)."""
+        assert "youtube-nocookie.com/embed" in _PLAYER_HTML
+        assert 'module.provider == "youtube"' in _PLAYER_HTML or "module.provider ==" in _PLAYER_HTML
+
+    def test_wb_34_unknown_module_fallback_present(self):
+        """WB-34: player_profile.html has a fallback block for unknown module.type (no 500)."""
+        assert "psp-slot-unknown" in _PLAYER_HTML
+
+    def test_wb_35_text_bio_content_escaped(self):
+        """WB-35: player_profile.html applies | e (escape) filter to text_bio content."""
+        # Both content and alt_text must be escaped.
+        assert "module.content | e" in _PLAYER_HTML
+        assert "module.alt_text | e" in _PLAYER_HTML

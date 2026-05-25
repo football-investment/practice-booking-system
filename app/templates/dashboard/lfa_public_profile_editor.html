@@ -72,6 +72,82 @@
 .ppe-btn-danger { background: transparent; border: 1px solid #fca5a5; color: #b91c1c; }
 .ppe-btn-danger:hover { background: #fee2e2; opacity: 1; }
 
+/* ── Widget Panel overlay ────────────────────────────────────────────────────── */
+.wp-backdrop {
+    display: none;
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.35);
+}
+.wp-backdrop.open { display: block; }
+.wp-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 201;
+    width: min(380px, 100vw);
+    background: #fff;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+}
+.wp-panel.open { transform: translateX(0); }
+.wp-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+.wp-title { font-size: 1rem; font-weight: 700; color: #111; margin: 0; }
+.wp-close {
+    background: none; border: none; cursor: pointer; padding: 0.25rem;
+    color: #6b7280; font-size: 1.3rem; line-height: 1;
+}
+.wp-close:hover { color: #111; }
+.wp-body { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; }
+.wp-draft-notice {
+    font-size: 0.78rem; color: #92400e; background: #fef3c7;
+    border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;
+}
+/* Type selector */
+.wp-type-selector {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.5rem; margin-bottom: 1.25rem;
+}
+.wp-type-btn {
+    padding: 0.6rem 0.5rem; border-radius: 8px; font-size: 0.8rem;
+    font-weight: 600; cursor: pointer; text-align: center;
+    background: #f3f4f6; border: 2px solid transparent; color: #374151;
+    transition: all 0.15s;
+}
+.wp-type-btn:hover { background: #e5e7eb; }
+.wp-type-btn.active { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+/* Form sections */
+.wp-form { display: none; }
+.wp-form.active { display: block; }
+.wp-label {
+    display: block; font-size: 0.8rem; font-weight: 600; color: #374151;
+    margin-bottom: 0.3rem; margin-top: 0.85rem;
+}
+.wp-label:first-child { margin-top: 0; }
+.wp-req { color: #ef4444; }
+.wp-input, .wp-textarea {
+    width: 100%; box-sizing: border-box;
+    border: 1.5px solid #d1d5db; border-radius: 6px;
+    padding: 0.45rem 0.65rem; font-size: 0.85rem; color: #111;
+    background: #fff; outline: none;
+}
+.wp-input:focus, .wp-textarea:focus { border-color: #3b82f6; }
+.wp-textarea { resize: vertical; min-height: 90px; }
+.wp-char-counter { font-size: 0.72rem; color: #9ca3af; text-align: right; margin-top: 0.2rem; }
+.wp-error { font-size: 0.78rem; color: #b91c1c; margin-top: 0.5rem; display: none; }
+.wp-error.visible { display: block; }
+/* Footer actions */
+.wp-footer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex; gap: 0.6rem; justify-content: flex-end;
+}
+/* Widget type badges */
+.ppe-badge-text  { background: #ede9fe; color: #5b21b6; }
+.ppe-badge-image { background: #dcfce7; color: #166534; }
+
 /* ── Grid designer — 5-lane layout ──────────────────────────────────────────── */
 /* Desktop: side_a | side_b | featured_card | side_c | side_d                   */
 .ppe-grid {
@@ -323,7 +399,8 @@
 {% macro _render_slot(slot) %}
 <div class="ppe-slot {% if not slot.is_empty %}filled{% endif %}"
      id="slot-{{ slot.slot_id }}"
-     data-slot="{{ slot.slot_id }}">
+     data-slot="{{ slot.slot_id }}"
+     {% if not slot.is_empty %}data-module="{{ slot.module | tojson | forceescape }}"{% endif %}>
 
     <div class="ppe-slot-head">
         <span class="ppe-drag-handle" title="Drag to reorder" aria-hidden="true">
@@ -340,7 +417,7 @@
         {% if not slot.is_empty %}
         <span class="ppe-slot-head-actions">
             <button class="ppe-btn ppe-btn-sm ppe-btn-ghost"
-                    onclick="openPanel('{{ slot.slot_id }}')">Edit</button>
+                    onclick="openWidgetPanel('{{ slot.slot_id }}')">Edit</button>
             <button class="ppe-btn ppe-btn-sm ppe-btn-danger"
                     onclick="removeSlot('{{ slot.slot_id }}')">Remove</button>
         </span>
@@ -348,45 +425,29 @@
     </div>
 
     {% if slot.is_empty %}
-    <div class="ppe-slot-empty" onclick="openPanel('{{ slot.slot_id }}')">
+    <div class="ppe-slot-empty" onclick="openWidgetPanel('{{ slot.slot_id }}')">
         <div class="ppe-slot-plus">+</div>
         <div class="ppe-slot-add-label">Add content</div>
     </div>
     {% else %}
     <div class="ppe-slot-filled" id="slot-filled-{{ slot.slot_id }}">
-        {% if slot.module.provider == "youtube" %}
-        <div class="ppe-slot-provider-badge ppe-badge-youtube">▶ YouTube</div>
-        {% else %}
-        <div class="ppe-slot-provider-badge ppe-badge-tiktok">♪ TikTok</div>
-        {% endif %}
+        {% if slot.module.type == "text_bio" %}
+        <div class="ppe-slot-provider-badge ppe-badge-text">&#x270F; Text</div>
+        <div class="ppe-slot-title">{{ (slot.module.heading or slot.module.content)[:45] }}</div>
+        {% elif slot.module.type == "image_url" %}
+        <div class="ppe-slot-provider-badge ppe-badge-image">&#x1F5BC; Image</div>
+        <div class="ppe-slot-title">{{ slot.module.alt_text[:45] }}</div>
+        {% elif slot.module.provider == "youtube" %}
+        <div class="ppe-slot-provider-badge ppe-badge-youtube">&#x25B6; YouTube</div>
         <div class="ppe-slot-title">{{ slot.module.title or slot.module.video_id }}</div>
         <div class="ppe-slot-vid-id">{{ slot.module.video_id }}</div>
+        {% else %}
+        <div class="ppe-slot-provider-badge ppe-badge-tiktok">&#x266A; TikTok</div>
+        <div class="ppe-slot-title">{{ slot.module.title or slot.module.video_id }}</div>
+        <div class="ppe-slot-vid-id">{{ slot.module.video_id }}</div>
+        {% endif %}
     </div>
     {% endif %}
-
-    {# Inline add/edit panel #}
-    <div class="ppe-panel" id="panel-{{ slot.slot_id }}">
-        <label class="ppe-panel-label">Video URL</label>
-        <input class="ppe-panel-input"
-               id="panel-url-{{ slot.slot_id }}"
-               type="url"
-               placeholder="Paste YouTube or TikTok video link"
-               value="{% if not slot.is_empty %}{{ slot.module.source_url }}{% endif %}">
-        <label class="ppe-panel-label">Title (optional)</label>
-        <input class="ppe-panel-input"
-               id="panel-title-{{ slot.slot_id }}"
-               type="text"
-               maxlength="80"
-               placeholder="e.g. Best goal"
-               value="{% if not slot.is_empty %}{{ slot.module.title }}{% endif %}">
-        <div class="ppe-panel-error" id="panel-err-{{ slot.slot_id }}"></div>
-        <div class="ppe-panel-actions">
-            <button class="ppe-btn ppe-btn-ghost ppe-btn-sm"
-                    onclick="closePanel('{{ slot.slot_id }}')">Cancel</button>
-            <button class="ppe-btn ppe-btn-publish ppe-btn-sm"
-                    onclick="saveSlot('{{ slot.slot_id }}')">Save Draft</button>
-        </div>
-    </div>
 
 </div>
 {% endmacro %}
@@ -486,6 +547,63 @@
     </div>{# .ppe-grid #}
 </div>{# .ppe-page #}
 
+{# ── Widget Panel overlay ─────────────────────────────────────────────────────── #}
+<div id="wp-backdrop" class="wp-backdrop" onclick="closeWidgetPanel()"></div>
+<div id="wp-panel" class="wp-panel" role="dialog" aria-modal="true" aria-labelledby="wp-title">
+    <div class="wp-header">
+        <h3 id="wp-title" class="wp-title">Slot content</h3>
+        <button class="wp-close" onclick="closeWidgetPanel()" aria-label="Close">&times;</button>
+    </div>
+    <div class="wp-body">
+        <div class="wp-draft-notice">
+            Changes save as <strong>draft</strong> — publish the profile to make them visible.
+        </div>
+
+        {# Type selector — hidden in edit mode #}
+        <div id="wp-type-selector" class="wp-type-selector">
+            <button class="wp-type-btn" data-wtype="video_youtube" onclick="wpSelectType('video_youtube')">&#x25B6; YouTube</button>
+            <button class="wp-type-btn" data-wtype="video_tiktok"  onclick="wpSelectType('video_tiktok')">&#x266A; TikTok</button>
+            <button class="wp-type-btn" data-wtype="text_bio"      onclick="wpSelectType('text_bio')">&#x270F; Text / Bio</button>
+            <button class="wp-type-btn" data-wtype="image_url"     onclick="wpSelectType('image_url')">&#x1F5BC; Image URL</button>
+        </div>
+
+        {# Video form #}
+        <div id="wp-form-video" class="wp-form">
+            <label class="wp-label" for="wp-video-url">Video URL <span class="wp-req">*</span></label>
+            <input class="wp-input" id="wp-video-url" type="url" placeholder="https://youtube.com/watch?v=... or TikTok link">
+            <label class="wp-label" for="wp-video-title">Title (optional)</label>
+            <input class="wp-input" id="wp-video-title" type="text" maxlength="80" placeholder="e.g. Best goal of 2024">
+        </div>
+
+        {# Text bio form #}
+        <div id="wp-form-text" class="wp-form">
+            <label class="wp-label" for="wp-text-heading">Heading (optional)</label>
+            <input class="wp-input" id="wp-text-heading" type="text" maxlength="80" placeholder="e.g. About me">
+            <label class="wp-label" for="wp-text-content">Content <span class="wp-req">*</span></label>
+            <textarea class="wp-textarea" id="wp-text-content" maxlength="300" placeholder="Up to 300 characters..."></textarea>
+            <div class="wp-char-counter"><span id="wp-text-count">0</span> / 300</div>
+        </div>
+
+        {# Image URL form #}
+        <div id="wp-form-image" class="wp-form">
+            <label class="wp-label" for="wp-image-url">Image URL (HTTPS) <span class="wp-req">*</span></label>
+            <input class="wp-input" id="wp-image-url" type="url" placeholder="https://example.com/photo.jpg">
+            <label class="wp-label" for="wp-image-alt">Alt text <span class="wp-req">*</span></label>
+            <input class="wp-input" id="wp-image-alt" type="text" maxlength="200" placeholder="Describe the image">
+            <label class="wp-label" for="wp-image-caption">Caption (optional)</label>
+            <input class="wp-input" id="wp-image-caption" type="text" maxlength="150" placeholder="Optional caption">
+        </div>
+
+        <div class="wp-error" id="wp-error"></div>
+    </div>
+    <div class="wp-footer">
+        <button class="ppe-btn ppe-btn-danger" id="wp-delete-btn" style="display:none;margin-right:auto"
+                onclick="wpDeleteWidget()">Remove</button>
+        <button class="ppe-btn ppe-btn-ghost" onclick="closeWidgetPanel()">Cancel</button>
+        <button class="ppe-btn ppe-btn-publish" id="wp-save-btn" onclick="wpSaveWidget()">Save Draft</button>
+    </div>
+</div>
+
 <div id="ppe-toast"></div>
 
 {# SortableJS 1.15.6 — MIT license, vendored (no CDN) #}
@@ -525,102 +643,165 @@
         if (btn)    { btn.disabled = false; }
     }
 
-    // ── Open / close inline panel ──────────────────────────────────────────────
-    window.openPanel = function (slotId) {
-        document.querySelectorAll(".ppe-panel.open").forEach(function (p) {
-            p.classList.remove("open");
+    // ── Widget Panel state ─────────────────────────────────────────────────────
+    var _wpSlotId    = null;
+    var _wpWidgetType = null;
+
+    function wpShowError(msg) {
+        var el = document.getElementById("wp-error");
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add("visible");
+    }
+    function wpClearError() {
+        var el = document.getElementById("wp-error");
+        if (el) { el.textContent = ""; el.classList.remove("visible"); }
+    }
+    function wpClearForms() {
+        document.getElementById("wp-video-url").value    = "";
+        document.getElementById("wp-video-title").value  = "";
+        document.getElementById("wp-text-heading").value = "";
+        document.getElementById("wp-text-content").value = "";
+        document.getElementById("wp-text-count").textContent = "0";
+        document.getElementById("wp-image-url").value     = "";
+        document.getElementById("wp-image-alt").value     = "";
+        document.getElementById("wp-image-caption").value = "";
+    }
+    function wpHideForms() {
+        ["wp-form-video","wp-form-text","wp-form-image"].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) { el.classList.remove("active"); }
         });
-        var panel = document.getElementById("panel-" + slotId);
-        if (panel) panel.classList.add("open");
+        document.querySelectorAll(".wp-type-btn").forEach(function(b) { b.classList.remove("active"); });
+    }
+
+    window.wpSelectType = function (wtype) {
+        _wpWidgetType = wtype;
+        wpHideForms();
+        var formId = wtype.startsWith("video_") ? "wp-form-video"
+                   : wtype === "text_bio"        ? "wp-form-text"
+                   :                               "wp-form-image";
+        var form = document.getElementById(formId);
+        if (form) form.classList.add("active");
+        document.querySelectorAll(".wp-type-btn").forEach(function(b) {
+            b.classList.toggle("active", b.getAttribute("data-wtype") === wtype);
+        });
+        wpClearError();
     };
 
-    window.closePanel = function (slotId) {
-        var panel = document.getElementById("panel-" + slotId);
-        if (panel) panel.classList.remove("open");
+    // Open the Widget Panel. currentModule is null for empty slots (add mode).
+    window.openWidgetPanel = function (slotId) {
+        var slotEl = document.getElementById("slot-" + slotId);
+        var moduleJson = slotEl ? slotEl.getAttribute("data-module") : null;
+        var mod = null;
+        try { mod = moduleJson ? JSON.parse(moduleJson) : null; } catch(e) {}
+
+        _wpSlotId = slotId;
+        _wpWidgetType = null;
+        wpClearForms();
+        wpClearError();
+        wpHideForms();
+
+        var typeSelector = document.getElementById("wp-type-selector");
+        var deleteBtn    = document.getElementById("wp-delete-btn");
+
+        if (mod) {
+            // Edit mode — prefill, hide type selector, show delete button.
+            typeSelector.style.display = "none";
+            deleteBtn.style.display    = "inline-block";
+            // Determine type from module
+            var mtype = mod.type || (mod.provider ? "video_" + mod.provider : null);
+            _wpWidgetType = mtype;
+            if (mtype === "text_bio") {
+                document.getElementById("wp-form-text").classList.add("active");
+                document.getElementById("wp-text-heading").value = mod.heading || "";
+                document.getElementById("wp-text-content").value = mod.content || "";
+                document.getElementById("wp-text-count").textContent = (mod.content || "").length;
+            } else if (mtype === "image_url") {
+                document.getElementById("wp-form-image").classList.add("active");
+                document.getElementById("wp-image-url").value     = mod.url || "";
+                document.getElementById("wp-image-alt").value     = mod.alt_text || "";
+                document.getElementById("wp-image-caption").value = mod.caption || "";
+            } else {
+                document.getElementById("wp-form-video").classList.add("active");
+                document.getElementById("wp-video-url").value   = mod.source_url || "";
+                document.getElementById("wp-video-title").value = mod.title || "";
+            }
+        } else {
+            // Add mode — show type selector, hide delete button.
+            typeSelector.style.display = "";
+            deleteBtn.style.display    = "none";
+        }
+
+        document.getElementById("wp-backdrop").classList.add("open");
+        document.getElementById("wp-panel").classList.add("open");
     };
 
-    // ── Save slot ──────────────────────────────────────────────────────────────
-    window.saveSlot = function (slotId) {
-        var urlEl   = document.getElementById("panel-url-" + slotId);
-        var titleEl = document.getElementById("panel-title-" + slotId);
-        var errEl   = document.getElementById("panel-err-" + slotId);
-        var videoUrl = urlEl ? urlEl.value.trim() : "";
-        var title    = titleEl ? titleEl.value.trim() : "";
+    window.closeWidgetPanel = function () {
+        document.getElementById("wp-backdrop").classList.remove("open");
+        document.getElementById("wp-panel").classList.remove("open");
+        _wpSlotId = null;
+        _wpWidgetType = null;
+    };
 
-        if (!videoUrl) {
-            errEl.textContent = "Please enter a video URL.";
-            errEl.classList.add("visible");
+    window.wpSaveWidget = function () {
+        if (!_wpSlotId || !_wpWidgetType) {
+            wpShowError("Please select a widget type first.");
             return;
         }
-        errEl.classList.remove("visible");
+        wpClearError();
+
+        var body = { widget_type: _wpWidgetType };
+
+        if (_wpWidgetType === "video_youtube" || _wpWidgetType === "video_tiktok") {
+            body.video_url = document.getElementById("wp-video-url").value.trim();
+            body.title     = document.getElementById("wp-video-title").value.trim();
+            if (!body.video_url) { wpShowError("Video URL is required."); return; }
+        } else if (_wpWidgetType === "text_bio") {
+            body.content = document.getElementById("wp-text-content").value.trim();
+            body.heading = document.getElementById("wp-text-heading").value.trim();
+            if (!body.content) { wpShowError("Content is required."); return; }
+        } else if (_wpWidgetType === "image_url") {
+            body.url       = document.getElementById("wp-image-url").value.trim();
+            body.alt_text  = document.getElementById("wp-image-alt").value.trim();
+            body.caption   = document.getElementById("wp-image-caption").value.trim();
+            if (!body.url)      { wpShowError("Image URL is required."); return; }
+            if (!body.alt_text) { wpShowError("Alt text is required."); return; }
+        }
+
+        var saveBtn = document.getElementById("wp-save-btn");
+        saveBtn.disabled = true;
 
         getCsrf().then(function (csrf) {
-            return fetch(_BASE + encodeURIComponent(slotId), {
+            return fetch(_BASE + encodeURIComponent(_wpSlotId), {
                 method:  "POST",
-                headers: {
-                    "Content-Type":  "application/json",
-                    "X-CSRF-Token":  csrf,
-                },
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
                 credentials: "same-origin",
-                body: JSON.stringify({video_url: videoUrl, title: title}),
+                body: JSON.stringify(body),
             });
         }).then(function (r) {
             return r.json().then(function (d) { return {data: d, status: r.status}; });
         }).then(function (res) {
             var data = res.data; var status = res.status;
             if (!data.ok) {
-                errEl.textContent = parseError(data, status);
-                errEl.classList.add("visible");
+                wpShowError(parseError(data, status));
+                saveBtn.disabled = false;
                 return;
             }
-            // Update slot UI
-            var slotEl  = document.getElementById("slot-" + slotId);
-            var filledEl = document.getElementById("slot-filled-" + slotId);
-            var panel   = document.getElementById("panel-" + slotId);
-
-            var badge = data.provider === "youtube"
-                ? '<div class="ppe-slot-provider-badge ppe-badge-youtube">▶ YouTube</div>'
-                : '<div class="ppe-slot-provider-badge ppe-badge-tiktok">♪ TikTok</div>';
-            var displayTitle = data.title || data.video_id;
-
-            var filledHtml = badge +
-                '<div class="ppe-slot-title">' + escHtml(displayTitle) + '</div>' +
-                '<div class="ppe-slot-vid-id">' + escHtml(data.video_id) + '</div>';
-
-            if (filledEl) {
-                filledEl.innerHTML = filledHtml;
-            } else {
-                // Was empty — replace empty body
-                var emptyEl = slotEl.querySelector(".ppe-slot-empty");
-                if (emptyEl) emptyEl.remove();
-                var newFilled = document.createElement("div");
-                newFilled.className = "ppe-slot-filled";
-                newFilled.id = "slot-filled-" + slotId;
-                newFilled.innerHTML = filledHtml;
-                slotEl.insertBefore(newFilled, panel);
-                // Add Edit/Remove buttons to header
-                var headActions = slotEl.querySelector(".ppe-slot-head-actions");
-                if (!headActions) {
-                    var head = slotEl.querySelector(".ppe-slot-head");
-                    if (head) {
-                        var actSpan = document.createElement("span");
-                        actSpan.className = "ppe-slot-head-actions";
-                        actSpan.innerHTML =
-                            '<button class="ppe-btn ppe-btn-sm ppe-btn-ghost" onclick="openPanel(\'' + slotId + '\')">Edit</button>' +
-                            '<button class="ppe-btn ppe-btn-sm ppe-btn-danger" onclick="removeSlot(\'' + slotId + '\')">Remove</button>';
-                        head.appendChild(actSpan);
-                    }
-                }
-                slotEl.classList.add("filled");
-                slotEl.style.borderStyle = "solid";
-            }
-            panel.classList.remove("open");
+            closeWidgetPanel();
             setUnpublished();
             toast("Saved to draft.");
+            window.location.reload();
         }).catch(function () {
-            errEl.textContent = "Network error — please reload and try again.";
-            errEl.classList.add("visible");
+            wpShowError("Network error — please reload and try again.");
+            saveBtn.disabled = false;
         });
+    };
+
+    window.wpDeleteWidget = function () {
+        if (!_wpSlotId) return;
+        removeSlot(_wpSlotId);
+        closeWidgetPanel();
     };
 
     // ── Remove slot ────────────────────────────────────────────────────────────
@@ -634,26 +815,9 @@
             });
         }).then(function (r) { return r.json(); }).then(function (data) {
             if (!data.ok) { alert(data.error || "Failed to remove."); return; }
-            // Reset slot to empty state
-            var slotEl  = document.getElementById("slot-" + slotId);
-            var filledEl = document.getElementById("slot-filled-" + slotId);
-            if (filledEl) filledEl.remove();
-            var headActions = slotEl.querySelector(".ppe-slot-head-actions");
-            if (headActions) headActions.remove();
-            // Re-insert empty body before panel
-            var panel = document.getElementById("panel-" + slotId);
-            var emptyDiv = document.createElement("div");
-            emptyDiv.className = "ppe-slot-empty";
-            emptyDiv.onclick = function () { openPanel(slotId); };
-            emptyDiv.innerHTML =
-                '<div class="ppe-slot-plus">+</div>' +
-                '<div class="ppe-slot-add-label">Add content</div>';
-            slotEl.insertBefore(emptyDiv, panel);
-            slotEl.classList.remove("filled");
-            slotEl.style.borderStyle = "dashed";
-            panel.classList.remove("open");
             setUnpublished();
             toast("Removed from draft.");
+            window.location.reload();
         }).catch(function () { alert("Network error."); });
     };
 
@@ -786,6 +950,15 @@
             },
         });
     });
+
+    // ── Text content char counter ──────────────────────────────────────────────
+    var _textArea = document.getElementById("wp-text-content");
+    if (_textArea) {
+        _textArea.addEventListener("input", function () {
+            var counter = document.getElementById("wp-text-count");
+            if (counter) counter.textContent = _textArea.value.length;
+        });
+    }
 
     // ── XSS-safe HTML escaping ─────────────────────────────────────────────────
     function escHtml(str) {

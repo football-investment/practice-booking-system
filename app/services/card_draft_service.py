@@ -15,6 +15,7 @@ from app.services.highlight_video_service import (
     build_youtube_embed_url,
 )
 from app.services.profile_grid_service import (
+    build_module as _build_module,
     build_video_module as _build_video_module,
     grid_fingerprint as _grid_fingerprint,
     move_slot as _move_slot,
@@ -22,6 +23,7 @@ from app.services.profile_grid_service import (
     reorder_zone as _reorder_zone,
     set_slot as _set_slot,
     validate_slot_id as _validate_slot_id,
+    VALID_WIDGET_TYPES as _VALID_WIDGET_TYPES,
 )
 
 
@@ -210,20 +212,39 @@ class CardDraftService:
 
     @staticmethod
     def set_draft_slot(
-        db: Session, draft: CardDraft, slot_id: str, video_url: str, title: str = "",
-        *, commit: bool = True
+        db: Session,
+        draft: CardDraft,
+        slot_id: str,
+        video_url: str | None = None,
+        title: str = "",
+        *,
+        widget_type: str | None = None,
+        payload: dict[str, Any] | None = None,
+        commit: bool = True,
     ) -> CardDraft:
-        """Validate video_url, build module, and write to draft_data.profile_grid.
+        """Write a widget module into draft_data.profile_grid[slot_id].
 
-        Accepts YouTube and canonical TikTok URLs. Short TikTok URLs raise ValueError.
-        source_url is stored for audit only and never used as an iframe src.
-        Raises ValueError for unknown slot_id or invalid URL.
+        Backward-compatible: passing video_url (no widget_type) behaves as before.
+        New path: pass widget_type + payload dict for text_bio / image_url / video.
+
+        Raises ValueError for unknown slot_id, invalid URL, or bad widget payload.
         """
         _validate_slot_id(slot_id)
-        module = _build_video_module(video_url, title)
+        if widget_type is None:
+            # Legacy video path — video_url required.
+            if video_url is None:
+                raise ValueError("video_url is required when widget_type is not specified.")
+            module = _build_video_module(video_url, title)
+        else:
+            _payload: dict[str, Any] = dict(payload or {})
+            # Allow callers to pass video_url as positional even with widget_type for video types.
+            if widget_type in ("video_youtube", "video_tiktok") and video_url and "video_url" not in _payload:
+                _payload["video_url"] = video_url
+                if title and "title" not in _payload:
+                    _payload["title"] = title
+            module = _build_module(widget_type, _payload)
         draft_data: dict[str, Any] = dict(draft.draft_data or {})
-        existing_pg = draft_data.get("profile_grid")
-        draft_data["profile_grid"] = _set_slot(existing_pg, slot_id, module)
+        draft_data["profile_grid"] = _set_slot(draft_data.get("profile_grid"), slot_id, module)
         draft.draft_data = draft_data
         draft.updated_at = datetime.now(timezone.utc)
         if commit:

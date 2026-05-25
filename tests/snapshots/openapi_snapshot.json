@@ -22061,22 +22061,80 @@
         "title": "_ReorderRequest",
         "type": "object"
       },
-      "_SlotModuleRequest": {
+      "_SlotWidgetRequest": {
         "properties": {
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text"
+          },
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "heading": {
+            "default": "",
+            "title": "Heading",
+            "type": "string"
+          },
           "title": {
             "default": "",
             "title": "Title",
             "type": "string"
           },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
           "video_url": {
-            "title": "Video Url",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          },
+          "widget_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Type"
           }
         },
-        "required": [
-          "video_url"
-        ],
-        "title": "_SlotModuleRequest",
+        "title": "_SlotWidgetRequest",
         "type": "object"
       },
       "app__api__api_v1__endpoints__coach__licenses__LicenseCreate": {
@@ -60410,7 +60468,7 @@
         ]
       },
       "post": {
-        "description": "Save a video module to a draft profile grid slot.\n\nAccepts YouTube (watch/shorts/youtu.be) and canonical TikTok URLs.\nTikTok short URLs (vm./vt.tiktok.com) are rejected with 400.\nCSRF protection enforced by global middleware.",
+        "description": "Save a widget module to a draft profile grid slot.\n\nAccepts widget_type (text_bio, image_url, video_youtube, video_tiktok).\nBackward-compat: omit widget_type and pass video_url for video modules.\nCSRF protection enforced by global middleware.",
         "operationId": "lfa_profile_editor_set_slot_dashboard_lfa_football_player_public_profile_editor_slots__slot_id__post",
         "parameters": [
           {
@@ -60427,7 +60485,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/_SlotModuleRequest"
+                "$ref": "#/components/schemas/_SlotWidgetRequest"
               }
             }
           },

@@ -232,6 +232,55 @@
     color: #374151;
 }
 
+/* ── Text bio widget ────────────────────────────────────────────────────────── */
+.psp-slot-text-bio {
+    padding: 0.75rem;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+.psp-slot-text-bio__heading {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.4rem;
+}
+.psp-slot-text-bio__content {
+    font-size: 0.85rem;
+    color: #374151;
+    line-height: 1.55;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ── Image URL widget ───────────────────────────────────────────────────────── */
+.psp-slot-image {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+.psp-slot-image__img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    object-fit: cover;
+}
+.psp-slot-image__caption {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-top: 0.4rem;
+}
+
+/* ── Unknown widget fallback ────────────────────────────────────────────────── */
+.psp-slot-unknown {
+    padding: 0.75rem;
+    background: #f3f4f6;
+    border-radius: 8px;
+    text-align: center;
+}
+.psp-slot-unknown__msg { font-size: 0.8rem; color: #9ca3af; margin: 0; }
+
 /* ── Card slot — viewport-aware max-height ─────────────────────────────────── */
 .psp-card-slot {
     --psp-card-max-h: clamp(420px, calc(100vh - 238px), 620px);
@@ -381,7 +430,27 @@
 
 {# ── Grid slot module renderer (YouTube iframe / TikTok CTA) ────────────────── #}
 {% macro render_slot_module(module) %}
-{% if module.provider == "youtube" %}
+{#
+  Dispatch order:
+  1. text_bio / image_url (explicit type, new widgets)
+  2. provider-based YouTube / TikTok (both new modules with type= and legacy modules without type=)
+  3. Unknown — fallback placeholder, no 500.
+  Jinja2 attribute access on a missing dict key returns Undefined (falsy), not an error.
+#}
+{% if module.type == "text_bio" %}
+<div class="psp-slot-text-bio">
+  {% if module.heading %}<h4 class="psp-slot-text-bio__heading">{{ module.heading | e }}</h4>{% endif %}
+  <p class="psp-slot-text-bio__content">{{ module.content | e }}</p>
+</div>
+{% elif module.type == "image_url" %}
+<figure class="psp-slot-image">
+  <img src="{{ module.url | e }}"
+       alt="{{ module.alt_text | e }}"
+       loading="lazy"
+       class="psp-slot-image__img">
+  {% if module.caption %}<figcaption class="psp-slot-image__caption">{{ module.caption | e }}</figcaption>{% endif %}
+</figure>
+{% elif module.provider == "youtube" %}
 <div class="psp-video-wrapper">
     <iframe
         src="https://www.youtube-nocookie.com/embed/{{ module.video_id }}?rel=0"
@@ -403,6 +472,10 @@
     <div class="psp-tiktok-provider">TikTok</div>
     <div class="psp-tiktok-label">Watch on TikTok ↗</div>
 </a>
+{% else %}
+<div class="psp-slot-unknown">
+  <p class="psp-slot-unknown__msg">Widget not available</p>
+</div>
 {% endif %}
 {% endmacro %}
 
