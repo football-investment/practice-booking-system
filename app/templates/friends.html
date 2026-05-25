@@ -116,6 +116,40 @@
     }
     .fr-card-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: auto; }
 
+    /* ── Friend card avatar layout ──────────────────────────────────────────── */
+    .fr-card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .fr-avatar-img,
+    .fr-avatar-initials {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .fr-avatar-img   { object-fit: cover; display: block; }
+    .fr-avatar-initials {
+        background: var(--lfa-yellow);
+        color: var(--lfa-black);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        user-select: none;
+    }
+    .fr-card-identity {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
     /* Buttons — aligned to dashboard / PP brand */
     .fr-btn {
         font-size: 0.82rem;
@@ -318,25 +352,40 @@
         {% if friends %}
         <div class="fr-grid">
             {% for f in friends %}
+            {% set _fd        = friend_data.get(f.id, {}) %}
+            {% set _photo     = _fd.get("photo_url") %}
+            {% set _initials  = _fd.get("initials", "?") %}
+            {% set _pos_label = _fd.get("position_label", "") %}
+            {% set _lvl       = _fd.get("level") %}
             <div class="fr-card">
-                <div class="fr-card-name">{{ f.nickname or f.name or f.email }}</div>
-                <div class="fr-card-meta">{{ f.email }}</div>
-                {% set _lvl = friend_levels.get(f.id) %}
-                {% if f.position or _lvl %}
-                <div class="fr-card-pills">
-                    {% if f.position %}<span class="fr-pill fr-pill-pos">{{ f.position | title }}</span>{% endif %}
-                    {% if _lvl %}<span class="fr-pill fr-pill-lvl">Lv {{ _lvl }}</span>{% endif %}
+                <div class="fr-card-top">
+                    {% if _photo %}
+                    <img src="{{ _photo }}" class="fr-avatar-img"
+                         alt="{{ f.nickname or f.name }}"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <div class="fr-avatar-initials" style="display:none;">{{ _initials }}</div>
+                    {% else %}
+                    <div class="fr-avatar-initials">{{ _initials }}</div>
+                    {% endif %}
+                    <div class="fr-card-identity">
+                        <div class="fr-card-name">{{ f.nickname or f.name or f.email }}</div>
+                        {% if _pos_label or _lvl %}
+                        <div class="fr-card-pills">
+                            {% if _pos_label %}<span class="fr-pill fr-pill-pos">{{ _pos_label }}</span>{% endif %}
+                            {% if _lvl %}<span class="fr-pill fr-pill-lvl">Lv {{ _lvl }}</span>{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                {% endif %}
                 <div class="fr-card-actions">
                     <a href="/players/{{ f.id }}" class="fr-btn fr-btn-view">View Profile ↗</a>
                     <a href="/challenges/send?friend_id={{ f.id }}"
-                       class="fr-btn fr-btn-muted" style="text-decoration:none;">⚔ Challenge</a>
+                       class="fr-btn fr-btn-primary" style="text-decoration:none;">⚔ Challenge</a>
                     <form method="post" action="/friends/remove/{{ f.id }}" style="margin:0;">
                         <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token', '') }}">
                         <button type="submit" class="fr-btn fr-btn-danger"
                                 onclick="return confirm('Remove {{ f.nickname or f.name or f.email }} from friends?')">
-                            Remove
+                            ✕ Remove
                         </button>
                     </form>
                 </div>

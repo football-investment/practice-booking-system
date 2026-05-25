@@ -574,8 +574,17 @@ _TMPL_DIR = _os.path.join(
 )
 
 
-def _render_friends(friends=None, friend_levels=None, position="midfielder"):
-    """Render friends.html Friends tab with optional friend list."""
+def _fd_entry(level=None, photo_url=None, position_label="", initials="TF"):
+    """Build a friend_data dict entry for test use."""
+    return {"level": level, "photo_url": photo_url,
+            "position_label": position_label, "initials": initials}
+
+
+def _render_friends(friends=None, friend_data=None, position="midfielder"):
+    """Render friends.html Friends tab with optional friend list.
+
+    friend_data: if None, a default is auto-built from `position` for fr_mock (id=7).
+    """
     env = Environment(loader=FileSystemLoader(_TMPL_DIR), autoescape=True)
     template = env.get_template("friends.html")
     fr_mock = MagicMock()
@@ -584,6 +593,20 @@ def _render_friends(friends=None, friend_levels=None, position="midfielder"):
     fr_mock.nickname = None
     fr_mock.email = "friend@lfa.com"
     fr_mock.position = position
+
+    if friend_data is None:
+        from app.utils.football_positions import (
+            normalize_position as _np,
+            position_label as _pl,
+        )
+        if position:
+            canonical  = _np(position) or position
+            raw_label  = _pl(canonical)
+            pos_label  = raw_label.replace("_", " ").title() if "_" in raw_label else raw_label
+        else:
+            pos_label = ""
+        friend_data = {7: _fd_entry(position_label=pos_label)}
+
     return template.render(
         request=MagicMock(),
         user=MagicMock(),
@@ -594,7 +617,7 @@ def _render_friends(friends=None, friend_levels=None, position="midfielder"):
         success=None,
         error=None,
         active_tab=None,
-        friend_levels=friend_levels if friend_levels is not None else {},
+        friend_data=friend_data,
     )
 
 
@@ -641,34 +664,34 @@ class TestFriendsCardDesign:
 
     def test_fr33_friend_card_has_view_profile_link(self):
         """FR-33: friend card renders /players/{id} View Profile link (with full context)."""
-        html = _render_friends(position="midfielder", friend_levels={7: 3})
+        html = _render_friends(friend_data={7: _fd_entry(level=3, position_label="Central Midfielder")})
         assert "/players/7" in html
         assert "View Profile" in html
 
     def test_fr34_friend_card_challenge_uses_friend_id_param(self):
         """FR-34: Challenge button uses ?friend_id= not bare ?friend=."""
-        html = _render_friends(position="midfielder", friend_levels={7: 3})
+        html = _render_friends(friend_data={7: _fd_entry(level=3, position_label="Central Midfielder")})
         assert "?friend_id=7" in html
         assert "?friend=7" not in html
 
     def test_fr35_position_pill_rendered_when_set(self):
-        """FR-35: position pill appears when f.position is a non-empty string."""
-        html = _render_friends(position="midfielder", friend_levels={})
-        assert "Midfielder" in html
+        """FR-35: position pill appears when position_label is a non-empty string."""
+        html = _render_friends(position="midfielder")
+        assert "Midfielder" in html  # "Central Midfielder" contains "Midfielder"
 
     def test_fr36_level_pill_rendered_when_available(self):
-        """FR-36: level pill appears when friend_levels contains the friend's id."""
-        html = _render_friends(position=None, friend_levels={7: 4})
+        """FR-36: level pill appears when friend_data contains a level for the friend."""
+        html = _render_friends(friend_data={7: _fd_entry(level=4)})
         assert "Lv 4" in html
 
     def test_fr37_no_error_when_position_is_none(self):
-        """FR-37: no UndefinedError when f.position is None — page still renders."""
-        html = _render_friends(position=None, friend_levels={})
+        """FR-37: no UndefinedError when position_label is empty — page still renders."""
+        html = _render_friends(position=None)
         assert "/players/7" in html
 
     def test_fr38_no_error_when_friend_levels_empty(self):
-        """FR-38: no error when friend_levels is empty (friend has no LFA license)."""
-        html = _render_friends(position="goalkeeper", friend_levels={})
+        """FR-38: no error when friend_data has no level (friend has no LFA license)."""
+        html = _render_friends(position="goalkeeper")
         assert "/players/7" in html
 
     def test_fr39_local_app_tokens_defined_in_template(self):
@@ -800,7 +823,7 @@ class TestFriendsNavAlignment:
             request=MagicMock(), user=u,
             friends=[], incoming=[], outgoing=[],
             incoming_count=0, success=None, error=None, active_tab=None,
-            friend_levels={},
+            friend_data={},
             spec_dashboard_url="/dashboard/lfa-football-player",
             spec_dashboard_icon="⚽",
             spec_profile_url="/profile/lfa-football-player",
@@ -812,7 +835,7 @@ class TestFriendsNavAlignment:
     def test_fr_nav_07_existing_card_tests_still_pass(self):
         """FR-NAV-07: FR-33..FR-42 card/design tests are not broken by nav change."""
         # Smoke: render with full context, verify pill and link presence
-        html = _render_friends(position="midfielder", friend_levels={7: 3})
+        html = _render_friends(friend_data={7: _fd_entry(level=3, position_label="Central Midfielder")})
         assert "/players/7" in html
         assert "Midfielder" in html
         assert "Lv 3" in html
@@ -828,6 +851,119 @@ class TestFriendsNavAlignment:
 
     def test_fr_nav_09_challenge_link_still_uses_friend_id(self):
         """FR-NAV-09: Challenge link still uses ?friend_id= after nav change."""
-        html = _render_friends(position=None, friend_levels={7: 2})
+        html = _render_friends(friend_data={7: _fd_entry(level=2)})
         assert "?friend_id=7" in html
         assert "?friend=7" not in html
+
+
+# ── Friend card MVP redesign — FR-CARD-01..FR-CARD-13 ────────────────────────
+
+class TestFriendsCardMVP:
+    """Friend card MVP: avatar, position label, level badge, no email, no OVR, no N+1."""
+
+    def test_fr_card_01_view_profile_link_points_to_friend(self):
+        """FR-CARD-01: View Profile link = /players/{friend_id}."""
+        html = _render_friends()
+        assert "/players/7" in html
+        assert "View Profile" in html
+
+    def test_fr_card_02_challenge_link_uses_friend_id(self):
+        """FR-CARD-02: Challenge link uses ?friend_id={friend_id}."""
+        html = _render_friends()
+        assert "?friend_id=7" in html
+
+    def test_fr_card_03_email_not_in_friend_card(self):
+        """FR-CARD-03: email address not shown as primary data in friend card."""
+        html = _render_friends()
+        # fr_mock has name="Test Friend", so display uses name — email never rendered
+        assert "friend@lfa.com" not in html
+
+    def test_fr_card_04_centre_midfield_renders_without_underscore(self):
+        """FR-CARD-04: centre_midfield → 'Central Midfielder' (no underscore)."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(position_label="Central Midfielder")}
+        )
+        assert "Central Midfielder" in html
+        assert "centre_midfield" not in html
+
+    def test_fr_card_05_goalkeeper_renders_correctly(self):
+        """FR-CARD-05: goalkeeper → 'Goalkeeper' label."""
+        html = _render_friends(friend_data={7: _fd_entry(position_label="Goalkeeper")})
+        assert "Goalkeeper" in html
+
+    def test_fr_card_06_unknown_position_no_crash(self):
+        """FR-CARD-06: unknown position_label value renders without raising 500."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(position_label="Winger Legacy")}
+        )
+        assert "/players/7" in html  # page rendered without crash
+
+    def test_fr_card_07_photo_url_renders_img_tag(self):
+        """FR-CARD-07: player_card_photo_url present → <img> with that src."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(photo_url="https://cdn.lfa.com/photo.jpg")}
+        )
+        assert "https://cdn.lfa.com/photo.jpg" in html
+        assert "<img" in html
+
+    def test_fr_card_08_no_photo_renders_initials_avatar(self):
+        """FR-CARD-08: photo_url=None → fr-avatar-initials div rendered with initials."""
+        html = _render_friends(friend_data={7: _fd_entry(photo_url=None, initials="TF")})
+        assert "fr-avatar-initials" in html
+        assert "TF" in html
+
+    def test_fr_card_09_initials_rendering(self):
+        """FR-CARD-09: initials rendered correctly from friend_data entry."""
+        html_jd = _render_friends(friend_data={7: _fd_entry(initials="JD")})
+        assert "JD" in html_jd
+
+        html_a = _render_friends(friend_data={7: _fd_entry(initials="A")})
+        assert "A" in html_a
+
+    def test_fr_card_09b_backend_computes_initials(self):
+        """FR-CARD-09b: _friend_data_map computes JD for 'John Doe', A for email-only user."""
+        from app.api.web_routes.friends import _friend_data_map
+
+        u1 = MagicMock()
+        u1.id = 10
+        u1.name = "John Doe"
+        u1.email = "john@lfa.com"
+        u1.position = None
+
+        u2 = MagicMock()
+        u2.id = 11
+        u2.name = None
+        u2.email = "alice@lfa.com"
+        u2.position = None
+
+        db = _db()
+        db.query.return_value.filter.return_value.all.return_value = []  # no licenses
+
+        result = _friend_data_map(db, [u1, u2])
+        assert result[10]["initials"] == "JD"
+        assert result[11]["initials"] == "A"
+
+    def test_fr_card_10_level_pill_shown_when_level_present(self):
+        """FR-CARD-10: Lv N badge visible when friend_data has a level."""
+        html = _render_friends(friend_data={7: _fd_entry(level=5)})
+        assert "Lv 5" in html
+
+    def test_fr_card_11_level_pill_absent_when_no_license(self):
+        """FR-CARD-11: no Lv badge when friend has no LFA license (level=None)."""
+        html = _render_friends(friend_data={7: _fd_entry(level=None)})
+        assert "Lv " not in html
+
+    def test_fr_card_12_no_ovr_badge_in_mvp(self):
+        """FR-CARD-12: OVR badge must not appear — deferred to Phase 2."""
+        import re
+        html = _render_friends()
+        assert not re.search(r'\bOVR\b', html), \
+            "OVR badge must not appear in MVP friend cards (Phase 2 only)"
+
+    def test_fr_card_13_no_get_skill_profile_in_friends_module(self):
+        """FR-CARD-13: friends.py does not import/call get_skill_profile — no N+1 OVR."""
+        import inspect
+        import app.api.web_routes.friends as mod
+        src = inspect.getsource(mod)
+        assert "get_skill_profile" not in src, \
+            "friends.py must not call get_skill_profile — OVR computation is Phase 2"
