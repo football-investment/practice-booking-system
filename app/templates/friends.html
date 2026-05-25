@@ -241,7 +241,8 @@
     .fr-drop-empty  { padding: 0.85rem 1rem; color: var(--app-text-muted); font-size: 0.88rem; }
 
     /* ── Player data pills ───────────────────────────────────────────────────── */
-    .fr-card-pills { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .fr-card-pills { display: flex; flex-direction: column; gap: 0.3rem; }
+    .fr-pills-row  { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
     .fr-pill {
         display: inline-flex;
         align-items: center;
@@ -253,6 +254,13 @@
         letter-spacing: 0.02em;
     }
     .fr-pill-pos { background: rgba(255,210,0,0.18); color: var(--lfa-black); border: 1px solid rgba(255,210,0,0.40); }
+    .fr-pill-pos-primary {
+        background: var(--lfa-black);
+        color: var(--lfa-yellow);
+        font-size: 0.76rem;
+        letter-spacing: 0.06em;
+        cursor: default;
+    }
     .fr-pill-pos-short {
         background: rgba(255,210,0,0.18);
         color: var(--lfa-black);
@@ -269,6 +277,7 @@
         .fr-btn-muted       { background: #3a4560; color: var(--app-text-muted); border-color: var(--app-border); }
         .fr-btn-view        { background: #1e2e4a; color: #90cdf4; }
         .fr-pill-pos        { background: rgba(255,210,0,0.15); color: var(--lfa-yellow); border-color: rgba(255,210,0,0.30); }
+        .fr-pill-pos-primary { background: var(--lfa-yellow); color: var(--lfa-black); }
         .fr-pill-pos-short  { background: rgba(255,210,0,0.15); color: var(--lfa-yellow); border-color: rgba(255,210,0,0.30); }
         .fr-pill-lvl        { background: var(--lfa-yellow); color: var(--lfa-black); }
         .fr-tab             { color: var(--app-text-muted); }
@@ -380,10 +389,19 @@
                         <div class="fr-card-name">{{ f.nickname or f.name or f.email }}</div>
                         {% if _badges or _lvl %}
                         <div class="fr-card-pills">
-                            {% for b in _badges %}
-                            <span class="fr-pill fr-pill-pos-short" title="{{ b.label }}">{{ b.short }}</span>
-                            {% endfor %}
-                            {% if _lvl %}<span class="fr-pill fr-pill-lvl">Lv {{ _lvl }}</span>{% endif %}
+                            <div class="fr-pills-row">
+                                {% if _badges %}
+                                <span class="fr-pill fr-pill-pos-primary" title="{{ _badges[0].label }}">{{ _badges[0].short }}</span>
+                                {% endif %}
+                                {% if _lvl %}<span class="fr-pill fr-pill-lvl">Lv {{ _lvl }}</span>{% endif %}
+                            </div>
+                            {% if _badges|length > 1 %}
+                            <div class="fr-pills-row">
+                                {% for b in _badges[1:] %}
+                                <span class="fr-pill fr-pill-pos-short" title="{{ b.label }}">{{ b.short }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>

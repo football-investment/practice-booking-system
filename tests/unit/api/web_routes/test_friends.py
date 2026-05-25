@@ -1020,16 +1020,17 @@ class TestFriendsCardPortraitBadges:
 
     # ── Template rendering ────────────────────────────────────────────────────
 
-    def test_fr_card_18_single_badge_renders_short_code(self):
-        """FR-CARD-18: single position → short code rendered in fr-pill-pos-short span."""
+    def test_fr_card_18_single_badge_renders_as_primary(self):
+        """FR-CARD-18: single position → rendered as fr-pill-pos-primary (not secondary)."""
         html = _render_friends(
             friend_data={7: _fd_entry(positions=[{"short": "ST", "label": "Striker"}])}
         )
         assert "ST" in html
-        assert "fr-pill-pos-short" in html
+        assert "fr-pill-pos-primary" in html
+        assert 'class="fr-pill fr-pill-pos-short"' not in html  # no secondary span
 
-    def test_fr_card_19_multiple_badges_render(self):
-        """FR-CARD-19: two positions → two short badge spans in the card."""
+    def test_fr_card_19_first_badge_primary_rest_secondary(self):
+        """FR-CARD-19: first position = primary badge, second position = secondary badge."""
         html = _render_friends(
             friend_data={7: _fd_entry(positions=[
                 {"short": "CM", "label": "Central Midfielder"},
@@ -1038,6 +1039,8 @@ class TestFriendsCardPortraitBadges:
         )
         assert "CM" in html
         assert "AM" in html
+        assert "fr-pill-pos-primary" in html   # first position
+        assert "fr-pill-pos-short" in html     # secondary position(s)
 
     def test_fr_card_20_max_4_badges_rendered(self):
         """FR-CARD-20: template renders all 4 badges when 4 are supplied (backend caps at 4)."""
@@ -1193,3 +1196,26 @@ class TestFriendsCardPortraitBadges:
         assert "positions" in result[30]
         assert "position_label" not in result[30]
         assert isinstance(result[30]["positions"], list)
+
+    def test_fr_card_31_primary_css_class_defined(self):
+        """FR-CARD-31: .fr-pill-pos-primary CSS class is defined in friends.html."""
+        tmpl_path = _os.path.join(_TMPL_DIR, "friends.html")
+        with open(tmpl_path) as fh:
+            content = fh.read()
+        assert "fr-pill-pos-primary" in content, \
+            ".fr-pill-pos-primary CSS class must be defined for primary position badge"
+
+    def test_fr_card_32_only_first_badge_is_primary(self):
+        """FR-CARD-32: with 3 positions, exactly one primary span and two secondary spans."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(positions=[
+                {"short": "ST", "label": "Striker"},
+                {"short": "CF", "label": "Centre Forward"},
+                {"short": "LW", "label": "Left Wing"},
+            ])}
+        )
+        # Count rendered <span> elements by their full class attribute value
+        primary_count   = html.count('class="fr-pill fr-pill-pos-primary"')
+        secondary_count = html.count('class="fr-pill fr-pill-pos-short"')
+        assert primary_count == 1,   f"Expected 1 primary badge span, got {primary_count}"
+        assert secondary_count == 2, f"Expected 2 secondary badge spans, got {secondary_count}"
