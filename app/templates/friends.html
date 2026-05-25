@@ -124,9 +124,9 @@
     }
     .fr-avatar-img,
     .fr-avatar-initials {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
+        width: 64px;
+        height: 88px;
+        border-radius: 8px;
         flex-shrink: 0;
         overflow: hidden;
     }
@@ -137,7 +137,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1rem;
+        font-size: 1.1rem;
         font-weight: 800;
         letter-spacing: 0.02em;
         user-select: none;
@@ -253,6 +253,14 @@
         letter-spacing: 0.02em;
     }
     .fr-pill-pos { background: rgba(255,210,0,0.18); color: var(--lfa-black); border: 1px solid rgba(255,210,0,0.40); }
+    .fr-pill-pos-short {
+        background: rgba(255,210,0,0.18);
+        color: var(--lfa-black);
+        border: 1px solid rgba(255,210,0,0.40);
+        letter-spacing: 0.06em;
+        font-size: 0.68rem;
+        cursor: default;
+    }
     .fr-pill-lvl { background: var(--lfa-black); color: var(--lfa-yellow); }
 
     @media (prefers-color-scheme: dark) {
@@ -261,6 +269,7 @@
         .fr-btn-muted       { background: #3a4560; color: var(--app-text-muted); border-color: var(--app-border); }
         .fr-btn-view        { background: #1e2e4a; color: #90cdf4; }
         .fr-pill-pos        { background: rgba(255,210,0,0.15); color: var(--lfa-yellow); border-color: rgba(255,210,0,0.30); }
+        .fr-pill-pos-short  { background: rgba(255,210,0,0.15); color: var(--lfa-yellow); border-color: rgba(255,210,0,0.30); }
         .fr-pill-lvl        { background: var(--lfa-yellow); color: var(--lfa-black); }
         .fr-tab             { color: var(--app-text-muted); }
         .fr-tab.active      { color: var(--app-text); border-bottom-color: var(--lfa-yellow); }
@@ -352,11 +361,11 @@
         {% if friends %}
         <div class="fr-grid">
             {% for f in friends %}
-            {% set _fd        = friend_data.get(f.id, {}) %}
-            {% set _photo     = _fd.get("photo_url") %}
-            {% set _initials  = _fd.get("initials", "?") %}
-            {% set _pos_label = _fd.get("position_label", "") %}
-            {% set _lvl       = _fd.get("level") %}
+            {% set _fd       = friend_data.get(f.id, {}) %}
+            {% set _photo    = _fd.get("photo_url") %}
+            {% set _initials = _fd.get("initials", "?") %}
+            {% set _badges   = _fd.get("positions", []) %}
+            {% set _lvl      = _fd.get("level") %}
             <div class="fr-card">
                 <div class="fr-card-top">
                     {% if _photo %}
@@ -369,9 +378,11 @@
                     {% endif %}
                     <div class="fr-card-identity">
                         <div class="fr-card-name">{{ f.nickname or f.name or f.email }}</div>
-                        {% if _pos_label or _lvl %}
+                        {% if _badges or _lvl %}
                         <div class="fr-card-pills">
-                            {% if _pos_label %}<span class="fr-pill fr-pill-pos">{{ _pos_label }}</span>{% endif %}
+                            {% for b in _badges %}
+                            <span class="fr-pill fr-pill-pos-short" title="{{ b.label }}">{{ b.short }}</span>
+                            {% endfor %}
                             {% if _lvl %}<span class="fr-pill fr-pill-lvl">Lv {{ _lvl }}</span>{% endif %}
                         </div>
                         {% endif %}

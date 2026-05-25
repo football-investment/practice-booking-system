@@ -574,10 +574,10 @@ _TMPL_DIR = _os.path.join(
 )
 
 
-def _fd_entry(level=None, photo_url=None, position_label="", initials="TF"):
+def _fd_entry(level=None, photo_url=None, positions=None, initials="TF"):
     """Build a friend_data dict entry for test use."""
     return {"level": level, "photo_url": photo_url,
-            "position_label": position_label, "initials": initials}
+            "positions": positions or [], "initials": initials}
 
 
 def _render_friends(friends=None, friend_data=None, position="midfielder"):
@@ -598,14 +598,16 @@ def _render_friends(friends=None, friend_data=None, position="midfielder"):
         from app.utils.football_positions import (
             normalize_position as _np,
             position_label as _pl,
+            position_short as _ps,
         )
         if position:
-            canonical  = _np(position) or position
-            raw_label  = _pl(canonical)
-            pos_label  = raw_label.replace("_", " ").title() if "_" in raw_label else raw_label
+            canonical = _np(position) or position
+            raw_label = _pl(canonical)
+            pos_label = raw_label.replace("_", " ").title() if "_" in raw_label else raw_label
+            positions_list = [{"short": _ps(canonical), "label": pos_label}]
         else:
-            pos_label = ""
-        friend_data = {7: _fd_entry(position_label=pos_label)}
+            positions_list = []
+        friend_data = {7: _fd_entry(positions=positions_list)}
 
     return template.render(
         request=MagicMock(),
@@ -664,20 +666,20 @@ class TestFriendsCardDesign:
 
     def test_fr33_friend_card_has_view_profile_link(self):
         """FR-33: friend card renders /players/{id} View Profile link (with full context)."""
-        html = _render_friends(friend_data={7: _fd_entry(level=3, position_label="Central Midfielder")})
+        html = _render_friends(friend_data={7: _fd_entry(level=3, positions=[{"short": "CM", "label": "Central Midfielder"}])})
         assert "/players/7" in html
         assert "View Profile" in html
 
     def test_fr34_friend_card_challenge_uses_friend_id_param(self):
         """FR-34: Challenge button uses ?friend_id= not bare ?friend=."""
-        html = _render_friends(friend_data={7: _fd_entry(level=3, position_label="Central Midfielder")})
+        html = _render_friends(friend_data={7: _fd_entry(level=3, positions=[{"short": "CM", "label": "Central Midfielder"}])})
         assert "?friend_id=7" in html
         assert "?friend=7" not in html
 
     def test_fr35_position_pill_rendered_when_set(self):
-        """FR-35: position pill appears when position_label is a non-empty string."""
+        """FR-35: position short badge appears when positions list is non-empty."""
         html = _render_friends(position="midfielder")
-        assert "Midfielder" in html  # "Central Midfielder" contains "Midfielder"
+        assert "CM" in html  # centre_midfield → short code "CM"
 
     def test_fr36_level_pill_rendered_when_available(self):
         """FR-36: level pill appears when friend_data contains a level for the friend."""
@@ -835,9 +837,9 @@ class TestFriendsNavAlignment:
     def test_fr_nav_07_existing_card_tests_still_pass(self):
         """FR-NAV-07: FR-33..FR-42 card/design tests are not broken by nav change."""
         # Smoke: render with full context, verify pill and link presence
-        html = _render_friends(friend_data={7: _fd_entry(level=3, position_label="Central Midfielder")})
+        html = _render_friends(friend_data={7: _fd_entry(level=3, positions=[{"short": "CM", "label": "Central Midfielder"}])})
         assert "/players/7" in html
-        assert "Midfielder" in html
+        assert "CM" in html
         assert "Lv 3" in html
 
     def test_fr_nav_08_search_endpoint_still_works(self):
@@ -878,23 +880,25 @@ class TestFriendsCardMVP:
         # fr_mock has name="Test Friend", so display uses name — email never rendered
         assert "friend@lfa.com" not in html
 
-    def test_fr_card_04_centre_midfield_renders_without_underscore(self):
-        """FR-CARD-04: centre_midfield → 'Central Midfielder' (no underscore)."""
+    def test_fr_card_04_centre_midfield_renders_short_badge(self):
+        """FR-CARD-04: centre_midfield → short badge 'CM' with title 'Central Midfielder'."""
         html = _render_friends(
-            friend_data={7: _fd_entry(position_label="Central Midfielder")}
+            friend_data={7: _fd_entry(positions=[{"short": "CM", "label": "Central Midfielder"}])}
         )
-        assert "Central Midfielder" in html
+        assert "CM" in html
+        assert "Central Midfielder" in html  # appears in title= attribute
         assert "centre_midfield" not in html
 
-    def test_fr_card_05_goalkeeper_renders_correctly(self):
-        """FR-CARD-05: goalkeeper → 'Goalkeeper' label."""
-        html = _render_friends(friend_data={7: _fd_entry(position_label="Goalkeeper")})
-        assert "Goalkeeper" in html
+    def test_fr_card_05_goalkeeper_renders_short_badge(self):
+        """FR-CARD-05: goalkeeper → short badge 'GK' with title 'Goalkeeper'."""
+        html = _render_friends(friend_data={7: _fd_entry(positions=[{"short": "GK", "label": "Goalkeeper"}])})
+        assert "GK" in html
+        assert "Goalkeeper" in html  # appears in title= attribute
 
     def test_fr_card_06_unknown_position_no_crash(self):
-        """FR-CARD-06: unknown position_label value renders without raising 500."""
+        """FR-CARD-06: unknown position value renders without raising 500."""
         html = _render_friends(
-            friend_data={7: _fd_entry(position_label="Winger Legacy")}
+            friend_data={7: _fd_entry(positions=[{"short": "WIN", "label": "Winger Legacy"}])}
         )
         assert "/players/7" in html  # page rendered without crash
 
@@ -967,3 +971,225 @@ class TestFriendsCardMVP:
         src = inspect.getsource(mod)
         assert "get_skill_profile" not in src, \
             "friends.py must not call get_skill_profile — OVR computation is Phase 2"
+
+
+# ── Portrait tile + multi-position badges — FR-CARD-14..FR-CARD-28 ───────────
+
+class TestFriendsCardPortraitBadges:
+    """Portrait tile (64×88px) + multi-position short badges redesign."""
+
+    # ── CSS structure ─────────────────────────────────────────────────────────
+
+    def test_fr_card_14_avatar_css_width_64px(self):
+        """FR-CARD-14: .fr-avatar-img/.fr-avatar-initials CSS width is 64px."""
+        tmpl_path = _os.path.join(_TMPL_DIR, "friends.html")
+        with open(tmpl_path) as fh:
+            content = fh.read()
+        assert "width: 64px" in content, "Portrait tile width must be 64px"
+
+    def test_fr_card_15_avatar_css_height_88px(self):
+        """FR-CARD-15: .fr-avatar-img/.fr-avatar-initials CSS height is 88px."""
+        tmpl_path = _os.path.join(_TMPL_DIR, "friends.html")
+        with open(tmpl_path) as fh:
+            content = fh.read()
+        assert "height: 88px" in content, "Portrait tile height must be 88px"
+
+    def test_fr_card_16_avatar_css_border_radius_8px_not_50pct(self):
+        """FR-CARD-16: avatar border-radius is 8px (portrait tile), not 50% (circle)."""
+        tmpl_path = _os.path.join(_TMPL_DIR, "friends.html")
+        with open(tmpl_path) as fh:
+            content = fh.read()
+        # 8px must be present in the avatar block
+        assert "border-radius: 8px" in content, "Portrait tile must use border-radius: 8px"
+        # 50% (circle) must NOT appear for the avatar
+        import re
+        avatar_block = re.search(
+            r'\.fr-avatar-img.*?\.fr-card-identity', content, re.DOTALL
+        )
+        assert avatar_block, ".fr-avatar-img block not found"
+        assert "50%" not in avatar_block.group(), \
+            "Circle border-radius (50%) must not appear in avatar block — use 8px"
+
+    def test_fr_card_17_fr_pill_pos_short_css_defined(self):
+        """FR-CARD-17: .fr-pill-pos-short CSS class is defined in friends.html."""
+        tmpl_path = _os.path.join(_TMPL_DIR, "friends.html")
+        with open(tmpl_path) as fh:
+            content = fh.read()
+        assert "fr-pill-pos-short" in content, \
+            ".fr-pill-pos-short CSS class must be defined"
+
+    # ── Template rendering ────────────────────────────────────────────────────
+
+    def test_fr_card_18_single_badge_renders_short_code(self):
+        """FR-CARD-18: single position → short code rendered in fr-pill-pos-short span."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(positions=[{"short": "ST", "label": "Striker"}])}
+        )
+        assert "ST" in html
+        assert "fr-pill-pos-short" in html
+
+    def test_fr_card_19_multiple_badges_render(self):
+        """FR-CARD-19: two positions → two short badge spans in the card."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(positions=[
+                {"short": "CM", "label": "Central Midfielder"},
+                {"short": "AM", "label": "Attacking Midfielder"},
+            ])}
+        )
+        assert "CM" in html
+        assert "AM" in html
+
+    def test_fr_card_20_max_4_badges_rendered(self):
+        """FR-CARD-20: template renders all 4 badges when 4 are supplied (backend caps at 4)."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(positions=[
+                {"short": "ST", "label": "Striker"},
+                {"short": "CF", "label": "Centre Forward"},
+                {"short": "LW", "label": "Left Wing"},
+                {"short": "RW", "label": "Right Wing"},
+            ])}
+        )
+        for short in ("ST", "CF", "LW", "RW"):
+            assert short in html
+
+    def test_fr_card_21_badge_has_title_with_full_label(self):
+        """FR-CARD-21: badge span has title= attribute containing the full position label."""
+        html = _render_friends(
+            friend_data={7: _fd_entry(positions=[{"short": "GK", "label": "Goalkeeper"}])}
+        )
+        assert 'title="Goalkeeper"' in html
+
+    def test_fr_card_22_no_position_no_badge_no_crash(self):
+        """FR-CARD-22: empty positions list → no badge span rendered, page still renders."""
+        html = _render_friends(friend_data={7: _fd_entry(positions=[])})
+        # The CSS class definition appears in <style>, but no <span> with it should be rendered
+        assert 'class="fr-pill fr-pill-pos-short"' not in html
+        assert "/players/7" in html
+
+    # ── _extract_pos_badges backend helper ───────────────────────────────────
+
+    def test_fr_card_23_extract_known_position_returns_correct_short_label(self):
+        """FR-CARD-23: _extract_pos_badges with 'goalkeeper' license → GK / Goalkeeper."""
+        from app.api.web_routes.friends import _extract_pos_badges
+        lic = MagicMock()
+        lic.motivation_scores = {"positions": ["goalkeeper"]}
+        user = MagicMock()
+        user.position = None
+        result = _extract_pos_badges(lic, user)
+        assert len(result) == 1
+        assert result[0]["short"] == "GK"
+        assert result[0]["label"] == "Goalkeeper"
+
+    def test_fr_card_24_extract_reads_plural_positions_array(self):
+        """FR-CARD-24: _extract_pos_badges reads motivation_scores['positions'] (plural)."""
+        from app.api.web_routes.friends import _extract_pos_badges
+        lic = MagicMock()
+        lic.motivation_scores = {"positions": ["striker", "centre_forward"]}
+        user = MagicMock()
+        user.position = None
+        result = _extract_pos_badges(lic, user)
+        assert len(result) == 2
+        shorts = {b["short"] for b in result}
+        assert "ST" in shorts
+        assert "CF" in shorts
+
+    def test_fr_card_25_extract_deduplicates_positions(self):
+        """FR-CARD-25: _extract_pos_badges deduplicates identical canonical values."""
+        from app.api.web_routes.friends import _extract_pos_badges
+        lic = MagicMock()
+        lic.motivation_scores = {"positions": ["striker", "STRIKER", "striker"]}
+        user = MagicMock()
+        user.position = None
+        result = _extract_pos_badges(lic, user)
+        assert len(result) == 1
+        assert result[0]["short"] == "ST"
+
+    def test_fr_card_26_extract_falls_back_to_singular_position_key(self):
+        """FR-CARD-26: when no 'positions' array, reads singular 'position' key."""
+        from app.api.web_routes.friends import _extract_pos_badges
+        lic = MagicMock()
+        lic.motivation_scores = {"position": "left_back"}
+        user = MagicMock()
+        user.position = None
+        result = _extract_pos_badges(lic, user)
+        assert len(result) == 1
+        assert result[0]["short"] == "LB"
+
+    def test_fr_card_27_extract_falls_back_to_user_position_when_no_license(self):
+        """FR-CARD-27: lic=None → reads User.position as fallback."""
+        from app.api.web_routes.friends import _extract_pos_badges
+        user = MagicMock()
+        user.position = "striker"
+        result = _extract_pos_badges(None, user)
+        assert len(result) == 1
+        assert result[0]["short"] == "ST"
+
+    def test_fr_card_28_photo_priority_portrait_over_player_card(self):
+        """FR-CARD-28: _friend_data_map photo priority: card_photo_portrait_url first."""
+        from app.api.web_routes.friends import _friend_data_map
+
+        u = MagicMock()
+        u.id = 20
+        u.name = "Portrait User"
+        u.email = "pu@lfa.com"
+        u.position = None
+
+        lic = MagicMock()
+        lic.user_id = 20
+        lic.specialization_type = "LFA_FOOTBALL_PLAYER"
+        lic.is_active = True
+        lic.current_level = 2
+        lic.card_photo_portrait_url = "https://cdn/portrait.jpg"
+        lic.player_card_photo_url   = "https://cdn/playercard.jpg"
+        lic.wc_photo_url            = "https://cdn/wc.jpg"
+        lic.motivation_scores       = {}
+
+        db = _db()
+        db.query.return_value.filter.return_value.all.return_value = [lic]
+
+        result = _friend_data_map(db, [u])
+        assert result[20]["photo_url"] == "https://cdn/portrait.jpg"
+
+    def test_fr_card_29_photo_falls_back_to_player_card_when_portrait_none(self):
+        """FR-CARD-29: photo falls back to player_card_photo_url when portrait is None."""
+        from app.api.web_routes.friends import _friend_data_map
+
+        u = MagicMock()
+        u.id = 21
+        u.name = "Card User"
+        u.email = "cu@lfa.com"
+        u.position = None
+
+        lic = MagicMock()
+        lic.user_id = 21
+        lic.specialization_type = "LFA_FOOTBALL_PLAYER"
+        lic.is_active = True
+        lic.current_level = 1
+        lic.card_photo_portrait_url = None
+        lic.player_card_photo_url   = "https://cdn/playercard.jpg"
+        lic.wc_photo_url            = "https://cdn/wc.jpg"
+        lic.motivation_scores       = {}
+
+        db = _db()
+        db.query.return_value.filter.return_value.all.return_value = [lic]
+
+        result = _friend_data_map(db, [u])
+        assert result[21]["photo_url"] == "https://cdn/playercard.jpg"
+
+    def test_fr_card_30_friend_data_map_returns_positions_list_not_string(self):
+        """FR-CARD-30: _friend_data_map returns 'positions' list, not 'position_label' string."""
+        from app.api.web_routes.friends import _friend_data_map
+
+        u = MagicMock()
+        u.id = 30
+        u.name = "Test"
+        u.email = "t@lfa.com"
+        u.position = "goalkeeper"
+
+        db = _db()
+        db.query.return_value.filter.return_value.all.return_value = []  # no license
+
+        result = _friend_data_map(db, [u])
+        assert "positions" in result[30]
+        assert "position_label" not in result[30]
+        assert isinstance(result[30]["positions"], list)

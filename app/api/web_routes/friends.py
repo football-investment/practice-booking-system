@@ -37,6 +37,7 @@ from .student_features import _spec_ctx
 from ...utils.football_positions import (
     normalize_position as _norm_pos,
     position_label as _raw_pos_label,
+    position_short as _pos_short,
 )
 from ...models.friendship import (
     Friendship, FriendshipStatus, get_friendship, is_friends,
@@ -75,6 +76,33 @@ def _format_pos(raw: str | None) -> str:
     return label.replace("_", " ").title() if "_" in label else label
 
 
+def _extract_pos_badges(lic, user: "User") -> list[dict]:
+    """Return position badge list [{short, label}, ...] from license + user, max 4.
+
+    Source priority: motivation_scores["positions"] (plural) →
+                     motivation_scores["position"] (singular) → User.position.
+    """
+    ms = (lic.motivation_scores or {}) if lic else {}
+    raw_list = ms.get("positions")
+    if not raw_list or not isinstance(raw_list, list):
+        single = ms.get("position") or (user.position if user else None)
+        raw_list = [single] if single else []
+    badges: list[dict] = []
+    seen: set[str] = set()
+    for raw in raw_list[:4]:
+        if not raw:
+            continue
+        canonical = _norm_pos(raw) or raw
+        if canonical in seen:
+            continue
+        seen.add(canonical)
+        short = _pos_short(canonical)
+        label = _raw_pos_label(canonical)
+        label = label.replace("_", " ").title() if "_" in label else label
+        badges.append({"short": short, "label": label})
+    return badges
+
+
 def _friend_list(db: Session, user_id: int) -> list[User]:
     """All accepted friends of user_id (either direction). 2-query, no N+1."""
     rows = (
@@ -100,9 +128,10 @@ def _friend_data_map(db: Session, friends: list[User]) -> dict[int, dict]:
     """Return per-friend enriched data from a single UserLicense IN query.
 
     {user_id: {"level": int|None, "photo_url": str|None,
-               "position_label": str, "initials": str}}
+               "positions": [{"short": str, "label": str}, ...], "initials": str}}
 
-    Position source priority: motivation_scores["position"] → User.position → "".
+    Photo priority: card_photo_portrait_url → player_card_photo_url → wc_photo_url.
+    Position source: motivation_scores["positions"] → ["position"] → User.position.
     Initials derived from User.name, falling back to email.
     Zero extra queries beyond the one UserLicense IN fetch.
     """
@@ -124,26 +153,28 @@ def _friend_data_map(db: Session, friends: list[User]) -> dict[int, dict]:
 
     result = {}
     for uid in friend_ids:
-        u    = user_map[uid]
+        u        = user_map[uid]
         parts    = (u.name or u.email or "").split()
         initials = "".join(p[0].upper() for p in parts[:2]) if parts else "?"
 
         lic = license_map.get(uid)
         if lic:
-            ms_pos  = (lic.motivation_scores or {}).get("position")
-            raw_pos = ms_pos or u.position
             result[uid] = {
-                "level":          lic.current_level,
-                "photo_url":      lic.player_card_photo_url,
-                "position_label": _format_pos(raw_pos),
-                "initials":       initials,
+                "level":    lic.current_level,
+                "photo_url": (
+                    lic.card_photo_portrait_url
+                    or lic.player_card_photo_url
+                    or lic.wc_photo_url
+                ),
+                "positions": _extract_pos_badges(lic, u),
+                "initials":  initials,
             }
         else:
             result[uid] = {
-                "level":          None,
-                "photo_url":      None,
-                "position_label": _format_pos(u.position),
-                "initials":       initials,
+                "level":    None,
+                "photo_url": None,
+                "positions": _extract_pos_badges(None, u),
+                "initials":  initials,
             }
     return result
 
