@@ -238,6 +238,15 @@ def reorder_zone(
     if len(filled_ordered) <= 1:
         return profile_grid  # no-op — return same object so caller can detect
 
+    # Same-order check: if the desired order matches the current stored order, no-op.
+    current_zone_order = [
+        s["slot_id"]
+        for s in profile_grid.get("slots", [])
+        if s["slot_id"] in zone_sid_set and s.get("module") is not None
+    ]
+    if [sid for sid, _ in filled_ordered] == current_zone_order:
+        return profile_grid  # same order — no-op, return same object
+
     target_slots = _zone_slot_ids(zone)
     other_slots = [
         s for s in profile_grid.get("slots", [])

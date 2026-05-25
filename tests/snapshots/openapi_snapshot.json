@@ -60268,7 +60268,7 @@
     },
     "/dashboard/lfa-football-player/public-profile-editor/reorder": {
       "post": {
-        "description": "Reorder filled modules within a zone in the draft profile grid.\n\nReturns {\"ok\": true, \"status\": \"noop\"} when \u22641 filled slot \u2014 no DB write.\nReturns {\"ok\": true, \"status\": \"reordered\"} on successful reorder.\nCSRF protection enforced by global middleware.",
+        "description": "Reorder filled modules within a zone in the draft profile grid.\n\nReturns {\"ok\": true, \"status\": \"noop\"} when \u22641 filled slot or order unchanged \u2014 no DB write.\nReturns {\"ok\": true, \"status\": \"reordered\"} on successful reorder.\nCSRF protection enforced by global middleware.",
         "operationId": "lfa_profile_editor_reorder_zone_dashboard_lfa_football_player_public_profile_editor_reorder_post",
         "requestBody": {
           "content": {

@@ -282,13 +282,18 @@
 /* ── Drag handle ────────────────────────────────────────────────────────────── */
 .ppe-drag-handle {
     cursor: grab;
-    color: #d1d5db;
-    font-size: 0.9rem;
+    color: #9ca3af;
     padding: 0 0.35rem 0 0;
     user-select: none;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
 }
-.ppe-drag-handle:active { cursor: grabbing; }
+.ppe-drag-handle:hover { color: #6b7280; }
+.ppe-drag-handle:active { cursor: grabbing; color: #374151; }
+/* Bottom zone slots are not sortable — hide the handle */
+.ppe-bottom-grid .ppe-drag-handle { display: none; }
 .ppe-slot.sortable-ghost  { opacity: 0.4; }
 .ppe-slot.sortable-chosen { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
 
@@ -321,7 +326,16 @@
      data-slot="{{ slot.slot_id }}">
 
     <div class="ppe-slot-head">
-        <span class="ppe-drag-handle" title="Drag to reorder">⠿</span>
+        <span class="ppe-drag-handle" title="Drag to reorder" aria-hidden="true">
+            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="3" cy="2.5"  r="1.5"/>
+                <circle cx="7" cy="2.5"  r="1.5"/>
+                <circle cx="3" cy="7"    r="1.5"/>
+                <circle cx="7" cy="7"    r="1.5"/>
+                <circle cx="3" cy="11.5" r="1.5"/>
+                <circle cx="7" cy="11.5" r="1.5"/>
+            </svg>
+        </span>
         <span>{{ slot.label }}</span>
         {% if not slot.is_empty %}
         <span class="ppe-slot-head-actions">
@@ -704,14 +718,18 @@
         });
     };
 
-    // ── Init SortableJS on all zone containers ─────────────────────────────────
+    // ── Init SortableJS on side zone containers only (bottom is not sortable) ───
     document.querySelectorAll(".ppe-zone-slots").forEach(function (container) {
+        if (container.getAttribute("data-zone") === "bottom") return;
         Sortable.create(container, {
-            animation:  150,
-            handle:     ".ppe-drag-handle",
-            ghostClass: "sortable-ghost",
+            animation:   150,
+            handle:      ".ppe-drag-handle",
+            ghostClass:  "sortable-ghost",
             chosenClass: "sortable-chosen",
-            onEnd: function () { reorderZone(container); },
+            onEnd: function (evt) {
+                if (evt.oldIndex === evt.newIndex) return;
+                reorderZone(container);
+            },
         });
     });
 

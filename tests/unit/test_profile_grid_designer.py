@@ -592,14 +592,6 @@ class TestSlotNaming:
 from app.services.profile_grid_service import reorder_zone  # noqa: E402
 
 
-def _filled_pg(*entries) -> dict:
-    """Build a v1 profile_grid with the given (slot_id, provider, video_id) tuples."""
-    return {"version": 1, "slots": [
-        {"slot_id": sid, "module": {"provider": prov, "video_id": vid, "type": f"video_{prov}", "title": ""}}
-        for sid, prov, vid in entries
-    ]}
-
-
 class TestReorderZone:
 
     def test_wt_01_reorder_two_filled_slots_swaps_modules(self):
@@ -808,3 +800,116 @@ class TestReorderRoute:
         data = json.loads(resp.body)
         assert data["ok"] is True
         assert data["status"] == "noop"
+
+
+# ── WT-18..23: Phase 1 stabilisation — same-order no-op, bottom, Challenge Highlight ──
+
+class TestSameOrderNoop:
+
+    def test_wt_18_reorder_zone_same_order_returns_same_object(self):
+        """WT-18: reorder_zone with 2+ filled slots in the SAME order returns the same object (no-op)."""
+        profile_grid = {"version": 1, "slots": [
+            {"slot_id": "side_b_1", "module": {"provider": "youtube", "video_id": "V1"}},
+            {"slot_id": "side_b_2", "module": {"provider": "tiktok",  "video_id": "V2"}},
+        ]}
+        # Same order as stored — no reorder needed
+        result = reorder_zone(profile_grid, "side_b", ["side_b_1", "side_b_2"])
+        assert result is profile_grid, "Same-order input must return the same object (no-op)"
+
+    def test_wt_19_reorder_draft_zone_same_order_no_commit(self):
+        """WT-19: reorder_draft_zone with same-order slot_ids does NOT call db.commit."""
+        draft = _draft(draft_data={"profile_grid": {
+            "version": 1, "slots": [
+                {"slot_id": "side_c_1", "module": {"provider": "youtube", "video_id": "V1"}},
+                {"slot_id": "side_c_2", "module": {"provider": "tiktok",  "video_id": "V2"}},
+            ],
+        }})
+        db = MagicMock()
+        CardDraftService.reorder_draft_zone(db, draft, "side_c", ["side_c_1", "side_c_2"])
+        db.commit.assert_not_called()
+
+    def test_wt_20_reorder_endpoint_same_order_returns_noop_status(self):
+        """WT-20: POST /reorder with same-order slot_ids returns {"ok": true, "status": "noop"}."""
+        draft = _draft(draft_data={"profile_grid": {
+            "version": 1, "slots": [
+                {"slot_id": "side_b_1", "module": {"provider": "youtube", "video_id": "V1"}},
+                {"slot_id": "side_b_2", "module": {"provider": "tiktok",  "video_id": "V2"}},
+            ],
+        }})
+        from app.api.web_routes.dashboard import lfa_profile_editor_reorder_zone, _ReorderRequest
+        db = MagicMock()
+        payload = _ReorderRequest(zone="side_b", slot_ids=["side_b_1", "side_b_2"])
+        with patch("app.api.web_routes.dashboard._get_lfa_license", return_value=MagicMock()), \
+             patch("app.api.web_routes.dashboard._CardDraftService") as MockCDS:
+            MockCDS.get_player_card_draft.return_value = draft
+            MockCDS.reorder_draft_zone.side_effect = lambda db, d, zone, slot_ids, **kw: \
+                CardDraftService.reorder_draft_zone(db, d, zone, slot_ids, commit=False)
+            resp = asyncio.run(lfa_profile_editor_reorder_zone(payload=payload, db=db, user=MagicMock()))
+        import json
+        data = json.loads(resp.body)
+        assert data["ok"] is True
+        assert data["status"] == "noop"
+
+    def test_wt_21_reorder_invalid_zone_still_returns_400(self):
+        """WT-21: regression — invalid zone must still return 400 after same-order noop change."""
+        draft = _draft(draft_data={"profile_grid": {
+            "version": 1, "slots": [
+                {"slot_id": "side_b_1", "module": {"provider": "youtube", "video_id": "V1"}},
+                {"slot_id": "side_b_2", "module": {"provider": "tiktok",  "video_id": "V2"}},
+            ],
+        }})
+        from app.api.web_routes.dashboard import lfa_profile_editor_reorder_zone, _ReorderRequest
+        db = MagicMock()
+        payload = _ReorderRequest(zone="invalid_zone", slot_ids=["side_b_1", "side_b_2"])
+        with patch("app.api.web_routes.dashboard._get_lfa_license", return_value=MagicMock()), \
+             patch("app.api.web_routes.dashboard._CardDraftService") as MockCDS:
+            MockCDS.get_player_card_draft.return_value = draft
+            MockCDS.reorder_draft_zone.side_effect = lambda db, d, zone, slot_ids, **kw: \
+                CardDraftService.reorder_draft_zone(db, d, zone, slot_ids, commit=False)
+            resp = asyncio.run(lfa_profile_editor_reorder_zone(payload=payload, db=db, user=MagicMock()))
+        assert resp.status_code == 400
+        import json
+        data = json.loads(resp.body)
+        assert data["ok"] is False
+        assert "Unknown zone" in data["error"]
+
+
+class TestTemplateStructure:
+
+    def test_wt_22_challenge_highlight_absent_when_right_grid_slots_present(self):
+        """WT-22: player_profile.html omits 'Challenge Highlight' when right_grid_slots is truthy."""
+        from jinja2 import Environment, FileSystemLoader
+        import os
+        templates_dir = os.path.join(
+            os.path.dirname(__file__), "..", "..", "app", "templates"
+        )
+        env = Environment(loader=FileSystemLoader(templates_dir))
+        template_src = env.loader.get_source(env, "public/player_profile.html")[0]
+        # Structural check: "Challenge Highlight" block must be inside {% if not right_grid_slots %}
+        ch_pos = template_src.find("Challenge Highlight")
+        assert ch_pos != -1, "Challenge Highlight must exist in template"
+        # The closest preceding {% if %} block referencing right_grid_slots must be "if not"
+        prefix = template_src[:ch_pos]
+        last_if = prefix.rfind("{%")
+        assert last_if != -1
+        if_fragment = template_src[last_if:last_if + 60]
+        assert "not right_grid_slots" in if_fragment, (
+            f"Challenge Highlight must be guarded by '{{% if not right_grid_slots %}}', "
+            f"found: {if_fragment!r}"
+        )
+
+    def test_wt_23_bottom_zone_skip_present_in_editor_template(self):
+        """WT-23: lfa_public_profile_editor.html JS skips bottom zone in SortableJS init."""
+        import os
+        template_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "app", "templates",
+            "dashboard", "lfa_public_profile_editor.html"
+        )
+        with open(template_path, encoding="utf-8") as f:
+            src = f.read()
+        assert 'getAttribute("data-zone") === "bottom"' in src, (
+            "SortableJS init must skip the bottom zone via data-zone check"
+        )
+        assert "evt.oldIndex === evt.newIndex" in src, (
+            "onEnd must guard against same-position drop via evt.oldIndex === evt.newIndex"
+        )

@@ -1535,7 +1535,7 @@ async def lfa_profile_editor_reorder_zone(
 ):
     """Reorder filled modules within a zone in the draft profile grid.
 
-    Returns {"ok": true, "status": "noop"} when ≤1 filled slot — no DB write.
+    Returns {"ok": true, "status": "noop"} when ≤1 filled slot or order unchanged — no DB write.
     Returns {"ok": true, "status": "reordered"} on successful reorder.
     CSRF protection enforced by global middleware.
     """
@@ -1545,14 +1545,22 @@ async def lfa_profile_editor_reorder_zone(
 
     draft = _CardDraftService.get_player_card_draft(db, user.id)
 
-    # Count filled slots in zone before calling service (detect noop for response)
+    # Pre-compute noop conditions before calling service (for response status).
     existing_pg = (draft.draft_data or {}).get("profile_grid")
     _occupied = {
         s["slot_id"]: s.get("module")
         for s in (existing_pg or {}).get("slots", [])
         if isinstance(s.get("slot_id"), str)
     }
-    filled_count = sum(1 for sid in payload.slot_ids if _occupied.get(sid) is not None)
+    filled_in_request = [sid for sid in payload.slot_ids if _occupied.get(sid) is not None]
+    filled_count = len(filled_in_request)
+    # Same-order check mirrors service-layer logic — no DB write when order unchanged.
+    current_zone_order = [
+        s["slot_id"]
+        for s in (existing_pg or {}).get("slots", [])
+        if s.get("slot_id") in frozenset(filled_in_request) and s.get("module") is not None
+    ]
+    is_noop = filled_count <= 1 or filled_in_request == current_zone_order
 
     try:
         _CardDraftService.reorder_draft_zone(db, draft, payload.zone, payload.slot_ids)
@@ -1562,5 +1570,5 @@ async def lfa_profile_editor_reorder_zone(
     return JSONResponse({
         "ok":     True,
         "zone":   payload.zone,
-        "status": "noop" if filled_count <= 1 else "reordered",
+        "status": "noop" if is_noop else "reordered",
     })

@@ -638,6 +638,7 @@
             {% endif %}
         </div>
 
+        {% if not right_grid_slots %}
         <div class="psp-module">
             <div class="psp-module-head">Challenge Highlight</div>
             <div class="psp-module-placeholder">
@@ -645,6 +646,7 @@
                 <div class="psp-module-coming">Coming Soon</div>
             </div>
         </div>
+        {% endif %}
     </div>
 
     {# ── Bottom: grid slots + Recent Events ────────────────────────────────── #}
