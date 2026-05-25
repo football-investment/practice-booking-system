@@ -1,0 +1,1005 @@
+{% extends "base.html" %}
+
+{% block title %}Public Profile Editor — LFA{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+.main-content { padding: 0 !important; max-width: none !important; margin: 0 !important; }
+
+/* ── Page wrapper ───────────────────────────────────────────────────────────── */
+.ppe-page { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+/* ── Header bar ─────────────────────────────────────────────────────────────── */
+.ppe-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e5e7eb;
+}
+.ppe-header-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #111;
+}
+.ppe-header-sub {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin-top: 0.2rem;
+}
+.ppe-header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+/* ── Status badge ───────────────────────────────────────────────────────────── */
+.ppe-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.3rem 0.75rem;
+    border-radius: 20px;
+}
+.ppe-status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+}
+.ppe-status.published   { background: #d1fae5; color: #065f46; }
+.ppe-status.published .ppe-status-dot { background: #10b981; }
+.ppe-status.unpublished { background: #fef3c7; color: #92400e; }
+.ppe-status.unpublished .ppe-status-dot { background: #f59e0b; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
+.ppe-btn {
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.2s;
+}
+.ppe-btn:hover { opacity: 0.82; }
+.ppe-btn-ghost { background: transparent; border: 1.5px solid #d1d5db; color: #374151; }
+.ppe-btn-publish { background: #0B0B0B; color: #FFD200; }
+.ppe-btn-publish:disabled { opacity: 0.45; cursor: not-allowed; }
+.ppe-btn-view   { background: #e8f0fe; color: #1a56db; }
+.ppe-btn-sm     { padding: 0.28rem 0.65rem; font-size: 0.76rem; }
+.ppe-btn-danger { background: transparent; border: 1px solid #fca5a5; color: #b91c1c; }
+.ppe-btn-danger:hover { background: #fee2e2; opacity: 1; }
+
+/* ── Widget Panel overlay ────────────────────────────────────────────────────── */
+.wp-backdrop {
+    display: none;
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.35);
+}
+.wp-backdrop.open { display: block; }
+.wp-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 201;
+    width: min(380px, 100vw);
+    background: #fff;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+}
+.wp-panel.open { transform: translateX(0); }
+.wp-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+.wp-title { font-size: 1rem; font-weight: 700; color: #111; margin: 0; }
+.wp-close {
+    background: none; border: none; cursor: pointer; padding: 0.25rem;
+    color: #6b7280; font-size: 1.3rem; line-height: 1;
+}
+.wp-close:hover { color: #111; }
+.wp-body { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; }
+.wp-draft-notice {
+    font-size: 0.78rem; color: #92400e; background: #fef3c7;
+    border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;
+}
+/* Type selector */
+.wp-type-selector {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.5rem; margin-bottom: 1.25rem;
+}
+.wp-type-btn {
+    padding: 0.6rem 0.5rem; border-radius: 8px; font-size: 0.8rem;
+    font-weight: 600; cursor: pointer; text-align: center;
+    background: #f3f4f6; border: 2px solid transparent; color: #374151;
+    transition: all 0.15s;
+}
+.wp-type-btn:hover { background: #e5e7eb; }
+.wp-type-btn.active { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+/* Form sections */
+.wp-form { display: none; }
+.wp-form.active { display: block; }
+.wp-label {
+    display: block; font-size: 0.8rem; font-weight: 600; color: #374151;
+    margin-bottom: 0.3rem; margin-top: 0.85rem;
+}
+.wp-label:first-child { margin-top: 0; }
+.wp-req { color: #ef4444; }
+.wp-input, .wp-textarea {
+    width: 100%; box-sizing: border-box;
+    border: 1.5px solid #d1d5db; border-radius: 6px;
+    padding: 0.45rem 0.65rem; font-size: 0.85rem; color: #111;
+    background: #fff; outline: none;
+}
+.wp-input:focus, .wp-textarea:focus { border-color: #3b82f6; }
+.wp-textarea { resize: vertical; min-height: 90px; }
+.wp-char-counter { font-size: 0.72rem; color: #9ca3af; text-align: right; margin-top: 0.2rem; }
+.wp-error { font-size: 0.78rem; color: #b91c1c; margin-top: 0.5rem; display: none; }
+.wp-error.visible { display: block; }
+/* Footer actions */
+.wp-footer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex; gap: 0.6rem; justify-content: flex-end;
+}
+/* Widget type badges */
+.ppe-badge-text  { background: #ede9fe; color: #5b21b6; }
+.ppe-badge-image { background: #dcfce7; color: #166534; }
+
+/* ── TikTok extras (thumbnail URL field) ────────────────────────────────────── */
+#wp-video-tiktok-extras { display: none; }
+#wp-video-tiktok-extras.visible { display: block; }
+.wp-extras-note { font-size: 0.74rem; color: #6b7280; margin-top: 0.25rem; line-height: 1.4; }
+/* TikTok thumbnail indicator badge */
+.ppe-badge-tiktok-thumb { font-size: 0.62rem; vertical-align: middle; margin-left: 0.25rem; }
+
+/* ── Grid designer — 5-lane layout ──────────────────────────────────────────── */
+/* Desktop: side_a | side_b | featured_card | side_c | side_d                   */
+.ppe-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr minmax(260px, 360px) 1fr 1fr;
+    grid-template-areas:
+        "side_a  side_b  center  side_c  side_d"
+        "bottom  bottom  bottom  bottom  bottom";
+    gap: 1rem;
+    align-items: start;
+}
+/* Tablet: inner lanes beside card, outer lanes below */
+@media (max-width: 1100px) {
+    .ppe-grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "center  center"
+            "side_b  side_c"
+            "side_a  side_d"
+            "bottom  bottom";
+    }
+}
+/* Mobile: stack */
+@media (max-width: 599px) {
+    .ppe-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas: "center" "side_b" "side_c" "side_a" "side_d" "bottom";
+    }
+}
+.ppe-side-a-col { grid-area: side_a; }
+.ppe-side-b-col { grid-area: side_b; }
+.ppe-center-col { grid-area: center; }
+.ppe-side-c-col { grid-area: side_c; }
+.ppe-side-d-col { grid-area: side_d; }
+.ppe-bottom-row { grid-area: bottom; }
+
+/* ── Zone labels ────────────────────────────────────────────────────────────── */
+.ppe-zone-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #9ca3af;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Card preview (center) ──────────────────────────────────────────────────── */
+.ppe-card-preview {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.ppe-card-preview-head {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    background: #f3f4f6;
+    border-bottom: 1px solid #e5e7eb;
+}
+.ppe-card-preview-body {
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+}
+.ppe-card-preview-body a {
+    font-size: 0.82rem;
+    color: #1a56db;
+    text-decoration: none;
+}
+.ppe-card-preview-body a:hover { text-decoration: underline; }
+
+/* ── Slot cards ─────────────────────────────────────────────────────────────── */
+.ppe-slot {
+    border-radius: 10px;
+    border: 2px dashed #d1d5db;
+    background: #fafafa;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.15s;
+    overflow: hidden;
+}
+.ppe-slot:last-child { margin-bottom: 0; }
+.ppe-slot.filled { border: 1.5px solid #e5e7eb; background: #fff; }
+.ppe-slot-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+.ppe-slot-head-actions { display: flex; gap: 0.3rem; }
+
+/* Empty slot body */
+.ppe-slot-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 1.25rem 0.75rem;
+    cursor: pointer;
+}
+.ppe-slot-empty:hover { background: #f3f4f6; }
+.ppe-slot-plus {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    color: #9ca3af;
+    line-height: 1;
+}
+.ppe-slot-add-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #9ca3af;
+}
+
+/* Filled slot body */
+.ppe-slot-filled { padding: 0.65rem 0.75rem; }
+.ppe-slot-provider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    margin-bottom: 0.4rem;
+}
+.ppe-badge-youtube { background: #fee2e2; color: #b91c1c; }
+.ppe-badge-tiktok  { background: #f3f4f6; color: #374151; }
+.ppe-slot-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #111;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ppe-slot-vid-id {
+    font-size: 0.72rem;
+    color: #9ca3af;
+    font-family: monospace;
+}
+
+/* ── Bottom row: 3 columns ──────────────────────────────────────────────────── */
+.ppe-bottom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+@media (max-width: 599px) {
+    .ppe-bottom-grid { grid-template-columns: 1fr; }
+}
+.ppe-bottom-grid .ppe-slot { margin-bottom: 0; }
+
+/* ── Add/Edit panel (inline) ────────────────────────────────────────────────── */
+.ppe-panel {
+    display: none;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    padding: 0.85rem 0.85rem 1rem;
+}
+.ppe-panel.open { display: block; }
+.ppe-panel-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.ppe-panel-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.42rem 0.65rem;
+    border: 1.5px solid #d1d5db;
+    border-radius: 7px;
+    font-size: 0.83rem;
+    margin-bottom: 0.5rem;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.ppe-panel-input:focus { border-color: #6366f1; }
+.ppe-panel-error {
+    font-size: 0.76rem;
+    color: #b91c1c;
+    margin-bottom: 0.4rem;
+    display: none;
+}
+.ppe-panel-error.visible { display: block; }
+.ppe-panel-actions { display: flex; gap: 0.4rem; margin-top: 0.1rem; }
+
+/* ── Drag handle ────────────────────────────────────────────────────────────── */
+.ppe-drag-handle {
+    cursor: grab;
+    color: #9ca3af;
+    padding: 0 0.35rem 0 0;
+    user-select: none;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.ppe-drag-handle:hover { color: #6b7280; }
+.ppe-drag-handle:active { cursor: grabbing; color: #374151; }
+/* Bottom zone slots are not sortable — hide the handle */
+.ppe-bottom-grid .ppe-drag-handle { display: none; }
+.ppe-slot.sortable-ghost  { opacity: 0.4; }
+.ppe-slot.sortable-chosen { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+
+/* ── Publish toast ──────────────────────────────────────────────────────────── */
+#ppe-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111;
+    color: #FFD200;
+    padding: 0.65rem 1.4rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 200;
+}
+#ppe-toast.show { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── Slot macro — must be defined before the grid loops below ─────────────── #}
+{% macro _render_slot(slot) %}
+<div class="ppe-slot {% if not slot.is_empty %}filled{% endif %}"
+     id="slot-{{ slot.slot_id }}"
+     data-slot="{{ slot.slot_id }}"
+     {% if not slot.is_empty %}data-module="{{ slot.module | tojson | forceescape }}"{% endif %}>
+
+    <div class="ppe-slot-head">
+        <span class="ppe-drag-handle" title="Drag to reorder" aria-hidden="true">
+            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="3" cy="2.5"  r="1.5"/>
+                <circle cx="7" cy="2.5"  r="1.5"/>
+                <circle cx="3" cy="7"    r="1.5"/>
+                <circle cx="7" cy="7"    r="1.5"/>
+                <circle cx="3" cy="11.5" r="1.5"/>
+                <circle cx="7" cy="11.5" r="1.5"/>
+            </svg>
+        </span>
+        <span>{{ slot.label }}</span>
+        {% if not slot.is_empty %}
+        <span class="ppe-slot-head-actions">
+            <button class="ppe-btn ppe-btn-sm ppe-btn-ghost"
+                    onclick="openWidgetPanel('{{ slot.slot_id }}')">Edit</button>
+            <button class="ppe-btn ppe-btn-sm ppe-btn-danger"
+                    onclick="removeSlot('{{ slot.slot_id }}')">Remove</button>
+        </span>
+        {% endif %}
+    </div>
+
+    {% if slot.is_empty %}
+    <div class="ppe-slot-empty" onclick="openWidgetPanel('{{ slot.slot_id }}')">
+        <div class="ppe-slot-plus">+</div>
+        <div class="ppe-slot-add-label">Add content</div>
+    </div>
+    {% else %}
+    <div class="ppe-slot-filled" id="slot-filled-{{ slot.slot_id }}">
+        {% if slot.module.type == "text_bio" %}
+        <div class="ppe-slot-provider-badge ppe-badge-text">&#x270F; Text</div>
+        <div class="ppe-slot-title">{{ (slot.module.heading or slot.module.content)[:45] }}</div>
+        {% elif slot.module.type == "image_url" %}
+        <div class="ppe-slot-provider-badge ppe-badge-image">&#x1F5BC; Image</div>
+        <div class="ppe-slot-title">{{ slot.module.alt_text[:45] }}</div>
+        {% elif slot.module.provider == "youtube" %}
+        <div class="ppe-slot-provider-badge ppe-badge-youtube">&#x25B6; YouTube</div>
+        <div class="ppe-slot-title">{{ slot.module.title or slot.module.video_id }}</div>
+        <div class="ppe-slot-vid-id">{{ slot.module.video_id }}</div>
+        {% else %}
+        <div class="ppe-slot-provider-badge ppe-badge-tiktok">
+            &#x266A; TikTok{% if slot.module.custom_thumbnail_url %}<span class="ppe-badge-tiktok-thumb" title="Has thumbnail">&#x1F5BC;</span>{% endif %}
+        </div>
+        <div class="ppe-slot-title">{{ slot.module.title or slot.module.video_id }}</div>
+        <div class="ppe-slot-vid-id">{{ slot.module.video_id }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endmacro %}
+
+<div class="ppe-page">
+
+    {# ── Header ──────────────────────────────────────────────────────────────── #}
+    <div class="ppe-header">
+        <div>
+            <div class="ppe-header-title">Public Profile Editor</div>
+            <div class="ppe-header-sub">
+                Manage the modules shown on your public profile.
+                Changes save as draft — publish to make them live.
+            </div>
+        </div>
+        <div class="ppe-header-actions">
+            <a href="/dashboard/lfa-football-player" class="ppe-btn ppe-btn-ghost">← Dashboard</a>
+            <span class="ppe-status {% if is_published %}published{% else %}unpublished{% endif %}" id="ppe-status-badge">
+                <span class="ppe-status-dot"></span>
+                <span id="ppe-status-text">{% if is_published %}Up to date{% else %}Unpublished changes{% endif %}</span>
+            </span>
+            <a href="{{ profile_url }}" target="_blank" class="ppe-btn ppe-btn-view">View public profile ↗</a>
+            <a href="{{ card_editor_url }}" class="ppe-btn ppe-btn-ghost">Card Editor</a>
+            <button class="ppe-btn ppe-btn-publish" id="ppe-publish-btn"
+                    {% if is_published %}disabled{% endif %}
+                    onclick="publishProfile()">Publish Profile</button>
+        </div>
+    </div>
+
+    {# ── 5-lane designer grid ─────────────────────────────────────────────────── #}
+    {# Desktop:  Side A | Side B | Featured Card | Side C | Side D              #}
+    {# Tablet:   Featured Card full-width; Side B+C row; Side A+D row           #}
+    {# Mobile:   stack (Featured → Side B → C → A → D → Bottom)                #}
+    <div class="ppe-grid">
+
+        {# ── Side A (outer left on desktop) ───────────────────────────────────── #}
+        <div class="ppe-side-a-col">
+            <div class="ppe-zone-label">Side A</div>
+            <div class="ppe-zone-slots" data-zone="side_a">
+                {% for slot in draft_slots if slot.zone == "side_a" %}
+                {{ _render_slot(slot) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Side B (inner left on desktop) ───────────────────────────────────── #}
+        <div class="ppe-side-b-col">
+            <div class="ppe-zone-label">Side B</div>
+            <div class="ppe-zone-slots" data-zone="side_b">
+                {% for slot in draft_slots if slot.zone == "side_b" %}
+                {{ _render_slot(slot) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Center: Featured Card (read-only anchor) ──────────────────────────── #}
+        <div class="ppe-center-col">
+            <div class="ppe-zone-label">Featured Card (read-only)</div>
+            <div class="ppe-card-preview">
+                <div class="ppe-card-preview-head">Player Card</div>
+                <div class="ppe-card-preview-body">
+                    <a href="{{ card_editor_url }}">Open Card Editor to change your card →</a>
+                </div>
+            </div>
+        </div>
+
+        {# ── Side C (inner right on desktop) ──────────────────────────────────── #}
+        <div class="ppe-side-c-col">
+            <div class="ppe-zone-label">Side C</div>
+            <div class="ppe-zone-slots" data-zone="side_c">
+                {% for slot in draft_slots if slot.zone == "side_c" %}
+                {{ _render_slot(slot) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Side D (outer right on desktop) ──────────────────────────────────── #}
+        <div class="ppe-side-d-col">
+            <div class="ppe-zone-label">Side D</div>
+            <div class="ppe-zone-slots" data-zone="side_d">
+                {% for slot in draft_slots if slot.zone == "side_d" %}
+                {{ _render_slot(slot) }}
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Bottom row ───────────────────────────────────────────────────────── #}
+        <div class="ppe-bottom-row">
+            <div class="ppe-zone-label">Bottom Row</div>
+            <div class="ppe-bottom-grid ppe-zone-slots" data-zone="bottom">
+                {% for slot in draft_slots if slot.zone == "bottom" %}
+                {{ _render_slot(slot) }}
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>{# .ppe-grid #}
+</div>{# .ppe-page #}
+
+{# ── Widget Panel overlay ─────────────────────────────────────────────────────── #}
+<div id="wp-backdrop" class="wp-backdrop" onclick="closeWidgetPanel()"></div>
+<div id="wp-panel" class="wp-panel" role="dialog" aria-modal="true" aria-labelledby="wp-title">
+    <div class="wp-header">
+        <h3 id="wp-title" class="wp-title">Slot content</h3>
+        <button class="wp-close" onclick="closeWidgetPanel()" aria-label="Close">&times;</button>
+    </div>
+    <div class="wp-body">
+        <div class="wp-draft-notice">
+            Changes save as <strong>draft</strong> — publish the profile to make them visible.
+        </div>
+
+        {# Type selector — hidden in edit mode #}
+        <div id="wp-type-selector" class="wp-type-selector">
+            <button class="wp-type-btn" data-wtype="video_youtube" onclick="wpSelectType('video_youtube')">&#x25B6; YouTube</button>
+            <button class="wp-type-btn" data-wtype="video_tiktok"  onclick="wpSelectType('video_tiktok')">&#x266A; TikTok</button>
+            <button class="wp-type-btn" data-wtype="text_bio"      onclick="wpSelectType('text_bio')">&#x270F; Text / Bio</button>
+            <button class="wp-type-btn" data-wtype="image_url"     onclick="wpSelectType('image_url')">&#x1F5BC; Image URL</button>
+        </div>
+
+        {# Video form #}
+        <div id="wp-form-video" class="wp-form">
+            <label class="wp-label" for="wp-video-url">Video URL <span class="wp-req">*</span></label>
+            <input class="wp-input" id="wp-video-url" type="url" placeholder="https://youtube.com/watch?v=... or TikTok link">
+            <label class="wp-label" for="wp-video-title">Title (optional)</label>
+            <input class="wp-input" id="wp-video-title" type="text" maxlength="80" placeholder="e.g. Best goal of 2024">
+            {# TikTok-only extras — shown/hidden by wpSelectType() #}
+            <div id="wp-video-tiktok-extras">
+                <label class="wp-label" for="wp-tiktok-thumb">Thumbnail URL (optional, HTTPS)</label>
+                <input class="wp-input" id="wp-tiktok-thumb" type="url" placeholder="https://example.com/thumbnail.jpg">
+                <div class="wp-extras-note">Paste a static image URL to show a visual preview on the public profile. Leave empty to use the default link card.</div>
+            </div>
+        </div>
+
+        {# Text bio form #}
+        <div id="wp-form-text" class="wp-form">
+            <label class="wp-label" for="wp-text-heading">Heading (optional)</label>
+            <input class="wp-input" id="wp-text-heading" type="text" maxlength="80" placeholder="e.g. About me">
+            <label class="wp-label" for="wp-text-content">Content <span class="wp-req">*</span></label>
+            <textarea class="wp-textarea" id="wp-text-content" maxlength="300" placeholder="Up to 300 characters..."></textarea>
+            <div class="wp-char-counter"><span id="wp-text-count">0</span> / 300</div>
+        </div>
+
+        {# Image URL form #}
+        <div id="wp-form-image" class="wp-form">
+            <label class="wp-label" for="wp-image-url">Image URL (HTTPS) <span class="wp-req">*</span></label>
+            <input class="wp-input" id="wp-image-url" type="url" placeholder="https://example.com/photo.jpg">
+            <label class="wp-label" for="wp-image-alt">Alt text <span class="wp-req">*</span></label>
+            <input class="wp-input" id="wp-image-alt" type="text" maxlength="200" placeholder="Describe the image">
+            <label class="wp-label" for="wp-image-caption">Caption (optional)</label>
+            <input class="wp-input" id="wp-image-caption" type="text" maxlength="150" placeholder="Optional caption">
+        </div>
+
+        <div class="wp-error" id="wp-error"></div>
+    </div>
+    <div class="wp-footer">
+        <button class="ppe-btn ppe-btn-danger" id="wp-delete-btn" style="display:none;margin-right:auto"
+                onclick="wpDeleteWidget()">Remove</button>
+        <button class="ppe-btn ppe-btn-ghost" onclick="closeWidgetPanel()">Cancel</button>
+        <button class="ppe-btn ppe-btn-publish" id="wp-save-btn" onclick="wpSaveWidget()">Save Draft</button>
+    </div>
+</div>
+
+<div id="ppe-toast"></div>
+
+{# SortableJS 1.15.6 — MIT license, vendored (no CDN) #}
+<script src="/static/js/vendors/sortable-1.15.6.min.js"></script>
+<script>
+(function () {
+    var _CSRF_TOKEN = null;
+    var _BASE = "/dashboard/lfa-football-player/public-profile-editor/slots/";
+
+    function getCsrf() {
+        if (_CSRF_TOKEN) return Promise.resolve(_CSRF_TOKEN);
+        var m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+        _CSRF_TOKEN = m ? decodeURIComponent(m[1]) : "";
+        return Promise.resolve(_CSRF_TOKEN);
+    }
+
+    function parseError(data, status) {
+        if (status === 403 || (data && data.detail === "CSRF token mismatch")) {
+            return "Session expired — please hard reload and try again.";
+        }
+        return (data && (data.error || data.detail)) || "Failed to save.";
+    }
+
+    function toast(msg) {
+        var t = document.getElementById("ppe-toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(function () { t.classList.remove("show"); }, 2500);
+    }
+
+    function setUnpublished() {
+        var badge = document.getElementById("ppe-status-badge");
+        var text  = document.getElementById("ppe-status-text");
+        var btn   = document.getElementById("ppe-publish-btn");
+        if (badge)  { badge.className = "ppe-status unpublished"; }
+        if (text)   { text.textContent = "Unpublished changes"; }
+        if (btn)    { btn.disabled = false; }
+    }
+
+    // ── Widget Panel state ─────────────────────────────────────────────────────
+    var _wpSlotId    = null;
+    var _wpWidgetType = null;
+
+    function wpShowError(msg) {
+        var el = document.getElementById("wp-error");
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add("visible");
+    }
+    function wpClearError() {
+        var el = document.getElementById("wp-error");
+        if (el) { el.textContent = ""; el.classList.remove("visible"); }
+    }
+    function wpClearForms() {
+        document.getElementById("wp-video-url").value    = "";
+        document.getElementById("wp-video-title").value  = "";
+        document.getElementById("wp-tiktok-thumb").value = "";
+        document.getElementById("wp-text-heading").value = "";
+        document.getElementById("wp-text-content").value = "";
+        document.getElementById("wp-text-count").textContent = "0";
+        document.getElementById("wp-image-url").value     = "";
+        document.getElementById("wp-image-alt").value     = "";
+        document.getElementById("wp-image-caption").value = "";
+    }
+    function wpHideForms() {
+        ["wp-form-video","wp-form-text","wp-form-image"].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) { el.classList.remove("active"); }
+        });
+        document.querySelectorAll(".wp-type-btn").forEach(function(b) { b.classList.remove("active"); });
+    }
+
+    window.wpSelectType = function (wtype) {
+        _wpWidgetType = wtype;
+        wpHideForms();
+        var formId = wtype.startsWith("video_") ? "wp-form-video"
+                   : wtype === "text_bio"        ? "wp-form-text"
+                   :                               "wp-form-image";
+        var form = document.getElementById(formId);
+        if (form) form.classList.add("active");
+        document.querySelectorAll(".wp-type-btn").forEach(function(b) {
+            b.classList.toggle("active", b.getAttribute("data-wtype") === wtype);
+        });
+        // Show TikTok-only extras only when video_tiktok is selected.
+        var ttExtras = document.getElementById("wp-video-tiktok-extras");
+        if (ttExtras) ttExtras.classList.toggle("visible", wtype === "video_tiktok");
+        wpClearError();
+    };
+
+    // Open the Widget Panel. currentModule is null for empty slots (add mode).
+    window.openWidgetPanel = function (slotId) {
+        var slotEl = document.getElementById("slot-" + slotId);
+        var moduleJson = slotEl ? slotEl.getAttribute("data-module") : null;
+        var mod = null;
+        try { mod = moduleJson ? JSON.parse(moduleJson) : null; } catch(e) {}
+
+        _wpSlotId = slotId;
+        _wpWidgetType = null;
+        wpClearForms();
+        wpClearError();
+        wpHideForms();
+
+        var typeSelector = document.getElementById("wp-type-selector");
+        var deleteBtn    = document.getElementById("wp-delete-btn");
+
+        if (mod) {
+            // Edit mode — prefill, hide type selector, show delete button.
+            typeSelector.style.display = "none";
+            deleteBtn.style.display    = "inline-block";
+            // Determine type from module
+            var mtype = mod.type || (mod.provider ? "video_" + mod.provider : null);
+            _wpWidgetType = mtype;
+            if (mtype === "text_bio") {
+                document.getElementById("wp-form-text").classList.add("active");
+                document.getElementById("wp-text-heading").value = mod.heading || "";
+                document.getElementById("wp-text-content").value = mod.content || "";
+                document.getElementById("wp-text-count").textContent = (mod.content || "").length;
+            } else if (mtype === "image_url") {
+                document.getElementById("wp-form-image").classList.add("active");
+                document.getElementById("wp-image-url").value     = mod.url || "";
+                document.getElementById("wp-image-alt").value     = mod.alt_text || "";
+                document.getElementById("wp-image-caption").value = mod.caption || "";
+            } else {
+                document.getElementById("wp-form-video").classList.add("active");
+                document.getElementById("wp-video-url").value   = mod.source_url || "";
+                document.getElementById("wp-video-title").value = mod.title || "";
+                // TikTok: show extras and prefill thumbnail
+                var ttExtras = document.getElementById("wp-video-tiktok-extras");
+                if (mtype === "video_tiktok") {
+                    if (ttExtras) ttExtras.classList.add("visible");
+                    document.getElementById("wp-tiktok-thumb").value = mod.custom_thumbnail_url || "";
+                } else {
+                    if (ttExtras) ttExtras.classList.remove("visible");
+                }
+            }
+        } else {
+            // Add mode — show type selector, hide delete button.
+            typeSelector.style.display = "";
+            deleteBtn.style.display    = "none";
+        }
+
+        document.getElementById("wp-backdrop").classList.add("open");
+        document.getElementById("wp-panel").classList.add("open");
+    };
+
+    window.closeWidgetPanel = function () {
+        document.getElementById("wp-backdrop").classList.remove("open");
+        document.getElementById("wp-panel").classList.remove("open");
+        _wpSlotId = null;
+        _wpWidgetType = null;
+    };
+
+    window.wpSaveWidget = function () {
+        if (!_wpSlotId || !_wpWidgetType) {
+            wpShowError("Please select a widget type first.");
+            return;
+        }
+        wpClearError();
+
+        var body = { widget_type: _wpWidgetType };
+
+        if (_wpWidgetType === "video_youtube" || _wpWidgetType === "video_tiktok") {
+            body.video_url = document.getElementById("wp-video-url").value.trim();
+            body.title     = document.getElementById("wp-video-title").value.trim();
+            if (!body.video_url) { wpShowError("Video URL is required."); return; }
+            if (_wpWidgetType === "video_tiktok") {
+                var thumbVal = document.getElementById("wp-tiktok-thumb").value.trim();
+                if (thumbVal) body.thumbnail_url = thumbVal;
+            }
+        } else if (_wpWidgetType === "text_bio") {
+            body.content = document.getElementById("wp-text-content").value.trim();
+            body.heading = document.getElementById("wp-text-heading").value.trim();
+            if (!body.content) { wpShowError("Content is required."); return; }
+        } else if (_wpWidgetType === "image_url") {
+            body.url       = document.getElementById("wp-image-url").value.trim();
+            body.alt_text  = document.getElementById("wp-image-alt").value.trim();
+            body.caption   = document.getElementById("wp-image-caption").value.trim();
+            if (!body.url)      { wpShowError("Image URL is required."); return; }
+            if (!body.alt_text) { wpShowError("Alt text is required."); return; }
+        }
+
+        var saveBtn = document.getElementById("wp-save-btn");
+        saveBtn.disabled = true;
+
+        getCsrf().then(function (csrf) {
+            return fetch(_BASE + encodeURIComponent(_wpSlotId), {
+                method:  "POST",
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+                credentials: "same-origin",
+                body: JSON.stringify(body),
+            });
+        }).then(function (r) {
+            return r.json().then(function (d) { return {data: d, status: r.status}; });
+        }).then(function (res) {
+            var data = res.data; var status = res.status;
+            if (!data.ok) {
+                wpShowError(parseError(data, status));
+                saveBtn.disabled = false;
+                return;
+            }
+            closeWidgetPanel();
+            setUnpublished();
+            toast("Saved to draft.");
+            window.location.reload();
+        }).catch(function () {
+            wpShowError("Network error — please reload and try again.");
+            saveBtn.disabled = false;
+        });
+    };
+
+    window.wpDeleteWidget = function () {
+        if (!_wpSlotId) return;
+        removeSlot(_wpSlotId);
+        closeWidgetPanel();
+    };
+
+    // ── Remove slot ────────────────────────────────────────────────────────────
+    window.removeSlot = function (slotId) {
+        if (!confirm("Remove this module from the draft?")) return;
+        getCsrf().then(function (csrf) {
+            return fetch(_BASE + encodeURIComponent(slotId), {
+                method:  "DELETE",
+                headers: { "X-CSRF-Token": csrf },
+                credentials: "same-origin",
+            });
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data.ok) { alert(data.error || "Failed to remove."); return; }
+            setUnpublished();
+            toast("Removed from draft.");
+            window.location.reload();
+        }).catch(function () { alert("Network error."); });
+    };
+
+    // ── Publish ────────────────────────────────────────────────────────────────
+    window.publishProfile = function () {
+        var btn = document.getElementById("ppe-publish-btn");
+        btn.disabled = true;
+        getCsrf().then(function (csrf) {
+            return fetch("/dashboard/publish-card", {
+                method:  "POST",
+                headers: { "X-CSRF-Token": csrf },
+                credentials: "same-origin",
+            });
+        }).then(function (r) {
+            return r.json().then(function (d) { return {data: d, status: r.status}; });
+        }).then(function (res) {
+            var data = res.data; var status = res.status;
+            if (!data.ok) {
+                alert(parseError(data, status));
+                btn.disabled = false;
+                return;
+            }
+            var badge = document.getElementById("ppe-status-badge");
+            var text  = document.getElementById("ppe-status-text");
+            if (badge)  badge.className = "ppe-status published";
+            if (text)   text.textContent = "Up to date";
+            toast("Profile published!");
+        }).catch(function () { alert("Network error — please reload and try again."); btn.disabled = false; });
+    };
+
+    // ── Reorder zone (SortableJS callback) ────────────────────────────────────
+    window.reorderZone = function (container) {
+        var zone = container.getAttribute("data-zone");
+        var slotIds = Array.from(container.querySelectorAll(".ppe-slot"))
+            .map(function (el) { return el.getAttribute("data-slot"); })
+            .filter(Boolean);
+        getCsrf().then(function (csrf) {
+            return fetch("/dashboard/lfa-football-player/public-profile-editor/reorder", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+                credentials: "same-origin",
+                body: JSON.stringify({zone: zone, slot_ids: slotIds}),
+            });
+        }).then(function (r) {
+            return r.json().then(function (d) { return {data: d, status: r.status}; });
+        }).then(function (res) {
+            var data = res.data; var status = res.status;
+            if (!data.ok) {
+                toast("Reorder failed: " + parseError(data, status));
+                window.location.reload();
+                return;
+            }
+            if (data.status === "reordered") {
+                setUnpublished();
+                toast("Order saved to draft.");
+                window.location.reload();
+            }
+            // noop: ≤1 filled slot — nothing to update
+        }).catch(function () {
+            toast("Network error — please reload.");
+            window.location.reload();
+        });
+    };
+
+    // ── Cross-zone move (SortableJS callback) ─────────────────────────────────
+    window.moveSlot = function (sourceSlotId, targetSlotId) {
+        getCsrf().then(function (csrf) {
+            return fetch("/dashboard/lfa-football-player/public-profile-editor/move", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    source_slot_id: sourceSlotId,
+                    target_slot_id: targetSlotId,
+                    on_conflict:    "swap",
+                }),
+            });
+        }).then(function (r) {
+            return r.json().then(function (d) { return {data: d, status: r.status}; });
+        }).then(function (res) {
+            var data = res.data; var status = res.status;
+            if (!data.ok) {
+                toast("Move failed: " + parseError(data, status));
+                window.location.reload();
+                return;
+            }
+            if (data.status === "moved") {
+                setUnpublished();
+                toast("Slot moved.");
+                window.location.reload();
+            }
+            // noop: source was empty — nothing to update
+        }).catch(function () {
+            toast("Network error — please reload.");
+            window.location.reload();
+        });
+    };
+
+    // ── Init SortableJS on side zone containers (group enables cross-zone drag) ─
+    document.querySelectorAll(".ppe-zone-slots").forEach(function (container) {
+        if (container.getAttribute("data-zone") === "bottom") return;
+        Sortable.create(container, {
+            group:       { name: "ppe-slots", pull: true, put: true },
+            animation:   150,
+            handle:      ".ppe-drag-handle",
+            ghostClass:  "sortable-ghost",
+            chosenClass: "sortable-chosen",
+            onEnd: function (evt) {
+                var sourceContainer = evt.from;
+                var targetContainer = evt.to;
+                if (sourceContainer === targetContainer) {
+                    // Same-zone reorder
+                    if (evt.oldIndex === evt.newIndex) return;
+                    reorderZone(sourceContainer);
+                } else {
+                    // Cross-zone move: determine which target slot received the drop.
+                    // After the insert, evt.item is at evt.newIndex in targetContainer.
+                    // Filter it out to recover the original slot list before the drag.
+                    var allTargetSlots = Array.from(targetContainer.querySelectorAll(".ppe-slot"));
+                    var originalTargetSlots = allTargetSlots.filter(function (el) {
+                        return el !== evt.item;
+                    });
+                    var targetIdx = Math.min(evt.newIndex, originalTargetSlots.length - 1);
+                    var targetSlotEl = originalTargetSlots[targetIdx];
+                    var targetSlotId = targetSlotEl ? targetSlotEl.getAttribute("data-slot") : null;
+                    var sourceSlotId = evt.item.getAttribute("data-slot");
+                    if (!targetSlotId || !sourceSlotId) { window.location.reload(); return; }
+                    moveSlot(sourceSlotId, targetSlotId);
+                }
+            },
+        });
+    });
+
+    // ── Text content char counter ──────────────────────────────────────────────
+    var _textArea = document.getElementById("wp-text-content");
+    if (_textArea) {
+        _textArea.addEventListener("input", function () {
+            var counter = document.getElementById("wp-text-count");
+            if (counter) counter.textContent = _textArea.value.length;
+        });
+    }
+
+    // ── XSS-safe HTML escaping ─────────────────────────────────────────────────
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+})();
+</script>
+{% endblock %}

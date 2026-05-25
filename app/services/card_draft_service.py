@@ -14,6 +14,17 @@ from app.services.highlight_video_service import (
     extract_any_video,
     build_youtube_embed_url,
 )
+from app.services.profile_grid_service import (
+    build_module as _build_module,
+    build_video_module as _build_video_module,
+    grid_fingerprint as _grid_fingerprint,
+    move_slot as _move_slot,
+    remove_slot as _remove_slot,
+    reorder_zone as _reorder_zone,
+    set_slot as _set_slot,
+    validate_slot_id as _validate_slot_id,
+    VALID_WIDGET_TYPES as _VALID_WIDGET_TYPES,
+)
 
 
 class CardDraftService:
@@ -137,8 +148,8 @@ class CardDraftService:
 
         Idempotent: calling twice with identical draft state yields same result.
         Sets published_at to now() on every call (tracks most-recent publish).
-        Merges draft_data.highlight_video → published_data.highlight_video;
-        absence of the key in draft_data removes it from published_data.
+        Merges draft_data.highlight_video and draft_data.profile_grid into
+        published_data; absence of a key in draft_data removes it from published_data.
         """
         draft.published_theme    = draft.draft_theme
         draft.published_variant  = draft.draft_variant
@@ -146,14 +157,23 @@ class CardDraftService:
         draft.published_at       = datetime.now(timezone.utc)
         draft.updated_at         = datetime.now(timezone.utc)
 
-        # Merge highlight_video from draft_data into published_data.
-        # Uses copy+reassign pattern so SQLAlchemy detects the JSON mutation.
+        # Copy+reassign so SQLAlchemy detects the JSON mutation.
         published_data: dict[str, Any] = dict(draft.published_data or {})
+
+        # Merge highlight_video
         draft_hv = (draft.draft_data or {}).get("highlight_video")
         if draft_hv:
             published_data["highlight_video"] = draft_hv
         else:
             published_data.pop("highlight_video", None)
+
+        # Merge profile_grid
+        draft_pg = (draft.draft_data or {}).get("profile_grid")
+        if draft_pg:
+            published_data["profile_grid"] = draft_pg
+        else:
+            published_data.pop("profile_grid", None)
+
         draft.published_data = published_data if published_data else None
 
         if commit:
@@ -167,7 +187,7 @@ class CardDraftService:
 
         A draft that was never published (published_theme is None) is always
         considered unpublished regardless of draft field values.
-        Also compares draft_data.highlight_video.video_id vs published equivalent.
+        Compares highlight_video (video_id + provider) and profile_grid fingerprint.
         """
         if draft.published_theme is None:
             return False
@@ -180,10 +200,145 @@ class CardDraftService:
             return False
         draft_hv  = (draft.draft_data    or {}).get("highlight_video") or {}
         pub_hv    = (draft.published_data or {}).get("highlight_video") or {}
-        return (
+        hv_ok = (
             draft_hv.get("video_id") == pub_hv.get("video_id")
             and draft_hv.get("provider") == pub_hv.get("provider")
         )
+        if not hv_ok:
+            return False
+        draft_fp = _grid_fingerprint((draft.draft_data    or {}).get("profile_grid"))
+        pub_fp   = _grid_fingerprint((draft.published_data or {}).get("profile_grid"))
+        return draft_fp == pub_fp
+
+    @staticmethod
+    def set_draft_slot(
+        db: Session,
+        draft: CardDraft,
+        slot_id: str,
+        video_url: str | None = None,
+        title: str = "",
+        *,
+        widget_type: str | None = None,
+        payload: dict[str, Any] | None = None,
+        thumbnail_url: str | None = None,
+        commit: bool = True,
+    ) -> CardDraft:
+        """Write a widget module into draft_data.profile_grid[slot_id].
+
+        Backward-compatible: passing video_url (no widget_type) behaves as before.
+        New path: pass widget_type + payload dict for text_bio / image_url / video.
+        thumbnail_url: optional HTTPS URL for TikTok custom thumbnail preview.
+
+        Raises ValueError for unknown slot_id, invalid URL, or bad widget payload.
+        """
+        _validate_slot_id(slot_id)
+        if widget_type is None:
+            # Legacy video path — video_url required.
+            if video_url is None:
+                raise ValueError("video_url is required when widget_type is not specified.")
+            module = _build_video_module(video_url, title, thumbnail_url)
+        else:
+            _payload: dict[str, Any] = dict(payload or {})
+            # Allow callers to pass video_url as positional even with widget_type for video types.
+            if widget_type in ("video_youtube", "video_tiktok") and video_url and "video_url" not in _payload:
+                _payload["video_url"] = video_url
+                if title and "title" not in _payload:
+                    _payload["title"] = title
+            if thumbnail_url and "thumbnail_url" not in _payload:
+                _payload["thumbnail_url"] = thumbnail_url
+            module = _build_module(widget_type, _payload)
+        draft_data: dict[str, Any] = dict(draft.draft_data or {})
+        draft_data["profile_grid"] = _set_slot(draft_data.get("profile_grid"), slot_id, module)
+        draft.draft_data = draft_data
+        draft.updated_at = datetime.now(timezone.utc)
+        if commit:
+            db.commit()
+            db.refresh(draft)
+        return draft
+
+    @staticmethod
+    def remove_draft_slot(
+        db: Session, draft: CardDraft, slot_id: str, *, commit: bool = True
+    ) -> CardDraft:
+        """Remove a slot module from draft_data.profile_grid.
+
+        Publish is required for removal to be reflected on the public profile.
+        """
+        _validate_slot_id(slot_id)
+        draft_data: dict[str, Any] = dict(draft.draft_data or {})
+        existing_pg = draft_data.get("profile_grid")
+        new_pg = _remove_slot(existing_pg, slot_id)
+        if new_pg:
+            draft_data["profile_grid"] = new_pg
+        else:
+            draft_data.pop("profile_grid", None)
+        draft.draft_data = draft_data if draft_data else None
+        draft.updated_at = datetime.now(timezone.utc)
+        if commit:
+            db.commit()
+            db.refresh(draft)
+        return draft
+
+    @staticmethod
+    def reorder_draft_zone(
+        db: Session,
+        draft: CardDraft,
+        zone: str,
+        slot_ids: list[str],
+        *,
+        commit: bool = True,
+    ) -> CardDraft:
+        """Reorder filled modules within a zone in draft_data.profile_grid.
+
+        slot_ids: slot_ids of the zone's slots in desired visual order.
+        No-op (no DB write) when ≤1 filled slot.
+        Raises ValueError for unknown zone or mismatched slot_ids.
+        """
+        draft_data: dict[str, Any] = dict(draft.draft_data or {})
+        existing_pg = draft_data.get("profile_grid")
+        new_pg = _reorder_zone(existing_pg, zone, slot_ids)
+        if new_pg is existing_pg:
+            return draft  # no-op — ≤1 filled slot
+        if new_pg:
+            draft_data["profile_grid"] = new_pg
+        else:
+            draft_data.pop("profile_grid", None)
+        draft.draft_data = draft_data
+        draft.updated_at = datetime.now(timezone.utc)
+        if commit:
+            db.commit()
+            db.refresh(draft)
+        return draft
+
+    @staticmethod
+    def move_draft_slot(
+        db: Session,
+        draft: CardDraft,
+        source_slot_id: str,
+        target_slot_id: str,
+        *,
+        on_conflict: str = "swap",
+        commit: bool = True,
+    ) -> CardDraft:
+        """Move module from source to target slot in draft_data.profile_grid.
+
+        on_conflict: "swap" (default) | "overwrite" | "reject"
+        No DB write when source is empty (no-op).
+        Raises ValueError for unknown slots, source == target, occupied reject, or
+        invalid on_conflict value.
+        """
+        draft_data: dict[str, Any] = dict(draft.draft_data or {})
+        existing_pg = draft_data.get("profile_grid")
+        new_pg = _move_slot(existing_pg, source_slot_id, target_slot_id, on_conflict=on_conflict)
+        if new_pg is existing_pg:
+            return draft  # no-op — source was empty
+        draft_data["profile_grid"] = new_pg
+        draft.draft_data = draft_data
+        draft.updated_at = datetime.now(timezone.utc)
+        if commit:
+            db.commit()
+            db.refresh(draft)
+        return draft
 
     @staticmethod
     def update_draft_highlight_video(

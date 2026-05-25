@@ -22017,6 +22017,137 @@
         "title": "_HighlightVideoRequest",
         "type": "object"
       },
+      "_MoveRequest": {
+        "properties": {
+          "on_conflict": {
+            "default": "swap",
+            "title": "On Conflict",
+            "type": "string"
+          },
+          "source_slot_id": {
+            "title": "Source Slot Id",
+            "type": "string"
+          },
+          "target_slot_id": {
+            "title": "Target Slot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_slot_id",
+          "target_slot_id"
+        ],
+        "title": "_MoveRequest",
+        "type": "object"
+      },
+      "_ReorderRequest": {
+        "properties": {
+          "slot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Slot Ids",
+            "type": "array"
+          },
+          "zone": {
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone",
+          "slot_ids"
+        ],
+        "title": "_ReorderRequest",
+        "type": "object"
+      },
+      "_SlotWidgetRequest": {
+        "properties": {
+          "alt_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt Text"
+          },
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "heading": {
+            "default": "",
+            "title": "Heading",
+            "type": "string"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          },
+          "widget_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Widget Type"
+          }
+        },
+        "title": "_SlotWidgetRequest",
+        "type": "object"
+      },
       "app__api__api_v1__endpoints__coach__licenses__LicenseCreate": {
         "description": "Request body for creating a new Coach license",
         "example": {
@@ -60200,6 +60331,198 @@
           }
         },
         "summary": "Student Save Highlight Video",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-football-player/public-profile-editor": {
+      "get": {
+        "description": "Render the visual Public Profile Grid Designer page.",
+        "operationId": "lfa_public_profile_editor_dashboard_lfa_football_player_public_profile_editor_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Lfa Public Profile Editor",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-football-player/public-profile-editor/move": {
+      "post": {
+        "description": "Move a slot's module to another slot (cross-zone or same-zone).\n\non_conflict: \"swap\" (default) | \"overwrite\" | \"reject\"\nReturns {\"ok\": true, \"status\": \"noop\"} when source is empty \u2014 no DB write.\nReturns {\"ok\": true, \"status\": \"moved\", ...} on success.\nCSRF protection enforced by global middleware.",
+        "operationId": "lfa_profile_editor_move_slot_dashboard_lfa_football_player_public_profile_editor_move_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_MoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lfa Profile Editor Move Slot",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-football-player/public-profile-editor/reorder": {
+      "post": {
+        "description": "Reorder filled modules within a zone in the draft profile grid.\n\nReturns {\"ok\": true, \"status\": \"noop\"} when \u22641 filled slot or order unchanged \u2014 no DB write.\nReturns {\"ok\": true, \"status\": \"reordered\"} on successful reorder.\nCSRF protection enforced by global middleware.",
+        "operationId": "lfa_profile_editor_reorder_zone_dashboard_lfa_football_player_public_profile_editor_reorder_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_ReorderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lfa Profile Editor Reorder Zone",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/dashboard/lfa-football-player/public-profile-editor/slots/{slot_id}": {
+      "delete": {
+        "description": "Remove a module from a draft profile grid slot.\n\nPublish is required for the removal to be reflected on the public profile.\nCSRF protection enforced by global middleware.",
+        "operationId": "lfa_profile_editor_remove_slot_dashboard_lfa_football_player_public_profile_editor_slots__slot_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lfa Profile Editor Remove Slot",
+        "tags": [
+          "web"
+        ]
+      },
+      "post": {
+        "description": "Save a widget module to a draft profile grid slot.\n\nAccepts widget_type (text_bio, image_url, video_youtube, video_tiktok).\nBackward-compat: omit widget_type and pass video_url for video modules.\nCSRF protection enforced by global middleware.",
+        "operationId": "lfa_profile_editor_set_slot_dashboard_lfa_football_player_public_profile_editor_slots__slot_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slot_id",
+            "required": true,
+            "schema": {
+              "title": "Slot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_SlotWidgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lfa Profile Editor Set Slot",
         "tags": [
           "web"
         ]

@@ -651,6 +651,26 @@ async def spec_dashboard(
     }
     spec_header_class = _spec_header_map.get(spec_enum, "hdr-football")
 
+    # Public profile context (LFA_FOOTBALL_PLAYER only)
+    public_profile_url = None
+    grid_editor_url = None
+    is_profile_published = False
+    profile_grid_filled_slots = 0
+    profile_grid_total_slots = _MAX_SLOTS
+    has_published_highlight_video = False
+
+    if spec_enum == "LFA_FOOTBALL_PLAYER":
+        card_draft = _CardDraftService.get_player_card_draft(db, user.id)
+        public_profile_url = f"/players/{user.id}"
+        grid_editor_url = "/dashboard/lfa-football-player/public-profile-editor"
+        is_profile_published = _CardDraftService.is_published(card_draft)
+        _pub_grid = _build_published_grid_state(card_draft)
+        profile_grid_filled_slots = len(_pub_grid) if _pub_grid else 0
+        has_published_highlight_video = bool(
+            (card_draft.published_data or {}).get("highlight_video")
+            if card_draft else False
+        )
+
     return templates.TemplateResponse(
         "dashboard_student_new.html",
         {
@@ -675,6 +695,13 @@ async def spec_dashboard(
             "age_description": age_description,
             "user_age": user_age,
             "spec_header_class": spec_header_class,
+            # Public profile entry point (LFA_FOOTBALL_PLAYER only)
+            "public_profile_url": public_profile_url,
+            "grid_editor_url": grid_editor_url,
+            "is_profile_published": is_profile_published,
+            "profile_grid_filled_slots": profile_grid_filled_slots,
+            "profile_grid_total_slots": profile_grid_total_slots,
+            "has_published_highlight_video": has_published_highlight_video,
         }
     )
 
@@ -1363,4 +1390,317 @@ async def student_remove_highlight_video(
         "ok":     True,
         "status": "removed_from_draft",
         "published_video_still_live": pub_hv is not None,
+    })
+
+
+# ── Public Profile Grid Designer routes ───────────────────────────────────────
+
+from app.services.profile_grid_service import (  # noqa: E402
+    build_draft_grid_state     as _build_draft_grid_state,
+    build_published_grid_state as _build_published_grid_state,
+    SLOT_REGISTRY              as _SLOT_REGISTRY,
+    MAX_SLOTS                  as _MAX_SLOTS,
+    VALID_ZONES                as _VALID_ZONES,
+    VALID_WIDGET_TYPES         as _VALID_WIDGET_TYPES,
+    zone_slot_ids              as _zone_slot_ids,
+)
+
+
+class _SlotWidgetRequest(_BaseModel):
+    # Widget type — None triggers backward-compat video path when video_url present.
+    widget_type: str | None = None
+    # Video fields (video_youtube / video_tiktok)
+    video_url:     str | None = None
+    title:         str = ""
+    # TikTok-only: optional custom thumbnail HTTPS URL
+    thumbnail_url: str | None = None
+    # text_bio fields
+    content:   str | None = None
+    heading:   str = ""
+    # image_url fields
+    url:       str | None = None
+    alt_text:  str | None = None
+    caption:   str = ""
+
+
+class _ReorderRequest(_BaseModel):
+    zone:     str
+    slot_ids: list[str]
+
+
+class _MoveRequest(_BaseModel):
+    source_slot_id: str
+    target_slot_id: str
+    on_conflict:    str = "swap"
+
+
+@router.get(
+    "/dashboard/lfa-football-player/public-profile-editor",
+    response_class=HTMLResponse,
+)
+async def lfa_public_profile_editor(
+    request: Request,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Render the visual Public Profile Grid Designer page."""
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/dashboard", status_code=302)
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+    draft_slots     = _build_draft_grid_state(draft)
+    published_slots = _build_published_grid_state(draft)
+    is_pub          = _CardDraftService.is_published(draft)
+
+    return templates.TemplateResponse(
+        request,
+        "dashboard/lfa_public_profile_editor.html",
+        {
+            "user":             user,
+            "draft_slots":      draft_slots,
+            "published_slots":  published_slots,
+            "is_published":     is_pub,
+            "profile_url":      f"/players/{user.id}",
+            "card_editor_url":  "/dashboard/lfa-football-player/card-editor",
+        },
+    )
+
+
+@router.post(
+    "/dashboard/lfa-football-player/public-profile-editor/slots/{slot_id}",
+)
+async def lfa_profile_editor_set_slot(
+    slot_id: str,
+    payload: _SlotWidgetRequest,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Save a widget module to a draft profile grid slot.
+
+    Accepts widget_type (text_bio, image_url, video_youtube, video_tiktok).
+    Backward-compat: omit widget_type and pass video_url for video modules.
+    CSRF protection enforced by global middleware.
+    """
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+
+    wtype = payload.widget_type
+
+    # Validate widget_type when explicitly provided.
+    if wtype is not None and wtype not in _VALID_WIDGET_TYPES:
+        return JSONResponse(
+            {"ok": False, "error": f"Unknown widget_type: {wtype!r}. Valid: {sorted(_VALID_WIDGET_TYPES)}"},
+            status_code=422,
+        )
+
+    # Validate thumbnail_url — HTTPS only, ignored for non-TikTok types.
+    if payload.thumbnail_url:
+        from urllib.parse import urlparse as _urlparse
+        _pt = _urlparse(payload.thumbnail_url)
+        if _pt.scheme != "https" or not _pt.netloc:
+            return JSONResponse(
+                {"ok": False, "error": "thumbnail_url must be a valid HTTPS URL."},
+                status_code=422,
+            )
+
+    # Require either widget_type or video_url (backward-compat video path).
+    if wtype is None and not payload.video_url:
+        return JSONResponse(
+            {"ok": False, "error": "widget_type or video_url is required."},
+            status_code=422,
+        )
+
+    # Build per-type payload dict for the service.
+    if wtype is None or wtype in ("video_youtube", "video_tiktok"):
+        if not payload.video_url:
+            return JSONResponse(
+                {"ok": False, "error": "video_url is required for video widgets."},
+                status_code=422,
+            )
+        svc_payload: dict | None = None  # service handles legacy path via video_url positional
+    elif wtype == "text_bio":
+        if not payload.content:
+            return JSONResponse(
+                {"ok": False, "error": "content is required for text_bio widget."},
+                status_code=422,
+            )
+        svc_payload = {"content": payload.content, "heading": payload.heading or ""}
+    elif wtype == "image_url":
+        if not payload.url or not payload.alt_text:
+            return JSONResponse(
+                {"ok": False, "error": "url and alt_text are required for image_url widget."},
+                status_code=422,
+            )
+        svc_payload = {
+            "url":      payload.url,
+            "alt_text": payload.alt_text,
+            "caption":  payload.caption or "",
+        }
+    else:
+        svc_payload = None
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+    try:
+        _CardDraftService.set_draft_slot(
+            db, draft, slot_id,
+            payload.video_url,
+            payload.title,
+            widget_type=wtype,
+            payload=svc_payload,
+            thumbnail_url=payload.thumbnail_url,
+        )
+    except (ValueError, KeyError) as exc:
+        http_status = 404 if "Unknown slot_id" in str(exc) else 422
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=http_status)
+
+    pg = (draft.draft_data or {}).get("profile_grid", {})
+    slot_entry = next(
+        (s for s in pg.get("slots", []) if s["slot_id"] == slot_id), {}
+    )
+    mod = slot_entry.get("module", {})
+    return JSONResponse({
+        "ok":            True,
+        "slot_id":       slot_id,
+        "widget_type":   mod.get("type"),
+        "provider":      mod.get("provider"),
+        "video_id":      mod.get("video_id"),
+        "title":         mod.get("title", ""),
+        "thumbnail_url": mod.get("custom_thumbnail_url"),
+        "status":        "draft",
+    })
+
+
+@router.delete(
+    "/dashboard/lfa-football-player/public-profile-editor/slots/{slot_id}",
+)
+async def lfa_profile_editor_remove_slot(
+    slot_id: str,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Remove a module from a draft profile grid slot.
+
+    Publish is required for the removal to be reflected on the public profile.
+    CSRF protection enforced by global middleware.
+    """
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+    try:
+        _CardDraftService.remove_draft_slot(db, draft, slot_id)
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=404)
+
+    pub_pg = (draft.published_data or {}).get("profile_grid")
+    pub_has_slot = any(
+        s["slot_id"] == slot_id
+        for s in (pub_pg or {}).get("slots", [])
+    )
+    return JSONResponse({
+        "ok":                        True,
+        "slot_id":                   slot_id,
+        "status":                    "removed_from_draft",
+        "published_slot_still_live": pub_has_slot,
+    })
+
+
+@router.post(
+    "/dashboard/lfa-football-player/public-profile-editor/reorder",
+)
+async def lfa_profile_editor_reorder_zone(
+    payload: _ReorderRequest,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Reorder filled modules within a zone in the draft profile grid.
+
+    Returns {"ok": true, "status": "noop"} when ≤1 filled slot or order unchanged — no DB write.
+    Returns {"ok": true, "status": "reordered"} on successful reorder.
+    CSRF protection enforced by global middleware.
+    """
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+
+    # Pre-compute noop using same positional logic as the service (for response status).
+    existing_pg = (draft.draft_data or {}).get("profile_grid")
+    _occupied = {
+        s["slot_id"]: s.get("module")
+        for s in (existing_pg or {}).get("slots", [])
+        if isinstance(s.get("slot_id"), str)
+    }
+    _canon = _zone_slot_ids(payload.zone)  # [] for invalid zone — service will raise ValueError
+    _n = min(len(payload.slot_ids), len(_canon))
+    is_noop = all(
+        _occupied.get(payload.slot_ids[i]) is None or payload.slot_ids[i] == _canon[i]
+        for i in range(_n)
+    )
+
+    try:
+        _CardDraftService.reorder_draft_zone(db, draft, payload.zone, payload.slot_ids)
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+
+    return JSONResponse({
+        "ok":     True,
+        "zone":   payload.zone,
+        "status": "noop" if is_noop else "reordered",
+    })
+
+
+@router.post(
+    "/dashboard/lfa-football-player/public-profile-editor/move",
+)
+async def lfa_profile_editor_move_slot(
+    payload: _MoveRequest,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Move a slot's module to another slot (cross-zone or same-zone).
+
+    on_conflict: "swap" (default) | "overwrite" | "reject"
+    Returns {"ok": true, "status": "noop"} when source is empty — no DB write.
+    Returns {"ok": true, "status": "moved", ...} on success.
+    CSRF protection enforced by global middleware.
+    """
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "No active LFA Football Player license"}, status_code=404)
+
+    draft = _CardDraftService.get_player_card_draft(db, user.id)
+
+    # Pre-detect noop (source empty) before calling service, for response status.
+    existing_pg = (draft.draft_data or {}).get("profile_grid")
+    _occupied_move = {
+        s["slot_id"]: s.get("module")
+        for s in (existing_pg or {}).get("slots", [])
+        if isinstance(s.get("slot_id"), str)
+    }
+    is_noop = _occupied_move.get(payload.source_slot_id) is None
+
+    try:
+        _CardDraftService.move_draft_slot(
+            db, draft,
+            payload.source_slot_id,
+            payload.target_slot_id,
+            on_conflict=payload.on_conflict,
+        )
+    except ValueError as exc:
+        return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+
+    if is_noop:
+        return JSONResponse({"ok": True, "status": "noop"})
+
+    return JSONResponse({
+        "ok":            True,
+        "status":        "moved",
+        "source_slot_id": payload.source_slot_id,
+        "target_slot_id": payload.target_slot_id,
     })

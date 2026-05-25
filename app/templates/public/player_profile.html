@@ -232,6 +232,84 @@
     color: #374151;
 }
 
+/* ── Text bio widget ────────────────────────────────────────────────────────── */
+.psp-slot-text-bio {
+    padding: 0.75rem;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+.psp-slot-text-bio__heading {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.4rem;
+}
+.psp-slot-text-bio__content {
+    font-size: 0.85rem;
+    color: #374151;
+    line-height: 1.55;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ── Image URL widget ───────────────────────────────────────────────────────── */
+.psp-slot-image {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+.psp-slot-image__img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    object-fit: cover;
+}
+.psp-slot-image__caption {
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-top: 0.4rem;
+}
+
+/* ── TikTok thumbnail preview card ─────────────────────────────────────────── */
+.psp-tiktok-thumb-card {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+.psp-tiktok-thumb-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    aspect-ratio: 9 / 16;
+    object-fit: cover;
+    max-height: 320px;
+}
+.psp-tiktok-thumb-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.65));
+    padding: 1.5rem 0.75rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.psp-tiktok-thumb-overlay .psp-tiktok-provider { color: rgba(255,255,255,0.75); }
+.psp-tiktok-thumb-overlay .psp-tiktok-label    { color: #fff; }
+
+/* ── Unknown widget fallback ────────────────────────────────────────────────── */
+.psp-slot-unknown {
+    padding: 0.75rem;
+    background: #f3f4f6;
+    border-radius: 8px;
+    text-align: center;
+}
+.psp-slot-unknown__msg { font-size: 0.8rem; color: #9ca3af; margin: 0; }
+
 /* ── Card slot — viewport-aware max-height ─────────────────────────────────── */
 .psp-card-slot {
     --psp-card-max-h: clamp(420px, calc(100vh - 238px), 620px);
@@ -291,6 +369,18 @@
     inset: 7px;
     border-radius: 50%;
     background: #d1d5db;
+}
+
+/* ── Profile grid video slots — bottom row ─────────────────────────────────── */
+.psp-grid-video-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.psp-grid-video-row > .psp-module {
+    flex: 1;
+    min-width: 180px;
 }
 
 /* ── Recent events (bottom area) ───────────────────────────────────────────── */
@@ -367,6 +457,79 @@
 
 {% block content %}
 
+{# ── Grid slot module renderer (YouTube iframe / TikTok CTA) ────────────────── #}
+{% macro render_slot_module(module) %}
+{#
+  Dispatch order:
+  1. text_bio / image_url (explicit type, new widgets)
+  2. provider-based YouTube / TikTok (both new modules with type= and legacy modules without type=)
+  3. Unknown — fallback placeholder, no 500.
+  Jinja2 attribute access on a missing dict key returns Undefined (falsy), not an error.
+#}
+{% if module.type == "text_bio" %}
+<div class="psp-slot-text-bio">
+  {% if module.heading %}<h4 class="psp-slot-text-bio__heading">{{ module.heading | e }}</h4>{% endif %}
+  <p class="psp-slot-text-bio__content">{{ module.content | e }}</p>
+</div>
+{% elif module.type == "image_url" %}
+<figure class="psp-slot-image">
+  <img src="{{ module.url | e }}"
+       alt="{{ module.alt_text | e }}"
+       loading="lazy"
+       class="psp-slot-image__img">
+  {% if module.caption %}<figcaption class="psp-slot-image__caption">{{ module.caption | e }}</figcaption>{% endif %}
+</figure>
+{% elif module.provider == "youtube" %}
+<div class="psp-video-wrapper">
+    <iframe
+        src="https://www.youtube-nocookie.com/embed/{{ module.video_id }}?rel=0"
+        loading="lazy"
+        title="{{ module.title or 'Player video' }}"
+        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
+    </iframe>
+</div>
+<div class="psp-video-provider">
+    <span>YouTube</span>
+    <a href="https://www.youtube.com/watch?v={{ module.video_id }}" target="_blank" rel="noopener noreferrer">↗ Open</a>
+</div>
+{% elif module.provider == "tiktok" %}
+{% if module.custom_thumbnail_url %}
+<a href="{{ module.source_url }}"
+   target="_blank" rel="noopener noreferrer"
+   class="psp-tiktok-thumb-card">
+    <img src="{{ module.custom_thumbnail_url | e }}"
+         alt="{{ module.title or 'TikTok video' }}"
+         class="psp-tiktok-thumb-img"
+         loading="lazy">
+    <div class="psp-tiktok-thumb-overlay">
+        <div class="psp-tiktok-provider">TikTok</div>
+        <div class="psp-tiktok-label">Watch on TikTok ↗</div>
+    </div>
+</a>
+<a href="{{ module.source_url }}"
+   target="_blank" rel="noopener noreferrer"
+   class="psp-tiktok-cta psp-tiktok-cta-fallback"
+   style="display:none">
+    <div class="psp-tiktok-provider">TikTok</div>
+    <div class="psp-tiktok-label">Watch on TikTok ↗</div>
+</a>
+{% else %}
+<a href="{{ module.source_url }}"
+   target="_blank" rel="noopener noreferrer"
+   class="psp-tiktok-cta">
+    <div class="psp-tiktok-provider">TikTok</div>
+    <div class="psp-tiktok-label">Watch on TikTok ↗</div>
+</a>
+{% endif %}
+{% else %}
+<div class="psp-slot-unknown">
+  <p class="psp-slot-unknown__msg">Widget not available</p>
+</div>
+{% endif %}
+{% endmacro %}
+
 {# ── Sticky topbar ──────────────────────────────────────────────────────────── #}
 <div class="psp-topbar">
     <a href="/" class="psp-topbar-brand">🏫 LFA Education Center</a>
@@ -415,6 +578,7 @@
 
                     {% elif fp.state == "own_profile" %}
                     <a href="/profile/lfa-football-player" class="psp-btn psp-btn-cancel">Edit profile</a>
+                    <a href="/dashboard/lfa-football-player/public-profile-editor" class="psp-btn psp-btn-cancel">Edit Grid</a>
 
                     {% elif fp.state == "none" or fp.state == "declined" %}
                     <form method="POST" action="/friends/request/{{ profile_user.id }}" style="margin:0">
@@ -455,8 +619,20 @@
         </div>
     </div>
 
-    {# ── Left rail ──────────────────────────────────────────────────────────── #}
+    {# ── Left rail — Side A + Side B slots ─────────────────────────────────── #}
+    {# Compute left rail grid slots once for reuse below #}
+    {% set left_grid_slots = ((profile_grid_slots | selectattr("zone", "equalto", "side_a") | list) + (profile_grid_slots | selectattr("zone", "equalto", "side_b") | list)) if profile_grid_slots else [] %}
     <div class="psp-left-rail">
+        {% if left_grid_slots %}
+        {# Published grid content — hides placeholders when slots are filled #}
+        {% for slot in left_grid_slots %}
+        <div class="psp-module">
+            <div class="psp-module-head">{{ slot.module.title or "Video" }}</div>
+            <div style="padding:0">{{ render_slot_module(slot.module) }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        {# Placeholders — only shown when no grid content is published #}
         <div class="psp-module">
             <div class="psp-module-head">Gallery</div>
             <div class="psp-module-placeholder">
@@ -472,6 +648,7 @@
                 <div class="psp-module-coming">Coming Soon</div>
             </div>
         </div>
+        {% endif %}
 
         <div class="psp-module">
             <div class="psp-module-head">Achievements</div>
@@ -495,7 +672,7 @@
         </div>
     </div>
 
-    {# ── Slot: reserved placeholder (Phase 1 empty) ───────────────────────────── #}
+    {# ── l-slot: spacer column (reserved for Phase 2 outer content) ────────────── #}
     <div class="psp-l-slot" aria-hidden="true"></div>
 
     {# ── Center: Featured Player Card ───────────────────────────────────────── #}
@@ -512,11 +689,23 @@
         </div>
     </div>
 
-    {# ── Slot: reserved placeholder (Phase 1 empty) ───────────────────────────── #}
+    {# ── r-slot: spacer column (reserved for Phase 2 outer content) ────────────── #}
     <div class="psp-r-slot" aria-hidden="true"></div>
 
-    {# ── Right rail ─────────────────────────────────────────────────────────── #}
+    {# ── Right rail — Side C + Side D slots ─────────────────────────────────── #}
     <div class="psp-right-rail">
+        {# Profile grid — side_c and side_d zone slots (inner+outer right on desktop) #}
+        {# Falls back to legacy highlight_video when no profile_grid is published     #}
+        {% set right_grid_slots = ((profile_grid_slots | selectattr("zone", "equalto", "side_c") | list) + (profile_grid_slots | selectattr("zone", "equalto", "side_d") | list)) if profile_grid_slots else [] %}
+        {% if right_grid_slots %}
+        {% for slot in right_grid_slots %}
+        <div class="psp-module">
+            <div class="psp-module-head">{{ slot.module.title or "Video" }}</div>
+            <div style="padding:0">{{ render_slot_module(slot.module) }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        {# Legacy highlight_video fallback — used when no profile_grid is published #}
         <div class="psp-module">
             <div class="psp-module-head">Highlight Video</div>
             {% if highlight_video %}
@@ -551,6 +740,7 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
 
         <div class="psp-module">
             <div class="psp-module-head">Latest Result</div>
@@ -572,6 +762,7 @@
             {% endif %}
         </div>
 
+        {% if not right_grid_slots %}
         <div class="psp-module">
             <div class="psp-module-head">Challenge Highlight</div>
             <div class="psp-module-placeholder">
@@ -579,11 +770,25 @@
                 <div class="psp-module-coming">Coming Soon</div>
             </div>
         </div>
+        {% endif %}
     </div>
 
-    {# ── Bottom: Recent Events ──────────────────────────────────────────────── #}
-    {% if recent_events %}
+    {# ── Bottom: grid slots + Recent Events ────────────────────────────────── #}
+    {% set bottom_grid_slots = (profile_grid_slots | selectattr("zone", "equalto", "bottom") | list) if profile_grid_slots else [] %}
+    {% if bottom_grid_slots or recent_events %}
     <div class="psp-bottom-area">
+        {% if bottom_grid_slots %}
+        <div class="psp-grid-video-row">
+            {% for slot in bottom_grid_slots %}
+            <div class="psp-module">
+                <div class="psp-module-head">{{ slot.module.title or "Video" }}</div>
+                <div style="padding:0">{{ render_slot_module(slot.module) }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if recent_events %}
         <div class="psp-events-title">Recent Events</div>
         {% for ev in recent_events %}
         <div class="psp-event-row">
@@ -595,6 +800,7 @@
             </div>
         </div>
         {% endfor %}
+        {% endif %}
     </div>
     {% endif %}
 
@@ -602,6 +808,20 @@
 </div>{# .psp-profile #}
 
 <script>
+(function () {
+    // TikTok thumbnail broken-image fallback (no inline onerror — CSP-safe).
+    document.querySelectorAll('.psp-tiktok-thumb-img').forEach(function (img) {
+        img.addEventListener('error', function () {
+            var card = img.closest('.psp-tiktok-thumb-card');
+            if (!card) return;
+            card.style.display = 'none';
+            var fallback = card.nextElementSibling;
+            if (fallback && fallback.classList.contains('psp-tiktok-cta-fallback')) {
+                fallback.style.display = 'flex';
+            }
+        });
+    });
+})();
 (function () {
     var slot  = document.getElementById('psp-card-slot');
     var frame = document.getElementById('psp-card-frame');
