@@ -37,6 +37,7 @@ from ...models.friendship import (
     Friendship, FriendshipStatus, get_friendship, is_friends,
 )
 from typing import Optional
+from ...models.license import UserLicense
 from ...models.notification import NotificationType
 from ...models.user import User
 from ...services import notification_service
@@ -61,7 +62,7 @@ def _safe_next(next_url: str | None, default: str = "/friends") -> str:
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _friend_list(db: Session, user_id: int) -> list[User]:
-    """All accepted friends of user_id (either direction)."""
+    """All accepted friends of user_id (either direction). 2-query, no N+1."""
     rows = (
         db.query(Friendship)
         .filter(
@@ -70,13 +71,31 @@ def _friend_list(db: Session, user_id: int) -> list[User]:
         )
         .all()
     )
-    friends = []
-    for row in rows:
-        other_id = row.addressee_id if row.requester_id == user_id else row.requester_id
-        u = db.query(User).filter(User.id == other_id).first()
-        if u:
-            friends.append(u)
-    return friends
+    if not rows:
+        return []
+    other_ids = [
+        row.addressee_id if row.requester_id == user_id else row.requester_id
+        for row in rows
+    ]
+    users = db.query(User).filter(User.id.in_(other_ids)).all()
+    user_map = {u.id: u for u in users}
+    return [user_map[uid] for uid in other_ids if uid in user_map]
+
+
+def _friend_license_map(db: Session, friend_ids: list[int]) -> dict[int, int]:
+    """Return {user_id: current_level} for active LFA_FOOTBALL_PLAYER licenses."""
+    if not friend_ids:
+        return {}
+    rows = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id.in_(friend_ids),
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+            UserLicense.is_active == True,
+        )
+        .all()
+    )
+    return {r.user_id: r.current_level for r in rows}
 
 
 def _incoming_requests(db: Session, user_id: int) -> list[Friendship]:
@@ -177,9 +196,10 @@ async def friends_page(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user_web),
 ):
-    friends         = _friend_list(db, user.id)
-    incoming        = _incoming_requests(db, user.id)
-    outgoing        = _outgoing_requests(db, user.id)
+    friends       = _friend_list(db, user.id)
+    incoming      = _incoming_requests(db, user.id)
+    outgoing      = _outgoing_requests(db, user.id)
+    friend_levels = _friend_license_map(db, [f.id for f in friends])
     return templates.TemplateResponse("friends.html", {
         "request":          request,
         "user":             user,
@@ -187,6 +207,7 @@ async def friends_page(
         "incoming":         incoming,
         "outgoing":         outgoing,
         "incoming_count":   len(incoming),
+        "friend_levels":    friend_levels,
         "success":          request.query_params.get("success"),
         "error":            request.query_params.get("error"),
     })
@@ -208,6 +229,7 @@ async def friends_requests_page(
         "outgoing":       outgoing,
         "incoming_count": len(incoming),
         "active_tab":     "requests",
+        "friend_levels":  {},
         "success":        request.query_params.get("success"),
         "error":          request.query_params.get("error"),
     })

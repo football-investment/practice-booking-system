@@ -574,7 +574,7 @@ _TMPL_DIR = _os.path.join(
 )
 
 
-def _render_friends(friends=None):
+def _render_friends(friends=None, friend_levels=None, position="midfielder"):
     """Render friends.html Friends tab with optional friend list."""
     env = Environment(loader=FileSystemLoader(_TMPL_DIR), autoescape=True)
     template = env.get_template("friends.html")
@@ -583,6 +583,7 @@ def _render_friends(friends=None):
     fr_mock.name = "Test Friend"
     fr_mock.nickname = None
     fr_mock.email = "friend@lfa.com"
+    fr_mock.position = position
     return template.render(
         request=MagicMock(),
         user=MagicMock(),
@@ -593,6 +594,7 @@ def _render_friends(friends=None):
         success=None,
         error=None,
         active_tab=None,
+        friend_levels=friend_levels if friend_levels is not None else {},
     )
 
 
@@ -605,6 +607,7 @@ class TestFriendsTemplateContent:
         assert "View Profile" in html
 
     def test_fr32_player_profile_challenge_link_uses_friend_id(self):
+
         """FR-32: player_profile.html challenge link uses ?friend_id= param, not ?friend=."""
         from jinja2 import Environment, FileSystemLoader
         env = Environment(loader=FileSystemLoader(_TMPL_DIR), autoescape=True)
@@ -629,3 +632,90 @@ class TestFriendsTemplateContent:
         )
         assert "?friend_id=42" in html
         assert "?friend=42" not in html
+
+
+# ── Friend card design + data tests — FR-33..FR-42 ───────────────────────────
+
+class TestFriendsCardDesign:
+    """Design token alignment, player data pills, regression for search + remove."""
+
+    def test_fr33_friend_card_has_view_profile_link(self):
+        """FR-33: friend card renders /players/{id} View Profile link (with full context)."""
+        html = _render_friends(position="midfielder", friend_levels={7: 3})
+        assert "/players/7" in html
+        assert "View Profile" in html
+
+    def test_fr34_friend_card_challenge_uses_friend_id_param(self):
+        """FR-34: Challenge button uses ?friend_id= not bare ?friend=."""
+        html = _render_friends(position="midfielder", friend_levels={7: 3})
+        assert "?friend_id=7" in html
+        assert "?friend=7" not in html
+
+    def test_fr35_position_pill_rendered_when_set(self):
+        """FR-35: position pill appears when f.position is a non-empty string."""
+        html = _render_friends(position="midfielder", friend_levels={})
+        assert "Midfielder" in html
+
+    def test_fr36_level_pill_rendered_when_available(self):
+        """FR-36: level pill appears when friend_levels contains the friend's id."""
+        html = _render_friends(position=None, friend_levels={7: 4})
+        assert "Lv 4" in html
+
+    def test_fr37_no_error_when_position_is_none(self):
+        """FR-37: no UndefinedError when f.position is None — page still renders."""
+        html = _render_friends(position=None, friend_levels={})
+        assert "/players/7" in html
+
+    def test_fr38_no_error_when_friend_levels_empty(self):
+        """FR-38: no error when friend_levels is empty (friend has no LFA license)."""
+        html = _render_friends(position="goalkeeper", friend_levels={})
+        assert "/players/7" in html
+
+    def test_fr39_local_app_tokens_defined_in_template(self):
+        """FR-39: friends.html contains local :root --app-* token definitions."""
+        tmpl_path = _os.path.join(_TMPL_DIR, "friends.html")
+        with open(tmpl_path) as fh:
+            content = fh.read()
+        for token in (
+            "--app-bg:", "--app-card:", "--app-card-alt:",
+            "--app-text:", "--app-text-muted:",
+            "--app-border:", "--app-success:", "--app-error:",
+        ):
+            assert token in content, f"Token {token!r} not defined in friends.html"
+
+    def test_fr40_active_tab_uses_lfa_brand_not_purple(self):
+        """FR-40: .fr-tab.active uses LFA yellow/black, not purple #4f46e5."""
+        import re
+        tmpl_path = _os.path.join(_TMPL_DIR, "friends.html")
+        with open(tmpl_path) as fh:
+            content = fh.read()
+        assert "#FFD200" in content, "LFA yellow (#FFD200) missing from friends.html"
+        match = re.search(r'\.fr-tab\.active\s*\{[^}]+\}', content)
+        assert match, ".fr-tab.active rule not found in friends.html"
+        assert "#4f46e5" not in match.group(), \
+            "Purple #4f46e5 still present in .fr-tab.active — should be LFA brand"
+
+    def test_fr41_search_endpoint_still_returns_json_list(self):
+        """FR-41: GET /friends/search still returns a JSON list (regression)."""
+        from app.api.web_routes.friends import friends_search
+        import json
+        user = _user(uid=1)
+        db = _db()
+        db.query.return_value.filter.return_value.limit.return_value.all.return_value = []
+        resp = _run(friends_search(request=_req(), q="test", limit=10, db=db, user=user))
+        data = json.loads(resp.body)
+        assert isinstance(data, list)
+
+    def test_fr42_remove_friend_returns_success_redirect(self):
+        """FR-42: POST /friends/remove/{user_id} for ACCEPTED friend → success redirect."""
+        from app.api.web_routes.friends import remove_friend
+        user = _user(uid=1)
+        row = _friendship(fid=10, requester_id=1, addressee_id=2,
+                          status=FriendshipStatus.ACCEPTED)
+        db = _db()
+        with patch(f"{_BASE}.get_friendship", return_value=row):
+            result = _run(remove_friend(user_id=2, db=db, user=user))
+        assert isinstance(result, RedirectResponse)
+        assert "success=friend_removed" in result.headers["location"]
+        db.delete.assert_called_once_with(row)
+        db.commit.assert_called_once()
