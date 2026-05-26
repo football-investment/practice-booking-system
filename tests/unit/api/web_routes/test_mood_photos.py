@@ -414,6 +414,17 @@ def test_mp_r16_template_uses_correct_blocks():
     assert "spec_subpage_hdr.html" in content, (
         "template must include spec_subpage_hdr.html for platform header"
     )
+    assert "_mpUpload(this)" in content, (
+        "file input must use _mpUpload(this) — form.submit() skips submit event "
+        "so the base.html CSRF interceptor never fires, causing 403"
+    )
+    assert "this.form.submit()" not in content, (
+        "file input must NOT use form.submit() — it bypasses the submit event "
+        "and the CSRF interceptor, causing 403 CSRF_VALIDATION_FAILED"
+    )
+    assert "X-CSRF-Token" in content, (
+        "template must include X-CSRF-Token fetch header for CSRF validation"
+    )
 
 
 # ── MP-R17 ── spec_subpage_hdr has LFA quicknav strip with all key links ─────

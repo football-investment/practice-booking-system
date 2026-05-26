@@ -175,6 +175,32 @@
 </style>
 {% endblock %}
 
+{% block extra_scripts %}
+<script>
+/* Mood photo upload: must use fetch() + X-CSRF-Token header.
+   form.submit() skips the submit event so base.html CSRF interceptor never fires.
+   Using FormData (not URLSearchParams) preserves the file as multipart/form-data. */
+function _mpUpload(input) {
+    var form = input.closest('form');
+    var m    = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    var tok  = m ? decodeURIComponent(m[1]) : null;
+    if (!tok || !input.files || !input.files[0]) return;
+
+    fetch(form.action, {
+        method:      'POST',
+        headers:     { 'X-CSRF-Token': tok },
+        body:        new FormData(form),   // multipart/form-data + boundary set by browser
+        credentials: 'include',
+        redirect:    'follow',
+    }).then(function (r) {
+        window.location.href = r.redirected ? r.url : '/profile/my-mood-photos';
+    }).catch(function () {
+        window.location.reload();
+    });
+}
+</script>
+{% endblock %}
+
 {% block student_content %}
 <div class="mp-container">
 
@@ -245,7 +271,7 @@
                            name="photo"
                            accept="image/jpeg,image/png,image/webp"
                            style="display:none;"
-                           onchange="this.form.submit()">
+                           onchange="_mpUpload(this)">
                 </form>
 
                 {% if record %}
