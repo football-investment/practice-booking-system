@@ -455,7 +455,7 @@ class TestSendChallengeDifficulty:
         _mock_snap = {"game_code": "target_tracking", "difficulty": "hard",
                       "arena": {"width": 480, "height": 360}, "phases": []}
         with patch(f"{_BASE}.is_friends",        return_value=True), \
-             patch(f"{_BASE}.get_active_challenge", return_value=None), \
+             patch(f"{_BASE}.count_active_challenges_in_category", return_value=0), \
              patch(f"{_BASE}.VirtualTrainingService.is_expert_unlocked", return_value=False), \
              patch(f"{_BASE}.generate_snapshot", return_value=_mock_snap), \
              patch(f"{_BASE}.notification_service.create_notification"), \
@@ -481,7 +481,7 @@ class TestSendChallengeDifficulty:
         db.query.return_value.filter.return_value.first.side_effect = [target, game, None]
 
         with patch(f"{_BASE}.is_friends",        return_value=True), \
-             patch(f"{_BASE}.get_active_challenge", return_value=None):
+             patch(f"{_BASE}.count_active_challenges_in_category", return_value=0):
             result = _run(send_challenge(
                 challenged_user_id=2, game_id=2, message=None,
                 difficulty_level="legendary",
@@ -497,9 +497,9 @@ class TestSendChallengeDifficulty:
         game   = _game(gid=2, code="target_tracking")
         db.query.return_value.filter.return_value.first.side_effect = [target, game, None]
 
-        with patch(f"{_BASE}.is_friends",                return_value=True), \
-             patch(f"{_BASE}.get_active_challenge",        return_value=None), \
-             patch(f"{_BASE}.VirtualTrainingService.is_expert_unlocked", return_value=False):
+        with patch(f"{_BASE}.is_friends",                                    return_value=True), \
+             patch(f"{_BASE}.count_active_challenges_in_category",           return_value=0), \
+             patch(f"{_BASE}.VirtualTrainingService.is_expert_unlocked",     return_value=False):
             result = _run(send_challenge(
                 challenged_user_id=2, game_id=2, message=None,
                 difficulty_level="expert",
@@ -516,8 +516,8 @@ class TestSendChallengeDifficulty:
         db.query.return_value.filter.return_value.first.side_effect = [target, game, None]
 
         _mock_snap = {"game_code": "memory_sequence", "grid_tiles": 12, "phases": []}
-        with patch(f"{_BASE}.is_friends",          return_value=True), \
-             patch(f"{_BASE}.get_active_challenge",  return_value=None), \
+        with patch(f"{_BASE}.is_friends",                              return_value=True), \
+             patch(f"{_BASE}.count_active_challenges_in_category",   return_value=0), \
              patch(f"{_BASE}.generate_snapshot", return_value=_mock_snap), \
              patch(f"{_BASE}.notification_service.create_notification"), \
              patch(f"{_BASE}.VirtualTrainingChallenge") as MockCh:
@@ -676,8 +676,8 @@ class TestNotificationLinks:
         def _capture(**kwargs):
             captured_link["link"] = kwargs.get("link")
 
-        with patch(f"{_BASE}.is_friends",           return_value=True), \
-             patch(f"{_BASE}.get_active_challenge",   return_value=None), \
+        with patch(f"{_BASE}.is_friends",                             return_value=True), \
+             patch(f"{_BASE}.count_active_challenges_in_category",  return_value=0), \
              patch(f"{_BASE}.VirtualTrainingChallenge", MagicMock), \
              patch(f"{_BASE}.notification_service.create_notification", side_effect=_capture):
             _run(send_challenge(
@@ -738,7 +738,7 @@ class TestChallengeWsPublish:
 
         calls = []
         with patch(f"{_BASE}.is_friends", return_value=True), \
-             patch(f"{_BASE}.get_active_challenge", return_value=None), \
+             patch(f"{_BASE}.count_active_challenges_in_category", return_value=0), \
              patch(f"{_BASE}.VirtualTrainingChallenge", MagicMock), \
              patch(f"{_BASE}.publish_challenge_event", side_effect=lambda *a, **kw: calls.append(a)) as mock_pub, \
              patch(f"{_BASE}.notification_service.create_notification"):

@@ -46,8 +46,10 @@ from ...models.vt_challenge import (
     CHALLENGE_COMPATIBLE_GAMES,
     DEFAULT_COMPLETION_WINDOW,
     LOBBY_TIMEOUT_SECONDS,
+    MAX_ACTIVE_PER_CATEGORY,
     ChallengeStatus,
     VirtualTrainingChallenge,
+    count_active_challenges_in_category,
     get_active_challenge,
     make_completion_deadline,
     make_expires_at,
@@ -333,6 +335,7 @@ async def challenge_send_form(
         "preselected_friend_id": preselected_friend_id,
         "preselected_game_code": preselected_game_code,
         "error":                 request.query_params.get("error"),
+        "max_per_cat":           MAX_ACTIVE_PER_CATEGORY,
     })
 
 
@@ -388,9 +391,14 @@ async def send_challenge(
     if game.code not in CHALLENGE_COMPATIBLE_GAMES:
         return RedirectResponse(url="/challenges/send?error=game_not_compatible", status_code=303)
 
-    # Duplicate active challenge guard (bidirectional)
-    if get_active_challenge(db, user.id, challenged_user_id, game_id):
-        return RedirectResponse(url="/challenges/send?error=challenge_active", status_code=303)
+    # Category-level active challenge limit (bidirectional, per game_type)
+    active_in_cat = count_active_challenges_in_category(
+        db, user.id, challenged_user_id, game.game_type
+    )
+    if active_in_cat >= MAX_ACTIVE_PER_CATEGORY:
+        return RedirectResponse(
+            url="/challenges/send?error=challenge_limit_reached", status_code=303
+        )
 
     # Difficulty validation (TT only)
     resolved_difficulty: str | None = None
