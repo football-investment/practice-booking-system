@@ -291,3 +291,85 @@ def test_mp_r11_management_template_is_english():
     assert "Upload" in content
     assert "Delete" in content
     assert "Not uploaded" in content
+
+
+# ── MP-R12 ── dashboard has My Card Media section + correct links ─────────────
+
+def test_mp_r12_dashboard_has_card_media_section():
+    from pathlib import Path
+
+    content = (
+        Path(__file__).resolve()
+        .parent.parent.parent.parent.parent
+        / "app" / "templates" / "dashboard_student_new.html"
+    ).read_text(encoding="utf-8")
+
+    assert "My Card Media" in content, "dashboard missing 'My Card Media' section title"
+    assert "/profile/my-mood-photos" in content, "dashboard missing /profile/my-mood-photos link"
+    assert "/dashboard/lfa-football-player/card-editor#media" in content, (
+        "dashboard missing card editor #media deep link"
+    )
+    assert "/dashboard/lfa-football-player/card-editor" in content, (
+        "dashboard missing card editor link"
+    )
+
+
+# ── MP-R13 ── Public Profile action row no longer contains Mood Photos ────────
+
+def test_mp_r13_public_profile_section_has_no_mood_photos_button():
+    from pathlib import Path
+
+    content = (
+        Path(__file__).resolve()
+        .parent.parent.parent.parent.parent
+        / "app" / "templates" / "dashboard_student_new.html"
+    ).read_text(encoding="utf-8")
+
+    # Extract only the Public Profile section (between its section tags)
+    pp_start = content.find("Public Profile entry point")
+    pp_end   = content.find("My Card Media", pp_start)
+    pp_block = content[pp_start:pp_end] if pp_start != -1 and pp_end != -1 else ""
+
+    assert "my-mood-photos" not in pp_block, (
+        "Mood Photos link must not appear inside the Public Profile section — "
+        "it must only be in the My Card Media section"
+    )
+
+
+# ── MP-R14 ── profile page cards-grid contains Card Media card ───────────────
+
+def test_mp_r14_profile_page_has_card_media_card():
+    from pathlib import Path
+
+    content = (
+        Path(__file__).resolve()
+        .parent.parent.parent.parent.parent
+        / "app" / "templates" / "lfa_player_profile.html"
+    ).read_text(encoding="utf-8")
+
+    assert "My Card Media" in content, "profile page missing 'My Card Media' card"
+    assert "/profile/my-mood-photos" in content, "profile page missing /profile/my-mood-photos link"
+    assert "/dashboard/lfa-football-player/card-editor#media" in content, (
+        "profile page missing card editor #media deep link"
+    )
+
+
+# ── MP-R15 ── profile page header no longer contains Mood Photos button ───────
+
+def test_mp_r15_profile_header_has_no_mood_photos_button():
+    from pathlib import Path
+
+    content = (
+        Path(__file__).resolve()
+        .parent.parent.parent.parent.parent
+        / "app" / "templates" / "lfa_player_profile.html"
+    ).read_text(encoding="utf-8")
+
+    # The header block ends before cards-grid
+    header_end = content.find('class="cards-grid"')
+    header_block = content[:header_end] if header_end != -1 else content[:500]
+
+    assert "my-mood-photos" not in header_block, (
+        "Mood Photos link must not appear in the profile page header — "
+        "it must only be in the My Card Media card inside cards-grid"
+    )
