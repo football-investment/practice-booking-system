@@ -140,7 +140,7 @@ def test_mp_s06_delete_removes_row(tmp_path, monkeypatch):
 
     from app.services.mood_photo_service import delete_mood_photo
 
-    delete_mood_photo(user_id=1, slot="mood_intro_neutral", db=db)
+    delete_mood_photo(user_id=99, slot="mood_intro_neutral", db=db)
 
     db.delete.assert_called_once_with(existing)
     db.flush.assert_called()
@@ -154,7 +154,7 @@ def test_mp_s07_delete_nonexistent_is_noop(tmp_path, monkeypatch):
 
     from app.services.mood_photo_service import delete_mood_photo
 
-    delete_mood_photo(user_id=1, slot="mood_celebration", db=db)
+    delete_mood_photo(user_id=99, slot="mood_celebration", db=db)
 
     db.delete.assert_not_called()
 
