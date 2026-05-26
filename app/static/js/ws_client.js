@@ -39,18 +39,31 @@
   let reconnectTimer = null;
   let destroyed     = false;
   let cachedToken   = null;
+  let _fetchCtrl    = null;   // AbortController for the /api/ws-token fetch
+
+  // ── Teardown on page unload (prevents ERR_ABORTED race during navigation) ─
+  window.addEventListener('beforeunload', function() {
+    destroyed = true;
+    if (_fetchCtrl) { _fetchCtrl.abort(); _fetchCtrl = null; }
+    clearPingTimer();
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (ws) { try { ws.close(); } catch (_) {} ws = null; }
+  });
 
   // ── Token fetch ───────────────────────────────────────────────────────────
   function fetchTokenAndConnect() {
     if (destroyed || inFallback) return;
-    fetch('/api/ws-token', { credentials: 'same-origin' })
+    if (_fetchCtrl) { _fetchCtrl.abort(); }
+    _fetchCtrl = new AbortController();
+    fetch('/api/ws-token', { credentials: 'same-origin', signal: _fetchCtrl.signal })
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(data) {
+        _fetchCtrl = null;
         if (!data || !data.token) return;  // not logged in
         cachedToken = data.token;
         _openSocket(data.token);
       })
-      .catch(function() {});
+      .catch(function() { _fetchCtrl = null; });
   }
 
   function connect() {
