@@ -373,3 +373,44 @@ def test_mp_r15_profile_header_has_no_mood_photos_button():
         "Mood Photos link must not appear in the profile page header — "
         "it must only be in the My Card Media card inside cards-grid"
     )
+
+
+# ── MP-R16 ── mood photos template uses correct block names (layout gate) ────
+
+def test_mp_r16_template_uses_correct_blocks():
+    from pathlib import Path
+
+    content = (
+        Path(__file__).resolve()
+        .parent.parent.parent.parent.parent
+        / "app" / "templates" / "lfa_player_mood_photos.html"
+    ).read_text(encoding="utf-8")
+
+    assert "{% block student_content %}" in content, (
+        "lfa_player_mood_photos.html must use student_content block "
+        "(not 'content') — otherwise the student nav/header is stripped"
+    )
+    assert "{% block extra_styles %}" in content, (
+        "lfa_player_mood_photos.html must use extra_styles block "
+        "(not 'head_extra') — otherwise CSS is dropped"
+    )
+    assert "{% block active_page %}lfa-player{% endblock %}" in content, (
+        "lfa_player_mood_photos.html must set active_page=lfa-player "
+        "to highlight the correct nav item"
+    )
+    assert "{% block content %}" not in content, (
+        "lfa_player_mood_photos.html must NOT use 'content' block — "
+        "it replaces the entire student layout"
+    )
+    assert "{% block head_extra %}" not in content, (
+        "lfa_player_mood_photos.html must NOT use 'head_extra' block — "
+        "use 'extra_styles' instead"
+    )
+    assert "mp-grid" in content, "template must contain mp-grid class for 2×2 slot layout"
+    assert "mp-card" in content, "template must contain mp-card class for slot cards"
+    assert "btn btn-primary" in content, "template must use btn btn-primary for upload button"
+    assert "btn btn-secondary" in content, "template must use btn btn-secondary for back link"
+    assert "btn btn-danger" in content, "template must use btn btn-danger for delete button"
+    assert "spec_subpage_hdr.html" in content, (
+        "template must include spec_subpage_hdr.html for platform header"
+    )
