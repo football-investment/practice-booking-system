@@ -26,11 +26,12 @@ Notifications:
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -52,6 +53,7 @@ from ...models.vt_challenge import (
     make_expires_at,
     validate_completion_window,
 )
+from ...services import card_export_service as _export_svc
 from ...services import notification_service
 from ...services.challenge_completion_service import sweep_accepted_deadlines
 from ...services.live_lobby_service import (
@@ -652,6 +654,181 @@ async def challenge_detail(
             "is_forfeit":               is_forfeit,
             "is_no_contest":            is_no_contest,
             "outcome_reason":           outcome_reason,
+        },
+    )
+
+
+# ── Challenge Social Card routes ─────────────────────────────────────────────
+
+CHALLENGE_CARD_PLATFORMS = frozenset({"challenge_post_16_9", "challenge_story_9_16"})
+
+_TERMINAL_STATUSES = frozenset({
+    ChallengeStatus.COMPLETED, ChallengeStatus.EXPIRED,
+    ChallengeStatus.DECLINED,  ChallengeStatus.CANCELLED,
+})
+
+_CTA_LABELS = {
+    "score_win":                 "Play again",
+    "draw":                      "Play again",
+    "forfeit_post_start_timeout":"Play again",
+    "forfeit_deadline":          "Play again",
+    "forfeit_no_show":           "Play again",
+    "forfeit":                   "Play again",
+    "no_contest":                "Play again",
+    "waiting_for_acceptance":    "View challenge",
+    "waiting_for_opponent":      "View challenge",
+    "in_lobby":                  "Join lobby",
+    "expired":                   "Challenge me",
+    "declined":                  "Challenge me",
+    "cancelled":                 "Challenge me",
+}
+
+
+def _display_name(user: Any) -> str:
+    return user.nickname if (user and user.nickname) else (user.email if user else "Unknown")
+
+
+def _compute_card_cta(ch: VirtualTrainingChallenge, viewer: User) -> str:
+    outcome = _compute_outcome_reason(ch)
+    return _CTA_LABELS.get(outcome, "View challenge")
+
+
+def _build_challenge_card_context(
+    ch: VirtualTrainingChallenge,
+    viewer: User,
+    challenger_attempt: Any,
+    challenged_attempt: Any,
+) -> dict:
+    def _skill_scores_map(attempt: Any) -> dict[str, float]:
+        if attempt is None or not attempt.skill_deltas:
+            return {}
+        return {k: float(v) for k, v in attempt.skill_deltas.items()}
+
+    is_challenger = viewer.id == ch.challenger_id
+    my_attempt    = challenger_attempt if is_challenger else challenged_attempt
+    opp_attempt   = challenged_attempt if is_challenger else challenger_attempt
+
+    my_score  = float(my_attempt.score_normalized)  if my_attempt  else None
+    opp_score = float(opp_attempt.score_normalized) if opp_attempt else None
+
+    outcome_reason = _compute_outcome_reason(ch)
+
+    return {
+        "challenge_id":     ch.id,
+        "challenger_name":  _display_name(ch.challenger),
+        "challenged_name":  _display_name(ch.challenged),
+        "game_name":        ch.game.name if ch.game else "Unknown Game",
+        "challenge_mode":   ch.challenge_mode or "async",
+        "outcome_reason":   outcome_reason,
+        "challenger_score": float(challenger_attempt.score_normalized) if challenger_attempt else None,
+        "challenged_score": float(challenged_attempt.score_normalized) if challenged_attempt else None,
+        "winner_name":      _display_name(ch.winner) if ch.winner else None,
+        "is_draw":          bool(ch.is_draw),
+        "my_score":         my_score,
+        "opp_score":        opp_score,
+        "my_skill_scores":  _skill_scores_map(my_attempt),
+        "is_viewer_winner": ch.winner_id is not None and ch.winner_id == viewer.id,
+        "cta_label":        _compute_card_cta(ch, viewer),
+        "completed_at":     ch.completed_at if ch.status == ChallengeStatus.COMPLETED else None,
+    }
+
+
+@router.get("/challenges/{challenge_id}/card/preview", response_class=HTMLResponse)
+async def challenge_card_preview(
+    challenge_id: int,
+    request: Request,
+    platform: str = Query("challenge_post_16_9"),
+    db: Session = Depends(get_db),
+    user: User  = Depends(get_current_user_web),
+):
+    """Render a challenge social card as HTML (used as Playwright render target)."""
+    if platform not in CHALLENGE_CARD_PLATFORMS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported platform: {platform!r}. Valid: {sorted(CHALLENGE_CARD_PLATFORMS)}",
+        )
+
+    ch = db.query(VirtualTrainingChallenge).filter(
+        VirtualTrainingChallenge.id == challenge_id
+    ).first()
+    if ch is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    if user.id not in (ch.challenger_id, ch.challenged_id):
+        raise HTTPException(status_code=403, detail="Participants only")
+
+    challenger_attempt = (
+        db.query(VirtualTrainingAttempt).filter(
+            VirtualTrainingAttempt.id == ch.challenger_attempt_id
+        ).first() if ch.challenger_attempt_id else None
+    )
+    challenged_attempt = (
+        db.query(VirtualTrainingAttempt).filter(
+            VirtualTrainingAttempt.id == ch.challenged_attempt_id
+        ).first() if ch.challenged_attempt_id else None
+    )
+
+    ctx = _build_challenge_card_context(ch, user, challenger_attempt, challenged_attempt)
+    template_name = (
+        "public/export/challenge/post_16_9.html"
+        if platform == "challenge_post_16_9"
+        else "public/export/challenge/story_9_16.html"
+    )
+    return templates.TemplateResponse(template_name, {"request": request, **ctx})
+
+
+@router.get("/challenges/{challenge_id}/card/export")
+async def challenge_card_export(
+    challenge_id: int,
+    request: Request,
+    platform: str = Query("challenge_post_16_9"),
+    db: Session   = Depends(get_db),
+    user: User    = Depends(get_current_user_web),
+):
+    """Export a challenge social card as PNG. Participants only. Rate-limited 5/60s."""
+    from app.config import settings  # noqa: PLC0415
+
+    if platform not in CHALLENGE_CARD_PLATFORMS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported platform: {platform!r}. Valid: {sorted(CHALLENGE_CARD_PLATFORMS)}",
+        )
+
+    ch = db.query(VirtualTrainingChallenge).filter(
+        VirtualTrainingChallenge.id == challenge_id
+    ).first()
+    if ch is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    if user.id not in (ch.challenger_id, ch.challenged_id):
+        raise HTTPException(status_code=403, detail="Participants only")
+
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key  = f"vt_card:{challenge_id}:{user.id}:{client_ip}"
+    if not _export_svc.check_export_rate_limit(rate_key):
+        raise HTTPException(
+            status_code=429,
+            detail="Export rate limit exceeded (5 per minute). Please wait before exporting again.",
+        )
+
+    render_url = (
+        f"http://127.0.0.1:{settings.APP_INTERNAL_PORT}"
+        f"/challenges/{challenge_id}/card/preview?platform={platform}&export=1"
+    )
+
+    try:
+        png_bytes = await asyncio.to_thread(
+            _export_svc._sync_take_screenshot, render_url, platform
+        )
+    except _export_svc.CardExportTimeoutError:
+        raise HTTPException(status_code=504, detail="Card render timed out")
+
+    filename = f"lfa_challenge_{challenge_id}_{platform}.png"
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control":       "no-store",
+            "X-Export-Platform":   platform,
         },
     )
 

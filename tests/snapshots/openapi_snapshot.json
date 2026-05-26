@@ -60045,6 +60045,110 @@
         ]
       }
     },
+    "/challenges/{challenge_id}/card/export": {
+      "get": {
+        "description": "Export a challenge social card as PNG. Participants only. Rate-limited 5/60s.",
+        "operationId": "challenge_card_export_challenges__challenge_id__card_export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "challenge_id",
+            "required": true,
+            "schema": {
+              "title": "Challenge Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "default": "challenge_post_16_9",
+              "title": "Platform",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Challenge Card Export",
+        "tags": [
+          "web"
+        ]
+      }
+    },
+    "/challenges/{challenge_id}/card/preview": {
+      "get": {
+        "description": "Render a challenge social card as HTML (used as Playwright render target).",
+        "operationId": "challenge_card_preview_challenges__challenge_id__card_preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "challenge_id",
+            "required": true,
+            "schema": {
+              "title": "Challenge Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "default": "challenge_post_16_9",
+              "title": "Platform",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Challenge Card Preview",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/challenges/{challenge_id}/decline": {
       "post": {
         "operationId": "decline_challenge_challenges__challenge_id__decline_post",

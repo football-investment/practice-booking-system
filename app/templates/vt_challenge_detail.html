@@ -450,6 +450,30 @@
 </div>
 {% endif %}
 
+{# ── Social card export — completed + active challenges only ── #}
+{% if challenge.status.value not in ('declined', 'cancelled', 'expired') %}
+<div class="vcd-card" style="margin-top:1.5rem;">
+    <div style="font-size:0.78rem;font-weight:700;color:var(--app-text-muted);
+                text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.8rem;">Share Card</div>
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <a href="/challenges/{{ challenge.id }}/card/export?platform=challenge_post_16_9"
+           style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.45rem 1rem;
+                  background:var(--app-surface-2,#1e2335);border:1px solid var(--app-border,#2a3050);
+                  border-radius:6px;font-size:0.8rem;font-weight:600;color:var(--app-text-muted);
+                  text-decoration:none;" download>
+            ↓ Post (16:9)
+        </a>
+        <a href="/challenges/{{ challenge.id }}/card/export?platform=challenge_story_9_16"
+           style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.45rem 1rem;
+                  background:var(--app-surface-2,#1e2335);border:1px solid var(--app-border,#2a3050);
+                  border-radius:6px;font-size:0.8rem;font-weight:600;color:var(--app-text-muted);
+                  text-decoration:none;" download>
+            ↓ Story (9:16)
+        </a>
+    </div>
+</div>
+{% endif %}
+
 {# ── Footer ── #}
 <div class="vcd-footer">
     <a href="/challenges">← Back to Challenges</a>

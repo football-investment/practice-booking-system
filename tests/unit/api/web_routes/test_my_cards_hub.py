@@ -208,7 +208,7 @@ class TestMyCardsHubTemplate:
 
 class TestRegistryIntegration:
     def test_mch15_hub_spec_list_comes_from_registry(self):
-        """MCH-15: card_specs in hub context equals registry.list_card_type_ids() (6 types)."""
+        """MCH-15: card_specs in hub context equals registry.list_card_type_ids() (7 types)."""
         with patch(f"{_BASE}.templates") as mock_tmpl:
             mock_tmpl.TemplateResponse.return_value = MagicMock()
             _run(my_cards_hub(_req(), user=_user()))
@@ -217,7 +217,7 @@ class TestRegistryIntegration:
         expected_ids = set(card_registry.list_card_type_ids())
         actual_ids   = {s.card_type_id for s in ctx["card_specs"]}
         assert actual_ids == expected_ids
-        assert len(ctx["card_specs"]) == 6
+        assert len(ctx["card_specs"]) == 7
 
 
 # ── MCH-16/17: Dashboard template navigation updated ──────────────────────────
