@@ -37,7 +37,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...dependencies import get_current_user_web
+from ...dependencies import get_current_user_optional, get_current_user_web
 from ...models.friendship import Friendship, FriendshipStatus, is_friends
 from ...models.notification import NotificationType
 from ...models.user import User
@@ -662,25 +662,49 @@ async def challenge_detail(
 
 CHALLENGE_CARD_PLATFORMS = frozenset({"challenge_post_16_9", "challenge_story_9_16"})
 
+VALID_CHALLENGE_CARD_PHASES = frozenset({
+    "challenge_sent",
+    "challenge_received",
+    "challenge_accepted",
+    "waiting_for_opponent",
+    "live_lobby_ready",
+    "live_in_progress",
+    "completed_score_win",
+    "completed_draw",
+    "completed_forfeit_win",
+    "completed_forfeit_loss",
+    "no_contest",
+    "skill_delta_result",
+})
+
+# Phases that are exportable (unlocked) — remaining phases are preview-only when relevant
+_EXPORTABLE_PHASES = frozenset({
+    "completed_score_win",
+    "completed_draw",
+    "completed_forfeit_win",
+    "completed_forfeit_loss",
+    "no_contest",
+    "skill_delta_result",
+})
+
 _TERMINAL_STATUSES = frozenset({
     ChallengeStatus.COMPLETED, ChallengeStatus.EXPIRED,
     ChallengeStatus.DECLINED,  ChallengeStatus.CANCELLED,
 })
 
-_CTA_LABELS = {
-    "score_win":                 "Play again",
-    "draw":                      "Play again",
-    "forfeit_post_start_timeout":"Play again",
-    "forfeit_deadline":          "Play again",
-    "forfeit_no_show":           "Play again",
-    "forfeit":                   "Play again",
-    "no_contest":                "Play again",
-    "waiting_for_acceptance":    "View challenge",
-    "waiting_for_opponent":      "View challenge",
-    "in_lobby":                  "Join lobby",
-    "expired":                   "Challenge me",
-    "declined":                  "Challenge me",
-    "cancelled":                 "Challenge me",
+_PHASE_CTA = {
+    "challenge_sent":          "View challenge",
+    "challenge_received":      "Accept challenge",
+    "challenge_accepted":      "Play now",
+    "waiting_for_opponent":    "Waiting…",
+    "live_lobby_ready":        "Join lobby",
+    "live_in_progress":        "Playing now",
+    "completed_score_win":     "Play again",
+    "completed_draw":          "Play again",
+    "completed_forfeit_win":   "Play again",
+    "completed_forfeit_loss":  "Play again",
+    "no_contest":              "Challenge again",
+    "skill_delta_result":      "View profile",
 }
 
 
@@ -688,9 +712,128 @@ def _display_name(user: Any) -> str:
     return user.nickname if (user and user.nickname) else (user.email if user else "Unknown")
 
 
-def _compute_card_cta(ch: VirtualTrainingChallenge, viewer: User) -> str:
-    outcome = _compute_outcome_reason(ch)
-    return _CTA_LABELS.get(outcome, "View challenge")
+def _resolve_challenge_render_token(token: str, challenge_id: int, db: Session) -> "User | None":
+    """Validate a vt_card_render JWT and return the corresponding User, or None.
+
+    Rejects tokens with wrong purpose, mismatched challenge_id, expired tokens,
+    and invalid signatures.
+    """
+    try:
+        from jose import JWTError, jwt as _jwt
+        from ...config import settings
+        payload = _jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("purpose") != "vt_card_render":
+            return None
+        if int(payload.get("cid") or -1) != challenge_id:
+            return None
+        user_id = int(payload.get("sub") or 0)
+        if not user_id:
+            return None
+        return db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    except Exception:
+        return None
+
+
+def get_unlocked_challenge_card_phases(
+    ch: VirtualTrainingChallenge,
+    viewer_id: int,
+    my_attempt: Any = None,
+) -> list[str]:
+    """Return phases that are available and exportable for this viewer."""
+    s = ch.status
+    is_challenger = viewer_id == ch.challenger_id
+    has_my_attempt = (
+        (ch.challenger_attempt_id if is_challenger else ch.challenged_attempt_id) is not None
+    )
+
+    phases: list[str] = []
+
+    if s == ChallengeStatus.PENDING:
+        phases.append("challenge_sent" if is_challenger else "challenge_received")
+
+    elif s in (ChallengeStatus.ACCEPTED, ChallengeStatus.LIVE_IN_PROGRESS):
+        phases.append("challenge_accepted")
+        if has_my_attempt:
+            phases.append("waiting_for_opponent")
+
+    elif s == ChallengeStatus.LIVE_LOBBY:
+        phases.append("live_lobby_ready")
+
+    elif s == ChallengeStatus.COMPLETED:
+        outcome = _compute_outcome_reason(ch)
+        if outcome == "score_win":
+            phases.append("completed_score_win")
+        elif outcome == "draw":
+            phases.append("completed_draw")
+        elif outcome in ("forfeit_post_start_timeout", "forfeit_deadline",
+                         "forfeit_no_show", "forfeit"):
+            phases.append(
+                "completed_forfeit_win" if ch.winner_id == viewer_id
+                else "completed_forfeit_loss"
+            )
+        elif outcome == "no_contest":
+            phases.append("no_contest")
+        if my_attempt is not None and my_attempt.skill_deltas:
+            phases.append("skill_delta_result")
+
+    elif s == ChallengeStatus.EXPIRED:
+        outcome = _compute_outcome_reason(ch)
+        if outcome == "no_contest":
+            phases.append("no_contest")
+
+    return phases
+
+
+def get_locked_challenge_card_phases(
+    ch: VirtualTrainingChallenge,
+    viewer_id: int,
+) -> list[str]:
+    """Return historical phases that are shown as locked (preview only, no export)."""
+    s = ch.status
+    is_challenger = viewer_id == ch.challenger_id
+    initial = "challenge_sent" if is_challenger else "challenge_received"
+
+    locked: list[str] = []
+
+    # For non-pending challenges, the initial send/receive phase is historical
+    if s not in (ChallengeStatus.PENDING, ChallengeStatus.DECLINED,
+                 ChallengeStatus.CANCELLED, ChallengeStatus.EXPIRED):
+        locked.append(initial)
+
+    # For completed challenges, the accepted phase is also historical
+    if s == ChallengeStatus.COMPLETED:
+        locked.append("challenge_accepted")
+
+    return locked
+
+
+def validate_challenge_card_phase(
+    ch: VirtualTrainingChallenge,
+    viewer_id: int,
+    phase: str,
+    for_export: bool,
+    my_attempt: Any = None,
+) -> None:
+    """Raise HTTPException if the phase is invalid, not applicable, or locked for export."""
+    if phase not in VALID_CHALLENGE_CARD_PHASES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid phase: {phase!r}. Valid: {sorted(VALID_CHALLENGE_CARD_PHASES)}",
+        )
+    unlocked = get_unlocked_challenge_card_phases(ch, viewer_id, my_attempt)
+    locked   = get_locked_challenge_card_phases(ch, viewer_id)
+    all_relevant = set(unlocked) | set(locked)
+
+    if phase not in all_relevant:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Phase {phase!r} is not applicable to this challenge.",
+        )
+    if for_export and phase not in unlocked:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Phase {phase!r} is locked — export not available.",
+        )
 
 
 def _build_challenge_card_context(
@@ -698,6 +841,8 @@ def _build_challenge_card_context(
     viewer: User,
     challenger_attempt: Any,
     challenged_attempt: Any,
+    phase: str,
+    my_attempt: Any = None,
 ) -> dict:
     def _skill_scores_map(attempt: Any) -> dict[str, float]:
         if attempt is None or not attempt.skill_deltas:
@@ -705,16 +850,20 @@ def _build_challenge_card_context(
         return {k: float(v) for k, v in attempt.skill_deltas.items()}
 
     is_challenger = viewer.id == ch.challenger_id
-    my_attempt    = challenger_attempt if is_challenger else challenged_attempt
-    opp_attempt   = challenged_attempt if is_challenger else challenger_attempt
+    if my_attempt is None:
+        my_attempt  = challenger_attempt if is_challenger else challenged_attempt
+    opp_attempt = challenged_attempt if is_challenger else challenger_attempt
 
     my_score  = float(my_attempt.score_normalized)  if my_attempt  else None
     opp_score = float(opp_attempt.score_normalized) if opp_attempt else None
 
     outcome_reason = _compute_outcome_reason(ch)
+    unlocked = get_unlocked_challenge_card_phases(ch, viewer.id, my_attempt)
+    is_locked = phase not in unlocked
 
     return {
         "challenge_id":     ch.id,
+        "phase":            phase,
         "challenger_name":  _display_name(ch.challenger),
         "challenged_name":  _display_name(ch.challenged),
         "game_name":        ch.game.name if ch.game else "Unknown Game",
@@ -728,8 +877,10 @@ def _build_challenge_card_context(
         "opp_score":        opp_score,
         "my_skill_scores":  _skill_scores_map(my_attempt),
         "is_viewer_winner": ch.winner_id is not None and ch.winner_id == viewer.id,
-        "cta_label":        _compute_card_cta(ch, viewer),
+        "cta_label":        _PHASE_CTA.get(phase, "View challenge"),
         "completed_at":     ch.completed_at if ch.status == ChallengeStatus.COMPLETED else None,
+        "is_locked":        is_locked,
+        "unlocked_phases":  unlocked,
     }
 
 
@@ -737,15 +888,36 @@ def _build_challenge_card_context(
 async def challenge_card_preview(
     challenge_id: int,
     request: Request,
-    platform: str = Query("challenge_post_16_9"),
-    db: Session = Depends(get_db),
-    user: User  = Depends(get_current_user_web),
+    platform: str           = Query(...),
+    phase: str              = Query(...),
+    render_token: str | None = Query(default=None),
+    export: bool            = Query(default=False),
+    db: Session             = Depends(get_db),
+    user: "User | None"     = Depends(get_current_user_optional),
 ):
-    """Render a challenge social card as HTML (used as Playwright render target)."""
+    """Render a challenge social card as HTML.
+
+    Auth: session cookie (browser) OR short-lived render JWT (Playwright export).
+    render_token is generated by challenge_card_export, expires in 60 s,
+    and is only accepted when purpose=='vt_card_render' and cid==challenge_id.
+    """
+    if render_token is not None:
+        token_user = _resolve_challenge_render_token(render_token, challenge_id, db)
+        if token_user is None:
+            raise HTTPException(status_code=401, detail="Invalid or expired render token")
+        user = token_user
+    elif user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     if platform not in CHALLENGE_CARD_PLATFORMS:
         raise HTTPException(
             status_code=422,
             detail=f"Unsupported platform: {platform!r}. Valid: {sorted(CHALLENGE_CARD_PLATFORMS)}",
+        )
+    if phase not in VALID_CHALLENGE_CARD_PHASES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid phase: {phase!r}. Valid: {sorted(VALID_CHALLENGE_CARD_PHASES)}",
         )
 
     ch = db.query(VirtualTrainingChallenge).filter(
@@ -767,7 +939,21 @@ async def challenge_card_preview(
         ).first() if ch.challenged_attempt_id else None
     )
 
-    ctx = _build_challenge_card_context(ch, user, challenger_attempt, challenged_attempt)
+    is_challenger = user.id == ch.challenger_id
+    my_attempt = challenger_attempt if is_challenger else challenged_attempt
+
+    # Validate phase is relevant (locked phases are allowed for preview)
+    unlocked = get_unlocked_challenge_card_phases(ch, user.id, my_attempt)
+    locked   = get_locked_challenge_card_phases(ch, user.id)
+    if phase not in set(unlocked) | set(locked):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Phase {phase!r} is not applicable to this challenge.",
+        )
+
+    ctx = _build_challenge_card_context(
+        ch, user, challenger_attempt, challenged_attempt, phase, my_attempt
+    )
     template_name = (
         "public/export/challenge/post_16_9.html"
         if platform == "challenge_post_16_9"
@@ -780,17 +966,27 @@ async def challenge_card_preview(
 async def challenge_card_export(
     challenge_id: int,
     request: Request,
-    platform: str = Query("challenge_post_16_9"),
+    platform: str = Query(...),
+    phase: str    = Query(...),
     db: Session   = Depends(get_db),
     user: User    = Depends(get_current_user_web),
 ):
-    """Export a challenge social card as PNG. Participants only. Rate-limited 5/60s."""
+    """Export a challenge social card as PNG. Participants only. Rate-limited 5/60s.
+
+    Only exportable (unlocked) phases are accepted — locked phases return 403.
+    """
     from app.config import settings  # noqa: PLC0415
+    from ...core.auth import create_challenge_render_token  # noqa: PLC0415
 
     if platform not in CHALLENGE_CARD_PLATFORMS:
         raise HTTPException(
             status_code=422,
             detail=f"Unsupported platform: {platform!r}. Valid: {sorted(CHALLENGE_CARD_PLATFORMS)}",
+        )
+    if phase not in VALID_CHALLENGE_CARD_PHASES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid phase: {phase!r}. Valid: {sorted(VALID_CHALLENGE_CARD_PHASES)}",
         )
 
     ch = db.query(VirtualTrainingChallenge).filter(
@@ -801,6 +997,17 @@ async def challenge_card_export(
     if user.id not in (ch.challenger_id, ch.challenged_id):
         raise HTTPException(status_code=403, detail="Participants only")
 
+    is_challenger = user.id == ch.challenger_id
+    my_attempt_id = ch.challenger_attempt_id if is_challenger else ch.challenged_attempt_id
+    my_attempt = (
+        db.query(VirtualTrainingAttempt).filter(
+            VirtualTrainingAttempt.id == my_attempt_id
+        ).first() if my_attempt_id else None
+    )
+
+    # Enforce export only for unlocked phases
+    validate_challenge_card_phase(ch, user.id, phase, for_export=True, my_attempt=my_attempt)
+
     client_ip = request.client.host if request.client else "unknown"
     rate_key  = f"vt_card:{challenge_id}:{user.id}:{client_ip}"
     if not _export_svc.check_export_rate_limit(rate_key):
@@ -809,9 +1016,11 @@ async def challenge_card_export(
             detail="Export rate limit exceeded (5 per minute). Please wait before exporting again.",
         )
 
+    token = create_challenge_render_token(user.id, challenge_id)
     render_url = (
         f"http://127.0.0.1:{settings.APP_INTERNAL_PORT}"
-        f"/challenges/{challenge_id}/card/preview?platform={platform}&export=1"
+        f"/challenges/{challenge_id}/card/preview"
+        f"?platform={platform}&phase={phase}&export=1&render_token={token}"
     )
 
     try:
@@ -821,7 +1030,7 @@ async def challenge_card_export(
     except _export_svc.CardExportTimeoutError:
         raise HTTPException(status_code=504, detail="Card render timed out")
 
-    filename = f"lfa_challenge_{challenge_id}_{platform}.png"
+    filename = f"lfa_challenge_{challenge_id}_{phase}_{platform}.png"
     return Response(
         content=png_bytes,
         media_type="image/png",
@@ -829,6 +1038,7 @@ async def challenge_card_export(
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control":       "no-store",
             "X-Export-Platform":   platform,
+            "X-Export-Phase":      phase,
         },
     )
 
