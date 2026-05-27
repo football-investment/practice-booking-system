@@ -12,6 +12,11 @@ PA-09  dashboard_card_editor.html — brand is "🎴 My Player Card"
 PA-10  dashboard_card_editor.html — messages badge-wrap removed
 PA-11  spec_subpage_hdr.html — mask-image mobile scroll fade CSS present
 PA-12  dashboard_student_new.html — "Tools & Quick Access" label present
+
+Phase A-fix: spec dashboard profile link regression
+PF-01  dashboard_student_new.html — footer Profile link → /profile/lfa-football-player
+PF-02  dashboard_student_new.html — no bare href="/profile" footer link remains
+PF-03  dashboard_student_new.html — mod-nav Profile tile → /profile/lfa-football-player
 """
 from pathlib import Path
 
@@ -139,3 +144,30 @@ class TestDashboardModNavLabel:
         assert 'mod-nav-section-label' in src
         assert 'Tools' in src
         assert 'Quick Access' in src
+
+
+# ── PF-01..03: spec dashboard profile link regression fix ─────────────────────
+
+class TestSpecDashboardProfileLinks:
+    """Profile links on the LFA spec dashboard must point to the spec profile, not hub."""
+
+    def _src(self):
+        return _read("dashboard_student_new.html")
+
+    def test_pf01_footer_profile_link_is_spec(self):
+        """PF-01: footer Profile link is /profile/lfa-football-player."""
+        src = self._src()
+        assert 'href="/profile/lfa-football-player"' in src
+
+    def test_pf02_no_bare_profile_footer_link(self):
+        """PF-02: no bare href="/profile" link in footer-links section."""
+        src = self._src()
+        footer_start = src.index('class="footer-links"')
+        footer_block = src[footer_start:footer_start + 500]
+        assert 'href="/profile"' not in footer_block
+
+    def test_pf03_mod_nav_profile_tile_is_spec(self):
+        """PF-03: mod-nav Profile tile already points to /profile/lfa-football-player."""
+        src = self._src()
+        # Both mod-nav tile and footer link should use spec URL
+        assert src.count('href="/profile/lfa-football-player"') >= 2

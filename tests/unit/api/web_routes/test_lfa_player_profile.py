@@ -820,9 +820,13 @@ class TestLfaNavigationCTAs:
 
     # ── Dashboard footer links — must remain global ───────────────────────────
 
-    def test_dashboard_footer_profile_link_remains_global(self, dashboard_src):
-        """Footer nav is a utility strip; it stays /profile regardless of spec."""
-        assert 'href="/profile"' in dashboard_src
+    def test_dashboard_footer_profile_link_is_spec(self, dashboard_src):
+        """Spec dashboard footer Profile link points to LFA spec profile, not hub."""
+        assert 'href="/profile/lfa-football-player"' in dashboard_src
+        # bare /profile must not appear in the footer-links utility strip
+        footer_start = dashboard_src.index('class="footer-links"')
+        footer_block = dashboard_src[footer_start:footer_start + 500]
+        assert 'href="/profile"' not in footer_block
 
     # ── LFA dashboard Profile button icon ────────────────────────────────────
 
