@@ -856,26 +856,23 @@ class TestLfaNavigationCTAs:
         assert match is not None, "btn-go-profile element not found"
         assert match.group(1) == "/profile/lfa-football-player"
 
-    # ── Card editor header Profile button ────────────────────────────────────
+    # ── Card editor header My Cards button (P2: was Profile, now My Cards) ──────
 
-    def test_card_editor_header_profile_btn_points_to_lfa_profile(self, card_editor_src):
-        """Card editor is LFA-specific; its header Profile button targets spec profile."""
-        assert 'href="/profile/lfa-football-player"' in card_editor_src
+    def test_card_editor_header_my_cards_btn_points_to_my_cards(self, card_editor_src):
+        """Card editor header back button (P2) now targets /my-cards (not /profile/lfa-football-player)."""
+        assert 'href="/my-cards"' in card_editor_src
+        assert 'href="/profile/lfa-football-player"' not in card_editor_src
 
-    def test_card_editor_header_profile_btn_uses_id_card_icon(self, card_editor_src):
-        """Card editor Profile button must use 🪪 (LFA spec-profile link)."""
+    def test_card_editor_header_my_cards_btn_uses_joker_card_icon(self, card_editor_src):
+        """Card editor My Cards button must use 🃏 icon."""
         import re
-        match = re.search(r'href="/profile/lfa-football-player"[^>]*>([^<]+)', card_editor_src)
-        assert match is not None, "Profile link not found in card editor"
-        assert '🪪' in match.group(1)
+        match = re.search(r'href="/my-cards"[^>]*>([^<]+)', card_editor_src)
+        assert match is not None, "My Cards link not found in card editor"
+        assert '🃏' in match.group(1)
 
-    def test_card_editor_header_profile_btn_not_global(self, card_editor_src):
+    def test_card_editor_header_btn_not_global_profile(self, card_editor_src):
         """Card editor must not have a plain s-hdr-btn pointing to /profile."""
-        import re
-        # There should be no s-hdr-btn with href="/profile" (the plain global route)
         assert 'href="/profile" class="s-hdr-btn"' not in card_editor_src
-        assert 'href="/profile"' not in card_editor_src or \
-               'href="/profile/lfa-football-player"' in card_editor_src
 
     # ── My Cards tile icon — Phase 4B: 🃏, hero title: My Cards ─────────────
 
@@ -891,12 +888,12 @@ class TestLfaNavigationCTAs:
         """Card editor page title must contain My Player Card."""
         assert 'My Player Card' in card_editor_src
 
-    def test_card_editor_profile_cta_still_uses_id_card_icon(self, card_editor_src):
-        """Profile CTA in card editor must still be 🪪 (unchanged)."""
+    def test_card_editor_my_cards_cta_uses_joker_icon(self, card_editor_src):
+        """My Cards CTA in card editor must use 🃏 (P2: replaced Profile 🪪 → My Cards 🃏)."""
         import re
-        match = re.search(r'href="/profile/lfa-football-player"[^>]*>([^<]+)', card_editor_src)
-        assert match is not None
-        assert '🪪' in match.group(1)
+        match = re.search(r'href="/my-cards"[^>]*>([^<]+)', card_editor_src)
+        assert match is not None, "My Cards link not found in card editor"
+        assert '🃏' in match.group(1)
 
     # ── Regression: student_base.html global nav stays on /profile ───────────
 

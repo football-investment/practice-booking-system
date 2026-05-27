@@ -729,6 +729,11 @@ async def spec_dashboard(
             "social_pending_friends": social_pending_friends,
             "social_pending_challenges": social_pending_challenges,
             "social_active_challenges": social_active_challenges,
+            # Explicit LFA spec context for spec_subpage_hdr.html quicknav
+            "spec_dashboard_url": "/dashboard/lfa-football-player",
+            "spec_dashboard_icon": "⚽",
+            "spec_profile_url": "/profile/lfa-football-player",
+            "spec_profile_icon": "🪪",
         }
     )
 

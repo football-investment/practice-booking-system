@@ -2,31 +2,10 @@
 
 {% block title %}{{ spec_config.name }} Dashboard - LFA{% endblock %}
 
-{# ── Spec header: utility bar only — navbar = global actions, mod-nav cards = feature nav ── #}
 {% block student_header %}
-<div class="student-header spec-pg-hdr">
-    <div class="student-header-inner">
-        <a href="/dashboard" class="s-hdr-btn" title="Back to Hub">🏠</a>
-        <div class="student-brand">{{ spec_config.icon }} {{ spec_config.name }}</div>
-        <nav class="student-nav" id="student-nav" aria-label="Student navigation">
-            <a href="/dashboard/lfa-football-player" class="nav-item active">⚽ LFA Player</a>
-        </nav>
-        <div class="student-header-actions">
-            <span class="credit-pill">💰 {{ user.credit_balance if user else 0 }}</span>
-            <a href="/credits" class="s-hdr-btn" title="Credits">💳</a>
-            <div class="badge-wrap">
-                <a href="/messages" class="s-hdr-btn" title="Messages" aria-label="Messages">✉️</a>
-                <span class="badge-dot" id="hdr-msg-badge">0</span>
-            </div>
-            <div class="badge-wrap">
-                <a href="/notifications" class="s-hdr-btn" title="Notifications" aria-label="Notifications">🔔</a>
-                <span class="badge-dot" id="hdr-notif-badge">0</span>
-            </div>
-            <a href="{% if specialization == 'LFA_FOOTBALL_PLAYER' %}/profile/lfa-football-player{% else %}/profile{% endif %}" class="s-hdr-btn" title="Profile">{% if specialization == 'LFA_FOOTBALL_PLAYER' %}🪪{% else %}👤{% endif %}</a>
-            <a href="/logout"  class="s-hdr-btn" title="Logout">🚪</a>
-        </div>
-    </div>
-</div>
+{% set _page_icon = '⚽' %}
+{% set _page_name = 'LFA Football Player' %}
+{% include "includes/spec_subpage_hdr.html" %}
 {% endblock %}
 
 {% block extra_styles %}
