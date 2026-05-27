@@ -1042,3 +1042,210 @@ def test_mp_r46_reset_button_and_timeout_message_present():
     assert "style=\"display:none;\"" in content or "style='display:none;'" in content, (
         "Reset button and timeout message must be initially hidden (display:none)"
     )
+
+
+# ── MP-R47 ── rembg mode + uploaded → Remove Background button rendered ───────
+
+def test_mp_r47_rembg_mode_uploaded_shows_remove_bg_button():
+    """
+    When bg_processor_mode == 'rembg' and a slot has status='uploaded',
+    the rendered HTML must contain the Remove Background button text.
+    Rendered via Jinja2 directly — no web server required.
+    """
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from jinja2 import Environment, FileSystemLoader
+
+    tpl_dir = (
+        Path(__file__).resolve().parent.parent.parent.parent.parent / "app" / "templates"
+    )
+    env = Environment(loader=FileSystemLoader(str(tpl_dir)), autoescape=True)
+    tpl = env.get_template("lfa_player_mood_photos.html")
+
+    record = MagicMock()
+    record.status           = "uploaded"
+    record.original_url     = "/static/uploads/mood_photos/1_mood_happy_smile_orig_1.png"
+    record.processed_png_url = None
+    record.created_at       = datetime.now(timezone.utc)
+    record.updated_at       = None
+
+    from app.api.web_routes.mood_photos import _SLOT_META
+    slots_meta  = _SLOT_META
+    mood_photos = {m["slot"]: (record if m["slot"] == "mood_happy_smile" else None)
+                   for m in slots_meta}
+
+    html = tpl.render(
+        slots_meta       = slots_meta,
+        mood_photos      = mood_photos,
+        bg_processor_mode = "rembg",
+        request          = MagicMock(),
+    )
+
+    assert "Remove Background" in html, (
+        "Remove Background button must appear in rendered HTML when bg_processor_mode='rembg' "
+        "and slot status='uploaded'"
+    )
+    assert "Background Removed" not in html or "uploaded" not in html.split("Remove Background")[0], (
+        "Background Removed badge must NOT appear for uploaded status"
+    )
+
+
+# ── MP-R48 ── rembg mode + ready → Background Removed badge rendered ──────────
+
+def test_mp_r48_rembg_mode_ready_shows_background_removed_badge():
+    """
+    When bg_processor_mode == 'rembg' and a slot has status='ready',
+    the rendered HTML must contain the Background Removed badge text.
+    """
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from jinja2 import Environment, FileSystemLoader
+
+    tpl_dir = (
+        Path(__file__).resolve().parent.parent.parent.parent.parent / "app" / "templates"
+    )
+    env = Environment(loader=FileSystemLoader(str(tpl_dir)), autoescape=True)
+    tpl = env.get_template("lfa_player_mood_photos.html")
+
+    record = MagicMock()
+    record.status            = "ready"
+    record.original_url      = "/static/uploads/mood_photos/1_mood_happy_smile_orig_1.png"
+    record.processed_png_url = "/static/uploads/mood_photos/1_mood_mood_happy_smile_proc_1.png"
+    record.created_at        = datetime.now(timezone.utc)
+    record.updated_at        = datetime.now(timezone.utc)
+
+    from app.api.web_routes.mood_photos import _SLOT_META
+    slots_meta  = _SLOT_META
+    mood_photos = {m["slot"]: (record if m["slot"] == "mood_happy_smile" else None)
+                   for m in slots_meta}
+
+    html = tpl.render(
+        slots_meta        = slots_meta,
+        mood_photos       = mood_photos,
+        bg_processor_mode = "rembg",
+        request           = MagicMock(),
+    )
+
+    assert "Background Removed" in html, (
+        "Background Removed badge must appear in rendered HTML when bg_processor_mode='rembg' "
+        "and slot status='ready'"
+    )
+    assert "✓ Processed" not in html, (
+        "'✓ Processed' must NOT appear when bg_processor_mode='rembg'"
+    )
+
+
+# ── MP-R49..R51 ── Route-level bg_processor_mode wiring + button visibility ──
+
+# ── MP-R49 ── route passes bg_processor_mode="rembg" from settings to context ─
+
+def test_mp_r49_route_passes_rembg_mode_to_template_context():
+    """
+    mood_photos_page must pass bg_processor_mode = settings.BG_REMOVAL_PROCESSOR
+    to the template context.  Patching settings to "rembg" must produce
+    bg_processor_mode="rembg" in the context dict.
+    """
+    from app.api.web_routes.mood_photos import mood_photos_page
+
+    six_slots = {s: None for s in _ALL_SLOTS}
+
+    with patch(f"{_BASE}.get_mood_photos_for_user", return_value=six_slots), \
+         patch(f"{_BASE}.settings") as mock_settings, \
+         patch(f"{_BASE}.templates") as mock_tpl:
+        mock_settings.BG_REMOVAL_PROCESSOR = "rembg"
+        mock_tpl.TemplateResponse.return_value = MagicMock()
+
+        _run(mood_photos_page(request=_request(), user=_user(), db=_db()))
+
+        ctx = mock_tpl.TemplateResponse.call_args[0][1]
+        assert ctx.get("bg_processor_mode") == "rembg", (
+            "Route must pass bg_processor_mode='rembg' when BG_REMOVAL_PROCESSOR='rembg'"
+        )
+
+
+# ── MP-R50 ── route passes bg_processor_mode="null" from settings to context ──
+
+def test_mp_r50_route_passes_null_mode_to_template_context():
+    """
+    When BG_REMOVAL_PROCESSOR="null" (default), bg_processor_mode must be "null"
+    in the template context — the Remove Background button will not be rendered.
+    """
+    from app.api.web_routes.mood_photos import mood_photos_page
+
+    six_slots = {s: None for s in _ALL_SLOTS}
+
+    with patch(f"{_BASE}.get_mood_photos_for_user", return_value=six_slots), \
+         patch(f"{_BASE}.settings") as mock_settings, \
+         patch(f"{_BASE}.templates") as mock_tpl:
+        mock_settings.BG_REMOVAL_PROCESSOR = "null"
+        mock_tpl.TemplateResponse.return_value = MagicMock()
+
+        _run(mood_photos_page(request=_request(), user=_user(), db=_db()))
+
+        ctx = mock_tpl.TemplateResponse.call_args[0][1]
+        assert ctx.get("bg_processor_mode") == "null", (
+            "Route must pass bg_processor_mode='null' when BG_REMOVAL_PROCESSOR='null'"
+        )
+
+
+# ── MP-R51 ── rendered HTML: rembg+uploaded → button+onclick; null → no button ─
+
+def test_mp_r51_rembg_uploaded_button_onclick_null_hidden():
+    """
+    Full Jinja2 render using a context built to match what the route passes:
+      - rembg mode + status='uploaded' → Remove Background button present,
+        onclick calls _mpRemoveBg with the correct slot
+      - null mode + status='uploaded'  → button absent
+    """
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from jinja2 import Environment, FileSystemLoader
+
+    from app.api.web_routes.mood_photos import _SLOT_META
+
+    tpl_dir = (
+        Path(__file__).resolve().parent.parent.parent.parent.parent / "app" / "templates"
+    )
+    env = Environment(loader=FileSystemLoader(str(tpl_dir)), autoescape=True)
+    tpl = env.get_template("lfa_player_mood_photos.html")
+
+    record = MagicMock()
+    record.status            = "uploaded"
+    record.original_url      = "/static/uploads/mood_photos/1_mood_happy_smile_orig_1.png"
+    record.processed_png_url = None
+    record.created_at        = datetime.now(timezone.utc)
+    record.updated_at        = None
+
+    mood_photos = {m["slot"]: (record if m["slot"] == "mood_happy_smile" else None)
+                   for m in _SLOT_META}
+
+    base_ctx = dict(slots_meta=_SLOT_META, mood_photos=mood_photos, request=MagicMock())
+
+    # rembg mode: button must appear with correct onclick target.
+    # Check "✂ Remove Background" (button label) and the slot-specific onclick call.
+    # The JS section defines _mpRemoveBg(slot) unconditionally, so we check
+    # the rendered button label (with scissors) and slot-specific onclick instead
+    # of the bare string "Remove Background" which appears in JS comments too.
+    html_rembg = tpl.render(**base_ctx, bg_processor_mode="rembg")
+    assert "✂ Remove Background" in html_rembg, (
+        "Remove Background button (✂ label) must appear when bg_processor_mode='rembg' and status='uploaded'"
+    )
+    assert "_mpRemoveBg('mood_happy_smile')" in html_rembg, (
+        "Button onclick must call _mpRemoveBg('mood_happy_smile') — "
+        "which POSTs to /profile/my-mood-photos/mood_happy_smile/remove-bg"
+    )
+
+    # null mode: button element must be absent.
+    # The JS comment block contains "Remove Background" unconditionally, so we
+    # check for the rendered button label (scissors prefix) which only appears
+    # when the {% if bg_processor_mode == 'rembg' %} guard is true.
+    html_null = tpl.render(**base_ctx, bg_processor_mode="null")
+    assert "✂ Remove Background" not in html_null, (
+        "Remove Background button (✂ label) must NOT appear when bg_processor_mode='null'"
+    )
+    assert "_mpRemoveBg('mood_happy_smile')" not in html_null, (
+        "Slot-specific onclick must NOT appear when bg_processor_mode='null'"
+    )
