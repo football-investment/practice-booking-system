@@ -406,7 +406,9 @@ def test_mp_r16_template_uses_correct_blocks():
     assert "mp-grid" in content, "template must contain mp-grid class for 2×2 slot layout"
     assert "mp-card" in content, "template must contain mp-card class for slot cards"
     assert "btn btn-primary" in content, "template must use btn btn-primary for upload button"
-    assert "btn btn-secondary" in content, "template must use btn btn-secondary for back link"
+    assert 'href="/profile/lfa-football-player"' not in content, (
+        "redundant back-to-profile link removed in Phase A nav cleanup"
+    )
     assert "btn btn-danger" in content, "template must use btn btn-danger for delete button"
     assert "spec_subpage_hdr.html" in content, (
         "template must include spec_subpage_hdr.html for platform header"

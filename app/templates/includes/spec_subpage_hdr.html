@@ -72,6 +72,12 @@
     scrollbar-width: none;
 }
 .spec-quicknav::-webkit-scrollbar { display: none; }
+@media (max-width: 640px) {
+    .spec-quicknav {
+        -webkit-mask-image: linear-gradient(to right, black 75%, transparent 100%);
+        mask-image: linear-gradient(to right, black 75%, transparent 100%);
+    }
+}
 .spec-qn-item {
     flex-shrink: 0;
     padding: 0.28rem 0.7rem;

@@ -330,8 +330,8 @@ class TestLfaPlayerProfileTemplate:
 
     # ── Navigation ─────────────────────────────────────────────────────────
 
-    def test_back_link_to_global_profile(self, tpl_src):
-        assert 'href="/profile"' in tpl_src
+    def test_no_redundant_back_link(self, tpl_src):
+        assert 'class="back-link"' not in tpl_src
 
     def test_dashboard_link_to_lfa_dashboard(self, tpl_src):
         assert '/dashboard/lfa-football-player' in tpl_src

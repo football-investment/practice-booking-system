@@ -213,17 +213,6 @@
         margin-top: 1rem;
     }
 
-    /* Back link */
-    .back-link {
-        display: inline-block;
-        font-size: 0.85rem;
-        color: var(--hub-text-muted);
-        text-decoration: none;
-        margin-bottom: 1.5rem;
-    }
-
-    .back-link:hover { color: var(--hub-text-secondary); }
-
     /* ── Positions card — view / edit modes ───────────────────────────────── */
     .pos-view-badges  { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
     .pos-view-section { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
@@ -297,8 +286,6 @@
 {% block student_content %}
 <div class="container">
 
-    <a class="back-link" href="/profile">← Back to Profile</a>
-
     <div class="page-header">
         <div>
             <h2 class="page-title">🪪 LFA Player Profile</h2>
@@ -306,7 +293,7 @@
         </div>
         <div class="page-header-actions">
             <a href="/profile/lfa-football-player/edit" class="btn btn-primary">✏️ Edit Profile</a>
-            <a href="/dashboard/lfa-football-player" class="btn btn-secondary">⚽ Dashboard</a>
+            <a href="/dashboard/lfa-football-player" class="btn btn-secondary">⚽ LFA Dashboard</a>
         </div>
     </div>
 

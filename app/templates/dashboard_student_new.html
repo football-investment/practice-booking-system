@@ -95,6 +95,14 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         margin-bottom: 1.5rem;
     }
+    .mod-nav-section-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--app-text-muted);
+        margin: 0 0 0.6rem 0.25rem;
+    }
 
     /* ── Player Card live preview (compact thumbnail) ────────────────────────── */
     .player-card-embed-wrap { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.13); max-height: 240px; }
@@ -246,6 +254,7 @@
     {# 2×3 grid: 6 primary domains                                                  #}
     {# Sessions / Progress / Skills accessible via footer + cross-links             #}
     <section class="mod-nav-section">
+        <p class="mod-nav-section-label">Tools &amp; Quick Access</p>
         <div class="mod-nav-grid">
             {# Row 1 #}
             <a href="/events" class="mod-nav-card">
