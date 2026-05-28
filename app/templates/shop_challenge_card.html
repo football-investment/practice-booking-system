@@ -1,0 +1,166 @@
+{% extends "student_base.html" %}
+
+{% block title %}Challenge Card Formats — LFA Card Shop{% endblock %}
+{% block active_page %}lfa-player{% endblock %}
+
+{% block student_header %}
+{% set _page_icon = '⚡' %}
+{% set _page_name = 'Challenge Card Formats' %}
+{% include "includes/spec_subpage_hdr.html" %}
+{% endblock %}
+
+{% block extra_styles %}
+{% include "includes/mc_format_grid.html" %}
+<style>
+  .scc-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+  }
+  .scc-breadcrumb {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 1.25rem;
+  }
+  .scc-breadcrumb a { color: #94a3b8; text-decoration: none; }
+  .scc-breadcrumb a:hover { color: #f1f5f9; }
+  .scc-breadcrumb span { margin: 0 0.35rem; }
+  .scc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .scc-header h1 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin: 0; }
+  .scc-credits-badge {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  .scc-credits-badge strong { color: #FFD200; }
+  .scc-desc {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin-bottom: 1rem;
+    max-width: 600px;
+  }
+  .scc-my-collection {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #93c5fd;
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+  }
+  .scc-my-collection:hover { color: #bfdbfe; text-decoration: none; }
+  .scc-results-cta {
+    margin-top: 2rem;
+    text-align: center;
+  }
+  .scc-results-cta a {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--app-accent, #667eea);
+    text-decoration: none;
+  }
+  .scc-results-cta a:hover { opacity: 0.85; }
+</style>
+{% endblock %}
+
+{% block student_content %}
+<div class="scc-wrap">
+
+  <nav class="scc-breadcrumb" aria-label="Breadcrumb">
+    <a href="/shop">Shop</a>
+    <span>›</span>
+    <a href="/shop/cards">Cards</a>
+    <span>›</span>
+    <span>Challenge Card</span>
+  </nav>
+
+  <div class="scc-header">
+    <h1>Challenge Card Formats</h1>
+    <span class="scc-credits-badge">Balance: <strong>{{ user.credit_balance }} CR</strong></span>
+  </div>
+
+  <p class="scc-desc">
+    Purchase a Challenge Card format to download social cards for your completed Virtual Challenges.
+    Each format is independently owned.
+  </p>
+
+  <a href="/my-cards/challenge" class="scc-my-collection">← My Collection</a>
+
+  {# ── Flash messages ── #}
+  {% if flash_purchased %}
+  <div class="mfg-flash mfg-flash-success">
+    ✓ Format unlocked — you can now export Challenge Cards in this format.
+  </div>
+  {% endif %}
+  {% if flash_error == "credits" %}
+  <div class="mfg-flash mfg-flash-error">Not enough credits to purchase this format.</div>
+  {% elif flash_error == "owned" %}
+  <div class="mfg-flash mfg-flash-error">You already own this format.</div>
+  {% elif flash_error == "free" %}
+  <div class="mfg-flash mfg-flash-error">This format is free — no purchase needed.</div>
+  {% elif flash_error == "invalid" %}
+  <div class="mfg-flash mfg-flash-error">Unknown format.</div>
+  {% endif %}
+
+  {# ── Section header ── #}
+  <div class="mfg-section-hdr">
+    <h2>Formats</h2>
+  </div>
+
+  {# ── Format grid ── #}
+  <div class="mfg-grid">
+    {% for r in format_rows %}
+    <div class="mfg-card">
+
+      {# No iframe preview for challenge card — no generic preview URL #}
+      <div class="mfg-preview-wrap mfg-locked">
+        <div class="mfg-preview-placeholder">{{ r.label[:2] | upper }}</div>
+      </div>
+
+      {# Metadata #}
+      <p class="mfg-style-tag">{{ r.style_tag }}</p>
+      <p class="mfg-label">{{ r.label }}</p>
+      <p class="mfg-dims">{{ r.dims }}</p>
+
+      {# State badge #}
+      {% if r.state == "owned" %}
+        <span class="mfg-badge mfg-badge-owned">Owned ✓</span>
+      {% elif r.state == "get_card" %}
+        <span class="mfg-badge mfg-badge-get">{{ r.credit_cost }} CR</span>
+      {% else %}
+        <span class="mfg-badge mfg-badge-locked">{{ r.credit_cost }} CR 🔒</span>
+      {% endif %}
+
+      <div class="mfg-cta">
+        {% if r.state == "owned" %}
+          <a href="/challenges/results" class="mfg-btn mfg-btn-download">View Results →</a>
+        {% elif r.state == "get_card" %}
+          <form method="POST" action="/shop/cards/challenge_card/buy/{{ r.design_id }}">
+            <button type="submit" class="mfg-btn mfg-btn-get">Get Card — {{ r.credit_cost }} CR</button>
+          </form>
+        {% else %}
+          <button class="mfg-btn mfg-btn-disabled" disabled>Not enough credits</button>
+        {% endif %}
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="scc-results-cta">
+    <a href="/challenges/results">View Challenge Results →</a>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends "student_base.html" %}
 
-{% block title %}Player Card — LFA Education Center{% endblock %}
+{% block title %}My Player Card Designs — LFA Education Center{% endblock %}
 {% block active_page %}lfa-player{% endblock %}
 
 {% block student_header %}
@@ -31,7 +31,7 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
   }
   .mcp-header h1 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin: 0; }
   .mcp-credits-badge {
@@ -43,6 +43,39 @@
     color: #94a3b8;
   }
   .mcp-credits-badge strong { color: #FFD200; }
+  .mcp-shop-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #FFD200;
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+  }
+  .mcp-shop-link:hover { opacity: 0.85; text-decoration: none; }
+  /* Empty state */
+  .mcp-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #64748b;
+  }
+  .mcp-empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .mcp-empty h3 { font-size: 1.1rem; font-weight: 600; color: #94a3b8; margin: 0 0 0.5rem; }
+  .mcp-empty p { font-size: 0.88rem; margin: 0 0 1.25rem; }
+  .mcp-empty-cta {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: #FFD200;
+    color: #0f172a;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .mcp-empty-cta:hover { opacity: 0.88; color: #0f172a; text-decoration: none; }
 </style>
 {% endblock %}
 
@@ -56,9 +89,11 @@
   </nav>
 
   <div class="mcp-header">
-    <h1>Player Card</h1>
+    <h1>My Player Card Designs</h1>
     <span class="mcp-credits-badge">Balance: <strong>{{ user.credit_balance }} CR</strong></span>
   </div>
+
+  <a href="/shop/cards/player" class="mcp-shop-link">Shop Designs →</a>
 
   {# ── Flash messages ── #}
   {% if flash_purchased %}
@@ -74,19 +109,19 @@
   <div class="mfg-flash mfg-flash-error">Unknown card type or design.</div>
   {% endif %}
 
+  {% if design_rows %}
+
   {# ── Section header ── #}
   <div class="mfg-section-hdr">
-    <h2>Designs</h2>
-    <span class="mfg-count-badge">{{ owned_count }} / {{ total_count }} owned</span>
+    <h2>Owned Designs</h2>
+    <span class="mfg-count-badge">{{ owned_count }} owned</span>
   </div>
 
-  {# ── Design grid ── #}
+  {# ── Design grid (owned only) ── #}
   <div class="mfg-grid">
     {% for d in design_rows %}
     <div class="mfg-card">
 
-      {# Preview #}
-      {% if d.state == "owned" %}
       <div class="mfg-preview-wrap">
         <iframe
           class="mfg-preview-iframe"
@@ -96,48 +131,32 @@
           title="{{ d.label }} preview"
         ></iframe>
       </div>
-      {% else %}
-      <div class="mfg-preview-wrap mfg-locked">
-        <div class="mfg-preview-placeholder">{{ d.label[:2] | upper }}</div>
-      </div>
-      {% endif %}
 
-      {# Metadata #}
       <p class="mfg-label">{{ d.label }}</p>
       {% if d.description %}
       <p style="font-size:0.75rem;color:#64748b;margin:0;">{{ d.description }}</p>
       {% endif %}
 
-      {# State badge + CTA #}
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
-        {% if d.state == "owned" %}
-          <span class="mfg-badge mfg-badge-owned">Owned ✓</span>
-        {% elif d.state == "get_card" %}
-          <span class="mfg-badge mfg-badge-get">{{ d.credit_cost }} CR</span>
-        {% elif d.state == "not_available" %}
-          <span class="mfg-badge mfg-badge-locked">—</span>
-        {% else %}
-          <span class="mfg-badge mfg-badge-locked">{{ d.credit_cost }} CR 🔒</span>
-        {% endif %}
-      </div>
+      <span class="mfg-badge mfg-badge-owned">Owned ✓</span>
 
       <div class="mfg-cta">
-        {% if d.state == "owned" %}
-          <a href="/dashboard/lfa-football-player/card-editor" class="mfg-btn mfg-btn-edit mfg-btn-download">Edit / Download</a>
-        {% elif d.state == "get_card" %}
-          <form method="POST" action="/my-cards/designs/player_card/{{ d.id }}/get">
-            <button type="submit" class="mfg-btn mfg-btn-get">Get Card — {{ d.credit_cost }} CR</button>
-          </form>
-        {% elif d.state == "not_available" %}
-          <button class="mfg-btn mfg-btn-disabled" disabled>Contact admin</button>
-        {% else %}
-          <button class="mfg-btn mfg-btn-disabled" disabled>Not enough credits</button>
-        {% endif %}
+        <a href="/dashboard/lfa-football-player/card-editor" class="mfg-btn mfg-btn-edit mfg-btn-download">Edit / Download</a>
       </div>
 
     </div>
     {% endfor %}
   </div>
+
+  {% else %}
+
+  <div class="mcp-empty">
+    <div class="mcp-empty-icon">🎴</div>
+    <h3>No designs yet</h3>
+    <p>You don't own any Player Card designs. Visit the shop to get your first design.</p>
+    <a href="/shop/cards/player" class="mcp-empty-cta">Browse Designs →</a>
+  </div>
+
+  {% endif %}
 
 </div>
 {% endblock %}

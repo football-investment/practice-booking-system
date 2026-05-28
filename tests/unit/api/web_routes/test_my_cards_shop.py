@@ -1,13 +1,13 @@
-"""My Cards Shop tests — Phase 2 format-level MVP.
+"""My Cards collection + compat wrapper tests — Phase 2 owned-only refactor.
 
-MCS-01  GET /my-cards/player-card renders without error (200 + template context)
-MCS-02  Player Card non-premium design, no CDO row → state="get_card" or "locked" (never "free")
-MCS-03  Player Card premium, not owned, enough credits → state="get_card"
-MCS-04  Player Card premium, not owned, insufficient credits → state="locked"
-MCS-05  Player Card premium, owned → state="owned"
-MCS-06  Welcome Card format not owned, enough credits → state="get_card"
-MCS-07  Welcome Card format not owned, insufficient credits → state="locked"
-MCS-08  Welcome Card format owned → state="owned"
+MCS-01  GET /my-cards/player-card renders without error (owned-only context)
+MCS-02  Player Card non-accessible design → not in design_rows (owned-only)
+MCS-03  Player Card accessible design → state="owned" in design_rows
+MCS-04  (reserved — shop state tests now in test_shop.py)
+MCS-05  (reserved — shop state tests now in test_shop.py)
+MCS-06  Welcome Card owned format → state="owned" in format_rows
+MCS-07  Welcome Card non-accessible format → not in format_rows
+MCS-08  Welcome Card format owned → state="owned" in format_rows
 MCS-09  All WC and CC format prices > 0 (never free)
 MCS-10  POST /my-cards/designs/{type}/{id}/get → 303 redirect on success to family page;
          ?error=free / ?error=owned / ?error=credits / ?error=invalid on failure
@@ -62,7 +62,7 @@ def _make_design(design_id: str, credit_cost: int, is_premium: bool):
     return d
 
 
-# ── MCS-01..05: Player Card format shop ──────────────────────────────────────
+# ── MCS-01..05: Player Card owned-only collection ─────────────────────────────
 
 class TestPlayerCardShop:
 
@@ -94,46 +94,25 @@ class TestPlayerCardShop:
 
         return captured
 
-    def test_mcs01_renders_player_card_shop(self):
-        """MCS-01: GET /my-cards/player-card returns my_cards_player_card.html with context keys."""
+    def test_mcs01_renders_player_card_collection(self):
+        """MCS-01: GET /my-cards/player-card returns my_cards_player_card.html with owned context."""
         user = _make_user(balance=500)
         db   = _make_db()
-        ctx  = self._call_player_shop(user, db)
+        ctx  = self._call_player_shop(user, db, accessible_ids={("player_card", "compact")})
         assert ctx["template"] == "my_cards_player_card.html"
         for key in ("design_rows", "owned_count", "total_count"):
             assert key in ctx["context"], f"Missing context key: {key}"
 
-    def test_mcs02_non_premium_design_no_cdo_not_free(self):
-        """MCS-02: 0-CR design without CDO row → state='not_available' (no free bypass)."""
-        user = _make_user(balance=0)
-        db   = _make_db()
-        ctx  = self._call_player_shop(user, db, accessible_ids=set())
-        rows = ctx["context"]["design_rows"]
-        fifa_row = next(r for r in rows if r["id"] == "fifa")
-        assert fifa_row["state"] != "free", "free state must not exist — all designs require ownership"
-        # 0-CR mock design is not purchasable — must be 'not_available' (belt-and-suspenders guard)
-        assert fifa_row["state"] == "not_available"
-
-    def test_mcs03_premium_get_card_state(self):
-        """MCS-03: premium design, not owned, credits ≥ cost → state='get_card'."""
+    def test_mcs02_non_accessible_design_not_in_rows(self):
+        """MCS-02: non-accessible design → not in design_rows (owned-only)."""
         user = _make_user(balance=500)
         db   = _make_db()
         ctx  = self._call_player_shop(user, db, accessible_ids=set())
         rows = ctx["context"]["design_rows"]
-        row  = next(r for r in rows if r["id"] == "compact")
-        assert row["state"] == "get_card"
+        assert len(rows) == 0  # no accessible designs → empty
 
-    def test_mcs04_premium_locked_insufficient_credits(self):
-        """MCS-04: premium design, not owned, credits < cost → state='locked'."""
-        user = _make_user(balance=50)
-        db   = _make_db()
-        ctx  = self._call_player_shop(user, db, accessible_ids=set())
-        rows = ctx["context"]["design_rows"]
-        row  = next(r for r in rows if r["id"] == "compact")
-        assert row["state"] == "locked"
-
-    def test_mcs05_premium_owned(self):
-        """MCS-05: premium design, owned → state='owned'."""
+    def test_mcs03_accessible_design_in_rows_with_owned_state(self):
+        """MCS-03: accessible design → in design_rows with state='owned'."""
         user = _make_user(balance=500)
         db   = _make_db()
         ctx  = self._call_player_shop(user, db, accessible_ids={("player_card", "compact")})
@@ -141,8 +120,16 @@ class TestPlayerCardShop:
         row  = next(r for r in rows if r["id"] == "compact")
         assert row["state"] == "owned"
 
+    def test_mcs04_reserved(self):
+        """MCS-04: reserved — shop state tests moved to test_shop.py (SH-04..06)."""
+        pass
 
-# ── MCS-06..08: Welcome Card format shop states ───────────────────────────────
+    def test_mcs05_reserved(self):
+        """MCS-05: reserved — shop state tests moved to test_shop.py (SH-04..06)."""
+        pass
+
+
+# ── MCS-06..08: Welcome Card owned-only collection ───────────────────────────
 
 class TestWelcomeCardShop:
 
@@ -170,24 +157,30 @@ class TestWelcomeCardShop:
 
         return captured
 
-    def test_mcs06_welcome_card_format_get_card(self):
-        """MCS-06: WC format not owned, credits ≥ price → state='get_card'."""
+    def test_mcs06_welcome_card_owned_format_in_rows(self):
+        """MCS-06: owned WC format → in format_rows with state='owned'."""
+        from app.services.card_design_service import WELCOME_CARD_FORMATS
+        first_fmt = WELCOME_CARD_FORMATS[0]
+        user = _make_user(balance=9999)
+        db   = _make_db()
+        ctx  = self._call_welcome_shop(
+            user, db,
+            accessible_ids={("welcome_card", first_fmt.design_id)},
+        )
+        rows = ctx["context"]["format_rows"]
+        row  = next(r for r in rows if r["design_id"] == first_fmt.design_id)
+        assert row["state"] == "owned"
+
+    def test_mcs07_welcome_card_non_accessible_not_in_rows(self):
+        """MCS-07: non-accessible WC format → not in format_rows."""
         user = _make_user(balance=9999)
         db   = _make_db()
         ctx  = self._call_welcome_shop(user, db, accessible_ids=set())
         rows = ctx["context"]["format_rows"]
-        assert all(r["state"] == "get_card" for r in rows)
-
-    def test_mcs07_welcome_card_format_locked(self):
-        """MCS-07: WC format not owned, credits < price → state='locked'."""
-        user = _make_user(balance=0)
-        db   = _make_db()
-        ctx  = self._call_welcome_shop(user, db, accessible_ids=set())
-        rows = ctx["context"]["format_rows"]
-        assert all(r["state"] == "locked" for r in rows)
+        assert len(rows) == 0
 
     def test_mcs08_welcome_card_format_owned(self):
-        """MCS-08: WC format owned → state='owned'."""
+        """MCS-08: WC format owned → state='owned' in format_rows."""
         from app.services.card_design_service import WELCOME_CARD_FORMATS
         first_fmt = WELCOME_CARD_FORMATS[0]
         user = _make_user(balance=9999)
@@ -225,19 +218,19 @@ class TestPurchaseRedirects:
             return _run(get_card(card_type_id=card_type_id, design_id=design_id, db=db, user=user))
 
     def test_mcs10a_success_redirect_to_family_page(self):
-        """MCS-10a: successful purchase → 303 to /my-cards/player-card?purchased=compact."""
+        """MCS-10a: successful purchase → 303 to /my-cards/player?purchased=compact."""
         user = _make_user()
         db   = _make_db()
         resp = self._call_get_card("player_card", "compact", user, db)
         loc  = resp.headers["location"]
         assert resp.status_code == 303
-        assert loc.startswith("/my-cards/player-card?"), f"Expected player-card redirect, got: {loc}"
+        assert loc.startswith("/my-cards/player?"), f"Expected player redirect, got: {loc}"
         assert "purchased=compact" in loc
         assert "/my-cards/shop" not in loc
         assert "/my-cards?" not in loc
 
     def test_mcs10b_free_error_redirect(self):
-        """MCS-10b: FreeDesignError → /my-cards/player-card?error=free."""
+        """MCS-10b: FreeDesignError → /my-cards/player?error=free."""
         from app.services.card_design_service import FreeDesignError
         user = _make_user()
         db   = _make_db()
@@ -245,11 +238,11 @@ class TestPurchaseRedirects:
         loc  = resp.headers["location"]
         assert resp.status_code == 303
         assert "error=free" in loc
-        assert "/my-cards/player-card" in loc
+        assert "/my-cards/player" in loc
         assert "/my-cards/shop" not in loc
 
     def test_mcs10c_already_owned_redirect(self):
-        """MCS-10c: AlreadyOwnedError → /my-cards/player-card?error=owned."""
+        """MCS-10c: AlreadyOwnedError → /my-cards/player?error=owned."""
         from app.services.card_design_service import AlreadyOwnedError
         user = _make_user()
         db   = _make_db()
@@ -257,10 +250,10 @@ class TestPurchaseRedirects:
         loc  = resp.headers["location"]
         assert resp.status_code == 303
         assert "error=owned" in loc
-        assert "/my-cards/player-card" in loc
+        assert "/my-cards/player" in loc
 
     def test_mcs10d_insufficient_credits_redirect(self):
-        """MCS-10d: InsufficientCreditsError → /my-cards/player-card?error=credits."""
+        """MCS-10d: InsufficientCreditsError → /my-cards/player?error=credits."""
         from app.services.credit_service import InsufficientCreditsError
         user = _make_user()
         db   = _make_db()
@@ -268,7 +261,7 @@ class TestPurchaseRedirects:
         loc  = resp.headers["location"]
         assert resp.status_code == 303
         assert "error=credits" in loc
-        assert "/my-cards/player-card" in loc
+        assert "/my-cards/player" in loc
 
     def test_mcs10e_invalid_card_type_redirect(self):
         """MCS-10e: ValueError (unknown card_type_id) → /my-cards?error=invalid."""
@@ -280,23 +273,23 @@ class TestPurchaseRedirects:
         assert "error=invalid" in loc
 
     def test_mcs10f_welcome_card_error_goes_to_welcome_family(self):
-        """MCS-10f: AlreadyOwnedError on welcome_card → /my-cards/welcome-card?error=owned."""
+        """MCS-10f: AlreadyOwnedError on welcome_card → /my-cards/welcome?error=owned."""
         from app.services.card_design_service import AlreadyOwnedError
         user = _make_user()
         db   = _make_db()
         resp = self._call_get_card("welcome_card", "instagram_portrait", user, db, side_effect=AlreadyOwnedError())
         loc  = resp.headers["location"]
-        assert "/my-cards/welcome-card" in loc
+        assert "/my-cards/welcome" in loc
         assert "error=owned" in loc
 
     def test_mcs10g_challenge_card_error_goes_to_challenge_family(self):
-        """MCS-10g: InsufficientCreditsError on challenge_card → /my-cards/challenge-card?error=credits."""
+        """MCS-10g: InsufficientCreditsError on challenge_card → /my-cards/challenge?error=credits."""
         from app.services.credit_service import InsufficientCreditsError
         user = _make_user()
         db   = _make_db()
         resp = self._call_get_card("challenge_card", "challenge_post_16_9", user, db, side_effect=InsufficientCreditsError(100, 0))
         loc  = resp.headers["location"]
-        assert "/my-cards/challenge-card" in loc
+        assert "/my-cards/challenge" in loc
         assert "error=credits" in loc
 
 

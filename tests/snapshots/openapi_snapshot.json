@@ -62774,7 +62774,7 @@
     },
     "/my-cards": {
       "get": {
-        "description": "Hub \u2014 format-count tiles for all three card families.",
+        "description": "Hub \u2014 owned-count tiles for all three card families.",
         "operationId": "my_cards_hub_my_cards_get",
         "responses": {
           "200": {
@@ -62795,10 +62795,10 @@
         ]
       }
     },
-    "/my-cards/challenge-card": {
+    "/my-cards/challenge": {
       "get": {
-        "description": "Challenge Card format shop \u2014 browse and purchase Challenge Card formats.",
-        "operationId": "my_cards_challenge_card_my_cards_challenge_card_get",
+        "description": "Challenge Card owned-only format collection.",
+        "operationId": "my_cards_challenge_card_my_cards_challenge_get",
         "responses": {
           "200": {
             "content": {
@@ -62818,9 +62818,29 @@
         ]
       }
     },
+    "/my-cards/challenge-card": {
+      "get": {
+        "operationId": "my_cards_challenge_card_legacy_my_cards_challenge_card_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Cards Challenge Card Legacy",
+        "tags": [
+          "web",
+          "my-cards"
+        ]
+      }
+    },
     "/my-cards/designs/{card_type_id}/{design_id}/get": {
       "post": {
-        "description": "Purchase a card design entitlement (credit deduction + ownership row).",
+        "description": "Compat purchase endpoint \u2014 delegates to purchase_design(), redirects to collection.",
         "operationId": "get_card_my_cards_designs__card_type_id___design_id__get_post",
         "parameters": [
           {
@@ -62869,10 +62889,10 @@
         ]
       }
     },
-    "/my-cards/player-card": {
+    "/my-cards/player": {
       "get": {
-        "description": "Player Card format shop \u2014 browse and purchase Player Card designs.",
-        "operationId": "my_cards_player_card_my_cards_player_card_get",
+        "description": "Player Card owned-only collection.",
+        "operationId": "my_cards_player_card_my_cards_player_get",
         "responses": {
           "200": {
             "content": {
@@ -62892,9 +62912,29 @@
         ]
       }
     },
+    "/my-cards/player-card": {
+      "get": {
+        "operationId": "my_cards_player_card_legacy_my_cards_player_card_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Cards Player Card Legacy",
+        "tags": [
+          "web",
+          "my-cards"
+        ]
+      }
+    },
     "/my-cards/shop": {
       "get": {
-        "description": "Retired shop page \u2014 redirects to the appropriate family shop.",
+        "description": "Retired shop page \u2014 redirects to the card shop.",
         "operationId": "my_cards_shop_my_cards_shop_get",
         "parameters": [
           {
@@ -62941,10 +62981,10 @@
         ]
       }
     },
-    "/my-cards/welcome-card": {
+    "/my-cards/welcome": {
       "get": {
-        "description": "Welcome Card format shop \u2014 browse and purchase Welcome Card platform formats.",
-        "operationId": "my_cards_welcome_card_my_cards_welcome_card_get",
+        "description": "Welcome Card owned-only format collection.",
+        "operationId": "my_cards_welcome_card_my_cards_welcome_get",
         "responses": {
           "200": {
             "content": {
@@ -62958,6 +62998,26 @@
           }
         },
         "summary": "My Cards Welcome Card",
+        "tags": [
+          "web",
+          "my-cards"
+        ]
+      }
+    },
+    "/my-cards/welcome-card": {
+      "get": {
+        "operationId": "my_cards_welcome_card_legacy_my_cards_welcome_card_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Cards Welcome Card Legacy",
         "tags": [
           "web",
           "my-cards"
@@ -64680,6 +64740,167 @@
         "summary": "Unlock Quiz",
         "tags": [
           "web"
+        ]
+      }
+    },
+    "/shop": {
+      "get": {
+        "operationId": "shop_landing_shop_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Shop Landing",
+        "tags": [
+          "web",
+          "shop"
+        ]
+      }
+    },
+    "/shop/cards": {
+      "get": {
+        "operationId": "shop_cards_shop_cards_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Shop Cards",
+        "tags": [
+          "web",
+          "shop"
+        ]
+      }
+    },
+    "/shop/cards/challenge": {
+      "get": {
+        "operationId": "shop_challenge_card_shop_cards_challenge_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Shop Challenge Card",
+        "tags": [
+          "web",
+          "shop"
+        ]
+      }
+    },
+    "/shop/cards/player": {
+      "get": {
+        "operationId": "shop_player_card_shop_cards_player_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Shop Player Card",
+        "tags": [
+          "web",
+          "shop"
+        ]
+      }
+    },
+    "/shop/cards/welcome": {
+      "get": {
+        "operationId": "shop_welcome_card_shop_cards_welcome_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Shop Welcome Card",
+        "tags": [
+          "web",
+          "shop"
+        ]
+      }
+    },
+    "/shop/cards/{card_type_id}/buy/{design_id}": {
+      "post": {
+        "description": "Purchase a card design/format from the shop (credit deduction + ownership row).",
+        "operationId": "shop_buy_shop_cards__card_type_id__buy__design_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "card_type_id",
+            "required": true,
+            "schema": {
+              "title": "Card Type Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "design_id",
+            "required": true,
+            "schema": {
+              "title": "Design Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Shop Buy",
+        "tags": [
+          "web",
+          "shop"
         ]
       }
     },
