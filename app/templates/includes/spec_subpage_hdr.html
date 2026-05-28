@@ -54,6 +54,9 @@
 {# ── LFA Football Player quicknav strip ─────────────────────────────────────
    Shown on all LFA sub-pages. Horizontal scroll on mobile (no wrapping).
    Active item highlighted by matching request path. #}
+{# _lfa_qn — dual trigger so multi-spec users always see LFA quicknav:
+   1. user.specialization is currently LFA_FOOTBALL_PLAYER (single-spec common case)
+   2. route passed explicit spec_dashboard_url (multi-spec safe: my-cards, dashboard, etc.) #}
 {% set _lfa_qn = (
     ((user.specialization.value if user.specialization else '') if user else '') == 'LFA_FOOTBALL_PLAYER'
     or (spec_dashboard_url | default('')) == '/dashboard/lfa-football-player'
@@ -69,6 +72,12 @@
     scrollbar-width: none;
 }
 .spec-quicknav::-webkit-scrollbar { display: none; }
+@media (max-width: 640px) {
+    .spec-quicknav {
+        -webkit-mask-image: linear-gradient(to right, black 75%, transparent 100%);
+        mask-image: linear-gradient(to right, black 75%, transparent 100%);
+    }
+}
 .spec-qn-item {
     flex-shrink: 0;
     padding: 0.28rem 0.7rem;

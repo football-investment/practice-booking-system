@@ -75,6 +75,10 @@ _STUDENT_BASE_TPL_PATH = (
     pathlib.Path(__file__).resolve().parents[4]
     / "app" / "templates" / "student_base.html"
 )
+_QUICKNAV_TPL_PATH = (
+    pathlib.Path(__file__).resolve().parents[4]
+    / "app" / "templates" / "includes" / "spec_subpage_hdr.html"
+)
 
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -330,8 +334,8 @@ class TestLfaPlayerProfileTemplate:
 
     # ── Navigation ─────────────────────────────────────────────────────────
 
-    def test_back_link_to_global_profile(self, tpl_src):
-        assert 'href="/profile"' in tpl_src
+    def test_no_redundant_back_link(self, tpl_src):
+        assert 'class="back-link"' not in tpl_src
 
     def test_dashboard_link_to_lfa_dashboard(self, tpl_src):
         assert '/dashboard/lfa-football-player' in tpl_src
@@ -805,8 +809,10 @@ class TestLfaNavigationCTAs:
     # ── LFA dashboard header Profile button ──────────────────────────────────
 
     def test_dashboard_header_profile_btn_points_to_lfa_profile(self, dashboard_src):
-        """Header Profile button in LFA dashboard conditionally targets spec profile."""
-        assert "/profile/lfa-football-player" in dashboard_src
+        """Header Profile button: dashboard includes spec_subpage_hdr which has spec profile link."""
+        assert "includes/spec_subpage_hdr.html" in dashboard_src
+        quicknav_src = _QUICKNAV_TPL_PATH.read_text()
+        assert 'href="/profile/lfa-football-player"' in quicknav_src
 
     def test_dashboard_header_profile_btn_is_conditional_on_specialization(self, dashboard_src):
         """Conditional branch must check for LFA_FOOTBALL_PLAYER so other specs keep /profile."""
@@ -820,19 +826,22 @@ class TestLfaNavigationCTAs:
 
     # ── Dashboard footer links — must remain global ───────────────────────────
 
-    def test_dashboard_footer_profile_link_remains_global(self, dashboard_src):
-        """Footer nav is a utility strip; it stays /profile regardless of spec."""
-        assert 'href="/profile"' in dashboard_src
+    def test_dashboard_footer_links_removed_no_bare_profile(self, dashboard_src):
+        """Footer-links strip removed in MVP; no bare href='/profile' in dashboard template."""
+        assert 'class="footer-links"' not in dashboard_src
+        assert 'href="/profile"' not in dashboard_src
 
     # ── LFA dashboard Profile button icon ────────────────────────────────────
 
     def test_dashboard_lfa_profile_btn_uses_id_card_icon(self, dashboard_src):
-        """When specialization == LFA_FOOTBALL_PLAYER the Profile btn must show 🪪."""
-        assert '🪪' in dashboard_src
+        """LFA spec navigation (via quicknav include) uses 🪪 icon for the profile link."""
+        quicknav_src = _QUICKNAV_TPL_PATH.read_text()
+        assert '🪪' in quicknav_src
 
     def test_dashboard_non_lfa_profile_btn_uses_person_icon(self, dashboard_src):
-        """The else branch (non-LFA) must show 👤."""
-        assert '👤' in dashboard_src
+        """Non-LFA spec navigation (via quicknav include) falls back to 👤 icon."""
+        quicknav_src = _QUICKNAV_TPL_PATH.read_text()
+        assert '👤' in quicknav_src
 
     # ── Onboarding Step 7 "Go to Profile" button ─────────────────────────────
 
@@ -856,26 +865,23 @@ class TestLfaNavigationCTAs:
         assert match is not None, "btn-go-profile element not found"
         assert match.group(1) == "/profile/lfa-football-player"
 
-    # ── Card editor header Profile button ────────────────────────────────────
+    # ── Card editor header My Cards button (P2: was Profile, now My Cards) ──────
 
-    def test_card_editor_header_profile_btn_points_to_lfa_profile(self, card_editor_src):
-        """Card editor is LFA-specific; its header Profile button targets spec profile."""
-        assert 'href="/profile/lfa-football-player"' in card_editor_src
+    def test_card_editor_header_my_cards_btn_points_to_my_cards(self, card_editor_src):
+        """Card editor header back button (P2) now targets /my-cards (not /profile/lfa-football-player)."""
+        assert 'href="/my-cards"' in card_editor_src
+        assert 'href="/profile/lfa-football-player"' not in card_editor_src
 
-    def test_card_editor_header_profile_btn_uses_id_card_icon(self, card_editor_src):
-        """Card editor Profile button must use 🪪 (LFA spec-profile link)."""
+    def test_card_editor_header_my_cards_btn_uses_joker_card_icon(self, card_editor_src):
+        """Card editor My Cards button must use 🃏 icon."""
         import re
-        match = re.search(r'href="/profile/lfa-football-player"[^>]*>([^<]+)', card_editor_src)
-        assert match is not None, "Profile link not found in card editor"
-        assert '🪪' in match.group(1)
+        match = re.search(r'href="/my-cards"[^>]*>([^<]+)', card_editor_src)
+        assert match is not None, "My Cards link not found in card editor"
+        assert '🃏' in match.group(1)
 
-    def test_card_editor_header_profile_btn_not_global(self, card_editor_src):
+    def test_card_editor_header_btn_not_global_profile(self, card_editor_src):
         """Card editor must not have a plain s-hdr-btn pointing to /profile."""
-        import re
-        # There should be no s-hdr-btn with href="/profile" (the plain global route)
         assert 'href="/profile" class="s-hdr-btn"' not in card_editor_src
-        assert 'href="/profile"' not in card_editor_src or \
-               'href="/profile/lfa-football-player"' in card_editor_src
 
     # ── My Cards tile icon — Phase 4B: 🃏, hero title: My Cards ─────────────
 
@@ -884,19 +890,20 @@ class TestLfaNavigationCTAs:
         assert '🃏' in dashboard_src
 
     def test_dashboard_my_cards_hero_title_updated(self, dashboard_src):
-        """My Cards hero section title must reflect Phase 4B rename."""
-        assert '🃏 My Cards' in dashboard_src
+        """Player Card dc-hero uses 🃏 icon; All Cards link goes to /my-cards."""
+        assert '🃏' in dashboard_src
+        assert 'href="/my-cards"' in dashboard_src
 
     def test_card_editor_page_title_uses_playing_card_icon(self, card_editor_src):
         """Card editor page title must contain My Player Card."""
         assert 'My Player Card' in card_editor_src
 
-    def test_card_editor_profile_cta_still_uses_id_card_icon(self, card_editor_src):
-        """Profile CTA in card editor must still be 🪪 (unchanged)."""
+    def test_card_editor_my_cards_cta_uses_joker_icon(self, card_editor_src):
+        """My Cards CTA in card editor must use 🃏 (P2: replaced Profile 🪪 → My Cards 🃏)."""
         import re
-        match = re.search(r'href="/profile/lfa-football-player"[^>]*>([^<]+)', card_editor_src)
-        assert match is not None
-        assert '🪪' in match.group(1)
+        match = re.search(r'href="/my-cards"[^>]*>([^<]+)', card_editor_src)
+        assert match is not None, "My Cards link not found in card editor"
+        assert '🃏' in match.group(1)
 
     # ── Regression: student_base.html global nav stays on /profile ───────────
 

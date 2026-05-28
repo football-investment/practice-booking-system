@@ -44,6 +44,12 @@ async def my_cards_hub(
             "request": request,
             "user": user,
             "card_specs": card_specs,
+            # Explicit LFA spec context — do not rely on user.specialization fallback,
+            # which breaks on multi-spec accounts where the active spec != LFA_FOOTBALL_PLAYER.
+            "spec_dashboard_url": "/dashboard/lfa-football-player",
+            "spec_dashboard_icon": "⚽",
+            "spec_profile_url": "/profile/lfa-football-player",
+            "spec_profile_icon": "🪪",
         },
     )
 

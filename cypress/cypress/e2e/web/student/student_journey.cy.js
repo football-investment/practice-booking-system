@@ -199,19 +199,20 @@ describe('A. Student Core Journey — Skill Progression', {
     });
   });
 
-  // ── STU-JOURNEY-08 — Spec dashboard structure: student nav + breadcrumb + sections present ──
-  it('STU-JOURNEY-08: /dashboard/LFA_FOOTBALL_PLAYER — student nav present, breadcrumb correct, dashboard sections visible', () => {
+  // ── STU-JOURNEY-08 — Spec dashboard structure: spec header + breadcrumb + sections present ──
+  it('STU-JOURNEY-08: /dashboard/LFA_FOOTBALL_PLAYER — spec header + quicknav + breadcrumb + sections visible', () => {
     cy.visit('/dashboard/LFA_FOOTBALL_PLAYER');
 
-    // Student nav must be rendered by student_base.html (not the old base.html header)
+    // Student base header rendered by spec_subpage_hdr.html include
     cy.get('.student-header').should('exist');
 
-    // Nav has LFA Player link — Hub is in footer, not header nav
-    cy.get('.student-nav a[href="/dashboard/lfa-football-player"]').should('contain.text', 'LFA Player');
-    cy.get('.student-nav a[href="/dashboard/lfa-football-player"]').should('have.class', 'active');
-    cy.get('.student-nav a[href="/dashboard"]').should('not.exist');
-    // Hub link is in footer
-    cy.get('.footer-links a[href="/dashboard"]').should('exist');
+    // Spec dashboard link present as s-hdr-btn (replaces old student-nav pattern)
+    cy.get('a.s-hdr-btn[href="/dashboard/lfa-football-player"]').should('exist');
+    // Hub link also present as s-hdr-btn in header
+    cy.get('a.s-hdr-btn[href="/dashboard"]').should('exist');
+
+    // Quicknav contains My Cards link
+    cy.get('.spec-qn-item[href="/my-cards"]').should('exist');
 
     // Breadcrumb must contain the spec name — proves student is on spec dashboard, not hub
     cy.get('.s-breadcrumb').should('exist');
@@ -222,43 +223,31 @@ describe('A. Student Core Journey — Skill Progression', {
     cy.get('.s-kpi-row').should('exist');
     cy.get('.s-kpi-card').should('have.length', 4);
 
-    // Skill Snapshot + Last Result sections visible
-    cy.contains('h2', 'Skill Snapshot').should('be.visible');
-    cy.contains('h2', 'Last Skill Event').should('be.visible');
-
-    // 2×3 mod-nav: 6 primary domain cards must be present
-    cy.get('.mod-nav-card[href="/events"]').should('exist');
-    cy.get('.mod-nav-card[href="/my-cards"]').should('exist');
-    cy.get('.mod-nav-card[href="/training"]').should('exist');
-    cy.get('.mod-nav-card[href="/skills/history?skill=passing"]').should('exist');
+    // Quick Access: 4 mod-nav tiles (Calendar, Achievements, Sessions, Progress)
     cy.get('.mod-nav-card[href="/calendar"]').should('exist');
     cy.get('.mod-nav-card[href="/achievements"]').should('exist');
+    cy.get('.mod-nav-card[href="/sessions"]').should('exist');
+    cy.get('.mod-nav-card[href="/progress"]').should('exist');
 
-    // Secondary nav in footer: Sessions / Progress / Skills accessible
+    // Sessions and Progress accessible via mod-nav
     cy.get('a[href="/sessions"]').should('exist');
     cy.get('a[href="/progress"]').should('exist');
-    cy.get('a[href="/skills"]').should('exist');
 
     // Page must not show any server error
     cy.get('body').should('not.contain.text', 'Internal Server Error');
     cy.get('body').should('not.contain.text', '400 Bad Request');
   });
 
-  // ── STU-JOURNEY-09 — Dashboard KPI lazy-loads + snapshot bars + last result ──
-  it('STU-JOURNEY-09: spec dashboard KPI row + skill snapshot + last result load', () => {
+  // ── STU-JOURNEY-09 — Dashboard KPI lazy-loads ──
+  it('STU-JOURNEY-09: spec dashboard KPI row lazy-loads avg skill and tournament count', () => {
     cy.visit('/dashboard/LFA_FOOTBALL_PLAYER');
 
     // KPI avg should fill in from /skills/data (not stay as —)
     cy.get('#kpi-avg', { timeout: 10000 }).should('not.contain.text', '—');
     cy.get('#kpi-tournaments').should('contain.text', '2');
 
-    // Skill snapshot renders at least 1 bar
-    cy.get('#s-snapshot .s-snapshot-row', { timeout: 8000 }).should('have.length.gte', 1);
-
-    // Last skill event shows the most recent event (T2: placed 1st, positive delta)
-    cy.get('#s-last-result', { timeout: 8000 }).should('not.contain.text', 'No skill events yet');
-    cy.get('#s-last-result').should('contain.text', 'E2E History Tournament 2');
-    cy.get('#s-last-result .s-delta-pos').should('exist');
+    // KPI row must have 4 cards after data loads
+    cy.get('.s-kpi-card').should('have.length', 4);
   });
 
 });
