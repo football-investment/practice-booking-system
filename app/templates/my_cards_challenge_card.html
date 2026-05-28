@@ -1,6 +1,6 @@
 {% extends "student_base.html" %}
 
-{% block title %}Challenge Card Shop — LFA Education Center{% endblock %}
+{% block title %}My Challenge Card Formats — LFA Education Center{% endblock %}
 {% block active_page %}lfa-player{% endblock %}
 
 {% block student_header %}
@@ -10,223 +10,162 @@
 {% endblock %}
 
 {% block extra_styles %}
+{% include "includes/mc_format_grid.html" %}
 <style>
-    .cc-shop {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 1.5rem 1rem 4rem;
-    }
-
-    .cc-back {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        font-size: 0.8rem;
-        color: var(--app-text-muted);
-        text-decoration: none;
-        margin-bottom: 1.2rem;
-    }
-    .cc-back:hover { color: var(--app-text); }
-
-    .cc-header { margin-bottom: 1.8rem; }
-    .cc-header h1 {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: var(--app-text);
-        margin: 0 0 0.4rem;
-    }
-    .cc-header p {
-        font-size: 0.9rem;
-        color: var(--app-text-muted);
-        margin: 0;
-        max-width: 560px;
-    }
-
-    /* ── Format grid ── */
-    .cc-format-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .cc-format-card {
-        background: #0f172a;
-        border: 1px solid #1e293b;
-        border-radius: 12px;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-    }
-
-    .cc-format-tag {
-        font-size: 0.63rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        color: #475569;
-        text-transform: uppercase;
-    }
-    .cc-format-label {
-        font-weight: 700;
-        font-size: 0.92rem;
-        color: #f1f5f9;
-    }
-    .cc-format-dims {
-        font-size: 0.72rem;
-        color: #475569;
-    }
-
-    /* State badges */
-    .cc-badge-owned {
-        display: inline-block;
-        padding: 0.18rem 0.5rem;
-        border-radius: 10px;
-        font-size: 0.69rem;
-        font-weight: 700;
-        background: #1e3a5f;
-        color: #93c5fd;
-        align-self: flex-start;
-    }
-    .cc-badge-get {
-        display: inline-block;
-        padding: 0.18rem 0.5rem;
-        border-radius: 10px;
-        font-size: 0.69rem;
-        font-weight: 700;
-        background: #78350f;
-        color: #fde68a;
-        align-self: flex-start;
-    }
-    .cc-badge-locked {
-        display: inline-block;
-        padding: 0.18rem 0.5rem;
-        border-radius: 10px;
-        font-size: 0.69rem;
-        font-weight: 700;
-        background: #1e293b;
-        color: #475569;
-        align-self: flex-start;
-    }
-
-    /* CTAs */
-    .cc-btn-owned {
-        display: block;
-        width: 100%;
-        padding: 0.45rem 0.75rem;
-        border-radius: 8px;
-        font-size: 0.82rem;
-        font-weight: 600;
-        text-align: center;
-        background: #1e3a5f;
-        color: #93c5fd;
-        cursor: default;
-        border: none;
-    }
-    .cc-btn-get {
-        display: block;
-        width: 100%;
-        padding: 0.45rem 0.75rem;
-        border-radius: 8px;
-        font-size: 0.82rem;
-        font-weight: 600;
-        text-align: center;
-        cursor: pointer;
-        border: none;
-        background: #854d0e;
-        color: #fde68a;
-    }
-    .cc-btn-get:hover { opacity: 0.9; }
-    .cc-btn-locked {
-        display: block;
-        width: 100%;
-        padding: 0.45rem 0.75rem;
-        border-radius: 8px;
-        font-size: 0.82rem;
-        font-weight: 600;
-        text-align: center;
-        cursor: not-allowed;
-        border: none;
-        background: #1e293b;
-        color: #334155;
-        opacity: 0.7;
-    }
-
-    /* ── Footer CTA ── */
-    .cc-results-cta {
-        margin-top: 2rem;
-        text-align: center;
-    }
-    .cc-results-cta a {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--app-accent, #667eea);
-        text-decoration: none;
-    }
-    .cc-results-cta a:hover { opacity: 0.85; }
+  .mcc-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+  }
+  .mcc-breadcrumb {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 1.25rem;
+  }
+  .mcc-breadcrumb a { color: #94a3b8; text-decoration: none; }
+  .mcc-breadcrumb a:hover { color: #f1f5f9; }
+  .mcc-breadcrumb span { margin: 0 0.35rem; }
+  .mcc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .mcc-header h1 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin: 0; }
+  .mcc-credits-badge {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  .mcc-credits-badge strong { color: #FFD200; }
+  .mcc-shop-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #FFD200;
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+  }
+  .mcc-shop-link:hover { opacity: 0.85; text-decoration: none; }
+  /* Empty state */
+  .mcc-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #64748b;
+  }
+  .mcc-empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+  .mcc-empty h3 { font-size: 1.1rem; font-weight: 600; color: #94a3b8; margin: 0 0 0.5rem; }
+  .mcc-empty p { font-size: 0.88rem; margin: 0 0 1.25rem; }
+  .mcc-empty-cta {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: #FFD200;
+    color: #0f172a;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .mcc-empty-cta:hover { opacity: 0.88; color: #0f172a; text-decoration: none; }
+  /* Results CTA */
+  .mcc-results-cta {
+    margin-top: 2rem;
+    text-align: center;
+  }
+  .mcc-results-cta a {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--app-accent, #667eea);
+    text-decoration: none;
+  }
+  .mcc-results-cta a:hover { opacity: 0.85; }
 </style>
 {% endblock %}
 
 {% block student_content %}
-<div class="cc-shop">
+<div class="mcc-wrap">
 
-    <a href="/my-cards" class="cc-back">← My Cards</a>
+  <nav class="mcc-breadcrumb" aria-label="Breadcrumb">
+    <a href="/my-cards">My Cards</a>
+    <span>›</span>
+    <span>Challenge Card</span>
+  </nav>
 
-    <div class="cc-header">
-        <h1>⚡ Challenge Card Formats</h1>
-        <p>Purchase a Challenge Card format to download social cards for your completed Virtual Challenges.</p>
+  <div class="mcc-header">
+    <h1>My Challenge Card Formats</h1>
+    <span class="mcc-credits-badge">Balance: <strong>{{ user.credit_balance }} CR</strong></span>
+  </div>
+
+  <a href="/shop/cards/challenge" class="mcc-shop-link">Shop Formats →</a>
+
+  {# ── Flash messages ── #}
+  {% if flash_purchased %}
+  <div class="mfg-flash mfg-flash-success">
+    ✓ Format unlocked — you can now export Challenge Cards in this format.
+  </div>
+  {% endif %}
+  {% if flash_error == "credits" %}
+  <div class="mfg-flash mfg-flash-error">Not enough credits to purchase this format.</div>
+  {% elif flash_error == "owned" %}
+  <div class="mfg-flash mfg-flash-error">You already own this format.</div>
+  {% elif flash_error == "invalid" %}
+  <div class="mfg-flash mfg-flash-error">Unknown format.</div>
+  {% endif %}
+
+  {% if cc_format_rows %}
+
+  {# ── Section header ── #}
+  <div class="mfg-section-hdr">
+    <h2>Owned Formats</h2>
+    <span class="mfg-count-badge">{{ cc_owned_count }} owned</span>
+  </div>
+
+  {# ── Format grid (owned only) ── #}
+  <div class="mfg-grid">
+    {% for r in cc_format_rows %}
+    <div class="mfg-card">
+
+      <div class="mfg-preview-wrap mfg-locked">
+        <div class="mfg-preview-placeholder">{{ r.label[:2] | upper }}</div>
+      </div>
+
+      <p class="mfg-style-tag">{{ r.style_tag }}</p>
+      <p class="mfg-label">{{ r.label }}</p>
+      <p class="mfg-dims">{{ r.dims }}</p>
+
+      <span class="mfg-badge mfg-badge-owned">Owned ✓</span>
+
+      <div class="mfg-cta">
+        <a href="/challenges/results" class="mfg-btn mfg-btn-download">View Results →</a>
+      </div>
+
     </div>
+    {% endfor %}
+  </div>
 
-    {# ── Flash messages ── #}
-    {% if flash_purchased %}
-    <div style="padding:0.7rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;background:#14532d;color:#86efac;border:1px solid #166534;">
-        ✓ Format unlocked — you can now export Challenge Cards in this format.
-    </div>
-    {% endif %}
-    {% if flash_error == "credits" %}
-    <div style="padding:0.7rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d;">Not enough credits.</div>
-    {% elif flash_error == "owned" %}
-    <div style="padding:0.7rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d;">You already own this format.</div>
-    {% elif flash_error == "invalid" %}
-    <div style="padding:0.7rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:0.85rem;background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d;">Unknown format.</div>
-    {% endif %}
+  {% else %}
 
-    {# ── Owned counter ── #}
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem;">
-        <h2 style="font-size:1rem;font-weight:700;color:var(--app-text);margin:0;">Formats</h2>
-        <span style="font-size:0.75rem;font-weight:600;color:#94a3b8;background:#1e293b;border:1px solid #334155;border-radius:12px;padding:0.18rem 0.6rem;">
-            {{ cc_owned_count }} / {{ cc_total }} owned
-        </span>
-    </div>
+  <div class="mcc-empty">
+    <div class="mcc-empty-icon">⚡</div>
+    <h3>No formats yet</h3>
+    <p>You don't own any Challenge Card formats. Visit the shop to unlock social card exports.</p>
+    <a href="/shop/cards/challenge" class="mcc-empty-cta">Browse Formats →</a>
+  </div>
 
-    {# ── Format cards ── #}
-    <div class="cc-format-grid">
-        {% for r in cc_format_rows %}
-        <div class="cc-format-card">
-            <div class="cc-format-tag">{{ r.style_tag }}</div>
-            <div class="cc-format-label">{{ r.label }}</div>
-            <div class="cc-format-dims">{{ r.dims }}</div>
+  {% endif %}
 
-            {% if r.state == "owned" %}
-                <span class="cc-badge-owned">Owned ✓</span>
-                <button class="cc-btn-owned" disabled>Owned ✓</button>
-            {% elif r.state == "get_card" %}
-                <span class="cc-badge-get">{{ r.credit_cost }} CR</span>
-                <form method="POST" action="/my-cards/designs/challenge_card/{{ r.design_id }}/get">
-                    <button type="submit" class="cc-btn-get">Get Card — {{ r.credit_cost }} CR</button>
-                </form>
-            {% else %}
-                <span class="cc-badge-locked">{{ r.credit_cost }} CR 🔒</span>
-                <button class="cc-btn-locked" disabled>Not enough credits</button>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-
-    {# ── View Challenge Results CTA ── #}
-    <div class="cc-results-cta">
-        <a href="/challenges/results">View Challenge Results →</a>
-    </div>
+  <div class="mcc-results-cta">
+    <a href="/challenges/results">View Challenge Results →</a>
+  </div>
 
 </div>
 {% endblock %}

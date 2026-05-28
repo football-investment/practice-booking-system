@@ -250,10 +250,10 @@ class TestMyCardsHubTemplate:
         assert "My Cards" in hub_src
 
     def test_mch13_hub_template_has_three_family_links(self, hub_src):
-        """MCH-13: Hub template has static links for all three card families."""
-        assert "/my-cards/player-card" in hub_src
-        assert "/my-cards/welcome-card" in hub_src
-        assert "/my-cards/challenge-card" in hub_src
+        """MCH-13: Hub template has links for all three card collection pages (short paths)."""
+        assert "/my-cards/player" in hub_src
+        assert "/my-cards/welcome" in hub_src
+        assert "/my-cards/challenge" in hub_src
 
     def test_mch14_hub_context_has_all_count_keys(self):
         """MCH-14: All six count context keys present (pc/wc/cc owned_count+total)."""
@@ -361,7 +361,7 @@ def _theme(tid, label, dot="#667eea", is_premium=False):
 
 class TestMyChallengeCardRoute:
 
-    def _call(self, *, user=None, db=None):
+    def _call(self, *, user=None, db=None, accessible=False):
         from app.api.web_routes.my_cards import my_cards_challenge_card
         user = user or _user()
         db   = db   or _db_mock()
@@ -374,7 +374,7 @@ class TestMyChallengeCardRoute:
             return MagicMock(status_code=200)
 
         with patch(f"{_CC_BASE}.templates") as mock_tmpl, \
-             patch(f"{_CC_BASE}.is_design_accessible", return_value=False):
+             patch(f"{_CC_BASE}.is_design_accessible", return_value=accessible):
             mock_tmpl.TemplateResponse.side_effect = _capture
             _run(my_cards_challenge_card(
                 request=MagicMock(),
@@ -402,19 +402,19 @@ class TestMyChallengeCardRoute:
         assert "cc_total" in ctx
 
     def test_mch_ch04_hub_template_has_challenge_card_static_link(self):
-        """MCH-CH-04: hub template contains static /my-cards/challenge-card link."""
+        """MCH-CH-04: hub template contains /my-cards/challenge collection link."""
         hub_html = _CC_TEMPLATE_PATH.parent.joinpath("my_cards_hub.html").read_text()
-        assert "/my-cards/challenge-card" in hub_html
+        assert "/my-cards/challenge" in hub_html
 
-    def test_mch_ch05_context_contains_post_16_9(self):
-        """MCH-CH-05: route context cc_format_rows includes challenge_post_16_9."""
-        cap = self._call()
+    def test_mch_ch05_context_contains_post_16_9_when_owned(self):
+        """MCH-CH-05: when accessible, cc_format_rows includes challenge_post_16_9."""
+        cap = self._call(accessible=True)
         row_ids = {r["design_id"] for r in cap["context"].get("cc_format_rows", [])}
         assert "challenge_post_16_9" in row_ids
 
-    def test_mch_ch06_context_contains_story_9_16(self):
-        """MCH-CH-06: route context cc_format_rows includes challenge_story_9_16."""
-        cap = self._call()
+    def test_mch_ch06_context_contains_story_9_16_when_owned(self):
+        """MCH-CH-06: when accessible, cc_format_rows includes challenge_story_9_16."""
+        cap = self._call(accessible=True)
         row_ids = {r["design_id"] for r in cap["context"].get("cc_format_rows", [])}
         assert "challenge_story_9_16" in row_ids
 
@@ -430,17 +430,17 @@ class TestMyChallengeCardRoute:
         assert CHALLENGE_CARD_SPEC.theme_compatible is True
         assert CHALLENGE_CARD_SPEC.has_published_state is False
 
-    def test_mch_ch09_context_contains_cc_format_rows_with_both_ids(self):
-        """MCH-CH-09: route context cc_format_rows contains both platform IDs."""
-        cap = self._call()
+    def test_mch_ch09_context_contains_cc_format_rows_with_both_ids_when_owned(self):
+        """MCH-CH-09: when accessible, cc_format_rows contains both platform IDs."""
+        cap = self._call(accessible=True)
         rows = cap["context"].get("cc_format_rows", [])
         row_ids = {r["design_id"] for r in rows}
         assert "challenge_post_16_9"  in row_ids
         assert "challenge_story_9_16" in row_ids
 
-    def test_mch_ch10_context_contains_cc_format_rows(self):
-        """MCH-CH-10: route context contains cc_format_rows with state per format."""
-        cap = self._call()
+    def test_mch_ch10_context_contains_cc_format_rows_when_owned(self):
+        """MCH-CH-10: when accessible, cc_format_rows contains 2 formats with state='owned'."""
+        cap = self._call(accessible=True)
         rows = cap["context"].get("cc_format_rows", [])
         assert len(rows) == 2
         row_ids = {r["design_id"] for r in rows}
@@ -448,11 +448,12 @@ class TestMyChallengeCardRoute:
         assert "challenge_story_9_16" in row_ids
         for r in rows:
             assert "state" in r
+            assert r["state"] == "owned"
             assert "credit_cost" in r
 
     def test_mch_ch11_context_has_no_challenge_list_keys(self):
-        """MCH-CH-11: shop route context must NOT contain challenge_rows, has_challenges,
-        draft, themes, or formats keys — the shop is format-only now."""
+        """MCH-CH-11: collection context must NOT contain challenge_rows, has_challenges,
+        draft, themes, or formats keys — the route is owned-only format collection now."""
         cap = self._call()
         ctx = cap["context"]
         for forbidden in ("challenge_rows", "has_challenges", "draft", "themes", "formats"):
@@ -462,3 +463,47 @@ class TestMyChallengeCardRoute:
         """MCH-CH-12: shop template must not contain cc-preview-iframe (challenge list removed)."""
         html = _CC_TEMPLATE_PATH.read_text()
         assert "cc-preview-iframe" not in html
+
+
+# ── MCH-R: Legacy redirect tests ─────────────────────────────────────────────
+
+class TestMyCardsLegacyRedirects:
+    """MCH-R: Hyphenated legacy paths redirect to canonical short paths (301)."""
+
+    def test_mch_r01_player_card_legacy_redirects_to_canonical(self):
+        """MCH-R01: GET /my-cards/player-card → 301 → /my-cards/player."""
+        from app.api.web_routes.my_cards import my_cards_player_card_legacy
+        resp = asyncio.run(my_cards_player_card_legacy())
+        assert resp.status_code == 301
+        assert resp.headers["location"] == "/my-cards/player"
+
+    def test_mch_r02_welcome_card_legacy_redirects_to_canonical(self):
+        """MCH-R02: GET /my-cards/welcome-card → 301 → /my-cards/welcome."""
+        from app.api.web_routes.my_cards import my_cards_welcome_card_legacy
+        resp = asyncio.run(my_cards_welcome_card_legacy())
+        assert resp.status_code == 301
+        assert resp.headers["location"] == "/my-cards/welcome"
+
+    def test_mch_r03_challenge_card_legacy_redirects_to_canonical(self):
+        """MCH-R03: GET /my-cards/challenge-card → 301 → /my-cards/challenge."""
+        from app.api.web_routes.my_cards import my_cards_challenge_card_legacy
+        resp = asyncio.run(my_cards_challenge_card_legacy())
+        assert resp.status_code == 301
+        assert resp.headers["location"] == "/my-cards/challenge"
+
+    def test_mch_r04_shop_redirect_still_works(self):
+        """MCH-R04: GET /my-cards/shop → 301 → /shop/cards."""
+        from app.api.web_routes.my_cards import my_cards_shop
+        resp = asyncio.run(my_cards_shop(tab=None))
+        assert resp.status_code == 301
+        assert resp.headers["location"] == "/shop/cards"
+
+    def test_mch_r05_canonical_player_has_auth_dependency(self):
+        """MCH-R05: canonical /my-cards/player route has user auth dependency."""
+        sig = inspect.signature(my_cards_player_card)
+        assert "user" in sig.parameters
+
+    def test_mch_r06_canonical_welcome_has_auth_dependency(self):
+        """MCH-R06: canonical /my-cards/welcome route has user auth dependency."""
+        sig = inspect.signature(my_cards_welcome_card)
+        assert "user" in sig.parameters

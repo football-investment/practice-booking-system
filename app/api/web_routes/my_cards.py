@@ -1,4 +1,4 @@
-"""My Cards hub — cross-card-type navigation hub and family shop routes."""
+"""My Cards hub — owned-card collection and purchase compat wrapper."""
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -27,11 +27,11 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 router = APIRouter(tags=["my-cards"])
 
-# Maps card_type_id → family page path (used for purchase redirect targets)
+# Maps card_type_id → canonical collection path (used for purchase redirect targets)
 _TYPE_TO_FAMILY_PATH: dict[str, str] = {
-    "player_card":    "/my-cards/player-card",
-    "welcome_card":   "/my-cards/welcome-card",
-    "challenge_card": "/my-cards/challenge-card",
+    "player_card":    "/my-cards/player",
+    "welcome_card":   "/my-cards/welcome",
+    "challenge_card": "/my-cards/challenge",
 }
 
 
@@ -43,7 +43,7 @@ async def my_cards_hub(
     db: Session = Depends(get_db),
     user: User  = Depends(get_current_user_web),
 ):
-    """Hub — format-count tiles for all three card families."""
+    """Hub — owned-count tiles for all three card families."""
     all_designs = get_all_designs(db)
     pc_total    = len(all_designs)
     pc_owned_ids = set(get_owned_design_ids(db, user.id, "player_card"))
@@ -84,23 +84,40 @@ async def my_cards_hub(
     )
 
 
-# ── /my-cards/shop — retired, redirect by tab param ──────────────────────────
+# ── /my-cards/shop — retired, redirect to central shop ───────────────────────
 
 @router.get("/my-cards/shop")
 async def my_cards_shop(tab: str | None = Query(default=None)):
-    """Retired shop page — redirects to the appropriate family shop."""
+    """Retired shop page — redirects to the card shop."""
     destinations = {
-        "player":    "/my-cards/player-card",
-        "welcome":   "/my-cards/welcome-card",
-        "challenge": "/my-cards/challenge-card",
+        "player":    "/shop/cards/player",
+        "welcome":   "/shop/cards/welcome",
+        "challenge": "/shop/cards/challenge",
     }
     return RedirectResponse(
-        url=destinations.get(tab or "", "/my-cards"),
-        status_code=302,
+        url=destinations.get(tab or "", "/shop/cards"),
+        status_code=301,
     )
 
 
-# ── Purchase POST ─────────────────────────────────────────────────────────────
+# ── Legacy hyphenated paths → canonical short paths (301) ────────────────────
+
+@router.get("/my-cards/player-card")
+async def my_cards_player_card_legacy():
+    return RedirectResponse(url="/my-cards/player", status_code=301)
+
+
+@router.get("/my-cards/welcome-card")
+async def my_cards_welcome_card_legacy():
+    return RedirectResponse(url="/my-cards/welcome", status_code=301)
+
+
+@router.get("/my-cards/challenge-card")
+async def my_cards_challenge_card_legacy():
+    return RedirectResponse(url="/my-cards/challenge", status_code=301)
+
+
+# ── Purchase POST compat wrapper ──────────────────────────────────────────────
 
 @router.post("/my-cards/designs/{card_type_id}/{design_id}/get")
 async def get_card(
@@ -109,7 +126,7 @@ async def get_card(
     db: Session = Depends(get_db),
     user: User  = Depends(get_current_user_web),
 ):
-    """Purchase a card design entitlement (credit deduction + ownership row)."""
+    """Compat purchase endpoint — delegates to purchase_design(), redirects to collection."""
     family_path = _TYPE_TO_FAMILY_PATH.get(card_type_id, "/my-cards")
     try:
         purchase_design(db, user, card_type_id, design_id)
@@ -127,25 +144,16 @@ async def get_card(
         return RedirectResponse(f"{family_path}?error=invalid", status_code=303)
 
 
-# ── Player Card family shop ───────────────────────────────────────────────────
+# ── Player Card collection (owned-only) — canonical: /my-cards/player ─────────
 
-@router.get("/my-cards/player-card", response_class=HTMLResponse)
+@router.get("/my-cards/player", response_class=HTMLResponse)
 async def my_cards_player_card(
     request: Request,
     db: Session     = Depends(get_db),
     user: User      = Depends(get_current_user_web),
 ):
-    """Player Card format shop — browse and purchase Player Card designs."""
+    """Player Card owned-only collection."""
     all_designs = get_all_designs(db)
-    credits     = user.credit_balance
-
-    def _state(design) -> str:
-        if is_design_accessible(db, user.id, "player_card", design.id):
-            return "owned"
-        # Guard: 0-CR designs are never purchasable — must be granted explicitly.
-        if design.credit_cost == 0:
-            return "not_available"
-        return "get_card" if credits >= design.credit_cost else "locked"
 
     design_rows = [
         {
@@ -154,13 +162,14 @@ async def my_cards_player_card(
             "description": d.description,
             "credit_cost": d.credit_cost,
             "is_premium":  d.is_premium,
-            "state":       _state(d),
+            "state":       "owned",
         }
         for d in all_designs
+        if is_design_accessible(db, user.id, "player_card", d.id)
     ]
 
-    owned_count = sum(1 for r in design_rows if r["state"] == "owned")
-    total_count = len(design_rows)
+    owned_count = len(design_rows)
+    total_count = owned_count
 
     return templates.TemplateResponse(
         "my_cards_player_card.html",
@@ -177,39 +186,33 @@ async def my_cards_player_card(
     )
 
 
-# ── Welcome Card family shop ──────────────────────────────────────────────────
+# ── Welcome Card collection (owned-only) — canonical: /my-cards/welcome ───────
 
-@router.get("/my-cards/welcome-card", response_class=HTMLResponse)
+@router.get("/my-cards/welcome", response_class=HTMLResponse)
 async def my_cards_welcome_card(
     request: Request,
     db: Session     = Depends(get_db),
     user: User      = Depends(get_current_user_web),
 ):
-    """Welcome Card format shop — browse and purchase Welcome Card platform formats."""
-    credits = user.credit_balance
-
-    def _wc_state(fmt) -> str:
-        if is_design_accessible(db, user.id, "welcome_card", fmt.design_id):
-            return "owned"
-        return "get_card" if credits >= fmt.credit_cost else "locked"
-
+    """Welcome Card owned-only format collection."""
     format_rows = [
         {
-            "design_id":       fmt.design_id,
-            "label":           fmt.label,
-            "style_tag":       fmt.style_tag,
-            "dims":            fmt.dims,
-            "credit_cost":     fmt.credit_cost,
+            "design_id":        fmt.design_id,
+            "label":            fmt.label,
+            "style_tag":        fmt.style_tag,
+            "dims":             fmt.dims,
+            "credit_cost":      fmt.credit_cost,
             "preview_platform": fmt.preview_platform,
-            "state":           _wc_state(fmt),
-            "preview_url":     f"/profile/onboarding-card?platform={fmt.preview_platform}",
-            "export_url":      f"/profile/onboarding-card/export?platform={fmt.preview_platform}",
+            "state":            "owned",
+            "preview_url":      f"/profile/onboarding-card?platform={fmt.preview_platform}",
+            "export_url":       f"/profile/onboarding-card/export?platform={fmt.preview_platform}",
         }
         for fmt in WELCOME_CARD_FORMATS
+        if is_design_accessible(db, user.id, "welcome_card", fmt.design_id)
     ]
 
-    owned_count = sum(1 for r in format_rows if r["state"] == "owned")
-    total_count = len(format_rows)
+    owned_count = len(format_rows)
+    total_count = owned_count
 
     return templates.TemplateResponse(
         "my_cards_welcome_card.html",
@@ -226,23 +229,15 @@ async def my_cards_welcome_card(
     )
 
 
+# ── Challenge Card collection (owned-only) — canonical: /my-cards/challenge ───
 
-# ── Challenge Card format shop ─────────────────────────────────────────────────
-
-@router.get("/my-cards/challenge-card", response_class=HTMLResponse)
+@router.get("/my-cards/challenge", response_class=HTMLResponse)
 async def my_cards_challenge_card(
     request: Request,
     db: Session = Depends(get_db),
     user: User  = Depends(get_current_user_web),
 ):
-    """Challenge Card format shop — browse and purchase Challenge Card formats."""
-    credits = user.credit_balance
-
-    def _cc_fmt_state(fmt) -> str:
-        if is_design_accessible(db, user.id, "challenge_card", fmt.design_id):
-            return "owned"
-        return "get_card" if credits >= fmt.credit_cost else "locked"
-
+    """Challenge Card owned-only format collection."""
     cc_format_rows = [
         {
             "design_id":   fmt.design_id,
@@ -250,12 +245,13 @@ async def my_cards_challenge_card(
             "style_tag":   fmt.style_tag,
             "dims":        fmt.dims,
             "credit_cost": fmt.credit_cost,
-            "state":       _cc_fmt_state(fmt),
+            "state":       "owned",
         }
         for fmt in CHALLENGE_CARD_FORMATS
+        if is_design_accessible(db, user.id, "challenge_card", fmt.design_id)
     ]
-    cc_owned_count = sum(1 for r in cc_format_rows if r["state"] == "owned")
-    cc_total       = len(cc_format_rows)
+    cc_owned_count = len(cc_format_rows)
+    cc_total       = cc_owned_count
 
     return templates.TemplateResponse(
         "my_cards_challenge_card.html",

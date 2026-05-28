@@ -1,17 +1,17 @@
-"""Player Card format shop route tests — MCP-01..MCP-12.
+"""Player Card owned-only collection route tests — MCP-01..MCP-12.
 
 MCP-01  GET /my-cards/player-card renders my_cards_player_card.html
-MCP-02  Context contains design_rows with state for each design
-MCP-03  Non-premium design, no CDO → state='get_card' or 'locked' (no free bypass)
-MCP-04  Premium not owned, credits ≥ cost → state='get_card'
-MCP-05  Premium not owned, credits < cost → state='locked'
-MCP-06  Premium owned → state='owned'
-MCP-07  Context contains owned_count and total_count
+MCP-02  Context contains design_rows with only accessible (owned) designs
+MCP-03  Non-accessible design → not in design_rows
+MCP-04  Accessible design → in design_rows with state='owned'
+MCP-05  Multiple accessible designs → all appear in design_rows
+MCP-06  Premium owned → in design_rows with state='owned'
+MCP-07  Context contains owned_count and total_count (both = len(owned designs))
 MCP-08  Route has auth dependency (get_current_user_web)
 MCP-09  Template file extends student_base and includes spec_subpage_hdr
 MCP-10  Template file breadcrumb links to /my-cards
-MCP-11  Template file contains purchase form POST action pattern
-MCP-12  owned_count = explicitly owned designs only (no free auto-include)
+MCP-11  Template file has Browse Shop CTA linking to /shop/cards/player
+MCP-12  owned_count = explicitly CDO-backed owned designs only
 """
 import asyncio
 import inspect
@@ -92,48 +92,44 @@ class TestPlayerCardShopRoute:
 
     def test_mcp01_renders_player_card_template(self):
         """MCP-01: GET /my-cards/player-card renders my_cards_player_card.html."""
-        cap = _call()
+        cap = _call(accessible_ids={("player_card", "compact")})
         assert cap["template"] == "my_cards_player_card.html"
 
-    def test_mcp02_context_has_design_rows(self):
-        """MCP-02: context contains design_rows with expected keys."""
-        ctx = _call()["context"]
+    def test_mcp02_context_has_design_rows_with_owned_designs(self):
+        """MCP-02: context.design_rows contains only accessible (owned) designs."""
+        ctx = _call(accessible_ids={("player_card", "compact")})["context"]
         rows = ctx["design_rows"]
-        assert len(rows) == 2
-        for r in rows:
-            assert "id" in r
-            assert "state" in r
-            assert "credit_cost" in r
+        assert len(rows) == 1  # only compact is accessible
+        assert rows[0]["id"] == "compact"
+        assert rows[0]["state"] == "owned"
 
-    def test_mcp03_non_premium_no_cdo_not_free(self):
-        """MCP-03: 0-CR design without CDO row → state is 'not_available' (no free/0CR bypass)."""
-        ctx = _call(user=_user(balance=0), accessible_ids=set())["context"]
+    def test_mcp03_non_accessible_design_not_in_rows(self):
+        """MCP-03: design without CDO row → not present in design_rows."""
+        ctx = _call(accessible_ids=set())["context"]
         rows = ctx["design_rows"]
-        fifa = next((r for r in rows if r["id"] == "fifa"), None)
-        if fifa is None:
-            return  # fifa not in mock designs for this test — skip
-        assert fifa["state"] not in ("free", "get_card"), (
-            "0-CR designs must not be purchasable via Get Card flow; expected 'not_available'"
-        )
-        # Either explicitly not_available (if credit_cost=0 in mock) or owned/locked
-        assert fifa["state"] in ("not_available", "owned", "locked")
+        assert len(rows) == 0  # no accessible designs → empty collection
 
-    def test_mcp04_premium_get_card(self):
-        """MCP-04: premium not owned, credits ≥ cost → state='get_card'."""
-        ctx = _call(user=_user(balance=500), accessible_ids=set())["context"]
+    def test_mcp04_accessible_design_in_rows_with_owned_state(self):
+        """MCP-04: accessible design → appears in design_rows with state='owned'."""
+        ctx = _call(
+            user=_user(balance=500),
+            accessible_ids={("player_card", "compact")},
+        )["context"]
         rows = ctx["design_rows"]
-        row = next(r for r in rows if r["id"] == "compact")
-        assert row["state"] == "get_card"
+        row  = next(r for r in rows if r["id"] == "compact")
+        assert row["state"] == "owned"
 
-    def test_mcp05_premium_locked(self):
-        """MCP-05: premium not owned, credits < cost → state='locked'."""
-        ctx = _call(user=_user(balance=50), accessible_ids=set())["context"]
-        rows = ctx["design_rows"]
-        row = next(r for r in rows if r["id"] == "compact")
-        assert row["state"] == "locked"
+    def test_mcp05_multiple_accessible_designs_all_in_rows(self):
+        """MCP-05: multiple accessible designs → all appear in design_rows."""
+        ctx = _call(
+            accessible_ids={("player_card", "fifa"), ("player_card", "compact")},
+        )["context"]
+        ids = {r["id"] for r in ctx["design_rows"]}
+        assert "fifa" in ids
+        assert "compact" in ids
 
-    def test_mcp06_premium_owned(self):
-        """MCP-06: premium owned → state='owned'."""
+    def test_mcp06_premium_owned_in_rows(self):
+        """MCP-06: premium owned → in design_rows with state='owned'."""
         ctx = _call(
             user=_user(balance=500),
             accessible_ids={("player_card", "compact")},
@@ -143,11 +139,12 @@ class TestPlayerCardShopRoute:
         assert row["state"] == "owned"
 
     def test_mcp07_context_has_owned_and_total_counts(self):
-        """MCP-07: context contains owned_count and total_count."""
-        ctx = _call()["context"]
+        """MCP-07: context contains owned_count and total_count (both = owned)."""
+        ctx = _call(accessible_ids={("player_card", "compact")})["context"]
         assert "owned_count" in ctx
         assert "total_count" in ctx
-        assert ctx["total_count"] == 2
+        assert ctx["owned_count"] == 1
+        assert ctx["total_count"] == 1
 
     def test_mcp08_route_has_auth_dependency(self):
         """MCP-08: route declares get_current_user_web dependency."""
@@ -166,11 +163,10 @@ class TestPlayerCardShopRoute:
         src = _TEMPLATE_PATH.read_text()
         assert 'href="/my-cards"' in src
 
-    def test_mcp11_template_has_purchase_form(self):
-        """MCP-11: template contains POST form action for purchasing designs."""
+    def test_mcp11_template_has_browse_shop_cta(self):
+        """MCP-11: template has Browse Shop CTA linking to /shop/cards/player."""
         src = _TEMPLATE_PATH.read_text()
-        assert "/my-cards/designs/player_card/" in src
-        assert 'method="POST"' in src
+        assert "/shop/cards/player" in src
 
     def test_mcp12_owned_count_only_cdo_rows(self):
         """MCP-12: owned_count = only CDO-backed owned designs (no free auto-include)."""
@@ -183,4 +179,4 @@ class TestPlayerCardShopRoute:
             accessible_ids={("player_card", "compact")},
         )["context"]
         assert ctx["owned_count"] == 1  # only owned compact; fifa not auto-included
-        assert ctx["total_count"] == 2
+        assert ctx["total_count"] == 1  # total_count = owned_count in owned-only view

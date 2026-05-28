@@ -124,13 +124,13 @@ class TestPricingGuard:
             captured["context"] = ctx
             return MagicMock(status_code=200)
 
-        _BASE = "app.api.web_routes.my_cards"
+        _BASE = "app.api.web_routes.shop"
         with patch(f"{_BASE}.templates") as mock_tpl, \
              patch(f"{_BASE}.get_all_designs", return_value=[zero_design]), \
              patch(f"{_BASE}.is_design_accessible", return_value=False):
             mock_tpl.TemplateResponse.side_effect = _fake_tmpl
-            from app.api.web_routes.my_cards import my_cards_player_card
-            asyncio.run(my_cards_player_card(request=request, db=db, user=user))
+            from app.api.web_routes.shop import shop_player_card
+            asyncio.run(shop_player_card(request=request, db=db, user=user))
 
         rows  = captured["context"]["design_rows"]
         row   = next(r for r in rows if r["id"] == "hypothetical_zero")

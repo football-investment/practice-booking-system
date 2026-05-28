@@ -1,17 +1,17 @@
-"""Welcome Card format shop route tests — MCW-01..MCW-12.
+"""Welcome Card owned-only collection route tests — MCW-01..MCW-12.
 
 MCW-01  GET /my-cards/welcome-card renders my_cards_welcome_card.html
-MCW-02  Context contains format_rows with 7 entries (WELCOME_CARD_FORMATS)
-MCW-03  Not owned, credits ≥ price → state='get_card'
-MCW-04  Not owned, credits < price → state='locked'
-MCW-05  Owned → state='owned'
-MCW-06  Context contains owned_count and total_count
+MCW-02  Context format_rows contains only owned (accessible) formats
+MCW-03  Not accessible → not in format_rows (empty collection)
+MCW-04  Accessible format → in format_rows with state='owned'
+MCW-05  Multiple accessible formats → all appear in format_rows
+MCW-06  Context contains owned_count and total_count (both = owned)
 MCW-07  Route has auth dependency (get_current_user_web)
 MCW-08  Template extends student_base and includes spec_subpage_hdr
 MCW-09  Template breadcrumb links to /my-cards
 MCW-10  format_rows contain preview_url and export_url
-MCW-11  Download CTA only present for owned state (template check)
-MCW-12  Template contains purchase form POST action pattern
+MCW-11  Template has Download CTA for owned items
+MCW-12  Template has Browse Shop CTA linking to /shop/cards/welcome
 """
 import asyncio
 import inspect
@@ -77,32 +77,26 @@ class TestWelcomeCardShopRoute:
 
     def test_mcw01_renders_welcome_card_template(self):
         """MCW-01: GET /my-cards/welcome-card renders my_cards_welcome_card.html."""
-        cap = _call()
+        cap = _call(accessible_ids={("welcome_card", "instagram_portrait")})
         assert cap["template"] == "my_cards_welcome_card.html"
 
-    def test_mcw02_context_has_7_format_rows(self):
-        """MCW-02: context.format_rows has 7 entries (one per WELCOME_CARD_FORMAT)."""
+    def test_mcw02_context_format_rows_contains_only_owned(self):
+        """MCW-02: context.format_rows contains only accessible (owned) formats."""
         from app.services.card_design_service import WELCOME_CARD_FORMATS
-        ctx = _call()["context"]
+        first_fmt = WELCOME_CARD_FORMATS[0]
+        ctx = _call(accessible_ids={("welcome_card", first_fmt.design_id)})["context"]
         rows = ctx["format_rows"]
-        assert len(rows) == len(WELCOME_CARD_FORMATS)
+        assert len(rows) == 1
+        assert rows[0]["design_id"] == first_fmt.design_id
 
-    def test_mcw03_not_owned_sufficient_credits_get_card(self):
-        """MCW-03: format not owned, credits ≥ price → state='get_card'."""
-        ctx = _call(user=_user(balance=9999), accessible_ids=set())["context"]
-        rows = ctx["format_rows"]
-        for r in rows:
-            assert r["state"] == "get_card", f"{r['design_id']} should be get_card"
+    def test_mcw03_not_accessible_not_in_format_rows(self):
+        """MCW-03: non-accessible format → not in format_rows (empty collection)."""
+        ctx = _call(accessible_ids=set())["context"]
+        assert ctx["format_rows"] == []
+        assert ctx["owned_count"] == 0
 
-    def test_mcw04_not_owned_insufficient_credits_locked(self):
-        """MCW-04: format not owned, credits < price → state='locked'."""
-        ctx = _call(user=_user(balance=0), accessible_ids=set())["context"]
-        rows = ctx["format_rows"]
-        for r in rows:
-            assert r["state"] == "locked", f"{r['design_id']} should be locked"
-
-    def test_mcw05_owned_format_shows_owned_state(self):
-        """MCW-05: owned format → state='owned'."""
+    def test_mcw04_accessible_format_in_rows_with_owned_state(self):
+        """MCW-04: accessible format → in format_rows with state='owned'."""
         from app.services.card_design_service import WELCOME_CARD_FORMATS
         target_fmt = WELCOME_CARD_FORMATS[0]
         ctx = _call(
@@ -113,13 +107,24 @@ class TestWelcomeCardShopRoute:
         row = next(r for r in rows if r["design_id"] == target_fmt.design_id)
         assert row["state"] == "owned"
 
+    def test_mcw05_multiple_accessible_formats_all_in_rows(self):
+        """MCW-05: multiple accessible formats → all appear in format_rows."""
+        from app.services.card_design_service import WELCOME_CARD_FORMATS
+        first_two = {("welcome_card", f.design_id) for f in WELCOME_CARD_FORMATS[:2]}
+        ctx = _call(user=_user(balance=9999), accessible_ids=first_two)["context"]
+        assert len(ctx["format_rows"]) == 2
+        for r in ctx["format_rows"]:
+            assert r["state"] == "owned"
+
     def test_mcw06_context_has_owned_and_total_count(self):
-        """MCW-06: context contains owned_count and total_count."""
-        ctx = _call()["context"]
+        """MCW-06: context contains owned_count and total_count (both = owned)."""
+        from app.services.card_design_service import WELCOME_CARD_FORMATS
+        first_two = {("welcome_card", f.design_id) for f in WELCOME_CARD_FORMATS[:2]}
+        ctx = _call(accessible_ids=first_two)["context"]
         assert "owned_count" in ctx
         assert "total_count" in ctx
-        from app.services.card_design_service import WELCOME_CARD_FORMATS
-        assert ctx["total_count"] == len(WELCOME_CARD_FORMATS)
+        assert ctx["owned_count"] == 2
+        assert ctx["total_count"] == 2  # total_count = owned_count in owned-only view
 
     def test_mcw07_route_has_auth_dependency(self):
         """MCW-07: route declares get_current_user_web dependency."""
@@ -139,24 +144,25 @@ class TestWelcomeCardShopRoute:
         assert 'href="/my-cards"' in src
 
     def test_mcw10_format_rows_contain_preview_and_export_url(self):
-        """MCW-10: every format_row has preview_url and export_url."""
-        ctx = _call()["context"]
+        """MCW-10: every owned format_row has preview_url and export_url."""
+        from app.services.card_design_service import WELCOME_CARD_FORMATS
+        all_ids = {("welcome_card", f.design_id) for f in WELCOME_CARD_FORMATS}
+        ctx = _call(accessible_ids=all_ids)["context"]
         rows = ctx["format_rows"]
+        assert len(rows) > 0
         for r in rows:
             assert "preview_url" in r, f"{r['design_id']} missing preview_url"
             assert "export_url" in r, f"{r['design_id']} missing export_url"
 
-    def test_mcw11_template_has_download_and_purchase_elements(self):
-        """MCW-11: template uses mfg-btn-download for owned and POST form for get."""
+    def test_mcw11_template_has_download_cta_for_owned(self):
+        """MCW-11: template uses mfg-btn-download for owned formats."""
         src = _TEMPLATE_PATH.read_text()
         assert "mfg-btn-download" in src, "Must have download button class for owned state"
-        assert "mfg-btn-get" in src, "Must have get button class for purchasable state"
 
-    def test_mcw12_template_has_purchase_form(self):
-        """MCW-12: template contains POST form for purchasing a WC format."""
+    def test_mcw12_template_has_browse_shop_cta(self):
+        """MCW-12: template has Browse Shop CTA linking to /shop/cards/welcome."""
         src = _TEMPLATE_PATH.read_text()
-        assert "/my-cards/designs/welcome_card/" in src
-        assert 'method="POST"' in src
+        assert "/shop/cards/welcome" in src
 
     def test_mcw_owned_count_correct(self):
         """MCW-owned: owned_count increments per owned format."""
