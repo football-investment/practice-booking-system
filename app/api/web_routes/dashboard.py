@@ -420,7 +420,8 @@ async def lfa_player_card_editor(
         }
         for v in _get_all_variants()
     ]
-    active_card_variant = card_draft.draft_variant
+    active_card_variant  = card_draft.draft_variant
+    active_variant_owned = _is_design_accessible(db, user.id, "player_card", active_card_variant)
 
     # Animated video export capability: list of platforms supported for the
     # current variant. Used by the card editor to show/hide the video button.
@@ -484,6 +485,7 @@ async def lfa_player_card_editor(
             "active_card_theme": active_card_theme,
             "card_variants": card_variants,
             "active_card_variant": active_card_variant,
+            "active_variant_owned": active_variant_owned,
             "active_card_platform": card_draft.draft_platform or "default",
             "show_variant_picker": True,  # page is LFA Football Player only
             "animated_capable_platforms": animated_capable_platforms,

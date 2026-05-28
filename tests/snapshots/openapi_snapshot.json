@@ -59887,7 +59887,7 @@
             "name": "status",
             "required": false,
             "schema": {
-              "default": "completed",
+              "default": "all",
               "title": "Status",
               "type": "string"
             }

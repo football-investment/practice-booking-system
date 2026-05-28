@@ -1,4 +1,4 @@
-"""Challenge Results route tests — CR-01..CR-10.
+"""Challenge Results route tests — CR-01..CR-12.
 
 CR-01  GET /challenges/results → template = vt_challenge_results.html
 CR-02  Only terminal-status challenges returned (COMPLETED / EXPIRED / CANCELLED / DECLINED)
@@ -10,6 +10,8 @@ CR-07  has_next=True when more rows than page size
 CR-08  has_next=False when fewer rows than page size
 CR-09  Empty state: no terminal challenges → rows == []
 CR-10  User sees only their own challenges (challenger or challenged)
+CR-11  Default route status parameter is "all" (not "completed")
+CR-12  /challenges hub template contains View All link to /challenges/results
 """
 import asyncio
 from unittest.mock import MagicMock, patch
@@ -165,7 +167,32 @@ class TestChallengeResults:
         """CR-10: each row has card_url and detail_url pointing to correct paths."""
         ch = _challenge(42, 1, 2, "completed")
         db = _db_returning([ch])
-        ctx = _call(db=db)["context"]
+        ctx = _call(db=db, status="completed")["context"]
         row = ctx["rows"][0]
         assert row["card_url"]   == "/challenges/42/card"
         assert row["detail_url"] == "/challenges/42"
+
+    def test_cr11_default_status_is_all(self):
+        """CR-11: /challenges/results default status parameter is 'all', not 'completed'."""
+        import inspect
+        from app.api.web_routes.vt_challenges import challenge_results
+        sig     = inspect.signature(challenge_results)
+        default = sig.parameters["status"].default
+        # FastAPI Query wraps the default — unwrap it
+        actual  = getattr(default, "default", default)
+        assert actual == "all", (
+            f"Default status should be 'all' for discoverability; got {actual!r}"
+        )
+
+    def test_cr12_challenges_hub_template_has_view_all_link(self):
+        """CR-12: vt_challenges.html terminal_rows section contains link to /challenges/results."""
+        import os
+        tmpl_path = os.path.join(
+            os.path.dirname(__file__),
+            "../../../../app/templates/vt_challenges.html",
+        )
+        with open(os.path.normpath(tmpl_path), encoding="utf-8") as f:
+            content = f.read()
+        assert "/challenges/results" in content, (
+            "vt_challenges.html must contain a link to /challenges/results in the terminal_rows section"
+        )

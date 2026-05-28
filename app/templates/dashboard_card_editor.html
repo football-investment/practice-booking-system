@@ -613,6 +613,18 @@
     gap: 0.35rem;
     flex-shrink: 0;
 }
+.ce-locked-note {
+    margin-top: 0.6rem;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.45);
+}
+.ce-locked-note a {
+    color: var(--app-accent, #667eea);
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 0.25rem;
+}
+.ce-locked-note a:hover { opacity: 0.8; }
 
 /* Publish status elements */
 .publish-status-dot {
@@ -1107,10 +1119,12 @@
                     <a href="/players/{{ user.id }}/card" target="_blank"
                        class="publish-view-link">View ↗</a>
                     <button class="btn-publish-card" id="btn-publish-card"
-                            onclick="publishCard()">Publish Card</button>
+                            onclick="publishCard()"
+                            {% if not active_variant_owned %}disabled{% endif %}>Publish Card</button>
                 </div>
                 <div class="ce-export-zone">
                     <button id="btn-export-card" class="btn-export-card" onclick="exportCard()"
+                            {% if not active_variant_owned %}disabled{% endif %}
                             title="Download PNG — Default exports at native card proportions">⬇ PNG</button>
                     <button id="btn-export-video" class="btn-export-card btn-export-video"
                             style="display:none;" onclick="exportCardVideo()"
@@ -1120,6 +1134,12 @@
                             title="[DEBUG] Raw WebM">⬇ WebM</button>
                 </div>
             </div>
+            {% if not active_variant_owned %}
+            <div class="ce-locked-note">
+                This design requires a Player Card.
+                <a href="/my-cards/player-card">Get Player Card →</a>
+            </div>
+            {% endif %}
 
         </div>{# /ce-preview-area #}
 

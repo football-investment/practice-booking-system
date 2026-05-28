@@ -612,7 +612,7 @@ async def challenge_results(
     request: Request,
     page:   int = Query(default=0, ge=0),
     size:   int = Query(default=20, ge=1, le=_RESULTS_MAX_SIZE),
-    status: str = Query(default="completed"),
+    status: str = Query(default="all"),
     db: Session = Depends(get_db),
     user: User  = Depends(get_current_user_web),
 ):
