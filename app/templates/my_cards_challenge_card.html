@@ -114,11 +114,20 @@
   </div>
   {% endif %}
   {% if flash_error == "credits" %}
-  <div class="mfg-flash mfg-flash-error">Not enough credits to purchase this format.</div>
+  <div class="mfg-flash mfg-flash-error">
+    Not enough credits.
+    <a class="mfg-flash-cta" href="/credits">Get more credits →</a>
+  </div>
   {% elif flash_error == "owned" %}
-  <div class="mfg-flash mfg-flash-error">You already own this format.</div>
+  <div class="mfg-flash mfg-flash-error">
+    You already own this.
+    <a class="mfg-flash-cta" href="/shop/cards/challenge">Browse Challenge Cards →</a>
+  </div>
   {% elif flash_error == "invalid" %}
-  <div class="mfg-flash mfg-flash-error">Unknown format.</div>
+  <div class="mfg-flash mfg-flash-error">
+    This product is no longer available.
+    <a class="mfg-flash-cta" href="/shop/cards">Back to shop →</a>
+  </div>
   {% endif %}
 
   {% if cc_format_rows %}
@@ -134,8 +143,11 @@
     {% for r in cc_format_rows %}
     <div class="mfg-card">
 
-      <div class="mfg-preview-wrap">
-        <div class="mfg-preview-placeholder">{{ r.label[:2] | upper }}</div>
+      <div class="mfg-preview-wrap
+        {% if '9_16' in r.design_id %}mfg-ratio-916{% else %}mfg-ratio-169{% endif %}">
+        <div class="mfg-cc-mock">
+          <span class="mfg-cc-mock-dims">{{ r.dims }}</span>
+        </div>
       </div>
 
       <p class="mfg-style-tag">{{ r.style_tag }}</p>

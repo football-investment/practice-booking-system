@@ -126,7 +126,13 @@
     <div class="mfg-card{% if flash_purchased and r.design_id == flash_purchased %} mfg-card-just-purchased{% endif %}">
 
       {# Preview with watermark overlay for unowned #}
-      <div class="mfg-preview-wrap{% if r.state != 'owned' %} mfg-locked{% endif %}">
+      <div class="mfg-preview-wrap
+        {% if r.preview_platform in ('instagram_story', 'tiktok') %}mfg-ratio-916
+        {% elif r.preview_platform == 'instagram_portrait' %}mfg-ratio-45
+        {% elif r.preview_platform in ('instagram_square', 'facebook_square') %}mfg-ratio-11
+        {% elif r.preview_platform in ('facebook_landscape', 'banner_custom') %}mfg-ratio-169
+        {% endif %}
+        {% if r.state != 'owned' %} mfg-locked{% endif %}">
         <iframe
           class="mfg-preview-iframe"
           src="{{ r.preview_url }}"
