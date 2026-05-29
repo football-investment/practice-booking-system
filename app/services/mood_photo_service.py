@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import io
 import time
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 
 from PIL import Image
 from sqlalchemy.orm import Session
@@ -29,6 +31,37 @@ _ALLOWED_MIME: frozenset[str] = frozenset(
     {"image/jpeg", "image/png", "image/webp"}
 )
 _MAX_DIMENSION: int = 2048   # pixels; larger images are resized down
+
+# ── Background removal rate limiter — 3 triggers / 60 s per user ─────────────
+# Mirrors the pattern from card_export_service.check_export_rate_limit.
+# Guards against duplicate clicks and rapid uploaded→failed→retry loops.
+# Keyed by user_id (int); reset_bg_removal_rate_counters() is a test helper.
+_BG_RATE_LIMIT:    int                    = 3
+_BG_RATE_WINDOW:   int                    = 60  # seconds
+_bg_rate_counters: dict[int, deque]       = {}
+_bg_rate_lock:     Lock                   = Lock()
+
+
+def check_bg_removal_rate_limit(user_id: int) -> bool:
+    """Return True if within 3 remove-bg triggers/60s for this user, False if exceeded."""
+    now = time.monotonic()
+    with _bg_rate_lock:
+        if user_id not in _bg_rate_counters:
+            _bg_rate_counters[user_id] = deque()
+        dq     = _bg_rate_counters[user_id]
+        cutoff = now - _BG_RATE_WINDOW
+        while dq and dq[0] < cutoff:
+            dq.popleft()
+        if len(dq) >= _BG_RATE_LIMIT:
+            return False
+        dq.append(now)
+        return True
+
+
+def reset_bg_removal_rate_counters() -> None:
+    """Test helper — clears all in-memory remove-bg rate counters."""
+    with _bg_rate_lock:
+        _bg_rate_counters.clear()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

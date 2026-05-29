@@ -728,10 +728,11 @@ def _render_mood_page(record_for_slot: MagicMock | None, slot: str = "mood_happy
         autoescape=False,
     )
     return env.get_template("lfa_player_mood_photos.html").render(
-        request           = MagicMock(),
-        user              = user,
-        mood_photos       = mood_photos,
-        slots_meta        = _SLOT_META,
+        request             = MagicMock(),
+        user                = user,
+        mood_photos         = mood_photos,
+        slots_meta          = _SLOT_META,
+        bg_processor_mode   = "null",   # explicit null mode — button must be hidden
         spec_dashboard_url  = "/dashboard/lfa-football-player",
         spec_dashboard_icon = "⚽",
         spec_profile_url    = "/profile/lfa-football-player",
@@ -815,29 +816,38 @@ class TestMPD04OnerrorFallback:
         assert "this.onerror=null" in html
 
 
-# ── MP-D05 ── Remove Background button absent in display-only fix ─────────────
+# ── MP-D05 ── Remove Background button absent in null processor mode ──────────
+#
+# _render_mood_page passes bg_processor_mode="null" explicitly.
+# The template gates the Remove Background button behind
+# {% if bg_processor_mode == 'rembg' ... %}.
+#
+# The JS block always contains the _mpRemoveBg() function definition and a
+# comment mentioning "Remove Background" — these are not the button element.
+# We check for the ✂-emoji button text which uniquely identifies the rendered
+# HTML button element (not the JS comment).
 
 class TestMPD05NoRemoveBackgroundButton:
 
     def test_mp_d05_no_remove_bg_when_uploaded(self):
-        """MP-D05a: Remove Background button must not appear for uploaded status."""
+        """MP-D05a: Remove Bg button (✂) must not render in null mode / uploaded."""
         record = _mood_record(status="uploaded", processed_png_url=None)
         html = _render_mood_page(record)
-        assert "Remove Background" not in html
-        assert "_mpRemoveBg" not in html
+        assert "✂ Remove Background" not in html
+        assert 'onclick="_mpRemoveBg(' not in html
 
     def test_mp_d05_no_remove_bg_when_ready(self):
-        """MP-D05b: Remove Background button must not appear for ready status."""
+        """MP-D05b: Remove Bg button (✂) must not render in null mode / ready."""
         record = _mood_record(status="ready", processed_png_url=_PROC_URL)
         html = _render_mood_page(record)
-        assert "Remove Background" not in html
+        assert "✂ Remove Background" not in html
 
     def test_mp_d05_no_retry_remove_bg_when_failed(self):
-        """MP-D05c: Retry Remove Background button must not appear for failed status."""
+        """MP-D05c: Retry Remove Bg button must not render in null mode / failed."""
         record = _mood_record(status="failed", processed_png_url=None)
         html = _render_mood_page(record)
-        assert "Retry Remove Background" not in html
-        assert "Remove Background" not in html
+        assert "↺ Retry Remove Background" not in html
+        assert "✂ Remove Background" not in html
 
 
 # ── MP-D06 ── Regression: no-record placeholder unchanged ─────────────────────
@@ -1424,3 +1434,42 @@ def test_mp_r51_rembg_uploaded_button_onclick_null_hidden():
     assert "_mpRemoveBg('mood_happy_smile')" not in html_null, (
         "Slot-specific onclick must NOT appear when bg_processor_mode='null'"
     )
+
+
+# ── MP-R52 ── /remove-bg rate limit: 4th call in 60 s → 429 ──────────────────
+
+def test_mp_r52_remove_bg_rate_limit_exceeded(tmp_path, monkeypatch):
+    """MP-R52: 4th remove-bg call within the 60 s window raises HTTP 429."""
+    from app.api.web_routes.mood_photos import mood_photo_remove_bg
+    from app.services.mood_photo_service import reset_bg_removal_rate_counters
+
+    reset_bg_removal_rate_counters()
+
+    orig_file = tmp_path / "42_mood_happy_smile_orig_1.png"
+    orig_file.write_bytes(b"PNG")
+    monkeypatch.setattr("app.api.web_routes.mood_photos.MOOD_PHOTO_DIR", tmp_path)
+
+    rec = _record(
+        status="uploaded",
+        original_url=f"/static/uploads/mood_photos/{orig_file.name}",
+    )
+
+    # First 3 calls: allowed (pass through state-machine guard after mock)
+    for _ in range(3):
+        db = _db_with(_record(status="uploaded", original_url=f"/static/uploads/mood_photos/{orig_file.name}"))
+        with patch(f"{_BASE}.set_status_processing"), \
+             patch(f"{_TASK}.delay"):
+            resp = _run(mood_photo_remove_bg(slot="mood_happy_smile", user=_user(42), db=db))
+        assert resp.status_code == 303
+
+    # 4th call: must be rate-limited
+    db = _db_with(_record(status="uploaded", original_url=f"/static/uploads/mood_photos/{orig_file.name}"))
+    with patch(f"{_BASE}.set_status_processing"), \
+         patch(f"{_TASK}.delay") as mock_delay, \
+         pytest.raises(HTTPException) as exc:
+        _run(mood_photo_remove_bg(slot="mood_happy_smile", user=_user(42), db=db))
+
+    assert exc.value.status_code == 429
+    mock_delay.assert_not_called()
+
+    reset_bg_removal_rate_counters()

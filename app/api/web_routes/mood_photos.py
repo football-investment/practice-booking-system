@@ -31,6 +31,7 @@ from ...models.user_mood_photos import MOOD_PHOTO_SLOTS, MoodPhotoStatus, UserMo
 from ...services.mood_photo_service import (
     MOOD_PHOTO_DIR,
     apply_removal_failure,
+    check_bg_removal_rate_limit,
     delete_mood_photo,
     get_mood_photos_for_user,
     reset_processing,
@@ -239,6 +240,11 @@ async def mood_photo_remove_bg(
         MoodPhotoStatus.ready.value,
     ):
         return RedirectResponse(url="/profile/my-mood-photos", status_code=303)
+
+    # Rate limit: 3 triggers / 60 s per user — prevents duplicate clicks and
+    # rapid uploaded→failed→retry loops from flooding the task queue.
+    if not check_bg_removal_rate_limit(user.id):
+        raise HTTPException(status_code=429, detail="Too many background removal requests")
 
     # Fast-fail: original file missing from disk
     orig_path = MOOD_PHOTO_DIR / Path(record.original_url).name
