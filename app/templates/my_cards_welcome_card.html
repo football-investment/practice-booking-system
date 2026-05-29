@@ -102,11 +102,20 @@
   </div>
   {% endif %}
   {% if flash_error == "credits" %}
-  <div class="mfg-flash mfg-flash-error">Not enough credits to purchase this format.</div>
+  <div class="mfg-flash mfg-flash-error">
+    Not enough credits.
+    <a class="mfg-flash-cta" href="/credits">Get more credits →</a>
+  </div>
   {% elif flash_error == "owned" %}
-  <div class="mfg-flash mfg-flash-error">You already own this format.</div>
+  <div class="mfg-flash mfg-flash-error">
+    You already own this.
+    <a class="mfg-flash-cta" href="/shop/cards/welcome">Browse Welcome Cards →</a>
+  </div>
   {% elif flash_error == "invalid" %}
-  <div class="mfg-flash mfg-flash-error">Unknown format.</div>
+  <div class="mfg-flash mfg-flash-error">
+    This product is no longer available.
+    <a class="mfg-flash-cta" href="/shop/cards">Back to shop →</a>
+  </div>
   {% endif %}
 
   {% if format_rows %}
@@ -122,7 +131,12 @@
     {% for r in format_rows %}
     <div class="mfg-card">
 
-      <div class="mfg-preview-wrap">
+      <div class="mfg-preview-wrap
+        {% if r.preview_platform in ('instagram_story', 'tiktok') %}mfg-ratio-916
+        {% elif r.preview_platform == 'instagram_portrait' %}mfg-ratio-45
+        {% elif r.preview_platform in ('instagram_square', 'facebook_square') %}mfg-ratio-11
+        {% elif r.preview_platform in ('facebook_landscape', 'banner_custom') %}mfg-ratio-169
+        {% endif %}">
         <iframe
           class="mfg-preview-iframe"
           src="{{ r.preview_url }}"

@@ -97,16 +97,26 @@
 
   {# ── Flash messages ── #}
   {% if flash_purchased %}
+  {% set _pl = (design_rows | selectattr('id', 'equalto', flash_purchased) | map(attribute='label') | first) %}
   <div class="mfg-flash mfg-flash-success">
-    ✓ Design unlocked — {{ flash_purchased }} is now in your collection.
+    ✓ Design unlocked — {{ _pl or flash_purchased }} is now in your collection.
   </div>
   {% endif %}
   {% if flash_error == "credits" %}
-  <div class="mfg-flash mfg-flash-error">Not enough credits to purchase this design.</div>
+  <div class="mfg-flash mfg-flash-error">
+    Not enough credits.
+    <a class="mfg-flash-cta" href="/credits">Get more credits →</a>
+  </div>
   {% elif flash_error == "owned" %}
-  <div class="mfg-flash mfg-flash-error">You already own this design.</div>
+  <div class="mfg-flash mfg-flash-error">
+    You already own this.
+    <a class="mfg-flash-cta" href="/shop/cards/player">Browse Player Cards →</a>
+  </div>
   {% elif flash_error == "invalid" %}
-  <div class="mfg-flash mfg-flash-error">Unknown card type or design.</div>
+  <div class="mfg-flash mfg-flash-error">
+    This product is no longer available.
+    <a class="mfg-flash-cta" href="/shop/cards">Back to shop →</a>
+  </div>
   {% endif %}
 
   {% if design_rows %}
@@ -140,7 +150,7 @@
       <span class="mfg-badge mfg-badge-owned">Owned ✓</span>
 
       <div class="mfg-cta">
-        <a href="/dashboard/lfa-football-player/card-editor" class="mfg-btn mfg-btn-edit mfg-btn-download">Edit / Download</a>
+        <a href="/dashboard/lfa-football-player/card-editor" class="mfg-btn mfg-btn-edit">Open Editor →</a>
       </div>
 
     </div>
