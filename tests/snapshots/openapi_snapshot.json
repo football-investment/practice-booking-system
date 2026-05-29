@@ -22014,6 +22014,24 @@
         "title": "XPResponse",
         "type": "object"
       },
+      "_CardColorUnlockRequest": {
+        "properties": {
+          "card_type_id": {
+            "title": "Card Type Id",
+            "type": "string"
+          },
+          "color_id": {
+            "title": "Color Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_type_id",
+          "color_id"
+        ],
+        "title": "_CardColorUnlockRequest",
+        "type": "object"
+      },
       "_CardPlatformRequest": {
         "properties": {
           "platform": {
@@ -61489,9 +61507,49 @@
         ]
       }
     },
+    "/dashboard/unlock-color": {
+      "post": {
+        "description": "Unlock a premium card color pack for a specific card family (TS-1).\n\nWrites to card_color_ownership (family-aware, new ownership model).\nSupports card_type_id='player_card' only in TS-1; other families return 422.\nIdempotent: already-owned colors return ok=True with already_owned=True and\ncredits_charged=0 \u2014 no double deduction possible.",
+        "operationId": "student_unlock_color_dashboard_unlock_color_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_CardColorUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Student Unlock Color",
+        "tags": [
+          "web"
+        ]
+      }
+    },
     "/dashboard/unlock-theme": {
       "post": {
-        "description": "Unlock a premium card theme by spending credits.",
+        "description": "Unlock a premium card theme by spending credits.\n\nLEGACY endpoint \u2014 writes to user_licenses.unlocked_card_themes JSON.\nKept for backward compatibility. New purchases use /dashboard/unlock-color.",
         "operationId": "student_unlock_theme_dashboard_unlock_theme_post",
         "requestBody": {
           "content": {
@@ -64890,6 +64948,29 @@
           }
         },
         "summary": "Shop Player Card",
+        "tags": [
+          "web",
+          "shop"
+        ]
+      }
+    },
+    "/shop/cards/player/colors": {
+      "get": {
+        "description": "Player Card Color Shop \u2014 browse and unlock premium color packs (TS-1).",
+        "operationId": "shop_player_card_colors_shop_cards_player_colors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Shop Player Card Colors",
         "tags": [
           "web",
           "shop"
