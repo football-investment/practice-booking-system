@@ -59851,6 +59851,29 @@
         ]
       }
     },
+    "/card-editor": {
+      "get": {
+        "description": "Card Studio landing \u2014 family picker entry point (CE-3.1).\n\nShows owned-design counts for all three card families and routes the user\nto the appropriate editor or shop.  No family-specific license guard here;\neach family editor enforces its own guard.",
+        "operationId": "card_studio_landing_card_editor_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Card Studio Landing",
+        "tags": [
+          "web",
+          "card-editor"
+        ]
+      }
+    },
     "/card-editor/player": {
       "get": {
         "description": "Player Card editor \u2014 canonical route (CE-1).  Old URL redirects here.",
