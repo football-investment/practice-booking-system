@@ -31,6 +31,7 @@ from ...models.coupon import Coupon
 from ...utils.age_requirements import get_available_specializations
 from .helpers import get_lfa_age_category
 from ...services.skill_progression import get_all_skill_keys
+from ...models.user_mood_photos import MOOD_PHOTO_SLOTS, UserMoodPhoto
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -1276,6 +1277,10 @@ class _HighlightVideoRequest(_BaseModel):
     video_url: str
 
 
+class _WcFromMoodRequest(_BaseModel):
+    mood_slot: str
+
+
 def _get_lfa_license(db, user_id: int):
     """Return the active LFA Football Player license, or None."""
     return db.query(UserLicense).filter(
@@ -1283,6 +1288,68 @@ def _get_lfa_license(db, user_id: int):
         UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
         UserLicense.is_active == True,
     ).first()
+
+
+# ── WC PHOTO — ASSIGN FROM MOOD LIBRARY (CE-3.8) ────────────────────────────
+# URL-copy: the selected mood photo's original_url is written directly to the
+# corresponding wc_photo_* field on UserLicense.  No FK reference stored; no
+# new file created; processed_png_url is never used here.
+
+@router.post("/dashboard/wc-photo/from-mood")
+async def student_assign_wc_photo_from_mood(
+    payload: _WcFromMoodRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    if payload.mood_slot not in MOOD_PHOTO_SLOTS:
+        return JSONResponse({"ok": False, "error": "Unknown mood slot"}, status_code=422)
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    mood_photo = db.query(UserMoodPhoto).filter_by(user_id=user.id, slot=payload.mood_slot).first()
+    if not mood_photo:
+        return JSONResponse({"ok": False, "error": "Mood photo not found"}, status_code=404)
+    lfa_license.wc_photo_url = mood_photo.original_url
+    db.commit()
+    return JSONResponse({"ok": True, "photo_url": mood_photo.original_url})
+
+
+@router.post("/dashboard/wc-photo-portrait/from-mood")
+async def student_assign_wc_portrait_photo_from_mood(
+    payload: _WcFromMoodRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    if payload.mood_slot not in MOOD_PHOTO_SLOTS:
+        return JSONResponse({"ok": False, "error": "Unknown mood slot"}, status_code=422)
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    mood_photo = db.query(UserMoodPhoto).filter_by(user_id=user.id, slot=payload.mood_slot).first()
+    if not mood_photo:
+        return JSONResponse({"ok": False, "error": "Mood photo not found"}, status_code=404)
+    lfa_license.wc_photo_portrait_url = mood_photo.original_url
+    db.commit()
+    return JSONResponse({"ok": True, "photo_url": mood_photo.original_url})
+
+
+@router.post("/dashboard/wc-photo-landscape/from-mood")
+async def student_assign_wc_landscape_photo_from_mood(
+    payload: _WcFromMoodRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user_web),
+):
+    if payload.mood_slot not in MOOD_PHOTO_SLOTS:
+        return JSONResponse({"ok": False, "error": "Unknown mood slot"}, status_code=422)
+    lfa_license = _get_lfa_license(db, user.id)
+    if not lfa_license:
+        return JSONResponse({"ok": False, "error": "Nincs aktív LFA Football Player licensz"}, status_code=404)
+    mood_photo = db.query(UserMoodPhoto).filter_by(user_id=user.id, slot=payload.mood_slot).first()
+    if not mood_photo:
+        return JSONResponse({"ok": False, "error": "Mood photo not found"}, status_code=404)
+    lfa_license.wc_photo_landscape_url = mood_photo.original_url
+    db.commit()
+    return JSONResponse({"ok": True, "photo_url": mood_photo.original_url})
 
 
 @router.post("/dashboard/card-theme")
