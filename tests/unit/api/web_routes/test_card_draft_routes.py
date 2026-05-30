@@ -101,7 +101,7 @@ class TestCardEditorGetContext:
              patch("app.services.card_constants.CANVAS_SIZES", {}), \
              patch("app.services.card_constants.CARD_EDITOR_PLATFORM_IDS", []), \
              patch("app.services.highlight_video_service.build_youtube_embed_url", return_value=None):
-            MockCDS.get_player_card_draft.return_value = draft
+            MockCDS.get_draft.return_value = draft
             mock_tpl.TemplateResponse.side_effect = fake_template_response
 
             # Patch the DB query chain so license lookup works

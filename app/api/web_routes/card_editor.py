@@ -1,6 +1,7 @@
 """Card Editor routes — family-specific customizer/export pages.
 
-Phase WCE-1: Welcome Card Customizer (preview + export wrapper, no draft).
+Phase WCE-1:  Welcome Card Customizer (preview + export wrapper, no draft).
+Phase CE-3.1: Card Studio landing — /card-editor entry point.
 Future: /card-editor/player/{collection_id}, /card-editor/challenge/{id}
 """
 from pathlib import Path
@@ -15,7 +16,9 @@ from ...dependencies import get_current_user_web
 from ...models.user import User, UserRole
 from ...models.license import UserLicense
 from ...services.card_design_service import (
+    CHALLENGE_CARD_FORMATS,
     WELCOME_CARD_FORMATS,
+    get_owned_design_ids,
     is_design_accessible,
 )
 
@@ -37,6 +40,53 @@ _WC_RATIO: dict[str, str] = {
     "facebook_landscape":  "mfg-ratio-169",
     "banner_custom":       "mfg-ratio-169",
 }
+
+# Valid design-ID sets for WC / CC (used in landing ownership count)
+_WC_VALID_IDS: frozenset[str] = frozenset(f.design_id for f in WELCOME_CARD_FORMATS)
+_CC_VALID_IDS: frozenset[str] = frozenset(f.design_id for f in CHALLENGE_CARD_FORMATS)
+
+
+# ── Card Studio Landing ───────────────────────────────────────────────────────
+
+@router.get("/card-editor", response_class=HTMLResponse)
+async def card_studio_landing(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User  = Depends(get_current_user_web),
+):
+    """Card Studio landing — family picker entry point (CE-3.1).
+
+    Shows owned-design counts for all three card families and routes the user
+    to the appropriate editor or shop.  No family-specific license guard here;
+    each family editor enforces its own guard.
+    """
+    pc_owned_count = len(get_owned_design_ids(db, user.id, "player_card"))
+
+    wc_owned_count = len(
+        set(get_owned_design_ids(db, user.id, "welcome_card")) & _WC_VALID_IDS
+    )
+    cc_owned_count = len(
+        set(get_owned_design_ids(db, user.id, "challenge_card")) & _CC_VALID_IDS
+    )
+
+    any_owned = pc_owned_count > 0 or wc_owned_count > 0 or cc_owned_count > 0
+
+    return templates.TemplateResponse(
+        "card_studio_landing.html",
+        {
+            "request":         request,
+            "user":            user,
+            "pc_owned_count":  pc_owned_count,
+            "wc_owned_count":  wc_owned_count,
+            "cc_owned_count":  cc_owned_count,
+            "any_owned":       any_owned,
+            # Standard LFA spec nav context (used by spec_subpage_hdr.html)
+            "spec_dashboard_url":  "/dashboard/lfa-football-player",
+            "spec_dashboard_icon": "⚽",
+            "spec_profile_url":    "/profile/lfa-football-player",
+            "spec_profile_icon":   "🪪",
+        },
+    )
 
 
 # ── Welcome Card Customizer ───────────────────────────────────────────────────

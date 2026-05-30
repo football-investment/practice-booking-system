@@ -355,6 +355,7 @@ async def lfa_player_card_editor(
 ):
     """Player Card editor — canonical route (CE-1).  Old URL redirects here."""
     spec_enum = "LFA_FOOTBALL_PLAYER"
+    _FAMILY   = "player_card"           # CE-3.1: consolidated for family-aware prep
 
     # Same license guard as spec_dashboard
     user_license = db.query(UserLicense).filter(
@@ -383,15 +384,15 @@ async def lfa_player_card_editor(
     credit_balance = user.credit_balance if hasattr(user, "credit_balance") else 0
 
     # Load (or create) the singleton card draft — single source of truth after 4D-2
-    card_draft = _CardDraftService.get_player_card_draft(db, user.id)
+    card_draft = _CardDraftService.get_draft(db, user.id, _FAMILY)
 
     # Card color picker data — family-aware ownership (TS-1, card_color_service)
     from ...services.card_color_service import (  # noqa: E402
         get_colors_for_family as _get_colors_for_family,
         get_owned_color_ids as _get_owned_color_ids,
     )
-    _raw_colors   = _get_colors_for_family("player_card")
-    _owned_colors = _get_owned_color_ids(db, user.id, "player_card")
+    _raw_colors   = _get_colors_for_family(_FAMILY)
+    _owned_colors = _get_owned_color_ids(db, user.id, _FAMILY)
     card_themes = [
         {
             "id":          c.id,
@@ -426,14 +427,14 @@ async def lfa_player_card_editor(
             "is_premium": v.is_premium,
             "credit_cost": v.credit_cost,
             "available": v.available,
-            "unlocked": _is_design_accessible(db, user.id, "player_card", v.id),
+            "unlocked": _is_design_accessible(db, user.id, _FAMILY, v.id),
         }
         for v in _get_all_variants()
     ]
     # CE-2: owned-only — no purchase affordance in editor (CE-2 policy)
     card_variants = [v for v in card_variants if v["unlocked"]]
     active_card_variant  = card_draft.draft_variant
-    active_variant_owned = _is_design_accessible(db, user.id, "player_card", active_card_variant)
+    active_variant_owned = _is_design_accessible(db, user.id, _FAMILY, active_card_variant)
     # CE-2: render-time fallback — if draft points to unowned design, use first owned
     # Does NOT write to DB; user explicit tile-click will persist the change.
     if not active_variant_owned and card_variants:
