@@ -335,6 +335,8 @@
     <p id="wcs-photo-error" class="wcs-photo-error"></p>
 
     {# ── Mood Photo Library picker (CE-3.8) ── #}
+    {# mood_photos is passed by card_studio_welcome handler; guard against stale server state #}
+    {% set mood_photos = mood_photos if mood_photos is defined else {} %}
     <div class="wcs-mood-picker">
       <p class="wcs-mood-picker-label">Pick from Mood Library</p>
       {% set _ns = namespace(has_any=false) %}
