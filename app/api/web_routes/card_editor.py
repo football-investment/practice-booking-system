@@ -23,6 +23,7 @@ from ...services.card_design_service import (
     get_owned_design_ids,
     is_design_accessible,
 )
+from ...services.mood_photo_service import get_mood_photos_for_user
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -160,6 +161,8 @@ async def card_studio_welcome(
         for f in owned_formats_ordered
     ]
 
+    mood_photos = get_mood_photos_for_user(user.id, db)
+
     return templates.TemplateResponse(
         "card_studio_welcome.html",
         {
@@ -176,6 +179,8 @@ async def card_studio_welcome(
             "wc_photo_url":          license.wc_photo_url,
             "wc_photo_portrait_url": license.wc_photo_portrait_url,
             "wc_photo_landscape_url": license.wc_photo_landscape_url,
+            # Mood Photo Library — all 6 slots for the picker (CE-3.8).
+            "mood_photos":           mood_photos,
             "spec_dashboard_url":  "/dashboard/lfa-football-player",
             "spec_dashboard_icon": "⚽",
             "spec_profile_url":    "/profile/lfa-football-player",

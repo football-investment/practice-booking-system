@@ -171,6 +171,53 @@
   .wcs-btn-delete:hover { border-color: #ef4444; color: #ef4444; }
   .wcs-photo-error { font-size: 0.8rem; color: #f87171; margin-top: 0.5rem; display: none; }
 
+  /* ── Mood Photo Picker (CE-3.8) ── */
+  .wcs-mood-picker {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #1e293b;
+  }
+  .wcs-mood-picker-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #475569;
+    margin: 0 0 0.6rem;
+  }
+  .wcs-mood-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .wcs-mood-thumb {
+    background: #0b1120;
+    border: 1px solid #334155;
+    border-radius: 7px;
+    cursor: pointer;
+    padding: 0.3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    transition: border-color 0.15s;
+    width: 68px;
+  }
+  .wcs-mood-thumb:hover { border-color: #FFD200; }
+  .wcs-mood-img {
+    width: 56px; height: 56px;
+    object-fit: cover; border-radius: 5px; display: block;
+  }
+  .wcs-mood-label {
+    font-size: 0.6rem; color: #64748b;
+    text-align: center; line-height: 1.2;
+    max-width: 60px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .wcs-mood-empty { font-size: 0.8rem; color: #475569; margin: 0; }
+  .wcs-mood-upload-link { color: #FFD200; text-decoration: none; font-weight: 600; }
+  .wcs-mood-upload-link:hover { text-decoration: underline; }
+
 </style>
 {% endblock %}
 
@@ -238,25 +285,29 @@
     {% set _wcs_photo_current = wc_photo_portrait_url %}
     {% set _wcs_upload_url    = '/dashboard/wc-photo-portrait' %}
     {% set _wcs_delete_url    = '/dashboard/wc-photo-portrait/delete' %}
+    {% set _wcs_assign_url    = '/dashboard/wc-photo-portrait/from-mood' %}
     {% set _wcs_slot_label    = 'Portrait Photo' %}
     {% set _wcs_slot_hint     = 'Used for portrait and Story formats (1080 × 1920, 1080 × 1350).' %}
   {% elif active_format in ('facebook_landscape', 'banner_custom') %}
     {% set _wcs_photo_current = wc_photo_landscape_url %}
     {% set _wcs_upload_url    = '/dashboard/wc-photo-landscape' %}
     {% set _wcs_delete_url    = '/dashboard/wc-photo-landscape/delete' %}
+    {% set _wcs_assign_url    = '/dashboard/wc-photo-landscape/from-mood' %}
     {% set _wcs_slot_label    = 'Landscape Photo' %}
     {% set _wcs_slot_hint     = 'Used for landscape and banner formats (1200 × 630, 1500 × 500).' %}
   {% else %}
     {% set _wcs_photo_current = wc_photo_url %}
     {% set _wcs_upload_url    = '/dashboard/wc-photo' %}
     {% set _wcs_delete_url    = '/dashboard/wc-photo/delete' %}
+    {% set _wcs_assign_url    = '/dashboard/wc-photo/from-mood' %}
     {% set _wcs_slot_label    = 'Welcome Photo' %}
     {% set _wcs_slot_hint     = 'Used for square and default formats (1080 × 1080).' %}
   {% endif %}
 
   <div class="wcs-photo-panel"
        data-upload-url="{{ _wcs_upload_url }}"
-       data-delete-url="{{ _wcs_delete_url }}">
+       data-delete-url="{{ _wcs_delete_url }}"
+       data-assign-url="{{ _wcs_assign_url }}">
 
     <p class="wcs-photo-title">{{ _wcs_slot_label }}</p>
     <p class="wcs-photo-sub">{{ _wcs_slot_hint }}</p>
@@ -282,6 +333,33 @@
       </button>
     </div>
     <p id="wcs-photo-error" class="wcs-photo-error"></p>
+
+    {# ── Mood Photo Library picker (CE-3.8) ── #}
+    <div class="wcs-mood-picker">
+      <p class="wcs-mood-picker-label">Pick from Mood Library</p>
+      {% set _ns = namespace(has_any=false) %}
+      {% for _slot, _photo in mood_photos.items() %}
+        {% if _photo and _photo.original_url %}{% set _ns.has_any = true %}{% endif %}
+      {% endfor %}
+      {% if _ns.has_any %}
+      <div class="wcs-mood-grid" id="wcs-mood-grid">
+        {% for _slot, _photo in mood_photos.items() %}
+          {% if _photo and _photo.original_url %}
+          <button class="wcs-mood-thumb" type="button"
+                  data-mood-slot="{{ _slot }}"
+                  title="{{ _slot | replace('mood_', '') | replace('_', ' ') | title }}">
+            <img src="{{ _photo.original_url }}" alt="{{ _slot }}" class="wcs-mood-img">
+            <span class="wcs-mood-label">{{ _slot | replace('mood_', '') | replace('_', ' ') | title }}</span>
+          </button>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="wcs-mood-empty">No mood photos yet.
+        <a href="/profile/my-mood-photos" class="wcs-mood-upload-link">Upload →</a>
+      </p>
+      {% endif %}
+    </div>
   </div>
 
   {# ── Navigation ── #}
@@ -298,6 +376,7 @@
   if (!panel) return;
   var uploadUrl  = panel.dataset.uploadUrl;
   var deleteUrl  = panel.dataset.deleteUrl;
+  var assignUrl  = panel.dataset.assignUrl;
   var iframe     = document.getElementById('wcs-preview-iframe');
   var input      = document.getElementById('wcs-photo-input');
   var currentImg = document.getElementById('wcs-current-photo');
@@ -374,6 +453,31 @@
         });
     });
   }
+  document.querySelectorAll('.wcs-mood-thumb').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var moodSlot = btn.dataset.moodSlot;
+      var csrf = _csrf();
+      if (!csrf) { _showError('Session expired — please reload the page.'); return; }
+      _clearError();
+      fetch(assignUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({ mood_slot: moodSlot }),
+      })
+        .then(function (r) {
+          if (r.status === 403) { return Promise.reject(new Error('csrf')); }
+          return r.json();
+        })
+        .then(function (data) {
+          if (data.ok) { _showPhoto(data.photo_url); _reloadPreview(); }
+          else { _showError(data.error || 'Could not assign mood photo. Please try again.'); }
+        })
+        .catch(function (err) {
+          if (err && err.message === 'csrf') { _showError('Session expired — please reload the page.'); }
+          else { _showError('Could not assign mood photo. Please try again.'); }
+        });
+    });
+  });
 })();
 </script>
 {% endblock %}

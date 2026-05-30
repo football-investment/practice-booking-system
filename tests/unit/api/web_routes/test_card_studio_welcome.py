@@ -39,6 +39,21 @@ CEW-33  template reads csrf_token cookie to obtain CSRF token (CE-3.7 CSRF fix)
 CEW-34  upload fetch() block carries X-CSRF-Token header (CE-3.7 CSRF fix)
 CEW-35  delete fetch() block carries X-CSRF-Token header (CE-3.7 CSRF fix)
 CEW-36  upload FormData fetch has no explicit Content-Type header (CE-3.7 CSRF fix)
+CEW-37  card_studio_welcome context contains mood_photos key (CE-3.8)
+CEW-38  mood_photos dict contains all 6 MOOD_PHOTO_SLOTS keys (CE-3.8)
+CEW-39  GET /dashboard/wc-photo/from-mood is not a registered GET route (CE-3.8)
+CEW-40  POST /dashboard/wc-photo/from-mood valid mood_slot → ok + photo_url (CE-3.8)
+CEW-41  POST /dashboard/wc-photo/from-mood invalid mood_slot → 422 (CE-3.8)
+CEW-42  POST /dashboard/wc-photo/from-mood mood photo not found → 404 (CE-3.8)
+CEW-43  portrait and landscape from-mood endpoints assign correct license fields (CE-3.8)
+CEW-44  template contains Mood Photo picker UI element (CE-3.8)
+CEW-45  template references all three /from-mood routes (CE-3.8)
+CEW-46  template contains link to /profile/my-mood-photos (CE-3.8)
+CEW-47  route count = 842 (CE-3.8 +3 routes)
+CEW-48  assign JS fetch carries X-CSRF-Token header (CE-3.8)
+CEW-49  assign JS missing CSRF guard present (CE-3.8)
+CEW-50  template does NOT contain BG removal reference (CE-3.8 scope guard)
+CEW-51  template does NOT use processed_png_url (CE-3.8 scope guard)
 """
 from __future__ import annotations
 
@@ -49,8 +64,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.services.card_design_service import WELCOME_CARD_FORMATS
+from app.models.user_mood_photos import MOOD_PHOTO_SLOTS
 
 _CE_BASE = "app.api.web_routes.card_editor"
+
+# Default mood_photos stub: all 6 slots empty (no photos uploaded).
+_EMPTY_MOOD_PHOTOS: dict = {slot: None for slot in MOOD_PHOTO_SLOTS}
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[4] / "app" / "templates"
 
@@ -92,6 +111,7 @@ def _invoke_welcome(
     owned_ids: list[str],
     license_obj=None,
     user_obj=None,
+    mood_photos: dict | None = None,
 ) -> tuple[MagicMock, dict, MagicMock]:
     """
     Call card_studio_welcome and return (response, context, mock_cds).
@@ -108,7 +128,9 @@ def _invoke_welcome(
         captured["context"] = ctx
         return MagicMock(status_code=200)
 
+    _mp = mood_photos if mood_photos is not None else _EMPTY_MOOD_PHOTOS
     with patch(f"{_CE_BASE}.get_owned_design_ids", return_value=owned_ids), \
+         patch(f"{_CE_BASE}.get_mood_photos_for_user", return_value=_mp), \
          patch(f"{_CE_BASE}.templates") as mock_tpl:
         mock_tpl.TemplateResponse.side_effect = _fake_tmpl
 
@@ -496,11 +518,11 @@ class TestCEW17WCE1Unchanged:
 class TestCEW18RouteCount:
 
     def test_cew_18_route_count_838(self):
-        """CEW-18: adding GET /card-editor/welcome raises route count from 837 to 838."""
+        """CEW-18: route count baseline check (updated by CE-3.8 to 842)."""
         from app.main import app
         paths = app.openapi().get("paths", {})
-        assert len(paths) == 839, (
-            f"Expected 839 routes (837 CE-3.2 baseline + GET /card-editor/welcome + GET /card-editor/challenge), got {len(paths)}."
+        assert len(paths) == 842, (
+            f"Expected 842 routes (839 CE-3.7 baseline + 3 from-mood endpoints), got {len(paths)}."
         )
 
     def test_cew_18b_card_editor_welcome_route_registered(self):
@@ -605,11 +627,13 @@ class TestCEW29to31TemplateGuards:
         assert "rembg" not in src.lower()
         assert "background removal" not in src.lower()
 
-    def test_cew_31_template_has_no_mood_photo(self):
-        """CEW-31: template must not reference mood photo picker."""
+    def test_cew_31_template_has_no_mood_photo_upload_in_studio(self):
+        """CEW-31 (updated CE-3.8): Studio shows mood picker but no in-Studio upload routes."""
         src = self._src()
-        assert "mood_photo" not in src.lower()
-        assert "mood-photo" not in src.lower()
+        # CE-3.8 intentionally adds wcs-mood-picker — mood_photos IS in the template.
+        # What must NOT be present: Studio-side mood photo upload/delete management.
+        assert "my-mood-photos/upload" not in src
+        assert "my-mood-photos/delete" not in src
 
 
 # ── CEW-32–36: CSRF fix coverage (CE-3.7 CSRF fix) ──────────────────────────
@@ -669,3 +693,216 @@ class TestCEW32to36CsrfFix:
             "Upload fetch() must not set explicit Content-Type — "
             "browser sets multipart/form-data with boundary automatically"
         )
+
+
+# ── CEW-37–51: Mood Photo Picker / Media Library (CE-3.8) ────────────────────
+
+_MOCK_MOOD_PHOTO_URL = "/static/uploads/mood_photos/42_mood_happy_smile_orig_1234.png"
+
+
+def _make_mood_photo(slot: str, url: str = _MOCK_MOOD_PHOTO_URL):
+    mp = MagicMock()
+    mp.slot         = slot
+    mp.original_url = url
+    mp.status       = "uploaded"
+    return mp
+
+
+class TestCEW37to38MoodPhotosContext:
+
+    def test_cew_37_context_has_mood_photos_key(self):
+        """CEW-37: card_studio_welcome context contains mood_photos key."""
+        _, ctx, _ = _invoke_welcome(_FIRST_ID, owned_ids=[_FIRST_ID])
+        assert "mood_photos" in ctx, "context must contain mood_photos key"
+
+    def test_cew_38_mood_photos_has_all_6_slots(self):
+        """CEW-38: mood_photos dict contains all 6 MOOD_PHOTO_SLOTS keys."""
+        _, ctx, _ = _invoke_welcome(_FIRST_ID, owned_ids=[_FIRST_ID])
+        mp = ctx.get("mood_photos", {})
+        assert set(mp.keys()) == MOOD_PHOTO_SLOTS, (
+            f"mood_photos must contain all 6 MOOD_PHOTO_SLOTS. Got: {set(mp.keys())}"
+        )
+
+    def test_cew_38b_mood_photos_values_reflect_passed_data(self):
+        """CEW-38b: mood_photos values come from get_mood_photos_for_user."""
+        mock_mp = _make_mood_photo("mood_happy_smile")
+        mood = {slot: None for slot in MOOD_PHOTO_SLOTS}
+        mood["mood_happy_smile"] = mock_mp
+        _, ctx, _ = _invoke_welcome(_FIRST_ID, owned_ids=[_FIRST_ID], mood_photos=mood)
+        assert ctx["mood_photos"]["mood_happy_smile"] is mock_mp
+
+
+class TestCEW39to43FromMoodEndpoints:
+
+    def test_cew_39_get_from_mood_not_registered(self):
+        """CEW-39: GET /dashboard/wc-photo/from-mood is not a registered GET route."""
+        from app.main import app
+        get_routes = [
+            r.path for r in app.routes
+            if getattr(r, "path", None) == "/dashboard/wc-photo/from-mood"
+            and "GET" in getattr(r, "methods", set())
+        ]
+        assert not get_routes, "GET /dashboard/wc-photo/from-mood must not be registered"
+
+    def test_cew_39b_post_from_mood_is_registered(self):
+        """CEW-39b: POST /dashboard/wc-photo/from-mood IS registered."""
+        from app.main import app
+        post_routes = [
+            r.path for r in app.routes
+            if getattr(r, "path", None) == "/dashboard/wc-photo/from-mood"
+            and "POST" in getattr(r, "methods", set())
+        ]
+        assert post_routes, "POST /dashboard/wc-photo/from-mood must be registered"
+
+    def test_cew_40_valid_mood_slot_assigns_wc_photo_url(self):
+        """CEW-40: POST /dashboard/wc-photo/from-mood valid mood_slot → ok + photo_url."""
+        from app.api.web_routes.dashboard import (
+            student_assign_wc_photo_from_mood,
+            _WcFromMoodRequest,
+        )
+        user = _user()
+        lfa_license = MagicMock()
+        lfa_license.wc_photo_url = None
+        mood_photo = _make_mood_photo("mood_happy_smile")
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = lfa_license
+        db.query.return_value.filter_by.return_value.first.return_value = mood_photo
+
+        payload = _WcFromMoodRequest(mood_slot="mood_happy_smile")
+        resp = _run(student_assign_wc_photo_from_mood(payload=payload, db=db, user=user))
+
+        assert resp.status_code == 200
+        import json
+        body = json.loads(resp.body)
+        assert body["ok"] is True
+        assert body["photo_url"] == _MOCK_MOOD_PHOTO_URL
+        assert lfa_license.wc_photo_url == _MOCK_MOOD_PHOTO_URL
+
+    def test_cew_41_invalid_mood_slot_returns_422(self):
+        """CEW-41: POST /dashboard/wc-photo/from-mood unknown mood_slot → 422."""
+        from app.api.web_routes.dashboard import (
+            student_assign_wc_photo_from_mood,
+            _WcFromMoodRequest,
+        )
+        user = _user()
+        db = MagicMock()
+        payload = _WcFromMoodRequest(mood_slot="totally_invalid_slot")
+        resp = _run(student_assign_wc_photo_from_mood(payload=payload, db=db, user=user))
+        assert resp.status_code == 422
+
+    def test_cew_42_mood_photo_not_found_returns_404(self):
+        """CEW-42: POST /dashboard/wc-photo/from-mood mood photo not in DB → 404."""
+        from app.api.web_routes.dashboard import (
+            student_assign_wc_photo_from_mood,
+            _WcFromMoodRequest,
+        )
+        user = _user()
+        lfa_license = MagicMock()
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = lfa_license
+        db.query.return_value.filter_by.return_value.first.return_value = None
+
+        payload = _WcFromMoodRequest(mood_slot="mood_happy_smile")
+        resp = _run(student_assign_wc_photo_from_mood(payload=payload, db=db, user=user))
+        assert resp.status_code == 404
+
+    def test_cew_43_portrait_endpoint_assigns_portrait_url(self):
+        """CEW-43a: portrait from-mood endpoint writes to wc_photo_portrait_url."""
+        from app.api.web_routes.dashboard import (
+            student_assign_wc_portrait_photo_from_mood,
+            _WcFromMoodRequest,
+        )
+        user = _user()
+        lfa_license = MagicMock()
+        lfa_license.wc_photo_portrait_url = None
+        mood_photo = _make_mood_photo("mood_celebration")
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = lfa_license
+        db.query.return_value.filter_by.return_value.first.return_value = mood_photo
+
+        payload = _WcFromMoodRequest(mood_slot="mood_celebration")
+        _run(student_assign_wc_portrait_photo_from_mood(payload=payload, db=db, user=user))
+        assert lfa_license.wc_photo_portrait_url == _MOCK_MOOD_PHOTO_URL
+
+    def test_cew_43b_landscape_endpoint_assigns_landscape_url(self):
+        """CEW-43b: landscape from-mood endpoint writes to wc_photo_landscape_url."""
+        from app.api.web_routes.dashboard import (
+            student_assign_wc_landscape_photo_from_mood,
+            _WcFromMoodRequest,
+        )
+        user = _user()
+        lfa_license = MagicMock()
+        lfa_license.wc_photo_landscape_url = None
+        mood_photo = _make_mood_photo("mood_sad_disappointed")
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = lfa_license
+        db.query.return_value.filter_by.return_value.first.return_value = mood_photo
+
+        payload = _WcFromMoodRequest(mood_slot="mood_sad_disappointed")
+        _run(student_assign_wc_landscape_photo_from_mood(payload=payload, db=db, user=user))
+        assert lfa_license.wc_photo_landscape_url == _MOCK_MOOD_PHOTO_URL
+
+
+class TestCEW44to51TemplateMoodPicker:
+
+    @classmethod
+    def _src(cls) -> str:
+        return (TEMPLATES_DIR / "card_studio_welcome.html").read_text(encoding="utf-8")
+
+    @classmethod
+    def _assign_section(cls) -> str:
+        src = cls._src()
+        start = src.find("wcs-mood-thumb")
+        return src[start:] if start != -1 else ""
+
+    def test_cew_44_template_has_mood_picker_element(self):
+        """CEW-44: template contains Mood Photo picker UI element."""
+        src = self._src()
+        assert "wcs-mood-picker" in src, "template must contain wcs-mood-picker element"
+        assert "wcs-mood-thumb" in src, "template must contain wcs-mood-thumb buttons"
+
+    def test_cew_45_template_references_all_three_from_mood_routes(self):
+        """CEW-45: template references all three /from-mood routes."""
+        src = self._src()
+        assert "/dashboard/wc-photo/from-mood" in src
+        assert "/dashboard/wc-photo-portrait/from-mood" in src
+        assert "/dashboard/wc-photo-landscape/from-mood" in src
+
+    def test_cew_46_template_has_link_to_mood_photos_page(self):
+        """CEW-46: template contains link to /profile/my-mood-photos."""
+        assert "/profile/my-mood-photos" in self._src()
+
+    def test_cew_47_route_count_842(self):
+        """CEW-47: CE-3.8 adds 3 from-mood routes → total 842."""
+        from app.main import app
+        paths = app.openapi().get("paths", {})
+        assert len(paths) == 842, (
+            f"Expected 842 routes (839 + 3 from-mood), got {len(paths)}"
+        )
+
+    def test_cew_48_assign_js_has_csrf_header(self):
+        """CEW-48: mood picker assign fetch() carries X-CSRF-Token header."""
+        src = self._src()
+        assign_section = src[src.find("assignUrl"):] if "assignUrl" in src else ""
+        assert "'X-CSRF-Token'" in assign_section or '"X-CSRF-Token"' in assign_section, (
+            "Mood picker assign fetch() must include X-CSRF-Token header"
+        )
+
+    def test_cew_49_assign_js_has_missing_csrf_guard(self):
+        """CEW-49: assign JS checks for missing CSRF token before sending request."""
+        src = self._src()
+        assert "!csrf" in src, "assign JS must guard against missing CSRF token"
+
+    def test_cew_50_template_has_no_bg_removal(self):
+        """CEW-50: template must not reference BG removal (scope guard)."""
+        src = self._src()
+        assert "bg_removal" not in src.lower()
+        assert "rembg" not in src.lower()
+        assert "background removal" not in src.lower()
+
+    def test_cew_51_template_does_not_use_processed_png_url(self):
+        """CEW-51: template must not reference processed_png_url (scope guard)."""
+        assert "processed_png_url" not in self._src()
