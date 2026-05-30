@@ -50,7 +50,7 @@ def reset_cache():
 
 def _make_row(
     id="fifa",
-    label="FIFA Classic",
+    label="FClassic Player",
     description="Test description",
     is_premium=False,
     credit_cost=0,
@@ -95,7 +95,7 @@ def test_cd01_designs_has_7_expected_ids():
 def test_cd02_get_design_fifa_fields():
     d = get_design("fifa")
     assert d.id == "fifa"
-    assert d.label == "FIFA Classic"
+    assert d.label == "FClassic Player"
     assert d.is_premium is True
     assert d.credit_cost == 300
     assert d.template == "public/player_card_fifa.html"

@@ -42,7 +42,7 @@ def _make_cs5_portrait_def():
     from app.services.card_design_service import CardDesignDefinition
     return CardDesignDefinition(
         id="fifa",
-        label="FIFA Classic",
+        label="FClassic Player",
         description="",
         is_premium=False,
         credit_cost=0,
@@ -82,7 +82,7 @@ def _make_old_portrait_def():
     from app.services.card_design_service import CardDesignDefinition
     return CardDesignDefinition(
         id="fifa",
-        label="FIFA Classic",
+        label="FClassic Player",
         description="",
         is_premium=False,
         credit_cost=0,

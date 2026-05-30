@@ -197,7 +197,7 @@ async def admin_card_designs_toggle(
 
     if design_id == _PROTECTED_ID:
         return RedirectResponse(
-            "/admin/card-designs?error=The+FIFA+design+is+protected+and+cannot+be+deactivated.",
+            "/admin/card-designs?error=The+FClassic+Player+design+is+protected+and+cannot+be+deactivated.",
             status_code=303,
         )
 
@@ -225,7 +225,7 @@ async def admin_card_designs_toggle(
             if confirm != "1":
                 warn_msg = (
                     f"Design+'{design.label}'+is+used+by+{summary}.+"
-                    f"Deactivating+will+cause+visual+fallback+to+FIFA+for+affected+users.+"
+                    f"Deactivating+will+cause+visual+fallback+to+FClassic+Player+for+affected+users.+"
                     f"To+confirm%2C+click+Deactivate+again."
                 )
                 return RedirectResponse(

@@ -104,7 +104,7 @@ def _call_hub(
     db               = db   or _make_db()
     owned_ids_by_type = owned_ids_by_type or {}
     default_designs  = [
-        _design("fifa",    credit_cost=0,   is_premium=False, label="FIFA Classic"),
+        _design("fifa",    credit_cost=0,   is_premium=False, label="FClassic Player"),
         _design("compact", credit_cost=300, is_premium=True,  label="Compact"),
     ]
     captured = {}
@@ -176,7 +176,7 @@ class TestMyCardsDetailRoutes:
             captured["context"]  = ctx
             return MagicMock(status_code=200)
 
-        default_designs = [_design("fifa", credit_cost=0, is_premium=False, label="FIFA Classic")]
+        default_designs = [_design("fifa", credit_cost=0, is_premium=False, label="FClassic Player")]
 
         with patch(f"{_BASE}.get_all_designs", return_value=default_designs), \
              patch(f"{_BASE}.is_design_accessible", return_value=False), \
