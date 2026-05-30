@@ -171,6 +171,11 @@ async def card_studio_welcome(
             "preview_url":        preview_url,
             "export_url":         export_url,
             "owned_format_rows":  owned_format_rows,
+            # WC photo slots — read from existing license object (no extra DB query).
+            # Template uses these to show the relevant upload panel per active format.
+            "wc_photo_url":          license.wc_photo_url,
+            "wc_photo_portrait_url": license.wc_photo_portrait_url,
+            "wc_photo_landscape_url": license.wc_photo_landscape_url,
             "spec_dashboard_url":  "/dashboard/lfa-football-player",
             "spec_dashboard_icon": "⚽",
             "spec_profile_url":    "/profile/lfa-football-player",
