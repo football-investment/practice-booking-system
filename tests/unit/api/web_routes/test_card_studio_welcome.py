@@ -1,5 +1,5 @@
 """
-CEW — Welcome Card Studio tests (CE-3.3).
+CEW — Welcome Card Studio tests (CE-3.3, CE-3.7).
 
 GET /card-editor/welcome — draft-free WC Studio with ?format= query param.
 
@@ -20,7 +20,20 @@ CEW-14  template contains format selector (owned_format_rows present)
 CEW-15  legacy "default" CDO bulk-grant: all 7 valid formats visible
 CEW-16  CardDraftService is never called
 CEW-17  /card-editor/welcome/{format_id} WCE-1 route unchanged
-CEW-18  route count = 838 (837 + GET /card-editor/welcome)
+CEW-18  route count = 839
+CEW-19  context contains wc_photo_url key (CE-3.7)
+CEW-20  context contains wc_photo_portrait_url key (CE-3.7)
+CEW-21  context contains wc_photo_landscape_url key (CE-3.7)
+CEW-22  context photo URLs reflect license object values (CE-3.7)
+CEW-23  template contains /dashboard/wc-photo upload route (CE-3.7)
+CEW-24  template contains /dashboard/wc-photo/delete route (CE-3.7)
+CEW-25  template contains /dashboard/wc-photo-portrait upload route (CE-3.7)
+CEW-26  template contains /dashboard/wc-photo-portrait/delete route (CE-3.7)
+CEW-27  template contains /dashboard/wc-photo-landscape upload route (CE-3.7)
+CEW-28  template contains /dashboard/wc-photo-landscape/delete route (CE-3.7)
+CEW-29  template contains preview iframe reload JS (CE-3.7)
+CEW-30  template does NOT contain BG removal reference (CE-3.7)
+CEW-31  template does NOT contain mood photo reference (CE-3.7)
 """
 from __future__ import annotations
 
@@ -492,3 +505,103 @@ class TestCEW18RouteCount:
         assert "/card-editor/welcome" in route_paths, (
             "/card-editor/welcome must be a registered route"
         )
+
+
+# ── CEW-19/20/21/22: WC photo context keys (CE-3.7) ─────────────────────────
+
+class TestCEW19to22PhotoContext:
+
+    def test_cew_19_context_has_wc_photo_url(self):
+        """CEW-19: handler context contains wc_photo_url key."""
+        _, ctx, _ = _invoke_welcome(_FIRST_ID, owned_ids=[_FIRST_ID])
+        assert "wc_photo_url" in ctx, "context must contain wc_photo_url"
+
+    def test_cew_20_context_has_wc_photo_portrait_url(self):
+        """CEW-20: handler context contains wc_photo_portrait_url key."""
+        _, ctx, _ = _invoke_welcome(_FIRST_ID, owned_ids=[_FIRST_ID])
+        assert "wc_photo_portrait_url" in ctx, "context must contain wc_photo_portrait_url"
+
+    def test_cew_21_context_has_wc_photo_landscape_url(self):
+        """CEW-21: handler context contains wc_photo_landscape_url key."""
+        _, ctx, _ = _invoke_welcome(_FIRST_ID, owned_ids=[_FIRST_ID])
+        assert "wc_photo_landscape_url" in ctx, "context must contain wc_photo_landscape_url"
+
+    def test_cew_22_photo_urls_reflect_license_values(self):
+        """CEW-22: context photo URL values are read from the license object."""
+        lic = _license()
+        lic.wc_photo_url          = "https://example.com/wc.jpg"
+        lic.wc_photo_portrait_url = "https://example.com/portrait.jpg"
+        lic.wc_photo_landscape_url = "https://example.com/landscape.jpg"
+
+        _, ctx, _ = _invoke_welcome(_FIRST_ID, owned_ids=[_FIRST_ID], license_obj=lic)
+
+        assert ctx.get("wc_photo_url")           == "https://example.com/wc.jpg"
+        assert ctx.get("wc_photo_portrait_url")  == "https://example.com/portrait.jpg"
+        assert ctx.get("wc_photo_landscape_url") == "https://example.com/landscape.jpg"
+
+
+# ── CEW-23–28: template upload / delete route references (CE-3.7) ────────────
+
+class TestCEW23to28TemplateUploadRoutes:
+
+    @classmethod
+    def _src(cls) -> str:
+        return (TEMPLATES_DIR / "card_studio_welcome.html").read_text(encoding="utf-8")
+
+    def test_cew_23_template_has_wc_photo_upload(self):
+        """CEW-23: template references /dashboard/wc-photo upload route."""
+        assert "/dashboard/wc-photo'" in self._src() or "/dashboard/wc-photo\"" in self._src() \
+               or "'/dashboard/wc-photo'" in self._src() or '"/dashboard/wc-photo"' in self._src() \
+               or "wc-photo'" in self._src()
+
+    def test_cew_24_template_has_wc_photo_delete(self):
+        """CEW-24: template references /dashboard/wc-photo/delete route."""
+        assert "/dashboard/wc-photo/delete" in self._src()
+
+    def test_cew_25_template_has_wc_photo_portrait_upload(self):
+        """CEW-25: template references /dashboard/wc-photo-portrait upload route."""
+        assert "/dashboard/wc-photo-portrait'" in self._src() or \
+               "/dashboard/wc-photo-portrait\"" in self._src() or \
+               "wc-photo-portrait'" in self._src()
+
+    def test_cew_26_template_has_wc_photo_portrait_delete(self):
+        """CEW-26: template references /dashboard/wc-photo-portrait/delete route."""
+        assert "/dashboard/wc-photo-portrait/delete" in self._src()
+
+    def test_cew_27_template_has_wc_photo_landscape_upload(self):
+        """CEW-27: template references /dashboard/wc-photo-landscape upload route."""
+        assert "/dashboard/wc-photo-landscape'" in self._src() or \
+               "/dashboard/wc-photo-landscape\"" in self._src() or \
+               "wc-photo-landscape'" in self._src()
+
+    def test_cew_28_template_has_wc_photo_landscape_delete(self):
+        """CEW-28: template references /dashboard/wc-photo-landscape/delete route."""
+        assert "/dashboard/wc-photo-landscape/delete" in self._src()
+
+
+# ── CEW-29–31: template JS reload + no BG removal + no mood photo (CE-3.7) ──
+
+class TestCEW29to31TemplateGuards:
+
+    @classmethod
+    def _src(cls) -> str:
+        return (TEMPLATES_DIR / "card_studio_welcome.html").read_text(encoding="utf-8")
+
+    def test_cew_29_template_has_preview_iframe_reload(self):
+        """CEW-29: template JS reloads the preview iframe after upload/delete."""
+        src = self._src()
+        assert "wcs-preview-iframe" in src, "preview iframe must have wcs-preview-iframe id"
+        assert "iframe.src" in src, "JS must reload iframe via iframe.src reassignment"
+
+    def test_cew_30_template_has_no_bg_removal(self):
+        """CEW-30: template must not reference BG removal."""
+        src = self._src()
+        assert "bg_removal" not in src.lower()
+        assert "rembg" not in src.lower()
+        assert "background removal" not in src.lower()
+
+    def test_cew_31_template_has_no_mood_photo(self):
+        """CEW-31: template must not reference mood photo picker."""
+        src = self._src()
+        assert "mood_photo" not in src.lower()
+        assert "mood-photo" not in src.lower()
