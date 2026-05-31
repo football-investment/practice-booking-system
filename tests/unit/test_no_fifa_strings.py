@@ -39,6 +39,8 @@ _WHITELIST_PATHS = {
     "test_fc1c_template_rename.py",
     # Functional legacy-forbidden-pattern guards
     "test_card_export_cs4b.py",
+    # Historical migration content tests — verify alembic whitelist SQL contains 'fifa'
+    "test_card_drafts_migration.py",
     # This guard itself
     "test_no_fifa_strings.py",
     # OpenAPI snapshots (generated files)
