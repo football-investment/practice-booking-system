@@ -81,7 +81,7 @@ def _make_classic_lite_def():
         description="Proof-of-concept manifest-only design.",
         is_premium=False,
         credit_cost=0,
-        template="public/player_card_fifa.html",
+        template="public/player_card_fclassic.html",
         sort_order=1,
         archetype_id="column",   # CS-6 A-model: required for driver routing
         supported_export_buckets=("portrait", "story"),

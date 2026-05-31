@@ -58,7 +58,7 @@ Tests:
   EX-39  animated_mode=False does not break Pulse static layout (pex-bar-fill CSS present)
   EX-40  pulse × instagram_square export uses dedicated pex-card template (not editor chrome)
   EX-47  FIFA × instagram_story preview (no export flag) uses story template (SoT — no drift)
-  EX-48  story/fifa.html contains class="ex-sponsor-slot" HTML element
+  EX-48  story/fclassic.html contains class="ex-sponsor-slot" HTML element
   EX-49  story sponsor logo renders when sponsor_logo_url provided; absent when None
   EX-50  story template renders height/weight meta items when provided
   EX-51  story template renders dominant foot badge when provided
@@ -679,7 +679,7 @@ class TestExportRenderLayerStatic:
 class TestFifaStoryExport:
     """Static tests for FIFA Classic × Instagram Story dedicated export template.
 
-    Instagram Story uses export/story/fifa.html (Option A: conservative layout).
+    Instagram Story uses export/story/fclassic.html (Option A: conservative layout).
     TikTok uses export/tiktok/fifa.html (Option B: native redesign) — see TestFifaTikTokExport.
 
     EX-11  FIFA × instagram_story uses dedicated export template (ex-card present)
@@ -751,7 +751,7 @@ class TestFifaStoryExport:
     def test_ex16_tiktok_uses_tiktok_export_template_not_story(self, client):
         """TikTok must use its own dedicated tiktok template, NOT the story template.
 
-        instagram_story → export/story/fifa.html
+        instagram_story → export/story/fclassic.html
         tiktok          → export/tiktok/fifa.html  (separate bucket since split)
         """
         story_html  = self._get_fifa_export_html(client, "instagram_story")
@@ -769,7 +769,7 @@ class TestFifaStoryExport:
             "ex-identity-strip not found in tiktok HTML — expected tiktok/fifa.html identity layout"
         )
         assert "ex-meta-strip" in story_html, (
-            "ex-meta-strip not found in instagram_story HTML — expected story/fifa.html meta layout"
+            "ex-meta-strip not found in instagram_story HTML — expected story/fclassic.html meta layout"
         )
 
 
@@ -778,7 +778,7 @@ class TestFifaStoryOptionA:
     """Instagram Story Option A additions — sponsor slot, foot badge, height/weight, SoT.
 
     EX-47  FIFA × instagram_story preview (no export flag) uses story template (SoT)
-    EX-48  story/fifa.html contains class="ex-sponsor-slot" HTML element
+    EX-48  story/fclassic.html contains class="ex-sponsor-slot" HTML element
     EX-49  story sponsor logo renders when sponsor_logo_url provided; absent when None
     EX-50  story template renders height/weight meta items when provided
     EX-51  story template renders dominant foot badge when provided
@@ -812,7 +812,7 @@ class TestFifaStoryOptionA:
         html = self._get_story_html(client, export=False)
         assert html, "Preview returned empty response for instagram_story"
         assert "ex-card" in html, (
-            "EX-47: story preview did not use export/story/fifa.html — editor drift detected "
+            "EX-47: story preview did not use export/story/fclassic.html — editor drift detected "
             "(expected .ex-card root from standalone template)"
         )
         assert "tab-bar" not in html, (
@@ -820,18 +820,18 @@ class TestFifaStoryOptionA:
         )
 
     def test_ex48_story_sponsor_slot_element_present(self):
-        """EX-48: sponsor slot must be present in story/fifa.html source.
+        """EX-48: sponsor slot must be present in story/fclassic.html source.
 
         Level C story template implements the sponsor slot inline (ex-sponsor-slot class).
         """
         import os, app as _app_pkg
         tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
 
-        with open(os.path.join(tpl_dir, "public/export/story/fifa.html")) as f:
+        with open(os.path.join(tpl_dir, "public/export/story/fclassic.html")) as f:
             story_src = f.read()
 
         assert 'ex-sponsor-slot' in story_src, (
-            "EX-48: ex-sponsor-slot not found in story/fifa.html — sponsor slot missing"
+            "EX-48: ex-sponsor-slot not found in story/fclassic.html — sponsor slot missing"
         )
 
     def test_ex49_story_sponsor_logo_conditional(self, client):
@@ -897,7 +897,7 @@ class TestFifaTikTokExport:
             app.dependency_overrides.pop(get_db, None)
 
     def test_ex52_tiktok_uses_tiktok_template(self, client):
-        """EX-52: tiktok export must use tiktok/fifa.html, not story/fifa.html."""
+        """EX-52: tiktok export must use tiktok/fifa.html, not story/fclassic.html."""
         html = self._get_tiktok_html(client)
         assert html, "Export returned empty response for tiktok"
         assert "ex-card" in html, (
@@ -905,7 +905,7 @@ class TestFifaTikTokExport:
         )
         assert "ex-hero-photo" in html, (
             "EX-52: ex-hero-photo not found — tiktok must use full-bleed hero template, "
-            "not story/fifa.html"
+            "not story/fclassic.html"
         )
 
     def test_ex53_no_tab_bar_in_tiktok_export(self, client):
@@ -963,7 +963,7 @@ class TestFifaTikTokExport:
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/tiktok/fifa.html",
+            "templates/public/export/tiktok/fclassic.html",
         )
         with open(tpl_path) as f:
             src = f.read()
@@ -976,7 +976,7 @@ class TestFifaTikTokExport:
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/tiktok/fifa.html",
+            "templates/public/export/tiktok/fclassic.html",
         )
         with open(tpl_path) as f:
             src = f.read()
@@ -1065,7 +1065,7 @@ class TestFifaLandscapeExport:
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/landscape/fifa.html",
+            "templates/public/export/landscape/fclassic.html",
         )
         with open(tpl_path, encoding="utf-8") as f:
             source = f.read()
@@ -1087,7 +1087,7 @@ class TestFifaLandscapeExport:
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/landscape/fifa.html",
+            "templates/public/export/landscape/fclassic.html",
         )
         with open(tpl_path, encoding="utf-8") as f:
             source = f.read()
@@ -1143,7 +1143,7 @@ class TestFifaLandscapeExport:
         import os, re, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/landscape/fifa.html",
+            "templates/public/export/landscape/fclassic.html",
         )
         with open(tpl_path, encoding="utf-8") as f:
             source = f.read()
@@ -1291,7 +1291,7 @@ class TestFifaSquareAllSkills:
 
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/square/fifa.html",
+            "templates/public/export/square/fclassic.html",
         )
         with open(tpl_path, encoding="utf-8") as f:
             source = f.read()
@@ -1533,7 +1533,7 @@ class TestFifaSquareAnimatedMode:
 
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/square/fifa.html",
+            "templates/public/export/square/fclassic.html",
         )
         with open(tpl_path, encoding="utf-8") as f:
             source = f.read()
@@ -1725,7 +1725,7 @@ class TestFullscreenLinkConsistency:
         html = self._get_fifa_preview_html(client, "instagram_portrait")
         assert html, "EX-62: Card route returned empty response for instagram_portrait (no export)"
         assert "ex-card" in html, (
-            "EX-62: ex-card not found — portrait preview did not load export/portrait/fifa.html; "
+            "EX-62: ex-card not found — portrait preview did not load export/portrait/fclassic.html; "
             "default card template was used instead (missing not-export branch)"
         )
 
@@ -1734,7 +1734,7 @@ class TestFullscreenLinkConsistency:
         html = self._get_fifa_preview_html(client, "banner_custom")
         assert html, "EX-63: Card route returned empty response for banner_custom (no export)"
         assert "ex-card" in html, (
-            "EX-63: ex-card not found — banner preview did not load export/banner/fifa.html; "
+            "EX-63: ex-card not found — banner preview did not load export/banner/fclassic.html; "
             "default card template was used instead (missing not-export branch)"
         )
 
@@ -1744,7 +1744,7 @@ class TestFullscreenLinkConsistency:
         assert html, "EX-64: Card route returned empty response for instagram_portrait (no export)"
         assert "tab-bar" not in html, (
             "EX-64: tab-bar found in portrait no-export HTML — editor template loaded instead of "
-            "export/portrait/fifa.html"
+            "export/portrait/fclassic.html"
         )
 
     def test_ex65_banner_no_export_has_no_editor_chrome(self, client):
@@ -1753,5 +1753,5 @@ class TestFullscreenLinkConsistency:
         assert html, "EX-65: Card route returned empty response for banner_custom (no export)"
         assert "tab-bar" not in html, (
             "EX-65: tab-bar found in banner_custom no-export HTML — editor template loaded instead "
-            "of export/banner/fifa.html"
+            "of export/banner/fclassic.html"
         )

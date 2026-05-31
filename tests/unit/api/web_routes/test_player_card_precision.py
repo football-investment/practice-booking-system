@@ -209,12 +209,12 @@ class TestCardMacroRenderedHtml:
         assert "60.03" not in html, "Export macro must NOT render decimals"
 
 
-# ── PCPREC-11..14: player_card_fifa.html CSS fix verification ─────────────────
+# ── PCPREC-11..14: player_card_fclassic.html CSS fix verification ─────────────────
 
 class TestFifaTemplateCssFix:
     """Verify the FIFA template CSS and macro-render path after Phase 2.4F fix."""
 
-    _FIFA_TPL = "app/templates/public/player_card_fifa.html"
+    _FIFA_TPL = "app/templates/public/player_card_fclassic.html"
 
     def _tpl_src(self) -> str:
         import os
@@ -227,7 +227,7 @@ class TestFifaTemplateCssFix:
             return f.read()
 
     def test_pcprec11_fifa_skill_val_width_36px(self):
-        """PCPREC-11: player_card_fifa.html .skill-val CSS width is 36px (not 26px)."""
+        """PCPREC-11: player_card_fclassic.html .skill-val CSS width is 36px (not 26px)."""
         src = self._tpl_src()
         assert "width: 36px" in src, (
             "Expected '.skill-val { ... width: 36px ... }' in FIFA template"
@@ -237,7 +237,7 @@ class TestFifaTemplateCssFix:
         )
 
     def test_pcprec12_fifa_template_imports_card_skill_rows_macro(self):
-        """PCPREC-12: player_card_fifa.html imports and calls card_skill_rows macro."""
+        """PCPREC-12: player_card_fclassic.html imports and calls card_skill_rows macro."""
         src = self._tpl_src()
         assert 'import card_skill_rows' in src, (
             "FIFA template must import card_skill_rows macro"
@@ -373,7 +373,7 @@ class TestBareUrlRouting:
         )
 
     def test_pcprec19_interactive_card_uses_round2_not_integer(self):
-        """PCPREC-19: the template served for bare URL (player_card_fifa.html) uses
+        """PCPREC-19: the template served for bare URL (player_card_fclassic.html) uses
         card_skill_rows with round(2) — confirmed by macro render, not export_skill_rows."""
         from jinja2 import Environment, FileSystemLoader
         import os

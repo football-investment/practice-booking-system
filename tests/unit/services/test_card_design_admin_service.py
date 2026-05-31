@@ -39,7 +39,7 @@ _TEMPLATES_ROOT = (
 )
 
 # A browser_template that actually exists on disk
-_REAL_TEMPLATE = "public/player_card_fifa.html"
+_REAL_TEMPLATE = "public/player_card_fclassic.html"
 
 
 def _make_valid_item(**overrides) -> dict:

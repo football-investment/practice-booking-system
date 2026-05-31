@@ -49,7 +49,7 @@ _UNSET = object()
 _REPO_ROOT  = pathlib.Path(__file__).resolve().parents[4]
 _PUBLIC_TPL = _REPO_ROOT / "app" / "templates" / "public" / "player_card_public.html"
 _EDITOR_TPL = _REPO_ROOT / "app" / "templates" / "dashboard_card_editor.html"
-_FIFA_TPL   = _REPO_ROOT / "app" / "templates" / "public" / "player_card_fifa.html"
+_FIFA_TPL   = _REPO_ROOT / "app" / "templates" / "public" / "player_card_fclassic.html"
 
 # ── Shared mock helpers ─────────────────────────────────────────────────────────
 
@@ -195,12 +195,12 @@ class TestPlayerCardPublicRoute:
         """No platform + no export → bare URL serves the interactive FIFA card directly.
         Phase 2.4F: player_card_public.html iframe wrapper retired from this path."""
         ctx = _call_route(platform=None, export=False)
-        assert ctx.get("template") == "public/player_card_fifa.html", (
+        assert ctx.get("template") == "public/player_card_fclassic.html", (
             "Bare URL must render the interactive FIFA card, not the old iframe wrapper"
         )
 
     def test_pcp02_interactive_card_context_required_keys(self):
-        """Bare URL context must include keys consumed by player_card_fifa.html."""
+        """Bare URL context must include keys consumed by player_card_fclassic.html."""
         ctx = _call_route()
         for key in ("player", "overall", "tier_label", "tier_color", "initials",
                     "skill_categories", "last_skill_delta", "participations_history",
@@ -221,7 +221,7 @@ class TestPlayerCardPublicRoute:
         The export layer must NOT activate, so the interactive FIFA card is always served."""
         lic = _make_license(public_card_platform=None)
         ctx = _call_route(platform=None, export=False, license_=lic, draft_published_platform=None)
-        assert ctx.get("template") == "public/player_card_fifa.html"
+        assert ctx.get("template") == "public/player_card_fclassic.html"
         assert ctx.get("platform_id") == "default"
 
     def test_pcp04_explicit_export_uses_published_platform(self):
@@ -235,7 +235,7 @@ class TestPlayerCardPublicRoute:
         The interactive FIFA card must be served regardless of the user's published platform."""
         lic = _make_license(public_card_platform="instagram_portrait")
         ctx = _call_route(platform=None, export=False, license_=lic)
-        assert ctx.get("template") == "public/player_card_fifa.html"
+        assert ctx.get("template") == "public/player_card_fclassic.html"
 
     # ── Priority chain regression tests (PCP-04c/d/e/f) ──────────────────────
     # These four tests prove the correct read priority for explicit export path:
@@ -308,7 +308,7 @@ class TestPlayerCardPublicRoute:
         is rendered in native-export-mode — Playwright then screenshots .card-wrap.
         """
         ctx = _call_route(platform=None, export=False, native_export=True)
-        assert ctx.get("template") == "public/player_card_fifa.html", (
+        assert ctx.get("template") == "public/player_card_fclassic.html", (
             "?native_export=1 must serve the interactive FIFA card so Playwright can "
             "screenshot the .card-wrap element"
         )
@@ -601,7 +601,7 @@ class TestFifaHeaderBodyAlignment:
     def test_ce15_photo_spacer_div_present_in_card_body(self):
         """An empty card-body-photo-spacer div must be the first child of .card-body."""
         assert "card-body-photo-spacer" in self._html, (
-            "card-body-photo-spacer div must exist in player_card_fifa.html"
+            "card-body-photo-spacer div must exist in player_card_fclassic.html"
         )
 
     def test_ce16_skills_panel_has_no_left_padding(self):

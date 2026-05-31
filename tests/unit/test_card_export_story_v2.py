@@ -3,7 +3,7 @@ Unit tests — STORY-v2: Instagram Story standalone template
 ==========================================================
 
 Coverage:
-  SV-01  story/fifa.html extends export_base.html directly (Level C standalone)
+  SV-01  story/fclassic.html extends export_base.html directly (Level C standalone)
   SV-02  Hero height CSS var is 500px  (story layout anchor for 1080×1920 canvas)
   SV-03  OVR block and name block both use bottom: 20px  (alignment invariant)
   SV-04  Meta value max-width is 110px  (no nationality truncation on larger canvas)
@@ -18,7 +18,7 @@ Coverage:
   SV-13  No nationality → HTTP 200, meta strip still renders
   SV-14  Photo absent → ex-hero-placeholder rendered
   SV-15  Photo present → ex-hero-photo img rendered
-  SV-16  Typography: story/fifa.html imports card_ovr_badge macro (Bebas Neue)
+  SV-16  Typography: story/fclassic.html imports card_ovr_badge macro (Bebas Neue)
   SV-17  OVR badge element (ex-ovr-badge) rendered in output
 
 Regression baseline locked: 2026-05-18, STORY-v2 pixel-stable sign-off.
@@ -39,7 +39,7 @@ _TEMPLATES_ROOT = (
     Path(__file__).resolve().parent.parent.parent
     / "app" / "templates"
 )
-_STORY_TMPL = _TEMPLATES_ROOT / "public" / "export" / "story" / "fifa.html"
+_STORY_TMPL = _TEMPLATES_ROOT / "public" / "export" / "story" / "fclassic.html"
 
 
 # ── Mock helpers ──────────────────────────────────────────────────────────────
@@ -179,8 +179,8 @@ class TestStoryV2Static:
     """File-level invariants — no HTTP request."""
 
     def test_sv_01_extends_export_base_directly(self):
-        """story/fifa.html must extend export_base.html (Level C standalone, not column_archetype)."""
-        assert _STORY_TMPL.exists(), "story/fifa.html missing"
+        """story/fclassic.html must extend export_base.html (Level C standalone, not column_archetype)."""
+        assert _STORY_TMPL.exists(), "story/fclassic.html missing"
         src = _STORY_TMPL.read_text(encoding="utf-8")
         assert 'extends "public/export/shared/export_base.html"' in src, (
             "STORY-v2 must extend export_base.html directly"
@@ -216,7 +216,7 @@ class TestStoryV2Static:
         assert int(m.group(1)) >= 100, f"max-width {m.group(1)}px too small"
 
     def test_sv_05_sponsor_slot_css_defined(self):
-        """ex-sponsor-slot CSS class must be defined in story/fifa.html."""
+        """ex-sponsor-slot CSS class must be defined in story/fclassic.html."""
         src = _STORY_TMPL.read_text(encoding="utf-8")
         assert "ex-sponsor-slot" in src, (
             "ex-sponsor-slot class missing — sponsor zone not defined"
@@ -264,12 +264,12 @@ class TestStoryV2Rendering:
         assert count == 44, f"Expected 44 skill rows, got {count}"
 
     def test_sv_10_routes_to_level_c_not_driver(self, client):
-        """Story bucket must route to story/fifa.html (Level C), not column_driver.html."""
+        """Story bucket must route to story/fclassic.html (Level C), not column_driver.html."""
         status, html = _render(client)
         assert status == 200
         assert "ex-hero-photo" in html or "ex-hero-placeholder" in html, (
             "Neither ex-hero-photo nor ex-hero-placeholder found — "
-            "probably rendering column_driver.html instead of story/fifa.html"
+            "probably rendering column_driver.html instead of story/fclassic.html"
         )
 
 
@@ -306,7 +306,7 @@ class TestStoryV2Structure:
         assert '<img class="ex-hero-photo"' in html
 
     def test_sv_16_typography_ovr_badge_macro_imported(self):
-        """story/fifa.html must import card_ovr_badge macro (Bebas Neue OVR badge)."""
+        """story/fclassic.html must import card_ovr_badge macro (Bebas Neue OVR badge)."""
         src = _STORY_TMPL.read_text(encoding="utf-8")
         assert 'from "macros/card_ovr_badge.html"' in src, (
             "card_ovr_badge macro import missing — typography Step E not applied"

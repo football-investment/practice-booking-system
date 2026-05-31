@@ -2,7 +2,7 @@
 Unit tests — FIFA Classic × Instagram Square card template
 ==========================================================
 
-Static assertions against app/templates/public/export/square/fifa.html.
+Static assertions against app/templates/public/export/square/fclassic.html.
 No DB, no Playwright, no network — all tests read the template source as text.
 
 Coverage:
@@ -71,7 +71,7 @@ import pytest
 
 _TPL_PATH = (
     pathlib.Path(__file__).resolve().parents[2]
-    / "app" / "templates" / "public" / "export" / "square" / "fifa.html"
+    / "app" / "templates" / "public" / "export" / "square" / "fclassic.html"
 )
 
 

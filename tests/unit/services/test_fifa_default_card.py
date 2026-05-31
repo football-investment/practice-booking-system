@@ -29,7 +29,7 @@ Position map (POS-*)
   POS-09 total node count is 20 (20 entries in PITCH_NODES_RAW incl. ST1+ST2)
 
 Template (TPL-*)
-  TPL-01 card-body element present in player_card_fifa.html
+  TPL-01 card-body element present in player_card_fclassic.html
   TPL-02 skills-panel element present
   TPL-03 position-panel element present
   TPL-04 pitch-svg element present inside position-panel
@@ -64,12 +64,12 @@ Editor (ED-*)
   ED-04  exportCard JS uses _currentPlatform directly (no fallback substitution)
 
 Regression (REG-*)
-  REG-01  export/square/fifa.html not modified (sha unchanged — stat check)
-  REG-02  export/landscape/fifa.html not modified
-  REG-03  export/story/fifa.html not modified
-  REG-04  export/portrait/fifa.html not modified
-  REG-05  export/tiktok/fifa.html not modified
-  REG-06  export/banner/fifa.html not modified
+  REG-01  export/square/fclassic.html not modified (sha unchanged — stat check)
+  REG-02  export/landscape/fclassic.html not modified
+  REG-03  export/story/fclassic.html not modified
+  REG-04  export/portrait/fclassic.html not modified
+  REG-05  export/tiktok/fclassic.html not modified
+  REG-06  export/banner/fclassic.html not modified
 """
 import os
 import re
@@ -79,7 +79,7 @@ import pytest
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _ROOT = Path(__file__).parents[3]
-_TPL_FIFA     = _ROOT / "app/templates/public/player_card_fifa.html"
+_TPL_FIFA     = _ROOT / "app/templates/public/player_card_fclassic.html"
 _TPL_EDITOR   = _ROOT / "app/templates/dashboard_card_editor.html"
 _EXPORT_DIR   = _ROOT / "app/templates/public/export"
 
@@ -313,13 +313,13 @@ def test_tpl04_pitch_svg_present():
 def test_tpl05_events_section_not_deleted():
     """Events section must still exist — regression guard."""
     assert "events-section" in _fifa_html(), (
-        "events-section class must remain in player_card_fifa.html — tab bar / events NOT deleted"
+        "events-section class must remain in player_card_fclassic.html — tab bar / events NOT deleted"
     )
 
 
 def test_tpl06_tab_bar_not_deleted():
     assert "tab-bar" in _fifa_html(), (
-        "tab-bar class must remain in player_card_fifa.html — tab bar NOT deleted"
+        "tab-bar class must remain in player_card_fclassic.html — tab bar NOT deleted"
     )
 
 
@@ -524,7 +524,7 @@ def test_tpl22_sponsor_logo_url_in_logo_bar():
     """Template must use sponsor_logo_url in .card-logo-bar-img, not app_logo_url or card-watermark."""
     html = _fifa_html()
     assert "sponsor_logo_url" in html, (
-        "sponsor_logo_url must be referenced in player_card_fifa.html — "
+        "sponsor_logo_url must be referenced in player_card_fclassic.html — "
         "it is the user-uploaded logo and the correct source for .card-logo-bar-img"
     )
     # sponsor_logo_url must appear near .card-logo-bar-img
@@ -685,12 +685,12 @@ def _extract_export_card_fn(src: str) -> str:
 # ── REG-*: Export template regression ─────────────────────────────────────────
 
 _EXPORT_TEMPLATES = [
-    "square/fifa.html",
-    "landscape/fifa.html",
-    "story/fifa.html",
-    "portrait/fifa.html",
-    "tiktok/fifa.html",
-    "banner/fifa.html",
+    "square/fclassic.html",
+    "landscape/fclassic.html",
+    "story/fclassic.html",
+    "portrait/fclassic.html",
+    "tiktok/fclassic.html",
+    "banner/fclassic.html",
 ]
 
 
@@ -708,6 +708,6 @@ def test_reg_export_template_not_modified(tpl_rel):
     for cls in new_classes:
         assert cls not in content, (
             f"Export template {tpl_rel} must not contain '{cls}' — "
-            f"this class belongs only to player_card_fifa.html (FIFA Classic default card). "
+            f"this class belongs only to player_card_fclassic.html (FIFA Classic default card). "
             f"Check that the export template was not accidentally modified."
         )
