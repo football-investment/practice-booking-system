@@ -4,11 +4,11 @@ Unit tests — OG-v1: Open Graph Editorial standalone template
 Split horizontal layout — 1200×630 — OG Editorial v1.0 (2026-05-18)
 
 Coverage:
-  OG-01  og/fifa.html extends export_base.html directly (Level C standalone)
+  OG-01  og/fclassic.html extends export_base.html directly (Level C standalone)
   OG-02  Template has row layout (--ex-card-direction: row)
   OG-03  Split architecture: ex-og-photo + ex-og-info both present in source
   OG-04  OVR badge macro imported + called in template
-  OG-05  OG bucket routes to og/fifa.html, not landscape/fifa.html or column_driver.html
+  OG-05  OG bucket routes to og/fclassic.html, not landscape/fclassic.html or column_driver.html
   OG-06  HTTP 200 on GET /players/{id}/card?platform=og&export=1
   OG-07  Rendered HTML contains ex-ovr-badge element (macro rendering)
   OG-08  Rendered HTML contains ex-og-cats (category averages zone)
@@ -172,7 +172,7 @@ class TestOGv1Static:
     """File-level invariants — no HTTP request."""
 
     def test_og_01_extends_export_base_directly(self):
-        """og/fifa.html must extend export_base.html (Level C standalone)."""
+        """og/fclassic.html must extend export_base.html (Level C standalone)."""
         assert _OG_TMPL.exists(), "og/fclassic.html missing"
         src = _OG_TMPL.read_text(encoding="utf-8")
         assert 'extends "public/export/shared/export_base.html"' in src, (
@@ -200,7 +200,7 @@ class TestOGv1Static:
         )
 
     def test_og_04_ovr_badge_macro_imported_and_called(self):
-        """og/fifa.html must import and call card_ovr_badge macro."""
+        """og/fclassic.html must import and call card_ovr_badge macro."""
         src = _OG_TMPL.read_text(encoding="utf-8")
         assert 'from "macros/card_ovr_badge.html"' in src, (
             "card_ovr_badge macro import missing"
@@ -217,11 +217,11 @@ class TestOGv1Rendering:
     """HTTP smoke tests — routing and content invariants."""
 
     def test_og_05_routes_to_og_template_not_landscape(self, client):
-        """OG bucket must route to og/fifa.html (Level C), not landscape or driver."""
+        """OG bucket must route to og/fclassic.html (Level C), not landscape or driver."""
         status, html = _render(client)
         assert status == 200, f"HTTP {status}"
         assert "ex-og-photo" in html or "ex-og-info" in html, (
-            "OG-specific classes missing — probably rendering landscape/fifa.html or driver"
+            "OG-specific classes missing — probably rendering landscape/fclassic.html or driver"
         )
         assert "column_driver.html" not in html
 

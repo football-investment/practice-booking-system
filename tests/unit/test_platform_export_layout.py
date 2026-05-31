@@ -44,13 +44,13 @@ Tests:
   EX-27  FIFA × banner_custom export uses landscape_photo_url variable
   EX-28  FIFA × banner_custom uses banner template, not landscape template (420px left panel)
   EX-29  FIFA × instagram_square export HTML contains all 11 Outfield skill names
-  EX-30  square/fifa.html template source has no skill slicing (no cat.skills[:)
+  EX-30  square/fclassic.html template source has no skill slicing (no cat.skills[:)
   EX-31  FIFA × instagram_square export uses 2-column flex layout (v4 proportional columns)
   EX-31b FIFA × instagram_square export uses col-filler to bottom-align Set Pieces with Physical
   EX-31g FIFA × instagram_square skill columns have no vertical overlap (Playwright)
-  EX-32  square/fifa.html template source contains {% if animated_mode %} branch
-  EX-33  square/fifa.html rendered with animated_mode=True contains @keyframes
-  EX-34  square/fifa.html rendered with animated_mode=False (default) contains NO @keyframes
+  EX-32  square/fclassic.html template source contains {% if animated_mode %} branch
+  EX-33  square/fclassic.html rendered with animated_mode=True contains @keyframes
+  EX-34  square/fclassic.html rendered with animated_mode=False (default) contains NO @keyframes
   EX-35  animated_mode=False does not break PNG static layout (bar fill CSS present)
   EX-36  square/pulse.html template source contains {% if animated_mode %} branch
   EX-37  square/pulse.html rendered with animated_mode=True contains @keyframes
@@ -67,8 +67,8 @@ Tests:
   EX-54  FIFA × tiktok export HTML has no card-wrap
   EX-55  FIFA × tiktok preview (no export flag) uses tiktok template (SoT — no drift)
   EX-56  tiktok and instagram_story export HTML are structurally different (separation)
-  EX-57  tiktok/fifa.html template source contains ex-hero-photo (full-bleed hero)
-  EX-58  tiktok/fifa.html template source contains ex-identity-strip
+  EX-57  tiktok/fclassic.html template source contains ex-hero-photo (full-bleed hero)
+  EX-58  tiktok/fclassic.html template source contains ex-identity-strip
   EX-59  tiktok rendered HTML contains class="ex-sponsor-slot" element
   EX-60  tiktok sponsor logo renders when sponsor_logo_url provided; absent when None
   EX-61  dashboard_card_editor.html: _updateFullscreenLink does NOT append &export=1
@@ -409,7 +409,7 @@ class TestPlaywrightP0ComponentSizing:
         ".ex-ovr-badge > span:first-child, .ex-ovr-num, .cmp-overall, .atl-ovr-num, .sc-overall, .pls-ovr-text, .fclassic-overall"
     )
     # Photo column: only variants with a dedicated width column.
-    # Editor templates: .cmp-photo-col (compact) or .fclassic-left (FIFA).
+    # Editor templates: .cmp-photo-col (compact) or .fclassic-left (FClassic).
     # Export templates (.ex-*) use a circular avatar, not a column — PL-08 skips for those.
     # Atlas/showcase/pulse use full-bleed hero backgrounds — also skip.
     _PHOTO_COL_SELECTOR = ".cmp-photo-col, .fclassic-left"
@@ -561,7 +561,7 @@ class TestExportRenderLayerStatic:
             app.dependency_overrides.pop(get_db, None)
 
     def test_ex01_fifa_square_uses_export_template(self, client):
-        """FIFA × IG Square export must render the dedicated export template."""
+        """FClassic × IG Square export must render the dedicated export template."""
         html = self._get_fifa_export_html(client, "instagram_square")
         assert html, "Export returned empty response"
         assert "ex-card" in html, (
@@ -629,7 +629,7 @@ class TestExportRenderLayerStatic:
         )
 
     def test_ex06_fifa_portrait_uses_export_template(self, client):
-        """FIFA × IG Portrait export must render the dedicated export template."""
+        """FClassic × IG Portrait export must render the dedicated export template."""
         html = self._get_fifa_export_html(client, "instagram_portrait")
         assert html, "Export returned empty response for instagram_portrait"
         assert "ex-card" in html, (
@@ -677,10 +677,10 @@ class TestExportRenderLayerStatic:
 
 @pytest.mark.unit
 class TestFifaStoryExport:
-    """Static tests for FIFA Classic × Instagram Story dedicated export template.
+    """Static tests for FClassic × Instagram Story dedicated export template.
 
     Instagram Story uses export/story/fclassic.html (Option A: conservative layout).
-    TikTok uses export/tiktok/fifa.html (Option B: native redesign) — see TestFifaTikTokExport.
+    TikTok uses export/tiktok/fclassic.html (Option B: native redesign) — see TestFifaTikTokExport.
 
     EX-11  FIFA × instagram_story uses dedicated export template (ex-card present)
     EX-12  FIFA × instagram_story export HTML has no tab-bar
@@ -703,7 +703,7 @@ class TestFifaStoryExport:
             app.dependency_overrides.pop(get_db, None)
 
     def test_ex11_fifa_story_uses_export_template(self, client):
-        """FIFA × IG Story export must render the dedicated export template."""
+        """FClassic × IG Story export must render the dedicated export template."""
         html = self._get_fifa_export_html(client, "instagram_story")
         assert html, "Export returned empty response for instagram_story"
         assert "ex-card" in html, (
@@ -752,7 +752,7 @@ class TestFifaStoryExport:
         """TikTok must use its own dedicated tiktok template, NOT the story template.
 
         instagram_story → export/story/fclassic.html
-        tiktok          → export/tiktok/fifa.html  (separate bucket since split)
+        tiktok          → export/tiktok/fclassic.html  (separate bucket since split)
         """
         story_html  = self._get_fifa_export_html(client, "instagram_story")
         tiktok_html = self._get_fifa_export_html(client, "tiktok")
@@ -766,7 +766,7 @@ class TestFifaStoryExport:
         )
         # TikTok template has identity-strip; story template has meta-strip
         assert "ex-identity-strip" in tiktok_html, (
-            "ex-identity-strip not found in tiktok HTML — expected tiktok/fifa.html identity layout"
+            "ex-identity-strip not found in tiktok HTML — expected tiktok/fclassic.html identity layout"
         )
         assert "ex-meta-strip" in story_html, (
             "ex-meta-strip not found in instagram_story HTML — expected story/fclassic.html meta layout"
@@ -870,8 +870,8 @@ class TestFifaTikTokExport:
     EX-54  FIFA × tiktok export HTML has no card-wrap
     EX-55  FIFA × tiktok preview (no export flag) uses tiktok template (SoT)
     EX-56  tiktok and instagram_story export HTML are structurally different (separation)
-    EX-57  tiktok/fifa.html template source contains ex-hero-photo (full-bleed hero)
-    EX-58  tiktok/fifa.html template source contains ex-identity-strip
+    EX-57  tiktok/fclassic.html template source contains ex-hero-photo (full-bleed hero)
+    EX-58  tiktok/fclassic.html template source contains ex-identity-strip
     EX-59  tiktok rendered HTML contains class="ex-sponsor-slot" element
     EX-60  tiktok sponsor logo renders when sponsor_logo_url provided; absent when None
     """
@@ -897,7 +897,7 @@ class TestFifaTikTokExport:
             app.dependency_overrides.pop(get_db, None)
 
     def test_ex52_tiktok_uses_tiktok_template(self, client):
-        """EX-52: tiktok export must use tiktok/fifa.html, not story/fclassic.html."""
+        """EX-52: tiktok export must use tiktok/fclassic.html, not story/fclassic.html."""
         html = self._get_tiktok_html(client)
         assert html, "Export returned empty response for tiktok"
         assert "ex-card" in html, (
@@ -925,7 +925,7 @@ class TestFifaTikTokExport:
         html = self._get_tiktok_html(client, export=False)
         assert html, "Preview returned empty response for tiktok"
         assert "ex-card" in html, (
-            "EX-55: tiktok preview did not use export/tiktok/fifa.html — editor drift detected"
+            "EX-55: tiktok preview did not use export/tiktok/fclassic.html — editor drift detected"
         )
         assert "tab-bar" not in html, (
             "EX-55: tab-bar found in tiktok preview — editor template was loaded instead"
@@ -959,7 +959,7 @@ class TestFifaTikTokExport:
         )
 
     def test_ex57_tiktok_template_has_hero_photo_class(self):
-        """EX-57: tiktok/fifa.html source must define the full-bleed hero photo class."""
+        """EX-57: tiktok/fclassic.html source must define the full-bleed hero photo class."""
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
@@ -968,11 +968,11 @@ class TestFifaTikTokExport:
         with open(tpl_path) as f:
             src = f.read()
         assert "ex-hero-photo" in src, (
-            "EX-57: ex-hero-photo not found in tiktok/fifa.html — full-bleed hero missing"
+            "EX-57: ex-hero-photo not found in tiktok/fclassic.html — full-bleed hero missing"
         )
 
     def test_ex58_tiktok_template_has_identity_strip(self):
-        """EX-58: tiktok/fifa.html source must define the identity strip."""
+        """EX-58: tiktok/fclassic.html source must define the identity strip."""
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
@@ -981,7 +981,7 @@ class TestFifaTikTokExport:
         with open(tpl_path) as f:
             src = f.read()
         assert "ex-identity-strip" in src, (
-            "EX-58: ex-identity-strip not found in tiktok/fifa.html source"
+            "EX-58: ex-identity-strip not found in tiktok/fclassic.html source"
         )
 
     def test_ex59_tiktok_sponsor_slot_present(self, client):
@@ -1006,7 +1006,7 @@ class TestFifaTikTokExport:
 
 @pytest.mark.unit
 class TestFifaLandscapeExport:
-    """Static tests for FIFA Classic × Landscape dedicated export template.
+    """Static tests for FClassic × Landscape dedicated export template.
 
     EX-17  FIFA × facebook_landscape uses dedicated export template (ex-card present)
     EX-18  FIFA × facebook_landscape export HTML has no tab-bar
@@ -1014,7 +1014,7 @@ class TestFifaLandscapeExport:
     EX-20  FIFA × facebook_landscape export HTML has .ex-skill-cats (2×2 grid)
     EX-21  FIFA × facebook_landscape export uses landscape_photo_url variable
     EX-22  FIFA × og uses the same landscape export template (ex-card present)
-    EX-41  landscape/fifa.html source references dominant_badge + ex-dom-badge CSS
+    EX-41  landscape/fclassic.html source references dominant_badge + ex-dom-badge CSS
     EX-42  dominant badge rendered in HTML when foot scores provided
     EX-43  3-col layout: .ex-center panel present in rendered HTML
     EX-44  OVR watermark (.ex-ovr-watermark) present in rendered HTML
@@ -1070,7 +1070,7 @@ class TestFifaLandscapeExport:
         with open(tpl_path, encoding="utf-8") as f:
             source = f.read()
         assert "landscape_photo_url" in source, (
-            "landscape_photo_url not found in landscape/fifa.html source — "
+            "landscape_photo_url not found in landscape/fclassic.html source — "
             "landscape crop must be the primary photo fallback"
         )
 
@@ -1083,7 +1083,7 @@ class TestFifaLandscapeExport:
         )
 
     def test_ex41_landscape_template_source_has_dom_badge(self):
-        """landscape/fifa.html source must reference the dominant_badge variable."""
+        """landscape/fclassic.html source must reference the dominant_badge variable."""
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
@@ -1092,11 +1092,11 @@ class TestFifaLandscapeExport:
         with open(tpl_path, encoding="utf-8") as f:
             source = f.read()
         assert "dominant_badge" in source, (
-            "dominant_badge not referenced in landscape/fifa.html — "
+            "dominant_badge not referenced in landscape/fclassic.html — "
             "dominant foot badge block missing from template"
         )
         assert "ex-dom-badge" in source, (
-            ".ex-dom-badge CSS class not found in landscape/fifa.html — "
+            ".ex-dom-badge CSS class not found in landscape/fclassic.html — "
             "dominant foot badge CSS missing from template"
         )
 
@@ -1127,7 +1127,7 @@ class TestFifaLandscapeExport:
         html = self._get_fifa_export_html(client, "facebook_landscape")
         assert html, "Export returned empty response for facebook_landscape"
         assert "ex-center" in html, (
-            ".ex-center panel not found — landscape/fifa.html must use 3-column layout"
+            ".ex-center panel not found — landscape/fclassic.html must use 3-column layout"
         )
 
     def test_ex44_ovr_watermark_present(self, client):
@@ -1139,7 +1139,7 @@ class TestFifaLandscapeExport:
         )
 
     def test_ex45_no_skill_slicing_in_template_source(self):
-        """landscape/fifa.html source must NOT contain cat.skills[:N] slice — all skills render."""
+        """landscape/fclassic.html source must NOT contain cat.skills[:N] slice — all skills render."""
         import os, re, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
@@ -1149,7 +1149,7 @@ class TestFifaLandscapeExport:
             source = f.read()
         slicing = re.search(r"cat\.skills\[:", source)
         assert slicing is None, (
-            f"cat.skills[:N] slice found in landscape/fifa.html at position {slicing.start()} — "
+            f"cat.skills[:N] slice found in landscape/fclassic.html at position {slicing.start()} — "
             "all skills must be rendered; remove the slice"
         )
 
@@ -1249,7 +1249,7 @@ class TestFifaSquareAllSkills:
     """All-skills regression tests for FIFA Classic × Square export template.
 
     EX-29  All 11 Outfield skill names present in rendered Square export HTML
-    EX-30  square/fifa.html template source contains no skill slicing (cat.skills[:)
+    EX-30  square/fclassic.html template source contains no skill slicing (cat.skills[:)
     EX-31  Square export uses 2-column flex layout (v4 proportional columns)
     EX-31b Square export uses logo-host to bottom-align Set Pieces with Physical Fitness + logo-slot placeholder
     """
@@ -1297,7 +1297,7 @@ class TestFifaSquareAllSkills:
             source = f.read()
 
         assert "cat.skills[:" not in source, (
-            "Skill slicing detected in export/square/fifa.html — "
+            "Skill slicing detected in export/square/fclassic.html — "
             "use `cat.skills` (no slice) so all 44 skills are rendered"
         )
 
@@ -1504,14 +1504,14 @@ class TestFifaSquareAllSkills:
 class TestFifaSquareAnimatedMode:
     """Animated video export template tests for FIFA Classic × Square.
 
-    EX-32  square/fifa.html source contains {%- if animated_mode %} branch
+    EX-32  square/fclassic.html source contains {%- if animated_mode %} branch
     EX-33  rendered HTML with animated_mode=True contains @keyframes
     EX-34  rendered HTML with animated_mode=False (default) contains NO @keyframes
     EX-35  animated_mode=False does not break static layout (bar fill CSS present)
     """
 
     def _render_square(self, client, animated: bool = False) -> str:
-        """Render the square/fifa.html export template with animated_mode on or off."""
+        """Render the square/fclassic.html export template with animated_mode on or off."""
         from app.main import app
         from app.dependencies import get_db
 
@@ -1527,7 +1527,7 @@ class TestFifaSquareAnimatedMode:
             app.dependency_overrides.pop(get_db, None)
 
     def test_ex32_template_source_has_animated_mode_branch(self):
-        """square/fifa.html source must contain the animated_mode Jinja2 conditional."""
+        """square/fclassic.html source must contain the animated_mode Jinja2 conditional."""
         import os
         import app as _app_pkg
 
@@ -1539,7 +1539,7 @@ class TestFifaSquareAnimatedMode:
             source = f.read()
 
         assert "animated_mode" in source, (
-            "{% if animated_mode %} branch not found in square/fifa.html — "
+            "{% if animated_mode %} branch not found in square/fclassic.html — "
             "animation CSS block missing from template source"
         )
 
