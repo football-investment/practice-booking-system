@@ -86,15 +86,22 @@ def _make_db(*rows):
 # ── CD-01  DESIGNS fallback contains exactly the 7 expected IDs ───────────────
 
 def test_cd01_designs_has_7_expected_ids():
-    expected = {"fifa", "compact", "compact_bg", "showcase", "showcase_bg", "atlas", "pulse"}
-    assert set(DESIGNS.keys()) == expected
+    # PR-FC-1B: canonical key is "fclassic"; "fifa" is a deprecated alias.
+    # DESIGNS has 8 keys: 7 designs + 1 deprecated alias.
+    expected_canonical = {"fclassic", "compact", "compact_bg", "showcase", "showcase_bg", "atlas", "pulse"}
+    expected_all = expected_canonical | {"fifa"}  # "fifa" alias also present
+    assert set(DESIGNS.keys()) == expected_all, (
+        f"DESIGNS must contain 7 canonical designs + 'fifa' deprecated alias. "
+        f"Got: {set(DESIGNS.keys())}"
+    )
+    assert "fclassic" in DESIGNS, "Canonical 'fclassic' key must be present"
 
 
 # ── CD-02  get_design("fifa") returns FIFA Classic with correct fields ─────────
 
 def test_cd02_get_design_fifa_fields():
     d = get_design("fifa")
-    assert d.id == "fifa"
+    assert d.id == "fclassic"  # PR-FC-1B: alias resolves to canonical "fclassic"
     assert d.label == "FClassic Player"
     assert d.is_premium is True
     assert d.credit_cost == 300
@@ -108,9 +115,10 @@ def test_cd02_get_design_fifa_fields():
 
 # ── CD-03  get_design("unknown") falls back to fifa ───────────────────────────
 
-def test_cd03_get_design_unknown_falls_back_to_fifa():
+def test_cd03_get_design_unknown_falls_back_to_fclassic():
+    # PR-FC-1B: fallback is now "fclassic" (not "fifa")
     d = get_design("nonexistent_design_id")
-    assert d.id == "fifa"
+    assert d.id == "fclassic"
 
 
 # ── CD-04  _load_cache converts DB row to CardDesignDefinition ────────────────
@@ -166,9 +174,12 @@ def test_cd06_get_all_designs_sorted_by_sort_order():
 
 def test_cd07_get_all_designs_fallback_no_db():
     designs = get_all_designs(db=None)
+    # PR-FC-1B: DESIGNS has 8 keys (7 canonical + "fifa" alias); get_all_designs
+    # returns unique CardDesignDefinition objects (both "fclassic" and "fifa" alias
+    # point to the same object, so it appears once in the sorted list).
     assert len(designs) == 7
-    # FIFA Classic (sort_order=0) is the first design
-    assert designs[0].id == "fifa"
+    # FClassic Player (sort_order=0) is the first design; id is now "fclassic"
+    assert designs[0].id == "fclassic"
     assert designs[0].is_premium is True
 
 
