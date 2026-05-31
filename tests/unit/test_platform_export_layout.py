@@ -1685,15 +1685,16 @@ class TestFullscreenLinkConsistency:
     """
 
     def test_ex61_fullscreen_link_js_has_no_export_flag(self):
-        """EX-61: _updateFullscreenLink in dashboard_card_editor.html must NOT contain &export=1.
+        """EX-61: _updateFullscreenLink in scripts.html must NOT contain &export=1.
 
         The fullscreen link is for human browser preview; &export=1 is reserved for
         Playwright PNG/WebM rendering via card_export_service.py.
+        REF-P2: function moved from dashboard_card_editor.html to scripts.html include.
         """
         import os, app as _app_pkg
         tpl_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/dashboard_card_editor.html",
+            "templates/includes/player_editor/scripts.html",
         )
         with open(tpl_path, encoding="utf-8") as f:
             src = f.read()
