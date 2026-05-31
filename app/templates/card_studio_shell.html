@@ -215,6 +215,29 @@
 .cs-dims-text { font-size: 0.78rem; color: #475569; }
 .cs-owned-badge { font-size: 0.73rem; font-weight: 700; color: #86efac; background: rgba(134,239,172,.12); border: 1px solid rgba(134,239,172,.25); border-radius: 20px; padding: 0.18rem 0.6rem; }
 
+/* ── CS-COLOR-1: Color/Theme picker ── */
+.cs-color-panel { margin-bottom: 1.25rem; }
+.cs-color-chips  { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.cs-color-chip {
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.28rem 0.7rem 0.28rem 0.4rem;
+  background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 20px; cursor: pointer; font-size: 0.72rem; font-weight: 600;
+  color: rgba(255,255,255,0.65); transition: border-color 0.15s, background 0.15s;
+}
+.cs-color-chip:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.09); }
+.cs-color-chip--active {
+  border-color: var(--chip-dot, #FFD200);
+  background: color-mix(in srgb, var(--chip-dot, #FFD200) 14%, transparent);
+  color: rgba(255,255,255,0.9);
+}
+.cs-color-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+.cs-color-label { line-height: 1; }
+.cs-color-error { font-size: 0.72rem; color: #f87171; margin: 0.25rem 0 0; display: none; }
+
 </style>
 {% endblock %}
 
@@ -349,9 +372,10 @@
 
       <hr class="cs-section-divider">
 
-      {# ── SECTION 3: Color / Theme placeholder (CS-S3) ── #}
-      <p class="cs-section-label">Color / Theme</p>
-      <p style="font-size:0.75rem;color:#475569;margin:0;">Color picker coming in next update.</p>
+      {# ── SECTION 3: Color / Theme (CS-COLOR-1) ── #}
+      {% if card_themes is defined and card_themes %}
+        {% include "includes/cs_color_panel.html" %}
+      {% endif %}
 
     </div>{# END .cs-control-panel #}
 
@@ -527,5 +551,75 @@
   });
 
 })();
+
+// ── CS-COLOR-1: Welcome Studio Theme Picker ───────────────────────────────
+(function () {
+  'use strict';
+
+  function _wcsThemeCsrf() {
+    return (document.cookie.split('; ').find(function (r) { return r.startsWith('csrf_token='); }) || '').split('=')[1] || '';
+  }
+
+  function _wcsUpdatePreviewTheme(themeId) {
+    var iframe = document.getElementById('cs-preview-iframe');
+    if (!iframe) return;
+    var src = iframe.src;
+    // Replace or insert theme param
+    src = src.replace(/[?&]theme=[^&]*/g, '');
+    src += (src.indexOf('?') === -1 ? '?' : '&') + 'theme=' + encodeURIComponent(themeId);
+    iframe.src = src;
+  }
+
+  function _wcsUpdateExportTheme(themeId) {
+    var link = document.querySelector('.cs-btn-download');
+    if (!link) return;
+    var href = link.getAttribute('href') || '';
+    href = href.replace(/[?&]theme=[^&]*/g, '');
+    href += (href.indexOf('?') === -1 ? '?' : '&') + 'theme=' + encodeURIComponent(themeId);
+    link.setAttribute('href', href);
+  }
+
+  function _wcsUpdateChips(themeId) {
+    document.querySelectorAll('.cs-color-chip').forEach(function (btn) {
+      var t = btn.getAttribute('data-theme');
+      btn.classList.toggle('cs-color-chip--active', t === themeId);
+    });
+  }
+
+  window.setWelcomeTheme = function (themeId) {
+    var errEl  = document.getElementById('cs-color-error');
+    var csrf   = _wcsThemeCsrf();
+    if (!csrf) {
+      if (errEl) { errEl.textContent = 'Session expired — reload page.'; errEl.style.display = 'block'; }
+      return;
+    }
+    fetch('/dashboard/wc-card-theme', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ theme: themeId }),
+    })
+      .then(function (r) {
+        if (r.status === 403) { return Promise.reject(new Error('csrf')); }
+        return r.json();
+      })
+      .then(function (data) {
+        if (data.ok) {
+          if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+          _wcsUpdateChips(themeId);
+          _wcsUpdatePreviewTheme(themeId);
+          _wcsUpdateExportTheme(themeId);
+        } else {
+          if (errEl) { errEl.textContent = data.error || 'Could not apply theme.'; errEl.style.display = 'block'; }
+        }
+      })
+      .catch(function (err) {
+        if (errEl) {
+          errEl.textContent = (err && err.message === 'csrf') ? 'Session expired — reload page.' : 'Network error — please try again.';
+          errEl.style.display = 'block';
+        }
+      });
+  };
+
+}());
 </script>
 {% endblock %}
