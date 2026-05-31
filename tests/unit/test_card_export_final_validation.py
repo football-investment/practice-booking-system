@@ -10,7 +10,7 @@ Validates per format:
   4. Skill row count or category averages rendered
   5. Category color tokens present in output
   6. Self-hosted font references in base template (not CDN)
-  7. OG bucket routes to og/fifa.html (not landscape/driver)
+  7. OG bucket routes to og/fclassic.html (not landscape/driver)
 
 Formats under test:
   portrait  instagram_portrait  PORT-v2  1080×1350

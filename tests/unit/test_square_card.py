@@ -1,5 +1,5 @@
 """
-Unit tests — FIFA Classic × Instagram Square card template
+Unit tests — FClassic × Instagram Square card template
 ==========================================================
 
 Static assertions against app/templates/public/export/square/fclassic.html.
@@ -88,7 +88,7 @@ def tpl() -> str:
 
 @pytest.fixture(scope="module")
 def macro_tpl() -> str:
-    """Raw source of card_position_map.html — position map DOM lives here, not in square/fifa.html."""
+    """Raw source of card_position_map.html — position map DOM lives here, not in square/fclassic.html."""
     return _MACRO_PATH.read_text(encoding="utf-8")
 
 
@@ -333,9 +333,9 @@ class TestFileIntegrity:
         assert _TPL_PATH.exists(), f"Template not found: {_TPL_PATH}"
 
     def test_sq15_has_doctype(self, tpl):
-        """Must produce a complete HTML document — via extends fifa_base.html."""
-        assert '{% extends' in tpl and 'fifa_base.html' in tpl, (
-            "Template must extend fifa_base.html (which provides the DOCTYPE declaration)"
+        """Must produce a complete HTML document — via extends export_base.html."""
+        assert '{% extends' in tpl and 'export_base.html' in tpl, (
+            "Template must extend export_base.html (which provides the DOCTYPE declaration)"
         )
 
     def test_sq15_has_ex_card_root(self, tpl):
@@ -379,7 +379,7 @@ class TestPositionMiniPanel:
     def test_sq18_landscape_pitch_svg_viewbox(self, tpl, macro_tpl):
         """v8: Landscape pitch SVG must use viewBox '0 0 105 68' (real 105m×68m pitch geometry).
 
-        Since v11 the SVG lives inside card_position_map.html macro, not inline in square/fifa.html.
+        Since v11 the SVG lives inside card_position_map.html macro, not inline in square/fclassic.html.
         """
         assert 'viewBox="0 0 105 68"' in macro_tpl, (
             "Landscape SVG must use real pitch geometry viewBox '0 0 105 68' — check card_position_map.html"

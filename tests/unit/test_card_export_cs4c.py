@@ -18,7 +18,7 @@ Mock strategy (smoke + zero-diff tests):
   CS4C-06/07 compare normalised rendered HTML from two TestClient requests:
     (a) driver path  (fifa, component_config populated — current default)
     (b) Level C path (same design but component_config forcibly cleared to {} so the
-        router falls back to portrait/fifa.html / story/fifa.html)
+        router falls back to portrait/fclassic.html / story/fclassic.html)
   The normalisation strips whitespace-only differences so the comparison is stable.
 
 Zero-diff gate note (CS4C-06/07):
