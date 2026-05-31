@@ -567,11 +567,11 @@ _GALLERY_TPL_PATH = (
 )
 _FIFA_TPL_PATH = (
     pathlib.Path(__file__).resolve().parents[4]
-    / "app" / "templates" / "public" / "player_card_fifa.html"
+    / "app" / "templates" / "public" / "player_card_fclassic.html"
 )
 _SQUARE_EXPORT_TPL_PATH = (
     pathlib.Path(__file__).resolve().parents[4]
-    / "app" / "templates" / "public" / "export" / "square" / "fifa.html"
+    / "app" / "templates" / "public" / "export" / "square" / "fclassic.html"
 )
 
 
@@ -916,11 +916,11 @@ _PUBLIC_PLAYER_PY_PATH = (
 )
 _STORY_EXPORT_TPL_PATH = (
     pathlib.Path(__file__).resolve().parents[4]
-    / "app" / "templates" / "public" / "export" / "story" / "fifa.html"
+    / "app" / "templates" / "public" / "export" / "story" / "fclassic.html"
 )
 _TIKTOK_EXPORT_TPL_PATH = (
     pathlib.Path(__file__).resolve().parents[4]
-    / "app" / "templates" / "public" / "export" / "tiktok" / "fifa.html"
+    / "app" / "templates" / "public" / "export" / "tiktok" / "fclassic.html"
 )
 
 
@@ -1290,7 +1290,7 @@ class TestProfilePageLfaLicense:
 
 _LANDSCAPE_EXPORT_TPL_PATH = (
     pathlib.Path(__file__).resolve().parents[4]
-    / "app" / "templates" / "public" / "export" / "landscape" / "fifa.html"
+    / "app" / "templates" / "public" / "export" / "landscape" / "fclassic.html"
 )
 
 
@@ -1301,7 +1301,7 @@ def landscape_export_src():
 
 class TestSquareExportWCFixes:
     """
-    Static source assertions for export/square/fifa.html Welcome Card quality fixes.
+    Static source assertions for export/square/fclassic.html Welcome Card quality fixes.
 
     SQ-WC-01: player.age_group bare pattern removed; or "—" fallback present in both grid paths
     SQ-WC-02: ex-mini-grid--wc CSS class defined (2×2 WC variant)
@@ -1417,7 +1417,7 @@ class TestSquareExportWCFixes:
 
 class TestLandscapeExportP0Fix:
     """
-    P0 hotfix: export/landscape/fifa.html must not render bare 'Lv.' when
+    P0 hotfix: export/landscape/fclassic.html must not render bare 'Lv.' when
     license_current_level is absent from the context (Welcome Card flow).
 
     LS-P0-01: bare {{ license_current_level }} pattern removed — was broken render
@@ -1618,7 +1618,7 @@ class TestWelcomeCardPhase4E:
         """WC-4E-RT-08: None platform → FIFA preview fallback (gallery hub)."""
         from app.api.web_routes.profile import _select_welcome_card_template
         assert _select_welcome_card_template(None, False) == \
-               "public/player_card_fifa.html"
+               "public/player_card_fclassic.html"
 
     # ── WC-4E-RND: render — content contract ──────────────────────────────────
 
@@ -1743,7 +1743,7 @@ _LANDSCAPE_TPL_DIR = (
 
 
 def _render_landscape(ctx: dict) -> str:
-    """Render public/export/landscape/fifa.html with a real Jinja2 environment."""
+    """Render public/export/landscape/fclassic.html with a real Jinja2 environment."""
     from jinja2 import Environment, FileSystemLoader
     from app.utils.country_codes import register_filters as _rf
     env = Environment(
@@ -1751,7 +1751,7 @@ def _render_landscape(ctx: dict) -> str:
         autoescape=True,
     )
     _rf(env)
-    return env.get_template("public/export/landscape/fifa.html").render(**ctx)
+    return env.get_template("public/export/landscape/fclassic.html").render(**ctx)
 
 
 def _wc_landscape_ctx() -> dict:
@@ -1773,7 +1773,7 @@ def _pc_landscape_ctx() -> dict:
 
 class TestLandscapeBugFix:
     """
-    BUG-1/2/3 regression tests for landscape/fifa.html and _build_welcome_card_context.
+    BUG-1/2/3 regression tests for landscape/fclassic.html and _build_welcome_card_context.
 
     LS-BUG-01: WC landscape render must NOT contain the License row
     LS-BUG-02: WC landscape render must NOT contain the XP row (✦)

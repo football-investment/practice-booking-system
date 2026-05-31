@@ -28,7 +28,7 @@ from app.services.card_system._skeletal_specs import (
 )
 from app.services.card_system._types import CardContentContract, ContentField
 from app.services.card_system._welcome_card import WELCOME_CARD_CONTRACT, WELCOME_CARD_SPEC
-from app.services.card_system.registry import FIFA_CLASSIC_CAPABILITIES
+from app.services.card_system.registry import FCLASSIC_CAPABILITIES
 
 
 # ── CS01–CS05: CardTypeSpec immutability and identity ───────────────────────
@@ -144,14 +144,14 @@ class TestCardRegistry:
 
 class TestVariantCapabilitySpec:
     def test_cs25_fifa_classic_capabilities_variant_id(self):
-        assert FIFA_CLASSIC_CAPABILITIES.variant_id == "fifa"
+        assert FCLASSIC_CAPABILITIES.variant_id == "fifa"
 
     def test_cs26_fifa_supports_player_and_welcome_card(self):
-        assert "player_card" in FIFA_CLASSIC_CAPABILITIES.supported_card_types
-        assert "welcome_card" in FIFA_CLASSIC_CAPABILITIES.supported_card_types
+        assert "player_card" in FCLASSIC_CAPABILITIES.supported_card_types
+        assert "welcome_card" in FCLASSIC_CAPABILITIES.supported_card_types
 
     def test_cs27_fifa_animated_mode_true(self):
-        assert FIFA_CLASSIC_CAPABILITIES.animated_mode is True
+        assert FCLASSIC_CAPABILITIES.animated_mode is True
 
     def test_cs28_get_variant_capabilities_returns_none_for_unknown(self):
         result = card_registry.get_variant_capabilities("nonexistent_variant")

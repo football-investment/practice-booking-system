@@ -161,3 +161,12 @@ docs/debug_screenshots/*.svg
 
 # Moved SQL Scripts (cleaned up to scripts/)
 scripts/sql/cleanup/*.sql
+
+# Local dev artifacts — never commit (PR-FC-1C scope cleanup)
+qa_exports/
+app/static/uploads/mood_photos/
+app/static/uploads/lfa_player_photos/
+scripts/dev_*.py
+welcome-card-layout-validation.jsx
+tests/snapshots/openapi_schema.json
+tests/unit/test_card_preview_routing.py

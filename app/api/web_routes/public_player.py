@@ -49,6 +49,7 @@ from app.services.card_constants import EXPORT_FORMAT_BUCKETS as _EXPORT_FORMAT_
 from app.services.card_design_service import (
     get_supported_buckets as _get_supported_buckets,
     get_design as _get_design,
+    resolve_design_id as _resolve_design_id,
 )
 
 # CS-6 A-model: archetype_id → {bucket → driver filename}.
@@ -443,9 +444,9 @@ def public_player_card(
                 "card variant template missing — rendering fclassic fallback",
                 extra={"card_variant_id": card_variant_id, "expected_template": variant.template},
             )
-        fifa_candidate = os.path.join(_TEMPLATES_DIR, "public/player_card_fifa.html")
-        if os.path.isfile(fifa_candidate):
-            template_path = "public/player_card_fifa.html"
+        fclassic_candidate = os.path.join(_TEMPLATES_DIR, "public/player_card_fclassic.html")
+        if os.path.isfile(fclassic_candidate):
+            template_path = "public/player_card_fclassic.html"
 
     # Photo URL resolution per variant family:
     #   FIFA/compact → portrait crop (falls back to original uncropped)
@@ -490,7 +491,7 @@ def public_player_card(
         _bucket_cfg = _design_def.component_config.get(_fmt)
         _archetype  = _design_def.archetype_id or ""
         _driver_tpl = _ARCHETYPE_DRIVERS.get(_archetype, {}).get(_fmt)
-        _level_c_tpl = f"public/export/{_fmt}/{card_variant_id}.html"
+        _level_c_tpl = f"public/export/{_fmt}/{_resolve_design_id(card_variant_id)}.html"
         _has_level_c = os.path.isfile(os.path.join(_TEMPLATES_DIR, _level_c_tpl))
         if _fmt in _LEVEL_C_PRIORITY_BUCKETS and _has_level_c:
             # Level C file wins for PORT-v2 priority buckets (portrait).

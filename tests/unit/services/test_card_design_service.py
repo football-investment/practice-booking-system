@@ -55,7 +55,7 @@ def _make_row(
     is_premium=False,
     credit_cost=0,
     sort_order=0,
-    browser_template="public/player_card_fifa.html",
+    browser_template="public/player_card_fclassic.html",
     is_active=True,
     archetype_id=None,
     supported_export_buckets=None,
@@ -105,7 +105,7 @@ def test_cd02_get_design_fifa_fields():
     assert d.label == "FClassic Player"
     assert d.is_premium is True
     assert d.credit_cost == 300
-    assert d.template == "public/player_card_fifa.html"
+    assert d.template == "public/player_card_fclassic.html"
     assert d.available is True
     assert d.archetype_id == "column"
     assert "square" in d.supported_export_buckets

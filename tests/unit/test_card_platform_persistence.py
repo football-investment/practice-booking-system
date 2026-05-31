@@ -316,7 +316,7 @@ class TestPublicCardPlatformResolution:
         from app.api.web_routes.public_player import _EXPORT_FORMAT_BUCKETS, _TEMPLATES_DIR
 
         platform_id = "instagram_square"
-        card_variant = "fifa"
+        card_variant = "fclassic"  # PR-FC-1B: canonical id is "fclassic", not "fifa"
 
         assert platform_id in _EXPORT_FORMAT_BUCKETS, "instagram_square must be in format buckets"
         fmt = _EXPORT_FORMAT_BUCKETS[platform_id]

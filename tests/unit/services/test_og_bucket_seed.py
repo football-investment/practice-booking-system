@@ -58,7 +58,7 @@ def _make_db_row(buckets: list[str]):
     row.is_premium = True
     row.credit_cost = 300
     row.sort_order = 0
-    row.browser_template = "public/player_card_fifa.html"
+    row.browser_template = "public/player_card_fclassic.html"
     row.is_active = True
     row.archetype_id = "fifa_base"
     row.supported_export_buckets = buckets

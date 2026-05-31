@@ -4,7 +4,7 @@ Unit tests — PORT-v2: Instagram Portrait standalone template
 Split Hero v3.2b + typography system — 2026-05-18
 
 Coverage:
-  PV-01  portrait/fifa.html extends export_base.html directly (Level C standalone)
+  PV-01  portrait/fclassic.html extends export_base.html directly (Level C standalone)
   PV-02  Split hero height CSS var is 660px  (--ex-split-hero-h layout anchor)
   PV-03  Split Hero architecture: ex-split-hero, ex-photo-panel, ex-info-panel present
   PV-04  Info panel uses ex-meta-val class for meta values
@@ -19,7 +19,7 @@ Coverage:
   PV-13  Photo URL absent → ex-hero-placeholder rendered (initials fallback)
   PV-14  Photo URL present → ex-hero-photo img rendered
   PV-15  Export mode renders ex-card root element
-  PV-16  Typography: portrait/fifa.html imports card_ovr_badge macro (Bebas Neue)
+  PV-16  Typography: portrait/fclassic.html imports card_ovr_badge macro (Bebas Neue)
   PV-17  OVR badge element (ex-ovr-badge) rendered in output
 
 Regression baseline locked: 2026-05-18, PORT-v2 Split Hero v3.2b.
@@ -39,7 +39,7 @@ _TEMPLATES_ROOT = (
     Path(__file__).resolve().parent.parent.parent
     / "app" / "templates"
 )
-_PORTRAIT_TMPL = _TEMPLATES_ROOT / "public" / "export" / "portrait" / "fifa.html"
+_PORTRAIT_TMPL = _TEMPLATES_ROOT / "public" / "export" / "portrait" / "fclassic.html"
 
 
 # ── Mock helpers ──────────────────────────────────────────────────────────────
@@ -181,8 +181,8 @@ class TestPortV2Static:
     """File-level invariants — no HTTP request."""
 
     def test_pv_01_extends_export_base_directly(self):
-        """portrait/fifa.html must extend export_base.html (Level C standalone, not column_archetype)."""
-        assert _PORTRAIT_TMPL.exists(), "portrait/fifa.html missing"
+        """portrait/fclassic.html must extend export_base.html (Level C standalone, not column_archetype)."""
+        assert _PORTRAIT_TMPL.exists(), "portrait/fclassic.html missing"
         src = _PORTRAIT_TMPL.read_text(encoding="utf-8")
         assert 'extends "public/export/shared/export_base.html"' in src, (
             "PORT-v2 must extend export_base.html directly, not column_archetype"
@@ -270,13 +270,13 @@ class TestPortV2Rendering:
         assert count == 44, f"Expected 44 skill rows, got {count}"
 
     def test_pv_09_routes_to_level_c_not_driver(self, client):
-        """Portrait bucket must route to portrait/fifa.html (Level C), not column_driver.html."""
+        """Portrait bucket must route to portrait/fclassic.html (Level C), not column_driver.html."""
         status, html = _render(client)
         assert status == 200
         # PORT-v2 markers absent from driver
         assert "ex-hero-photo" in html or "ex-hero-placeholder" in html, (
             "Neither ex-hero-photo nor ex-hero-placeholder found — "
-            "probably rendering column_driver.html instead of portrait/fifa.html"
+            "probably rendering column_driver.html instead of portrait/fclassic.html"
         )
         # Driver-specific marker must NOT be present in PORT-v2 output
         assert "column_driver.html" not in html
@@ -333,7 +333,7 @@ class TestPortV2Structure:
         assert "ex-card" in html, "ex-card root element missing in export render"
 
     def test_pv_16_typography_ovr_badge_macro_imported(self):
-        """portrait/fifa.html must import card_ovr_badge macro (Bebas Neue OVR badge)."""
+        """portrait/fclassic.html must import card_ovr_badge macro (Bebas Neue OVR badge)."""
         src = _PORTRAIT_TMPL.read_text(encoding="utf-8")
         assert 'from "macros/card_ovr_badge.html"' in src, (
             "card_ovr_badge macro import missing — typography Step D not applied"
