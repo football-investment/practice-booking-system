@@ -91,15 +91,15 @@ class TestPublishGuard:
 class TestPricingGuard:
 
     def test_pg05_fifa_classic_not_free(self):
-        """PG-05: FIFA Classic credit_cost > 0 in DESIGNS fallback dict."""
+        """PG-05: FClassic Player credit_cost > 0 in DESIGNS fallback dict."""
         from app.services.card_design_service import DESIGNS
         fifa = DESIGNS.get("fifa")
-        assert fifa is not None, "DESIGNS must contain 'fifa'"
+        assert fifa is not None, "DESIGNS must contain 'fifa' (legacy alias key)"
         assert fifa.credit_cost > 0, (
-            f"FIFA Classic must not be free (credit_cost={fifa.credit_cost}); "
+            f"FClassic Player must not be free (credit_cost={fifa.credit_cost}); "
             "no 0-CR purchasable designs allowed"
         )
-        assert fifa.is_premium is True, "FIFA Classic must be is_premium=True"
+        assert fifa.is_premium is True, "FClassic Player must be is_premium=True"
 
     def test_pg06_zero_credit_cost_yields_not_available(self):
         """PG-06: shop route assigns 'not_available' to credit_cost=0 unowned designs."""

@@ -59,7 +59,7 @@ def _db():
 def _fifa_design(available=True, credit_cost=300):
     d = MagicMock()
     d.id = "fifa"
-    d.label = "FIFA Classic"
+    d.label = "FClassic Player"
     d.description = "The original LFA player card."
     d.credit_cost = credit_cost
     d.is_premium = True
@@ -118,7 +118,7 @@ def _render_detail(state="get_card", owned=False):
     user.credit_balance = 500
 
     design = MagicMock()
-    design.label = "FIFA Classic"
+    design.label = "FClassic Player"
     design.description = "The original LFA player card."
     design.credit_cost = 300
     design.supported_export_buckets = _FIFA_BUCKETS
@@ -148,7 +148,7 @@ def _render_player_list():
     user.credit_balance = 500
 
     design_rows = [
-        {"id": "fifa", "label": "FIFA Classic", "description": "", "credit_cost": 300, "is_premium": True, "state": "get_card"},
+        {"id": "fifa", "label": "FClassic Player", "description": "", "credit_cost": 300, "is_premium": True, "state": "get_card"},
         {"id": "compact", "label": "Compact", "description": "", "credit_cost": 300, "is_premium": True, "state": "locked"},
     ]
 
@@ -203,12 +203,12 @@ class TestPCID03CollectionTitle:
     def test_pcid03_context_contains_design_with_correct_label(self):
         """PCID-03: context design.label == 'FIFA Classic'."""
         cap = _call_detail(collection_id="fifa")
-        assert cap["context"]["design"].label == "FIFA Classic"
+        assert cap["context"]["design"].label == "FClassic Player"
 
     def test_pcid03_rendered_html_contains_collection_title(self):
         """PCID-03b: rendered HTML contains 'FIFA Classic'."""
         html = _render_detail()
-        assert "FIFA Classic" in html
+        assert "FClassic Player" in html
 
 
 # ── PCID-04: 7 format rows ───────────────────────────────────────────────────

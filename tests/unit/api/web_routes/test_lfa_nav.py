@@ -87,7 +87,7 @@ class TestMyCardsSpecContext:
 
         free_design = MagicMock()
         free_design.id = "fifa"
-        free_design.label = "FIFA Classic"
+        free_design.label = "FClassic Player"
         free_design.credit_cost = 0
         free_design.is_premium = False
 

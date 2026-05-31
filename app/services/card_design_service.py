@@ -40,6 +40,7 @@ class NonPlayerCardFormatDefinition:
     credit_cost:      int
     preview_platform: str
     sort_order:       int = 0
+    family_id:        str = "fclassic"  # PR-FC-1A: all current WC/CC formats belong to FClassic
 
 
 @dataclass(frozen=True)
@@ -113,7 +114,7 @@ _FIFA_COMPONENT_CONFIG: dict = {
 DESIGNS: dict[str, CardDesignDefinition] = {
     "fifa": CardDesignDefinition(
         id="fifa",
-        label="FIFA Classic",
+        label="FClassic Player",
         description="The original LFA player card with full skill breakdown and event history.",
         is_premium=True,
         credit_cost=300,
@@ -197,6 +198,69 @@ DESIGN_ORDER: list[str] = [
     "fifa", "compact", "compact_bg", "showcase", "showcase_bg", "atlas", "pulse",
 ]
 
+# ── FClassic family — PR-FC-1A ────────────────────────────────────────────────
+# "fclassic" is the canonical family / design identifier going forward.
+# "fifa" is a deprecated alias kept alive for backward compatibility until
+# PR-FC-1B completes the DB PK migration.
+
+FCLASSIC_FAMILY_ID: str = "fclassic"
+
+# Player Card design IDs that belong to the FClassic family.
+# Includes both the legacy "fifa" key (current DB PK) and the canonical "fclassic"
+# key (post-PR-FC-1B DB state).
+FCLASSIC_PLAYER_DESIGN_IDS: frozenset[str] = frozenset({"fifa", "fclassic"})
+
+# Deprecated design ID → canonical design ID.
+# Read path: resolve before lookup. Write path: new data must use canonical ID.
+_DESIGN_ID_ALIAS: dict[str, str] = {
+    "fifa": "fclassic",
+}
+
+# Design IDs that are deprecated and must not be used for new canonical writes.
+_DEPRECATED_DESIGN_IDS: frozenset[str] = frozenset(_DESIGN_ID_ALIAS.keys())
+
+
+def resolve_design_id(design_id: str) -> str:
+    """Resolve a deprecated design ID to its canonical form.
+
+    "fifa" → "fclassic".  All other IDs pass through unchanged.
+    Safe to call on any design_id without knowing whether it is current.
+    """
+    return _DESIGN_ID_ALIAS.get(design_id, design_id)
+
+
+def get_card_family(card_type_id: str, design_id: str | None = None) -> str | None:
+    """Return the family_id for a card_type + design combination, or None.
+
+    FClassic family covers:
+      - player_card with design_id in FCLASSIC_PLAYER_DESIGN_IDS (includes alias "fifa")
+      - all welcome_card formats
+      - all challenge_card formats
+    Other Player Card designs (compact, showcase, atlas, pulse …) return None.
+    """
+    if card_type_id == "player_card":
+        if design_id is not None and resolve_design_id(design_id) == FCLASSIC_FAMILY_ID:
+            return FCLASSIC_FAMILY_ID
+        return None
+    if card_type_id in ("welcome_card", "challenge_card"):
+        return FCLASSIC_FAMILY_ID
+    return None
+
+
+def assert_new_design_id_is_canonical(design_id: str, context: str = "") -> None:
+    """Raise ValueError if a deprecated design ID is used for a new canonical write.
+
+    PR-FC-1A no-new-fifa guard: new data must use 'fclassic', not legacy 'fifa'.
+    Call this before any DB write that creates or updates design_id associations.
+    """
+    if design_id in _DEPRECATED_DESIGN_IDS:
+        canonical = resolve_design_id(design_id)
+        suffix = f" Context: {context}" if context else ""
+        raise ValueError(
+            f"Deprecated design ID {design_id!r} must not be used for new writes. "
+            f"Use {canonical!r} instead.{suffix}"
+        )
+
 
 # ── Non-player-card format registries ────────────────────────────────────────
 # Format/variant definitions for Welcome Card and Challenge Card families.
@@ -270,12 +334,19 @@ def _maybe_reload(db=None) -> dict[str, CardDesignDefinition]:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def get_design(design_id: str, db=None) -> CardDesignDefinition:
-    """Return design by ID, falling back to 'fifa' for unknown IDs.
+    """Return design by ID. 'fifa' is a deprecated alias for 'fclassic'.
 
+    Resolution order: canonical ID → original ID → 'fifa' fallback → hardcoded.
     The available flag is NOT used here — render path must never be gated.
     """
+    canonical = resolve_design_id(design_id)
     cache = _maybe_reload(db)
-    return cache.get(design_id, cache.get("fifa", DESIGNS["fifa"]))
+    return (
+        cache.get(canonical)
+        or cache.get(design_id)
+        or cache.get("fifa")
+        or DESIGNS["fifa"]
+    )
 
 
 def get_all_designs(db=None) -> list[CardDesignDefinition]:

@@ -53,7 +53,7 @@ def _make_db_row(buckets: list[str]):
     """Minimal mock CardDesign ORM row."""
     row = MagicMock()
     row.id = "fifa"
-    row.label = "FIFA Classic"
+    row.label = "FClassic Player"
     row.description = "Test"
     row.is_premium = True
     row.credit_cost = 300
@@ -170,7 +170,7 @@ class TestOG06DetailPageSevenFormats:
         user.id = 42
         user.credit_balance = 500
         design = MagicMock()
-        design.label = "FIFA Classic"
+        design.label = "FClassic Player"
         design.description = ""
         design.credit_cost = 300
         design.supported_export_buckets = tuple(_CANONICAL_7)
@@ -206,7 +206,7 @@ class TestOG06DetailPageSevenFormats:
         user.id = 42
         user.credit_balance = 500
         design = MagicMock()
-        design.label = "FIFA Classic"
+        design.label = "FClassic Player"
         design.description = ""
         design.credit_cost = 300
 
