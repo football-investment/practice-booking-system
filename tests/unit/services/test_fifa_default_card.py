@@ -628,7 +628,10 @@ def test_tpl27_no_st_gk_orientation_labels_in_svg():
 # ── ED-*: Editor template ──────────────────────────────────────────────────────
 
 def _editor_html():
-    return _read(_TPL_EDITOR)
+    """Effective editor source: main template + Jinja2 includes expanded."""
+    _styles  = _ROOT / "app/templates/includes/player_editor/styles.html"        # REF-P1
+    _preview = _ROOT / "app/templates/includes/player_editor/preview_panel.html"  # REF-P3
+    return "\n".join([_read(_TPL_EDITOR), _read(_styles), _read(_preview)])
 
 
 def test_ed01_download_button_not_unconditionally_disabled():
