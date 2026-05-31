@@ -206,7 +206,7 @@ class TestUnlockVariantAutoApply:
         free_design = CardDesignDefinition(
             id="free_test", label="Free Test", description="",
             is_premium=False, credit_cost=0, available=True,
-            template="public/player_card_fifa.html",
+            template="public/player_card_fclassic.html",
             supported_export_buckets=[], component_config={},
         )
         db = _mock_db()

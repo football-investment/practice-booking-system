@@ -1,0 +1,127 @@
+{
+  "platform": "instagram_portrait \u2014 PORT-v2 \u2014 1080\u00d71350",
+  "version": "PORT-v2",
+  "design": "Split Hero v3.1",
+  "canvas": {
+    "width": 1080,
+    "height": 1350
+  },
+  "date": "2026-05-18",
+  "measured_zones": {
+    "split_hero": {
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 500
+    },
+    "photo_panel": {
+      "x": 0,
+      "y": 0,
+      "width": 560,
+      "height": 500
+    },
+    "info_panel": {
+      "x": 560,
+      "y": 0,
+      "width": 520,
+      "height": 500
+    },
+    "posmap": {
+      "x": 0,
+      "y": 500,
+      "width": 1080,
+      "height": 170
+    },
+    "skills_zone": {
+      "x": 0,
+      "y": 670,
+      "width": 1080,
+      "height": 680
+    },
+    "col_left": {
+      "x": 10,
+      "y": 681,
+      "width": 480,
+      "height": 659
+    },
+    "col_mid": {
+      "x": 500,
+      "y": 681,
+      "width": 260,
+      "height": 659
+    },
+    "col_right": {
+      "x": 770,
+      "y": 681,
+      "width": 300,
+      "height": 659
+    }
+  },
+  "overlay_positions": {
+    "ovr_block": {
+      "x": 588,
+      "y": 68,
+      "width": 468,
+      "height": 84
+    },
+    "pos_badge": {
+      "x": 588,
+      "y": 199,
+      "width": 468,
+      "height": 37
+    },
+    "meta_list": {
+      "x": 588,
+      "y": 273,
+      "width": 468,
+      "height": 203
+    },
+    "photo_name": {
+      "x": 20,
+      "y": 454.7,
+      "width": 520,
+      "height": 25.3
+    }
+  },
+  "category_name_positions": {
+    "cat_outfield": {
+      "x": 20,
+      "y": 691,
+      "width": 460,
+      "height": 21
+    },
+    "cat_mental": {
+      "x": 510,
+      "y": 691,
+      "width": 240,
+      "height": 21
+    },
+    "cat_sets": {
+      "x": 780,
+      "y": 691,
+      "width": 280,
+      "height": 21
+    },
+    "cat_phys": {
+      "x": 780,
+      "y": 842,
+      "width": 280,
+      "height": 21
+    }
+  },
+  "invariants": {
+    "split_hero_h": 500,
+    "photo_panel_w": 560,
+    "posmap_h": 170,
+    "total_skill_rows": 44,
+    "row_height_uniform": true,
+    "row_height_variation": 0,
+    "row_height_sample": [
+      32,
+      32,
+      32,
+      32,
+      32
+    ]
+  }
+}

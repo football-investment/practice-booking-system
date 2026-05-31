@@ -1,0 +1,42 @@
+{
+  "pc1": {
+    "description": "Close-up face \u2014 skin-tone top, dark bottom",
+    "sha256": "e830dc254370af40fc924c81389215516a709cea22e2b7380384b3c52a97945c",
+    "size_bytes": 29864
+  },
+  "pc2": {
+    "description": "Full-body \u2014 lighter top, very dark bottom",
+    "sha256": "31a7fd9076028519ec168fd0374f07257a98c044077cc5875ce852e0f3157c67",
+    "size_bytes": 29249
+  },
+  "pc3": {
+    "description": "Centered portrait \u2014 uniform dark background",
+    "sha256": "98e225c649a5570ea31bcf340d501bc6174eba0f723bd79c4dc3f037f01bd03d",
+    "size_bytes": 22131
+  },
+  "pc4": {
+    "description": "Off-center portrait \u2014 green pitch background",
+    "sha256": "0222169269a06f638ccc8279bb127d5d85408c6ad1dbffa03ff1f3e308b2d967",
+    "size_bytes": 23686
+  },
+  "pc5": {
+    "description": "Light background \u2014 high-key, pale blue-grey",
+    "sha256": "c75666769437ea01b722cf64046733a11244fc8a579aaa882a26cc9dbe70be69",
+    "size_bytes": 27054
+  },
+  "pc6": {
+    "description": "Dark background \u2014 low-key, near-black",
+    "sha256": "a4c3a1c239f157082495aab1355aded3650b8a926dbbee41424b72547dd7b309",
+    "size_bytes": 19817
+  },
+  "pc7": {
+    "description": "No photo \u2014 initials placeholder",
+    "sha256": "1a2f8520ce1e78de66e81d23dea95ac1202a065d0473420f1be489db4c06e196",
+    "size_bytes": 22351
+  },
+  "pc8": {
+    "description": "Unknown position \u2014 no PosMap",
+    "sha256": "4ef425a6b1640a2ce6fb1cc4e20e1981e6a4d24671187442b7ca822b55390183",
+    "size_bytes": 25253
+  }
+}

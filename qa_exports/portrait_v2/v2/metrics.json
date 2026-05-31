@@ -1,0 +1,87 @@
+{
+  "hero": {
+    "x": 0,
+    "y": 0,
+    "width": 1080,
+    "height": 420
+  },
+  "meta_strip": {
+    "x": 0,
+    "y": 420,
+    "width": 1080,
+    "height": 56
+  },
+  "posmap": {
+    "x": 0,
+    "y": 476,
+    "width": 1080,
+    "height": 170
+  },
+  "skills_zone": {
+    "x": 0,
+    "y": 646,
+    "width": 1080,
+    "height": 704
+  },
+  "ovr_block": {
+    "x": 962.3,
+    "y": 301,
+    "width": 97.7,
+    "height": 103
+  },
+  "name_block": {
+    "x": 20,
+    "y": 355.7,
+    "width": 880,
+    "height": 48.3
+  },
+  "pos_badge": {
+    "x": 20,
+    "y": 18,
+    "width": 45.1,
+    "height": 23
+  },
+  "brand_tag": {
+    "x": 1035.0,
+    "y": 18,
+    "width": 25.0,
+    "height": 12
+  },
+  "cat_outfield": {
+    "x": 22,
+    "y": 666,
+    "width": 503,
+    "height": 25
+  },
+  "cat_mental": {
+    "x": 555,
+    "y": 666,
+    "width": 503,
+    "height": 25
+  },
+  "cat_sets": {
+    "x": 555,
+    "y": 1034.7,
+    "width": 503,
+    "height": 25
+  },
+  "cat_phys": {
+    "x": 555,
+    "y": 1134.2,
+    "width": 503,
+    "height": 25
+  },
+  "row_sample": {
+    "x": 22,
+    "y": 699,
+    "width": 503,
+    "height": 37
+  },
+  "row_heights_sample": [
+    37,
+    37,
+    37,
+    37,
+    37
+  ]
+}

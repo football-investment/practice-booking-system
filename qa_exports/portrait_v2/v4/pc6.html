@@ -1,0 +1,1080 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bence Kovács — LFA Player Card</title>
+<style>
+/*
+ * Shared Export Base Template
+ * Provides: HTML shell, CSS reset, theme-root block, shared skill-row CSS classes.
+ * All CSS sizing values are parameterized via CSS custom properties.
+ * Platforms extend this template (directly or via column_archetype.html) and
+ * override only the blocks they need.
+ *
+ * Block API:
+ *   theme_root       — export_root_vars(theme) call; override to change cat_bg/bar_bg
+ *   platform_vars    — :root {} block for platform sizing vars (--ex-hero-h, etc.)
+ *   extra_css        — platform-specific CSS (hero zone, panel layouts, unique classes)
+ *   body_content     — full DOM structure
+ *   scripts          — JS (default empty; square overrides for scale engine)
+ *
+ * CSS var defaults (match portrait — the column-archetype reference platform):
+ *   --ex-card-direction  column       flex-direction of .ex-card
+ *   --ex-grid-gap        12px         gap between 2×2 skill-category cells
+ *   --ex-cat-radius      12px         border-radius of .ex-cat
+ *   --ex-cat-pad         14px         padding of .ex-cat
+ *   --ex-font-cat        13px         font-size of .ex-cat-name
+ *   --ex-row-max-h       44px         max-height of .ex-row (caps Set Pieces stretch)
+ *   --ex-sname-w         160px        flex-basis of .ex-sname (skill name column)
+ *   --ex-font-skill      15px         font-size of .ex-sname and .ex-sval
+ *   --ex-bar-h           8px          height of .ex-bar-bg (skill bar track)
+ *   --ex-sval-w          44px         flex-basis of .ex-sval (skill value column)
+ *   --ex-trend-w         18px         flex-basis of .ex-trend (arrow column)
+ *   --ex-font-trend      14px         font-size of .ex-trend
+ */
+
+/* ── THEME ROOT — CSS custom properties from export_root_vars macro ─────────
+   Emits: --ex-panel-bg, --ex-body-bg, --ex-accent, --ex-bar-bg, --ex-cat-bg,
+          --ex-text-strong, --ex-text-body, --ex-text-secondary, --ex-text-muted
+   To pass a custom cat_bg, override the theme_root block in the child template.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+    --ex-panel-bg:       ;
+    --ex-body-bg:        ;
+    --ex-accent:         ;
+    --ex-bar-bg:         rgba(255,255,255,0.10);
+    --ex-cat-bg:         rgba(255,255,255,0.05);
+    --ex-text-strong:    rgba(255,255,255,0.85);
+    --ex-text-body:      rgba(255,255,255,0.72);
+    --ex-text-secondary: rgba(255,255,255,0.48);
+    --ex-text-muted:     rgba(255,255,255,0.30);
+}
+
+
+/* ── PLATFORM SIZING VARS — override in child to set --ex-hero-h, etc. ────── */
+
+:root {
+    --ex-split-hero-h: 560px;
+    --ex-photo-w:      560px;
+    --ex-bar-h:        5px;
+    --ex-row-max-h:    32px;
+    --ex-sname-w:      116px;
+    --ex-font-skill:   13px;
+    --ex-sval-w:       30px;
+    --ex-trend-w:      14px;
+    --ex-font-trend:   11px;
+    --ex-cat-pad:      10px;
+    --ex-cat-radius:   10px;
+    --ex-font-cat:     11px;
+}
+
+
+/* ── RESET ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── ROOT CARD ───────────────────────────────────────────────────────────────
+   100vw × 100vh, flex layout.
+   Horizontal platforms (landscape, banner) set --ex-card-direction: row.
+   Square overrides .ex-card entirely in extra_css for min(100vw,100vh) sizing.
+   ─────────────────────────────────────────────────────────────────────────── */
+.ex-card {
+    width:  100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: var(--ex-card-direction, column);
+    overflow: hidden;
+}
+
+/* ── 2×2 SKILL CATEGORY GRID ─────────────────────────────────────────────── */
+.ex-skill-cats {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: var(--ex-grid-gap, 12px);
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ── SKILL ROW CONTAINER ─────────────────────────────────────────────────── */
+.ex-skill-rows {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── CATEGORY CELL ───────────────────────────────────────────────────────── */
+.ex-cat {
+    background: var(--ex-cat-bg);
+    border-radius: var(--ex-cat-radius, 12px);
+    padding: var(--ex-cat-pad, 14px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+.ex-cat-name {
+    flex-shrink: 0;
+    font-size: var(--ex-font-cat, 13px);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: var(--ex-text-secondary);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── INDIVIDUAL SKILL ROW ────────────────────────────────────────────────── */
+.ex-row {
+    flex: 1;
+    min-height: 0;
+    max-height: var(--ex-row-max-h, 44px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Skill name column */
+.ex-sname {
+    flex: 0 0 var(--ex-sname-w, 160px);
+    font-size: var(--ex-font-skill, 15px);
+    font-weight: 500;
+    color: var(--ex-text-body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;
+}
+
+/* Skill bar track */
+.ex-bar-bg {
+    flex: 1;
+    min-width: 0;
+    height: var(--ex-bar-h, 8px);
+    background: var(--ex-bar-bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.ex-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 4px;
+}
+
+/* Skill value column */
+.ex-sval {
+    flex: 0 0 var(--ex-sval-w, 44px);
+    font-size: var(--ex-font-skill, 15px);
+    font-weight: 700;
+    text-align: right;
+    line-height: 1;
+}
+
+/* Trend arrow column */
+.ex-trend {
+    flex: 0 0 var(--ex-trend-w, 18px);
+    font-size: var(--ex-font-trend, 14px);
+    font-weight: 900;
+    text-align: center;
+    line-height: 1;
+}
+
+/* ── PLATFORM-SPECIFIC CSS ───────────────────────────────────────────────── */
+
+/* ── ROOT ──────────────────────────────────────────────────────── */
+.ex-card {
+    display: flex;
+    flex-direction: column;
+    width:  100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--ex-body-bg);
+}
+
+/* ── SPLIT HERO: 560px, flex-row ───────────────────────────────── */
+.ex-split-hero {
+    flex: 0 0 var(--ex-split-hero-h, 560px);
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+/* ── PHOTO PANEL: 560 × 560px ──────────────────────────────────── */
+.ex-photo-panel {
+    flex: 0 0 var(--ex-photo-w, 560px);
+    position: relative;
+    overflow: hidden;
+    background: var(--ex-panel-bg);
+}
+.ex-hero-photo {
+    position: absolute;
+    inset: 0;
+    width:  100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 15%;
+}
+.ex-hero-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 110px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.16);
+    letter-spacing: -2px;
+    background: var(--ex-panel-bg);
+}
+/* Subtle bottom scrim — name legibility only, not decorative */
+.ex-photo-scrim {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 100px;
+    background: linear-gradient(transparent 0%, rgba(0,0,0,0.48) 100%);
+    pointer-events: none;
+}
+/* Right-edge blend — no hard border between photo and info panel */
+.ex-photo-edge {
+    position: absolute;
+    inset: 0;
+    box-shadow: inset -16px 0 32px rgba(0,0,0,0.40);
+    pointer-events: none;
+}
+/* Player name — subtle overlay, not aggressive; 2-line clamp */
+.ex-photo-name {
+    position: absolute;
+    bottom: 14px;
+    left: 16px;
+    right: 16px;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: rgba(255,255,255,0.90);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.52);
+    white-space: normal;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ── INFO PANEL: flex:1 (~520px wide), 560px tall ──────────────── */
+/* Single stacked column: brand → OVR → tier → divider → meta → spacer → PosMap */
+.ex-info-panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 22px 22px 16px 26px;
+    background: var(--ex-panel-bg);
+    overflow: hidden;
+}
+
+/* Brand row — very quiet, top anchor */
+.ex-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    margin-bottom: 14px;
+}
+.ex-brand-text {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.26);
+}
+.ex-level-pill {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ex-text-muted);
+    background: rgba(255,255,255,0.08);
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+/* OVR — P2 dominant focal point, left-aligned */
+.ex-ovr-num {
+    font-size: 76px;
+    font-weight: 900;
+    line-height: 1;
+    color: #fff;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+}
+
+/* Tier badge — small pill below OVR, left-aligned */
+.ex-tier-badge {
+    display: inline-block;
+    align-self: flex-start;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 10px;
+    color: #fff;
+    flex-shrink: 0;
+    margin-bottom: 18px;
+}
+
+/* Divider — thin, very subtle */
+.ex-info-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.09);
+    flex-shrink: 0;
+    margin-bottom: 14px;
+}
+
+/* Meta list — editorial key-value pairs, fixed size (not flex:1) */
+.ex-meta-list {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.ex-meta-row {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.ex-meta-lbl {
+    flex: 0 0 70px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ex-text-muted);
+    white-space: nowrap;
+}
+.ex-meta-val {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ex-text-strong);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Spacer — premium breathing room between meta and PosMap */
+.ex-info-spacer {
+    flex: 1;
+    min-height: 12px;
+}
+
+/* PosMap inline — bottom anchor of info column, conditional */
+.ex-posmap-inline {
+    flex-shrink: 0;
+    height: 138px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 10px;
+    overflow: hidden;
+}
+/* Show only the pitch SVG — hide the macro's text info sidebar */
+.ex-posmap-inline .ex-pos-info {
+    display: none;
+}
+.ex-posmap-inline > div {
+    height: 100%;
+    display: flex;
+}
+.ex-posmap-inline .ex-pos-svg-landscape {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Position labels row — below inline PosMap */
+.ex-pos-labels-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 7px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.ex-pos-primary {
+    font-size: 12px;
+    font-weight: 900;
+    color: #ECC94B;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.ex-pos-sec-chip {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.09);
+    color: var(--ex-text-body);
+    text-transform: uppercase;
+}
+
+/* ── SKILLS ZONE: flex:1 (~790px), 3 columns ───────────────────── */
+.ex-skills-zone {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    padding: 10px;
+    background: var(--ex-body-bg);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+}
+
+/* Col 1: Outfield — wide, primary display */
+.ex-skills-col-left {
+    flex: 0 0 480px;
+    min-width: 0;
+    --ex-sname-w:    116px;
+    --ex-font-skill: 13px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Col 2: Mental */
+.ex-skills-col-mid {
+    flex: 0 0 260px;
+    min-width: 0;
+    --ex-sname-w:    86px;
+    --ex-font-skill: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Col 3: Set Pieces + Physical */
+.ex-skills-col-right {
+    flex: 1;
+    min-width: 0;
+    --ex-sname-w:    86px;
+    --ex-font-skill: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.ex-cat-outfield { flex: 1; }
+.ex-cat-mental   { flex: 1; }
+/* Sets: fixed height — exactly 3 rows guaranteed */
+/* 10(top pad) + 13(font) + 8(pad-b) + 8(mar-b) + 3×32(rows) + 10(bot pad) = 145px */
+.ex-cat-sets     { flex: 0 0 145px; }
+.ex-cat-phys     { flex: 1; }
+
+/* Category heading — editorial, clear */
+.ex-cat-name {
+    flex-shrink: 0;
+    font-size: var(--ex-font-cat, 11px);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    color: var(--ex-text-body);
+    margin-bottom: 8px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Uniform 32px row rhythm across all 3 columns */
+.ex-row {
+    flex: 0 0 var(--ex-row-max-h, 32px);
+    min-height: 0;
+    align-items: center;
+}
+
+
+
+</style>
+</head>
+<body>
+
+
+
+
+<div class="ex-card">
+
+    
+    <div class="ex-split-hero">
+
+        
+        <div class="ex-photo-panel">
+            
+            <img class="ex-hero-photo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAGQCAIAAABkkLjnAAADVUlEQVR42u3S123DUBQFQf0oMZNKluz+63QRPgSecQeYChZ72LYfiDus6zfEGQtjYSyMpQLGwlgYC4yFsTAWGAtjYSwwFsbCWGAsjIWxwFgYi2pjfSDOWBgLY2EsFTAWxsJYkB5rWT4QZyyMhbEwlgoYC2NhLDAWxsJYYCyMhbEgOdYb4oyFsTAWxlIBY2EsjAXGwlgYC4yFsTAWGAtjYSwIjTXPb4gzFsbCWBhLBXYZ6wvijIWxMBbGUgFjYSyMBcbCWBgLjIWxMBYYC2NhLDAWxsJYYCyMRbWxXhBnLIyFsag+1jS9IM5YGAtjYSwVMBbGwlhgLIyFscBYGAtjgbEwFsYCY9H2WE+IMxbGwlgYSwWMhbEwFhgLY2EsMBbtjzWOT4gzFsbCWBhLBYyFsTAWGAtjYSwIj/WAOGNhLIyFsVTAWBgLY4GxMBbGAmNhLIwFxsJYGAuMhbEwFiTGGoYHxBmLvca6Q5yxMBbGwlgqYCyMhbHAWBgLY4GxMBbGAmNhLIwFxsJYGAuMhbGoNtYN4oyFsTAWxlIBY2EsSo/V9zeIMxbGwlgYSwWMhbEwFhgLY2EsMBbGwlhgLJofa4M4Y2EsjIWxVMBYGAtjgbEwFsYCY2EsjAXGovGxum6DOGNhLIyFsVTAWBiL4mOtEGcsjIWxMJYKGAtjYSwwFsbCWGAsjIWxwFgYC2OBsTAWxgJjYSyqjbVAnLHYZ6zrdYE4Y2EsjIWxVMBYGAtjgbEwFsYCY2EsjAXGwlgYC4yFsTAWGIuGx5ohzlgYC2NhLBUwFsbCWGAsjEXdsS6XGeKMhbEwFsZSAWNhLIwFxsJYGAuMxX8Ya4I4Y2EsjIWxVMBYGAtjgbEwFsYCY2EsjAXGwlgYC4xFy2OdzxPEGQtjYSyMNUKcsTAWxsJYKmAsjIWxwFgYC2OBsTAWxgJjYSyMBcbCWBgLjIWxqDbWAHHGwlgYC2OpwA5jnU4DxBkLY2EsjKUCxsJYGAuMhbEwFhgLY2EsMBbGwlgQG6uHOGNhLIyFsVTAWBgLY4GxMBbGAmNhLIwFubGOxx7ijIWxMBbGUgFjYSyMBfmxOogzFsbCWBhLBYyFsTAWGAtjYSwwFsbCWGAsjIWxwFgYC2OBsTAWxoK/+gUtLXZAafGVpQAAAABJRU5ErkJggg==" alt="Bence Kovács" loading="eager">
+            
+            <div class="ex-photo-scrim"></div>
+            <div class="ex-photo-edge"></div>
+            <div class="ex-photo-name">Bence Kovács</div>
+        </div>
+
+        
+        <div class="ex-info-panel">
+
+            
+            <div class="ex-brand-row">
+                <span class="ex-brand-text">LFA</span>
+                
+                <span class="ex-level-pill">Lv.&nbsp;4</span>
+                
+            </div>
+
+            
+            <div class="ex-ovr-num">74</div>
+
+            
+            <div class="ex-tier-badge" style="background:#d69e2e;">Gold</div>
+
+            
+            <div class="ex-info-divider"></div>
+
+            
+            <div class="ex-meta-list">
+                
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Nation</span>
+                    <span class="ex-meta-val">Hungarian</span>
+                </div>
+                
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Age group</span>
+                    <span class="ex-meta-val">U-19</span>
+                </div>
+                
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Height</span>
+                    <span class="ex-meta-val">178 cm</span>
+                </div>
+                
+                
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Weight</span>
+                    <span class="ex-meta-val">72 kg</span>
+                </div>
+                
+                <div class="ex-meta-row">
+                    <span class="ex-meta-lbl">Events</span>
+                    <span class="ex-meta-val">12</span>
+                </div>
+            </div>
+
+            
+            <div class="ex-info-spacer"></div>
+
+            
+            
+            <div class="ex-posmap-inline">
+                
+
+<div class="ex-pos-panel-landscape">
+    
+    
+    <div class="ex-pos-compact-label">CM</div>
+    
+    
+    <svg class="ex-pos-svg-landscape" viewBox="0 0 105 68"
+         xmlns="http://www.w3.org/2000/svg" aria-label="Position map"
+         preserveAspectRatio="xMidYMid slice">
+        <!-- Pitch background (105m × 68m real geometry) -->
+        <rect width="105" height="68" fill="#1a5c2a"/>
+        <!-- Field border -->
+        <rect x="0.5" y="0.5" width="104" height="67"
+              fill="none" stroke="rgba(255,255,255,0.30)" stroke-width="0.5"/>
+        <!-- Center line (vertical at x=52.5) -->
+        <line x1="52.5" y1="0" x2="52.5" y2="68"
+              stroke="rgba(255,255,255,0.22)" stroke-width="0.4"/>
+        <!-- Center circle (r=9.15m) -->
+        <circle cx="52.5" cy="34" r="9.15"
+                fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.4"/>
+        <!-- Center spot -->
+        <circle cx="52.5" cy="34" r="0.6" fill="rgba(255,255,255,0.40)"/>
+        <!-- GK penalty area (16.5m deep × 40.32m wide) -->
+        <rect x="0" y="13.84" width="16.5" height="40.32"
+              fill="none" stroke="rgba(255,255,255,0.20)" stroke-width="0.4"/>
+        <!-- ST penalty area -->
+        <rect x="88.5" y="13.84" width="16.5" height="40.32"
+              fill="none" stroke="rgba(255,255,255,0.20)" stroke-width="0.4"/>
+        <!-- GK 6-yard box (5.5m deep × 18.32m wide) -->
+        <rect x="0" y="24.84" width="5.5" height="18.32"
+              fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
+        <!-- ST 6-yard box -->
+        <rect x="99.5" y="24.84" width="5.5" height="18.32"
+              fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="0.3"/>
+        <!-- Penalty spots (11m from goal line) -->
+        <circle cx="11" cy="34" r="0.5" fill="rgba(255,255,255,0.40)"/>
+        <circle cx="94" cy="34" r="0.5" fill="rgba(255,255,255,0.40)"/>
+
+        <!-- Pass 1: inactive nodes (very faint) -->
+        
+        
+        <circle cx="5250" cy="2040"
+                r="0.8" fill="rgba(255,255,255,0.12)"/>
+        
+        
+
+        <!-- Pass 2: secondary selected positions -->
+        
+        
+        
+
+        <!-- Pass 3: primary position — gold, topmost -->
+        
+        
+        
+
+        <!-- Pass 4: abbreviated labels — primary + secondary selected nodes only -->
+        
+        
+        
+    </svg>
+</div>
+
+
+            </div>
+            <div class="ex-pos-labels-row">
+                <span class="ex-pos-primary">CM</span>
+                
+                <span class="ex-pos-sec-chip">RB</span>
+                
+                <span class="ex-pos-sec-chip">LCM</span>
+                
+            </div>
+            
+
+        </div>
+    </div>
+
+    
+    
+    
+    
+    
+    
+    
+
+    <div class="ex-skills-zone">
+
+        
+        <div class="ex-skills-col-left">
+            <div class="ex-cat ex-cat-outfield">
+                <div class="ex-cat-name">Outfield Skills</div>
+                <div class="ex-skill-rows">
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 1</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 2</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 3</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 4</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 5</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 6</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 7</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 8</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 9</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 10</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 11</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 12</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 13</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 14</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 15</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 16</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 17</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 18</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Out Skill 19</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="ex-skills-col-mid">
+            <div class="ex-cat ex-cat-mental">
+                <div class="ex-cat-name">Mental Skills</div>
+                <div class="ex-skill-rows">
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 1</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 2</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 3</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 4</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 5</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 6</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 7</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 8</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 9</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 10</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 11</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 12</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 13</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Men Skill 14</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="ex-skills-col-right">
+
+            <div class="ex-cat ex-cat-sets">
+                <div class="ex-cat-name">Set Pieces</div>
+                <div class="ex-skill-rows">
+                    <div class="ex-row">
+                        <span class="ex-sname">Set Skill 1</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Set Skill 2</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Set Skill 3</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    
+                </div>
+            </div>
+
+            <div class="ex-cat ex-cat-phys">
+                <div class="ex-cat-name">Physical Attributes</div>
+                <div class="ex-skill-rows">
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 1</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 2</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 3</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 4</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 5</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 6</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 7</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    <div class="ex-row">
+                        <span class="ex-sname">Phy Skill 8</span>
+                        <div class="ex-bar-bg">
+                            <div class="ex-bar-fill" style="width:50%; background:rgba(255,255,255,0.20);"></div>
+                        </div>
+                        <span class="ex-sval" style="color:rgba(255,255,255,0.85);">50</span>
+                        <span class="ex-trend" style="color:rgba(255,255,255,0.20); visibility:hidden;">↑</span>
+                    </div>
+                    
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+
+</div>
+
+
+</body>
+</html>

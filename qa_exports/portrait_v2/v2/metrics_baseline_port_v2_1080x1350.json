@@ -1,0 +1,45 @@
+{
+  "platform": "instagram_portrait",
+  "version": "PORT-v2",
+  "canvas": { "width": 1080, "height": 1350 },
+  "design": "fifa",
+  "date": "2026-05-18",
+  "fix_revision": 2,
+  "fixes_applied": [
+    "hero-crop: object-position top center → 50% 15%",
+    "zone-reorder: PosMap moved to Hero→Meta→PosMap→Skills",
+    "cat-name: font 11px→13px, color text-secondary→text-body, margin/padding 6px→8px",
+    "row-spacing: flex:1 overridden to flex:0 0 var(--ex-row-max-h) for uniform 37px rows"
+  ],
+  "measured_zones": {
+    "hero":        { "x": 0,    "y": 0,   "width": 1080, "height": 420 },
+    "meta_strip":  { "x": 0,    "y": 420, "width": 1080, "height": 56  },
+    "posmap":      { "x": 0,    "y": 476, "width": 1080, "height": 170 },
+    "skills_zone": { "x": 0,    "y": 646, "width": 1080, "height": 704 }
+  },
+  "overlay_positions": {
+    "pos_badge":  { "x": 20,    "y": 18,    "width": 45.1, "height": 23   },
+    "brand_tag":  { "x": 1035,  "y": 18,    "width": 25,   "height": 12   },
+    "name_block": { "x": 20,    "y": 355.7, "width": 880,  "height": 48.3 },
+    "ovr_block":  { "x": 962.3, "y": 301,   "width": 97.7, "height": 103  }
+  },
+  "category_name_positions": {
+    "cat_outfield": { "x": 22,  "y": 666,    "width": 503, "height": 25 },
+    "cat_mental":   { "x": 555, "y": 666,    "width": 503, "height": 25 },
+    "cat_sets":     { "x": 555, "y": 1034.7, "width": 503, "height": 25 },
+    "cat_phys":     { "x": 555, "y": 1134.2, "width": 503, "height": 25 }
+  },
+  "invariants": {
+    "zone_order":           "Hero(y=0) → Meta(y=420) → PosMap(y=476) → Skills(y=646)",
+    "hero_h":               420,
+    "meta_h":               56,
+    "posmap_h":             170,
+    "skills_h_with_posmap": 704,
+    "skills_h_no_posmap":   874,
+    "ovr_bottom_px":        16,
+    "name_bottom_px":       16,
+    "row_height_px":        37,
+    "row_height_uniform":   true,
+    "row_height_variation": 0
+  }
+}

@@ -755,7 +755,7 @@ def _build_welcome_card_context(
     ms              = license.motivation_scores or {}
 
     # ── Build skills dict: current_level = self_assessment (adapter only) ──────
-    skills_for_fifa: dict[str, dict] = {}
+    skills_for_fclassic: dict[str, dict] = {}
     all_sa_values: list[float] = []
     for cat in SKILL_CATEGORIES:
         for skill_def in cat["skills"]:
@@ -767,13 +767,13 @@ def _build_welcome_card_context(
             # For Welcome Card only, this field is populated from self_assessment.
             # This must never be written back to football_skills JSONB and must
             # never be used by calculation services.
-            skills_for_fifa[key] = {"current_level": sa_val, "self_assessment": sa_val}
+            skills_for_fclassic[key] = {"current_level": sa_val, "self_assessment": sa_val}
             all_sa_values.append(sa_val)
 
     overall_sa = round(sum(all_sa_values) / len(all_sa_values), 1) if all_sa_values else 60.0
 
     # Per-category SA averages for the 4 Welcome Card badge slots.
-    # Computed from skills_for_fifa (current_level = self_assessment) to stay
+    # Computed from skills_for_fclassic (current_level = self_assessment) to stay
     # consistent with the overall SA adapter — no separate DB read required.
     category_averages = [
         {
@@ -783,7 +783,7 @@ def _build_welcome_card_context(
             "color": _WC_CAT_COLORS.get(cat["key"], "#94a3b8"),
             "avg":   round(
                 sum(
-                    skills_for_fifa.get(s["key"], {}).get("current_level", 60.0)
+                    skills_for_fclassic.get(s["key"], {}).get("current_level", 60.0)
                     for s in cat["skills"]
                 ) / len(cat["skills"])
             ),
@@ -817,7 +817,7 @@ def _build_welcome_card_context(
 
     # ── Player namespace: satisfies all `player.*` references in FIFA template ──
     player = types.SimpleNamespace(
-        skills               = skills_for_fifa,
+        skills               = skills_for_fclassic,
         name                 = display_name,
         position             = position,
         positions            = ms.get("positions", []),
@@ -910,7 +910,7 @@ def _select_welcome_card_template(platform: str | None, export: bool) -> str:
             if os.path.isfile(os.path.join(_TEMPLATES_DIR, arch_path)):
                 return arch_path
     # Tier 3: FIFA Classic fallback
-    return "public/player_card_fifa.html"
+    return "public/player_card_fclassic.html"
 
 
 def _resolve_render_token(token: str, db) -> "User | None":

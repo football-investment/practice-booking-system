@@ -433,7 +433,7 @@ class TestExportRootVarsDarkLight:
         """Verify text color (not border/background) is tokenised in body-section classes."""
         import os, app as _app_pkg, re
         tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
-        with open(os.path.join(tpl_dir, "public/export/square/fifa.html")) as f:
+        with open(os.path.join(tpl_dir, "public/export/square/fclassic.html")) as f:
             src = f.read()
         tokenised = [".ex-skills-title", ".ex-cat-name", ".ex-sname",
                      ".ex-pos-panel-title", ".ex-pos-primary-label", ".ex-pos-secondary-label"]
@@ -450,7 +450,7 @@ class TestExportRootVarsDarkLight:
     def test_MR_template_story_no_hardcoded_white_text_color_in_tokenised_classes(self):
         import os, app as _app_pkg, re
         tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
-        with open(os.path.join(tpl_dir, "public/export/story/fifa.html")) as f:
+        with open(os.path.join(tpl_dir, "public/export/story/fclassic.html")) as f:
             src = f.read()
         for cls in [".ex-skills-title", ".ex-cat-name", ".ex-sname"]:
             block = re.search(rf'{re.escape(cls)}\s*{{([^}}]+)}}', src)
@@ -526,7 +526,7 @@ class TestPlayerCardFifaPhase2b:
 
     def _render_fifa(self, **ctx_overrides):
         from app.services.card_theme_service import get_theme as _gt
-        tpl = self._fifa_env().get_template("public/player_card_fifa.html")
+        tpl = self._fifa_env().get_template("public/player_card_fclassic.html")
         ctx = self._minimal_ctx(**ctx_overrides)
         # F-THEME-1: auto-resolve ThemeDefinition when only card_theme string is given
         if ctx.get('theme') is None:
@@ -536,7 +536,7 @@ class TestPlayerCardFifaPhase2b:
     def _source(self):
         import os, app as _app_pkg
         tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
-        with open(os.path.join(tpl_dir, "public/player_card_fifa.html")) as f:
+        with open(os.path.join(tpl_dir, "public/player_card_fclassic.html")) as f:
             return f.read()
 
     # --- template structure ---
@@ -722,7 +722,7 @@ def _minimal_export_ctx(theme=None, **overrides):
 
 
 def _render_portrait(**ctx_overrides):
-    tpl = _make_export_env().get_template("public/export/portrait/fifa.html")
+    tpl = _make_export_env().get_template("public/export/portrait/fclassic.html")
     return tpl.render(**_minimal_export_ctx(**ctx_overrides))
 
 
@@ -733,22 +733,22 @@ def _render_column_archetype(**ctx_overrides):
 
 
 def _render_story(**ctx_overrides):
-    tpl = _make_export_env().get_template("public/export/story/fifa.html")
+    tpl = _make_export_env().get_template("public/export/story/fclassic.html")
     return tpl.render(**_minimal_export_ctx(**ctx_overrides))
 
 
 def _render_banner(**ctx_overrides):
-    tpl = _make_export_env().get_template("public/export/banner/fifa.html")
+    tpl = _make_export_env().get_template("public/export/banner/fclassic.html")
     return tpl.render(**_minimal_export_ctx(**ctx_overrides))
 
 
 def _render_tiktok(**ctx_overrides):
-    tpl = _make_export_env().get_template("public/export/tiktok/fifa.html")
+    tpl = _make_export_env().get_template("public/export/tiktok/fclassic.html")
     return tpl.render(**_minimal_export_ctx(**ctx_overrides))
 
 
 def _render_landscape(**ctx_overrides):
-    tpl = _make_export_env().get_template("public/export/landscape/fifa.html")
+    tpl = _make_export_env().get_template("public/export/landscape/fclassic.html")
     ctx = dict(
         player_nickname=None,
         player_age=None,
@@ -764,7 +764,7 @@ def _render_landscape(**ctx_overrides):
 
 
 def _render_square(**ctx_overrides):
-    tpl = _make_export_env().get_template("public/export/square/fifa.html")
+    tpl = _make_export_env().get_template("public/export/square/fclassic.html")
     ctx = dict(
         export_mode=False,
         animated_mode=False,
@@ -1057,7 +1057,7 @@ class TestPortraitFifaPhase3:
         import os
         import app as _app_pkg
         tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
-        with open(os.path.join(tpl_dir, "public/export/portrait/fifa.html")) as f:
+        with open(os.path.join(tpl_dir, "public/export/portrait/fclassic.html")) as f:
             return f.read()
 
     # --- template structure ---
@@ -1175,7 +1175,7 @@ class TestStoryFifaPhase3b1:
         import os
         import app as _app_pkg
         tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
-        with open(os.path.join(tpl_dir, "public/export/story/fifa.html")) as f:
+        with open(os.path.join(tpl_dir, "public/export/story/fclassic.html")) as f:
             return f.read()
 
     # --- template structure ---
@@ -1343,7 +1343,7 @@ class TestBannerFifaPhase3b2:
         import os
         import app as _app_pkg
         tpl_dir = os.path.join(os.path.dirname(_app_pkg.__file__), "templates")
-        with open(os.path.join(tpl_dir, "public/export/banner/fifa.html")) as f:
+        with open(os.path.join(tpl_dir, "public/export/banner/fclassic.html")) as f:
             return f.read()
 
     # --- template structure ---
@@ -1532,7 +1532,7 @@ class TestTikTokFifaPhase3b3:
         import os, app as _app_pkg
         src_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/tiktok/fifa.html",
+            "templates/public/export/tiktok/fclassic.html",
         )
         with open(src_path) as f:
             src = f.read()
@@ -1769,7 +1769,7 @@ class TestLandscapeFifaPhase3b4:
         import os, app as _app_pkg
         src_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/landscape/fifa.html",
+            "templates/public/export/landscape/fclassic.html",
         )
         with open(src_path) as f:
             src = f.read()
@@ -2020,7 +2020,7 @@ class TestSquareFifaPhase3b5:
         import os, app as _app_pkg
         src_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/square/fifa.html",
+            "templates/public/export/square/fclassic.html",
         )
         with open(src_path) as f:
             src = f.read()
@@ -2072,7 +2072,7 @@ class TestSquareFifaPhase3b5:
         import os, app as _app_pkg
         src_path = os.path.join(
             os.path.dirname(_app_pkg.__file__),
-            "templates/public/export/square/fifa.html",
+            "templates/public/export/square/fclassic.html",
         )
         with open(src_path) as f:
             src = f.read()

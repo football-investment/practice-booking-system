@@ -42,7 +42,7 @@ _TEMPLATES_ROOT = (
     / "app" / "templates"
 )
 _DRIVERS_DIR = _TEMPLATES_ROOT / "public" / "export" / "shared" / "drivers"
-_REAL_TEMPLATE = "public/player_card_fifa.html"
+_REAL_TEMPLATE = "public/player_card_fclassic.html"
 
 # ── Pulse component_config for instagram_square (default Pulse design) ────────
 
@@ -84,7 +84,7 @@ def _make_classic_lite_def():
         description="Column archetype design.",
         is_premium=False,
         credit_cost=0,
-        template="public/player_card_fifa.html",
+        template="public/player_card_fclassic.html",
         sort_order=1,
         archetype_id="column",
         supported_export_buckets=("portrait", "story"),

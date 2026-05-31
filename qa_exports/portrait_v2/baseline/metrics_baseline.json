@@ -1,0 +1,114 @@
+{
+  "version": "PORT-v2",
+  "canvas": {
+    "width": 1080,
+    "height": 1350
+  },
+  "platform": "instagram_portrait",
+  "design": "fifa",
+  "date": "2026-05-18",
+  "invariants": {
+    "hero_h": 420,
+    "meta_h": 56,
+    "ovr_bottom": 16,
+    "name_bottom": 16,
+    "left_rows": 19,
+    "right_rows": 25,
+    "overflow": 0
+  },
+  "posmap_when_visible": {
+    "footer_h": 170,
+    "info_panel_w": 220,
+    "svg_w": 860
+  },
+  "scenarios": {
+    "sc1_normal_no_photo": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 704,
+      "posmap_h": 170,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    },
+    "sc2_long_name_stress": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 704,
+      "posmap_h": 170,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    },
+    "sc3_no_nationality": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 704,
+      "posmap_h": 170,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    },
+    "sc4_unknown_position": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 874,
+      "posmap_h": null,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    },
+    "sc5_posmap_visible": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 704,
+      "posmap_h": 170,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    },
+    "sc6_dark_photo": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 704,
+      "posmap_h": 170,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    },
+    "sc7_light_photo": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 704,
+      "posmap_h": 170,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    },
+    "sc8_elite_tier": {
+      "hero_h": 420,
+      "meta_h": 56,
+      "skills_h": 704,
+      "posmap_h": 170,
+      "ovr_bottom": 16,
+      "name_bottom": 16,
+      "left_rows": 19,
+      "right_rows": 25,
+      "overflow": 0
+    }
+  }
+}

@@ -70,7 +70,7 @@ class CardDesignDefinition:
 # ── Fallback registry (warm-start when DB is empty / unavailable) ─────────────
 # Mirrors the card_designs table seed exactly.
 # Display order: free first, then premium ascending by credit_cost.
-_FIFA_COMPONENT_CONFIG: dict = {
+_FCLASSIC_COMPONENT_CONFIG: dict = {
     "portrait": {
         "skill_slice":          None,   # all 44 skills
         "show_dominant_badge":  True,
@@ -118,12 +118,12 @@ DESIGNS: dict[str, CardDesignDefinition] = {
         description="The original LFA player card with full skill breakdown and event history.",
         is_premium=True,
         credit_cost=300,
-        template="public/player_card_fifa.html",
+        template="public/player_card_fclassic.html",
         sort_order=0,
         archetype_id="column",
         supported_export_buckets=("square", "portrait", "story", "tiktok", "landscape", "og", "banner"),
         animated_platforms=("instagram_square",),
-        component_config=_FIFA_COMPONENT_CONFIG,
+        component_config=_FCLASSIC_COMPONENT_CONFIG,
     ),
     "compact": CardDesignDefinition(
         id="compact",
