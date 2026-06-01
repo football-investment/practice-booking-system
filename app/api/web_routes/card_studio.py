@@ -1,13 +1,15 @@
-"""Card Studio unified shell routes (CS-S0).
+"""Card Studio unified shell routes (CS-S0 / CS-S2A).
 
 Single unified studio shell with card-type switcher.
 CS-S0 MVP: Welcome Card mode fully functional.
-Player and Challenge modes shown as Coming Soon.
+CS-S2A: Player Card mode — preview-only shell (no write functions).
+Challenge mode remains Coming Soon.
 
 Canonical routes:
-  GET /card-studio              → shell (Welcome default for CS-S0)
+  GET /card-studio              → shell (Welcome default)
   GET /card-studio/welcome      → shell, Welcome mode
   GET /card-studio/welcome?format=X → shell, Welcome mode, specific format
+  GET /card-studio/player       → shell, Player mode (CS-S2A preview MVP)
 
 Backward-compat routes remain in card_editor.py unchanged.
 """
@@ -168,6 +170,69 @@ async def card_studio_welcome(
 ):
     """Unified Studio shell — Welcome Card mode (CS-S0 fully functional)."""
     ctx, redirect = _resolve_welcome_context(db, user, format_id)
+    if redirect:
+        return RedirectResponse(url=redirect, status_code=303)
+
+    return templates.TemplateResponse(
+        "card_studio_shell.html",
+        {"request": request, "user": user, **ctx},
+    )
+
+
+# ── CS-S2A: Player Card mode (preview-only MVP) ───────────────────────────────
+
+def _resolve_player_context(db: Session, user):
+    """Build context for Player Card shell (CS-S2A: preview-only, no write).
+
+    Guards: LFA license + onboarding complete.
+    Reads CardDraft(player_card) for active variant/theme — read-only.
+    """
+    lic = _license_guard(db, user.id)
+    if not lic:
+        return None, "/dashboard?info=complete_lfa_onboarding_first"
+    if not lic.onboarding_completed:
+        return None, "/specialization/lfa-player/onboarding"
+
+    # Read active variant + theme from draft (read-only, no write in CS-S2A)
+    try:
+        draft = _CardDraftService.get_draft(db, user.id, "player_card")
+        active_variant = draft.draft_variant or "fclassic"
+        active_theme   = draft.draft_theme   or "default"
+    except Exception:
+        active_variant = "fclassic"
+        active_theme   = "default"
+
+    # Preview URL: native player card render with current draft state
+    preview_url = (
+        f"/players/{user.id}/card"
+        f"?preview={active_variant}&theme={active_theme}&native_export=1"
+    )
+
+    ctx = {
+        "active_type":     "player",
+        "active_variant":  active_variant,
+        "active_theme":    active_theme,
+        "preview_url":     preview_url,
+        "legacy_editor_url": "/card-editor/player",
+        **_STUDIO_NAV_CTX,
+    }
+    return ctx, None
+
+
+@router.get("/card-studio/player", response_class=HTMLResponse)
+async def card_studio_player(
+    request: Request,
+    db:      Session = Depends(get_db),
+    user:    User    = Depends(get_current_user_web),
+):
+    """CS-S2A: Player Card Studio — preview-only MVP.
+
+    Read-only: shows current player card preview iframe.
+    Write functions (photo upload, variant/platform/theme change, publish, export)
+    are deferred to CS-S2B..D.
+    Legacy editor CTA links to /card-editor/player for full write access.
+    """
+    ctx, redirect = _resolve_player_context(db, user)
     if redirect:
         return RedirectResponse(url=redirect, status_code=303)
 
