@@ -169,6 +169,43 @@
     </a>
   </div>
 
+  <hr class="cs-section-divider">
+
+  {# ── CC-DESIGN-1: Mood Photo quick selector (preview-only, no DB write) ── #}
+  <div class="cs-pc-selector">
+    <p class="cs-section-label">Preview Photo</p>
+    {% set mood_photos    = mood_photos    if mood_photos    is defined else {} %}
+    {% set mood_slot_meta = mood_slot_meta if mood_slot_meta is defined else [] %}
+    <div class="cs-cc-mood-section"
+         data-challenge-id="{{ selected_challenge_id }}"
+         data-active-phase="{{ active_phase }}"
+         data-active-platform="{{ active_platform }}">
+      <div class="cs-mood-grid" id="cs-cc-mood-grid">
+        {% for meta in mood_slot_meta %}
+          {% set _mp  = mood_photos.get(meta.slot) %}
+          {% set _has = _mp and _mp.original_url %}
+          {% set _photo_url = (_mp.processed_png_url or _mp.original_url) if _has else none %}
+          <button class="cs-mood-chip{% if not _has %} cs-mood-chip--empty{% endif %}"
+                  type="button"
+                  data-mood-photo-url="{{ _photo_url or '' }}"
+                  {% if not _has %}disabled aria-disabled="true"{% endif %}
+                  title="{{ meta.label }}">
+            <span class="cs-mood-emoji">{{ meta.emoji }}</span>
+            <span class="cs-mood-label">{{ meta.label }}</span>
+          </button>
+        {% endfor %}
+      </div>
+      <p class="cs-mood-manage">
+        <button type="button" id="cs-cc-clear-photo"
+                style="background:none;border:none;cursor:pointer;padding:0;font-size:0.73rem;color:#64748b;">
+          Clear photo
+        </button>
+        &nbsp;·&nbsp;
+        <a href="/profile/my-mood-photos" class="cs-mood-manage-link">Manage →</a>
+      </p>
+    </div>
+  </div>
+
 </div>
 
 {% endif %}{# end mode #}

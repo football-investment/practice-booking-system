@@ -971,5 +971,52 @@
 
 }());
 {% endif %}
+
+// ── CC-DESIGN-1: Challenge Studio mood photo quick selector ─────────────────
+{% if active_type == "challenge" and challenge_mode == "preview" %}
+(function () {
+  'use strict';
+
+  var ccIframe   = document.getElementById('cs-preview-iframe');
+  var ccMoodGrid = document.querySelector('.cs-cc-mood-section');
+
+  // Update the preview iframe's photo_url param (no DB write — query param MVP)
+  function _setChallengePhoto(photoUrl) {
+    if (!ccIframe) return;
+    var src = ccIframe.src;
+    src = src.replace(/[?&]photo_url=[^&]*/g, '');
+    if (photoUrl) {
+      src += (src.indexOf('?') === -1 ? '?' : '&') + 'photo_url=' + encodeURIComponent(photoUrl);
+    }
+    ccIframe.src = src;
+    // Update selected chip state
+    document.querySelectorAll('#cs-cc-mood-grid .cs-mood-chip').forEach(function (c) {
+      c.classList.toggle('cs-mood-chip--selected', c.dataset.moodPhotoUrl === photoUrl && !!photoUrl);
+      var chk = c.querySelector('.cs-mood-check');
+      if (chk) { chk.parentNode.removeChild(chk); }
+    });
+    if (photoUrl) {
+      var active = document.querySelector('#cs-cc-mood-grid [data-mood-photo-url="' + photoUrl + '"]');
+      if (active) {
+        var chkEl = document.createElement('span');
+        chkEl.className = 'cs-mood-check'; chkEl.setAttribute('aria-hidden', 'true');
+        chkEl.textContent = '✓'; active.appendChild(chkEl);
+      }
+    }
+  }
+
+  // Wire mood photo chips
+  document.querySelectorAll('#cs-cc-mood-grid .cs-mood-chip:not([disabled])').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      _setChallengePhoto(btn.dataset.moodPhotoUrl || '');
+    });
+  });
+
+  // Clear photo button
+  var clearBtn = document.getElementById('cs-cc-clear-photo');
+  if (clearBtn) { clearBtn.addEventListener('click', function () { _setChallengePhoto(''); }); }
+
+}());
+{% endif %}
 </script>
 {% endblock %}

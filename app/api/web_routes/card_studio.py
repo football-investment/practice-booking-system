@@ -477,6 +477,9 @@ def _resolve_challenge_context(
         return None, "/specialization/lfa-player/onboarding"
 
     # ── Mode A: Challenge selector list ──────────────────────────────────────
+    # CC-DESIGN-1: pass mood photo data for media panel in all modes
+    mood_photos    = get_mood_photos_for_user(user.id, db)
+
     if challenge_id is None:
         filter_statuses = _CC_FILTER_STATUSES.get(filter_val)
 
@@ -520,6 +523,8 @@ def _resolve_challenge_context(
             "active_filter":     filter_val if filter_val in _CC_FILTER_STATUSES else "all",
             "preview_url":       None,
             "legacy_editor_url": "/card-editor/challenge",
+            "mood_photos":       mood_photos,
+            "mood_slot_meta":    _MOOD_SLOT_META,
             **_STUDIO_NAV_CTX,
         }
         return ctx, None
@@ -539,6 +544,8 @@ def _resolve_challenge_context(
             "active_filter":     "all",
             "preview_url":       None,
             "legacy_editor_url": "/card-editor/challenge",
+            "mood_photos":       mood_photos,
+            "mood_slot_meta":    _MOOD_SLOT_META,
             **_STUDIO_NAV_CTX,
         }, None
 
@@ -551,6 +558,8 @@ def _resolve_challenge_context(
             "active_filter":     "all",
             "preview_url":       None,
             "legacy_editor_url": "/card-editor/challenge",
+            "mood_photos":       mood_photos,
+            "mood_slot_meta":    _MOOD_SLOT_META,
             **_STUDIO_NAV_CTX,
         }, None
 
@@ -676,6 +685,9 @@ def _resolve_challenge_context(
         "ratio_class":          ratio_class,
         "preview_url":          preview_url,
         "legacy_editor_url":    "/card-editor/challenge",
+        # CC-DESIGN-1: mood photo media panel for challenge Studio
+        "mood_photos":          mood_photos,
+        "mood_slot_meta":       _MOOD_SLOT_META,
         **_STUDIO_NAV_CTX,
     }
     return ctx, None
