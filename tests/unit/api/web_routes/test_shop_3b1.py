@@ -35,8 +35,9 @@ _ACTIVE_PATTERNS = [
     'TemplateResponse("{tmpl}"', "TemplateResponse('{tmpl}'",
     'get_template("{tmpl}")', "get_template('{tmpl}')",
     '"{tmpl}").read_text', "'{tmpl}').read_text",
-    '/ "{tmpl}")', "/ '{tmpl}')",
     '_render("{tmpl}"', "_render('{tmpl}'",
+    # Note: '/ "{tmpl}")' excluded — matches Path division operator used in .exists()
+    # assertions (e.g. test_shop_3b2.py), not actual template rendering.
 ]
 
 

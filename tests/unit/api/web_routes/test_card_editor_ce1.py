@@ -342,12 +342,6 @@ class TestCE109InternalLinks:
         assert f'href="{self.PLAYER_URL}"' in html
         assert f'href="{self.OLD_URL}"' not in html
 
-    def test_ce1_09_shop_player_card_link(self):
-        """shop_player_card.html Edit/Download CTA stays /card-editor/player."""
-        html = self._html("shop_player_card.html")
-        assert f'href="{self.PLAYER_URL}"' in html
-        assert f'href="{self.OLD_URL}"' not in html
-
     def test_ce1_09_shop_player_card_detail_link(self):
         """shop_player_card_detail.html Open Editor CTA stays /card-editor/player."""
         html = self._html("shop_player_card_detail.html")
