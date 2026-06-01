@@ -6,7 +6,7 @@
 
    Context vars (selector): challenge_rows, active_filter
    Context vars (preview): selected_challenge, phase_chips, platform_chips,
-     active_phase, active_platform, is_locked_phase, selected_challenge_id
+     active_phase, active_platform, is_historical_phase, selected_challenge_id
    Both: legacy_editor_url
 #}
 
@@ -131,15 +131,15 @@
       {# All phases in the list are navigable — locked means "preview only, not exportable"
          not "disabled". The backend /challenges/{id}/card/preview accepts locked phases. #}
       <a href="/card-studio/challenge?challenge_id={{ selected_challenge_id }}&phase={{ chip.id }}&platform={{ active_platform }}"
-         class="cs-pc-pill{% if chip.active %} cs-pc-pill--active{% elif chip.locked %} cs-pc-pill--historical{% endif %}"
-         title="{% if chip.locked %}{{ chip.event_label }}{% if chip.sublabel %} ({{ chip.sublabel }}){% endif %} — historical, preview only{% else %}{{ chip.event_label }}{% endif %}">
+         class="cs-pc-pill{% if chip.active %} cs-pc-pill--active{% elif chip.is_historical %} cs-pc-pill--historical{% endif %}"
+         title="{{ chip.event_label }}{% if chip.sublabel %} ({{ chip.sublabel }}){% endif %}{% if chip.is_historical %} — preview only{% endif %}">
         <span class="cs-pc-pill-main">{{ chip.event_label }}{% if chip.sublabel %}<span class="cs-pc-pill-sub"> · {{ chip.sublabel }}</span>{% endif %}</span>
-        {% if chip.locked %}<span class="cs-pc-lock-icon" aria-hidden="true">🔒</span>{% endif %}
+        {% if chip.is_historical %}<span class="cs-pc-history-badge" aria-hidden="true">History</span>{% endif %}
       </a>
       {% endfor %}
     </div>
-    {% if is_locked_phase %}
-    <p class="cs-ch-locked-note">Historical phase — preview only, export not available for this phase.</p>
+    {% if is_historical_phase %}
+    <p class="cs-ch-locked-note">Historical phase — preview only. Export available for result phases.</p>
     {% endif %}
   </div>
 

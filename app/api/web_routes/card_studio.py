@@ -601,7 +601,11 @@ def _resolve_challenge_context(
         platform = _CC_VALID_PLATFORMS[0]
 
     ratio_class = _CC_RATIO[platform]
-    is_locked_phase = phase in set(locked) and phase not in set(unlocked)
+    # CS-S4B-FIX4: is_historical_phase replaces is_locked_phase — preview-only
+    # historical phases are NOT "locked" (they ARE previewable), just not exportable.
+    _hist_set     = set(locked)
+    _current_set  = set(unlocked)
+    is_historical_phase = phase in _hist_set and phase not in _current_set
 
     # Preview URL — uses existing /challenges/{id}/card/preview route
     preview_url = (
@@ -609,21 +613,23 @@ def _resolve_challenge_context(
         f"?platform={platform}&phase={phase}"
     )
 
-    # CS-S4B-FIX-1+FIX3: Phase chips — chronological order + event_label decoupling.
-    # event_label: Studio display name (challenge_received → "Challenge Sent")
-    # sublabel: viewer-role hint ("sent by you" / "sent to you")
-    # label: internal/legacy name (unchanged, used by preview card template)
-    _locked_set   = set(locked)
-    _unlocked_set = set(unlocked)
+    # CS-S4B-FIX-1+FIX3+FIX4: Phase chips.
+    # State model:
+    #   is_historical  = happened in the past, previewable, not exportable (no lock!)
+    #   is_previewable = True for all phases in the timeline (backend accepts them)
+    #   is_exportable  = True only for result phases
+    #   is_disabled    = False for all phases currently in timeline
     phase_chips = [
         {
-            "id":          p,
-            "label":       _CC_PHASE_LABELS.get(p, p),
-            "event_label": _CC_PHASE_EVENT_LABELS.get(p, _CC_PHASE_LABELS.get(p, p)),
-            "sublabel":    _CC_PHASE_SUBLABELS.get(p, ""),
-            "active":      p == phase,
-            "locked":      p in _locked_set and p not in _unlocked_set,
-            "exportable":  p in _CC_EXPORTABLE_PHASES,
+            "id":            p,
+            "label":         _CC_PHASE_LABELS.get(p, p),
+            "event_label":   _CC_PHASE_EVENT_LABELS.get(p, _CC_PHASE_LABELS.get(p, p)),
+            "sublabel":      _CC_PHASE_SUBLABELS.get(p, ""),
+            "active":        p == phase,
+            "is_historical": p in _hist_set and p not in _current_set,
+            "is_previewable": True,
+            "is_exportable": p in _CC_EXPORTABLE_PHASES,
+            "is_disabled":   False,
         }
         for p in all_phase_ids
     ]
@@ -664,7 +670,7 @@ def _resolve_challenge_context(
         "platform_chips":       platform_chips,
         "active_phase":         phase,
         "active_platform":      platform,
-        "is_locked_phase":      is_locked_phase,
+        "is_historical_phase":  is_historical_phase,
         "is_exportable_phase":  is_exportable_phase,
         "challenge_export_url": export_url,
         "ratio_class":          ratio_class,

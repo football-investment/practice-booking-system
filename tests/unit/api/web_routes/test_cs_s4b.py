@@ -415,7 +415,7 @@ class TestS4BFixPhaseOrdering:
         chips = ctx.get("phase_chips", [])
         wfo = next((c for c in chips if c["id"] == "waiting_for_opponent"), None)
         assert wfo is not None, "waiting_for_opponent chip not found"
-        assert wfo["locked"] is True, \
+        assert wfo["is_historical"] is True, \
             f"waiting_for_opponent must be locked=True in COMPLETED, got locked={wfo['locked']}"
         # Template must render all chips (including locked) as navigable <a> links
         src = (INCLUDES_DIR / "cs_challenge_panel.html").read_text()
@@ -433,7 +433,7 @@ class TestS4BFixPhaseOrdering:
         chips = ctx.get("phase_chips", [])
         result = next((c for c in chips if c["id"] == "completed_score_win"), None)
         if result:
-            assert result["locked"] is False, \
+            assert result["is_historical"] is False, \
                 f"completed_score_win must be locked=False, got locked={result['locked']}"
 
     def test_fix_06_pending_challenger_chips_unchanged(self):
@@ -510,7 +510,7 @@ class TestS4BFixPhaseOrdering:
             assert "challenge_sent" in ids, \
                 f"challenge_sent must appear in DECLINED preview chips, got: {ids}"
             wfo = next((c for c in ctx["phase_chips"] if c["id"] == "challenge_sent"), None)
-            assert wfo and wfo["locked"] is True, "challenge_sent must be locked in DECLINED"
+            assert wfo and wfo["is_historical"] is True, "challenge_sent must be locked in DECLINED"
 
     def test_fix_12_declined_challenged_shows_challenge_received(self):
         """FIX-12: DECLINED challenged view shows challenge_received as locked chip."""
@@ -581,7 +581,7 @@ class TestS4BFix2TemplateAndExport:
         if ctx.get("challenge_mode") == "preview":
             chips = ctx.get("phase_chips", [])
             assert chips, "phase_chips must not be empty"
-            assert "exportable" in chips[0], \
+            assert "is_exportable" in chips[0], \
                 "Each phase chip must have 'exportable' field"
 
     def test_fix2_05_completed_result_phase_is_exportable(self):
@@ -600,7 +600,7 @@ class TestS4BFix2TemplateAndExport:
             chips = ctx.get("phase_chips", [])
             result = next((c for c in chips if c["id"] == "completed_score_win"), None)
             if result:
-                assert result["exportable"] is True, \
+                assert result["is_exportable"] is True, \
                     "completed_score_win must be exportable=True"
 
     def test_fix2_06_historical_phase_is_not_exportable(self):
@@ -619,7 +619,7 @@ class TestS4BFix2TemplateAndExport:
             chips = ctx.get("phase_chips", [])
             sent = next((c for c in chips if c["id"] == "challenge_sent"), None)
             if sent:
-                assert sent["exportable"] is False, \
+                assert sent["is_exportable"] is False, \
                     "challenge_sent must be exportable=False"
 
     def test_fix2_07_is_exportable_phase_context_var_present(self):
@@ -761,6 +761,101 @@ class TestS4BFix3InvitationSentLabel:
         src = (TEMPLATES_DIR / "card_studio_shell.html").read_text()
         assert "preview only" in src.lower() or "preview-only" in src.lower(), \
             "Export panel must mention 'preview only' for historical phases"
+
+
+# ── S4B-FIX4: is_historical replaces locked; no lock icon on historical phases ──
+
+class TestS4BFix4HistoricalNotLocked:
+
+    def _completed_ctx(self, viewer_id=10):
+        fn   = _ctx_fn()
+        user = _make_user(viewer_id)
+        ch   = _make_challenge(1, challenger_id=10, challenged_id=20, status_val="completed")
+        ch.winner_id = 10; ch.challenger_attempt_id = 1; ch.challenged_attempt_id = 2
+        with patch("app.api.web_routes.card_studio._license_guard", return_value=_make_license(True)):
+            db = MagicMock()
+            db.query.return_value.filter.return_value.first.return_value = ch
+            ctx, _ = fn(db, user, challenge_id=1)
+        return ctx
+
+    def test_fix4_01_historical_chips_have_is_historical_true(self):
+        """FIX4-01: Historical phase chips have is_historical=True."""
+        ctx = self._completed_ctx(10)
+        if ctx.get("challenge_mode") != "preview": return
+        chips = ctx.get("phase_chips", [])
+        sent = next((c for c in chips if c["id"] == "challenge_sent"), None)
+        assert sent is not None
+        assert sent.get("is_historical") is True, \
+            "challenge_sent must have is_historical=True"
+
+    def test_fix4_02_historical_chips_have_no_locked_field_or_false(self):
+        """FIX4-02: phase_chips no longer use 'locked' field as primary state."""
+        ctx = self._completed_ctx(10)
+        if ctx.get("challenge_mode") != "preview": return
+        chips = ctx.get("phase_chips", [])
+        # 'locked' field may be absent OR unused — is_historical is the primary field
+        for c in chips:
+            assert "is_historical" in c, f"chip {c['id']} missing is_historical field"
+            assert "is_previewable" in c, f"chip {c['id']} missing is_previewable field"
+            assert "is_exportable" in c, f"chip {c['id']} missing is_exportable field"
+            assert "is_disabled" in c, f"chip {c['id']} missing is_disabled field"
+
+    def test_fix4_03_historical_chips_are_previewable_and_not_disabled(self):
+        """FIX4-03: Historical chips have is_previewable=True, is_disabled=False."""
+        ctx = self._completed_ctx(10)
+        if ctx.get("challenge_mode") != "preview": return
+        chips = ctx.get("phase_chips", [])
+        hist_chips = [c for c in chips if c.get("is_historical")]
+        assert hist_chips, "Should have historical chips for COMPLETED challenge"
+        for c in hist_chips:
+            assert c["is_previewable"] is True, \
+                f"{c['id']}: is_previewable must be True for historical chip"
+            assert c["is_disabled"] is False, \
+                f"{c['id']}: is_disabled must be False for historical chip"
+
+    def test_fix4_04_result_chips_not_historical(self):
+        """FIX4-04: Result phase chips have is_historical=False."""
+        ctx = self._completed_ctx(10)
+        if ctx.get("challenge_mode") != "preview": return
+        chips = ctx.get("phase_chips", [])
+        result = next((c for c in chips if c["id"] == "completed_score_win"), None)
+        if result:
+            assert result.get("is_historical") is False, \
+                "Result chip must have is_historical=False"
+
+    def test_fix4_05_no_lock_icon_in_rendered_historical_chips(self):
+        """FIX4-05: Rendered HTML for RD14S ch=1 has 0 lock icons on historical chips."""
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template("includes/cs_challenge_panel.html")
+        ctx = self._completed_ctx(20)  # challenged perspective
+        if ctx.get("challenge_mode") != "preview": return
+        html = tmpl.render(**ctx)
+        lock_count = html.count("🔒")
+        assert lock_count == 0, \
+            f"Historical chips must have NO 🔒 lock icon, found {lock_count}"
+
+    def test_fix4_06_history_badge_present_on_historical_chips(self):
+        """FIX4-06: Rendered HTML has 'History' badge (not lock icon) on historical chips."""
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template("includes/cs_challenge_panel.html")
+        ctx = self._completed_ctx(10)
+        if ctx.get("challenge_mode") != "preview": return
+        html = tmpl.render(**ctx)
+        hist_chip_count = sum(1 for c in ctx.get("phase_chips",[]) if c.get("is_historical"))
+        badge_count = html.count("cs-pc-history-badge")
+        assert badge_count == hist_chip_count, \
+            f"Expected {hist_chip_count} History badges, got {badge_count}"
+
+    def test_fix4_07_result_phase_is_exportable(self):
+        """FIX4-07: Result phase (completed_score_win) is exportable=True."""
+        ctx = self._completed_ctx(10)
+        if ctx.get("challenge_mode") != "preview": return
+        chips = ctx.get("phase_chips", [])
+        result = next((c for c in chips if c["id"] == "completed_score_win"), None)
+        if result:
+            assert result["is_exportable"] is True
 
 
 # ── S4B3: Preview iframe ──────────────────────────────────────────────────────
