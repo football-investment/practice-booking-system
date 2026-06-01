@@ -1,7 +1,7 @@
 """Card shop route tests — SH-01..SH-12.
 
-SH-01  GET /shop → 200, shop_landing.html
-SH-02  GET /shop/cards → 200, shop_cards.html
+SH-01  GET /shop → 200, shop_unified.html (SHOP-1: was shop_landing.html)
+SH-02  GET /shop/cards → 302 /shop (SHOP-2: was shop_cards.html; SHOP-3A: shop_cards.html deleted)
 SH-03  GET /shop/cards/player → 200, shop_player_card.html, design_rows present
 SH-04  Player Card not owned, credits ≥ cost → state='get_card'
 SH-05  Player Card not owned, credits < cost → state='locked'
@@ -293,10 +293,6 @@ class TestShopTemplates:
     def challenge_src(self):
         return (_TEMPLATE_BASE / "shop_challenge_card.html").read_text()
 
-    @pytest.fixture(scope="class")
-    def landing_src(self):
-        return (_TEMPLATE_BASE / "shop_landing.html").read_text()
-
     def test_sh12a_player_template_extends_student_base(self, player_src):
         """SH-12a: shop_player_card.html extends student_base."""
         assert "student_base.html" in player_src
@@ -322,11 +318,14 @@ class TestShopTemplates:
         """SH-12f: shop_challenge_card.html has link to /challenges/results."""
         assert "/challenges/results" in challenge_src
 
-    def test_sh12g_landing_has_three_card_family_links(self, landing_src):
-        """SH-12g: shop_landing.html links to all three shop family pages."""
-        assert "/shop/cards/player" in landing_src
-        assert "/shop/cards/welcome" in landing_src
-        assert "/shop/cards/challenge" in landing_src
+    def test_sh12g_unified_has_filter_links(self):
+        """SH-12g (SHOP-3A): shop_unified.html has filter links for all three card types.
+        Replaces: shop_landing.html links check (shop_landing.html deleted in SHOP-3A).
+        """
+        src = (_TEMPLATE_BASE / "shop_unified.html").read_text()
+        assert 'href="/shop?type=player_card"'    in src
+        assert 'href="/shop?type=welcome_card"'   in src
+        assert 'href="/shop?type=challenge_card"' in src
 
     def test_sh12h_welcome_template_purchase_form(self, welcome_src):
         """SH-12h: shop_welcome_card.html has POST form to /shop/cards/welcome_card/buy/."""
