@@ -254,7 +254,7 @@ class TestS1bCTAAndNaming:
         """S1b-03: Player CTAs in templates still point to /card-editor/player."""
         player_templates = [
             "my_cards_player_card.html",
-            "shop_player_card.html",
+            # shop_player_card.html deleted in SHOP-3B2 (listing template, no longer served)
             "shop_player_card_detail.html",
             "shop_card_player_colors.html",
             "card_studio_landing.html",
