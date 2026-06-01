@@ -157,7 +157,7 @@
 
   /* ── Archetype A story: vertical hero-dominant ── */
   .ai-story-hero-zone {
-    width: 1080px; height: 850px; flex-shrink: 0;
+    width: 1080px; height: 750px; flex-shrink: 0;
     position: relative; overflow: hidden;
     background: linear-gradient(180deg, #0a1420 0%, #111e30 60%, #08101e 100%);
   }
@@ -180,6 +180,10 @@
     color: var(--cc-gold); margin-bottom: 28px;
   }
   .ai-divider { width: 56px; height: 2px; background: var(--cc-border); margin-bottom: 24px; }
+  .ai-context-text {
+    font-size: 0.9rem; color: var(--cc-sub); font-weight: 600;
+    letter-spacing: 0.04em; margin-bottom: 18px; text-transform: uppercase;
+  }
   .ai-participants {
     font-size: 2rem; font-weight: 700; color: var(--cc-text);
     letter-spacing: 0.02em; margin-bottom: 10px; line-height: 1.2;
@@ -187,6 +191,27 @@
   .ai-participants .arrow { color: var(--cc-gold); margin: 0 12px; }
   .ai-participants .challenged-name { color: var(--cc-sub); }
   .ai-game { font-size: 1rem; color: var(--cc-sub); margin-top: 4px; }
+
+  /* Story target card — compact horizontal */
+  .ai-story-target {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 18px;
+  }
+  .ai-story-target-photo {
+    width: 120px; height: 150px; object-fit: contain; object-position: center bottom;
+    background: rgba(255,255,255,0.04); border-radius: 6px;
+    border: 1px solid var(--cc-border); flex-shrink: 0;
+  }
+  .ai-story-target-initial {
+    width: 120px; height: 150px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.04); border-radius: 6px;
+    border: 1px solid var(--cc-border); flex-shrink: 0;
+    font-size: 3.5rem; font-weight: 800; color: var(--cc-sub);
+    text-transform: uppercase;
+  }
+  .ai-story-target-info { display: flex; flex-direction: column; gap: 4px; }
+  .ai-story-target-label { font-size: 0.72rem; color: var(--cc-gold); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .ai-story-target-name { font-size: 1.5rem; font-weight: 700; color: var(--cc-text); }
 </style>
 </head>
 <body>
@@ -240,6 +265,19 @@
         {% if phase == "challenge_sent" %}sent by you{% else %}sent to you{% endif %}
       </div>
       <div class="ai-divider"></div>
+      <div class="ai-context-text">{{ viewer_action_text }}</div>
+      {# TWO-PARTICIPANT TARGET CARD: challenged player — always visible #}
+      <div class="ai-story-target">
+        {% if challenged_photo_url %}
+          <img src="{{ challenged_photo_url }}" class="ai-story-target-photo" alt="{{ challenged_name }}">
+        {% else %}
+          <div class="ai-story-target-initial">{{ (challenged_name[0] if challenged_name else '?') | upper }}</div>
+        {% endif %}
+        <div class="ai-story-target-info">
+          <div class="ai-story-target-label">{{ 'challenged' if phase == 'challenge_sent' else 'from' }}</div>
+          <div class="ai-story-target-name">{{ challenged_name }}</div>
+        </div>
+      </div>
       <div class="ai-participants">
         {{ challenger_name }}<span class="arrow">→</span><span class="challenged-name">{{ challenged_name }}</span>
       </div>
