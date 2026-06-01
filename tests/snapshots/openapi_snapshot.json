@@ -41851,7 +41851,7 @@
           "card-studio"
         ],
         "summary": "Card Studio Player",
-        "description": "CS-S2A: Player Card Studio \u2014 preview-only MVP.\n\nRead-only: shows current player card preview iframe.\nWrite functions (photo upload, variant/platform/theme change, publish, export)\nare deferred to CS-S2B..D.\nLegacy editor CTA links to /card-editor/player for full write access.",
+        "description": "CS-S2A+S2B: Player Card Studio \u2014 preview + variant/platform/theme selectors.\n\nWrite: variant/platform/theme via existing dashboard endpoints (no new routes).\nPhoto upload (CS-S2C) and publish (CS-S2D) remain deferred.\nLegacy editor CTA links to /card-editor/player for full write access.",
         "operationId": "card_studio_player_card_studio_player_get",
         "responses": {
           "200": {
@@ -41860,6 +41860,99 @@
               "text/html": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/card-studio/challenge": {
+      "get": {
+        "tags": [
+          "web",
+          "card-studio"
+        ],
+        "summary": "Card Studio Challenge Studio",
+        "description": "CS-S4B: Challenge Card Studio.\n\nNo query params \u2192 challenge selector list.\n?challenge_id={id} \u2192 auto-select first unlocked phase.\n?challenge_id={id}&phase={phase}&platform={platform} \u2192 live preview iframe.\n\nPreview iframe: GET /challenges/{id}/card/preview?platform=...&phase=...\n(existing route, session cookie auth, participant guard).\nNo new routes, no DB migrations.",
+        "operationId": "card_studio_challenge_studio_card_studio_challenge_get",
+        "parameters": [
+          {
+            "name": "challenge_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Challenge Id"
+            }
+          },
+          {
+            "name": "phase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phase"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }

@@ -1,15 +1,22 @@
-"""Card Studio unified shell routes (CS-S0 / CS-S2A).
+"""Card Studio unified shell routes (CS-S0 / CS-S2A / CS-S2B / CS-S4A / CS-S4B).
 
 Single unified studio shell with card-type switcher.
 CS-S0 MVP: Welcome Card mode fully functional.
-CS-S2A: Player Card mode — preview-only shell (no write functions).
-Challenge mode remains Coming Soon.
+CS-S2A: Player Card mode — preview-only shell.
+CS-S2B: Player Card mode — variant/platform/theme selector (write via existing endpoints).
+CS-S4A: Challenge Card mode — static placeholder (superseded by CS-S4B).
+CS-S4B: Challenge Card mode — challenge selector + phase/platform selector + live preview iframe.
 
-Canonical routes:
+Canonical routes (no new routes in CS-S4B — query param extension):
   GET /card-studio              → shell (Welcome default)
   GET /card-studio/welcome      → shell, Welcome mode
   GET /card-studio/welcome?format=X → shell, Welcome mode, specific format
-  GET /card-studio/player       → shell, Player mode (CS-S2A preview MVP)
+  GET /card-studio/player       → shell, Player mode (CS-S2A+S2B)
+  GET /card-studio/challenge    → shell, Challenge selector list
+  GET /card-studio/challenge?challenge_id={id}
+    → auto-redirect to first unlocked phase + default platform
+  GET /card-studio/challenge?challenge_id={id}&phase={phase}&platform={platform}
+    → Challenge preview with iframe
 
 Backward-compat routes remain in card_editor.py unchanged.
 """
@@ -24,19 +31,37 @@ from ...database import get_db
 from ...dependencies import get_current_user_web
 from ...models.license import UserLicense
 from ...models.user import User
-from ...services.card_design_service import get_owned_design_ids
 from ...services.card_design_service import (
+    CHALLENGE_CARD_FORMATS,
     WELCOME_CARD_FORMATS,
     get_card_family,
+    get_owned_design_ids,
+    is_design_accessible,
 )
 from ...services.mood_photo_service import get_mood_photos_for_user
-from ...services.card_theme_service import get_all_themes as _get_all_themes
+from ...services.card_theme_service import (
+    get_all_themes as _get_all_themes,
+    is_unlocked as _is_theme_unlocked,
+    THEME_ORDER as _THEME_ORDER,
+    THEMES as _THEMES,
+)
+from ...services.card_variant_service import VARIANTS as _VARIANTS
+from ...services.card_platform_service import PLATFORM_PRESETS as _PLATFORM_PRESETS
 from ...services.card_draft_service import CardDraftService as _CardDraftService
+from ...models.vt_challenge import ChallengeStatus, VirtualTrainingChallenge
+from ...models.virtual_training import VirtualTrainingAttempt
 from .card_editor import (
     _WC_FORMAT_BY_ID,
     _WC_RATIO,
     _WC_VALID_IDS,
+    _CC_VALID_IDS,
     _MOOD_SLOT_META,
+)
+# CS-S4B: Challenge phase helpers (pure functions — no DB session required)
+from .vt_challenges import (
+    get_unlocked_challenge_card_phases as _get_unlocked_phases,
+    get_locked_challenge_card_phases   as _get_locked_phases,
+    _EXPORTABLE_PHASES                 as _CC_EXPORTABLE_PHASES,
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -179,13 +204,15 @@ async def card_studio_welcome(
     )
 
 
-# ── CS-S2A: Player Card mode (preview-only MVP) ───────────────────────────────
+# ── CS-S2A+S2B: Player Card mode ─────────────────────────────────────────────
 
 def _resolve_player_context(db: Session, user):
-    """Build context for Player Card shell (CS-S2A: preview-only, no write).
+    """Build context for Player Card shell (CS-S2A preview + CS-S2B write selectors).
 
     Guards: LFA license + onboarding complete.
-    Reads CardDraft(player_card) for active variant/theme — read-only.
+    Reads CardDraft(player_card) for active variant/theme/platform.
+    CS-S2B: passes variant/platform/theme lists for selector UI.
+    Write is handled by existing dashboard endpoints via AJAX (no new routes).
     """
     lic = _license_guard(db, user.id)
     if not lic:
@@ -193,26 +220,68 @@ def _resolve_player_context(db: Session, user):
     if not lic.onboarding_completed:
         return None, "/specialization/lfa-player/onboarding"
 
-    # Read active variant + theme from draft (read-only, no write in CS-S2A)
     try:
         draft = _CardDraftService.get_draft(db, user.id, "player_card")
-        active_variant = draft.draft_variant or "fclassic"
-        active_theme   = draft.draft_theme   or "default"
+        active_variant  = draft.draft_variant  or "fclassic"
+        active_theme    = draft.draft_theme    or "default"
+        active_platform = draft.draft_platform or "default"
     except Exception:
-        active_variant = "fclassic"
-        active_theme   = "default"
+        active_variant  = "fclassic"
+        active_theme    = "default"
+        active_platform = "default"
 
-    # Preview URL: native player card render with current draft state
+    # CS-S2B: variant selector — owned designs for player_card
+    owned_pc_ids = set(get_owned_design_ids(db, user.id, "player_card"))
+    player_variants = [
+        {
+            "id":     vid,
+            "label":  v.label,
+            "active": vid == active_variant,
+            "owned":  vid in owned_pc_ids,
+        }
+        for vid, v in sorted(_VARIANTS.items(), key=lambda x: x[1].sort_order)
+        if v.available
+    ]
+
+    # CS-S2B: platform selector — all valid platforms
+    player_platforms = [
+        {
+            "id":     pid,
+            "label":  p.label,
+            "active": pid == active_platform,
+        }
+        for pid, p in _PLATFORM_PRESETS.items()
+    ]
+
+    # CS-S2B: theme selector — all themes with unlock status
+    all_themes = _get_all_themes(db)
+    player_themes = [
+        {
+            "id":         t.id,
+            "label":      t.label,
+            "dot_color":  t.dot_color,
+            "is_premium": t.is_premium,
+            "active":     t.id == active_theme,
+            "unlocked":   not t.is_premium or _is_theme_unlocked(lic, t.id),
+        }
+        for t in all_themes
+    ]
+
     preview_url = (
         f"/players/{user.id}/card"
         f"?preview={active_variant}&theme={active_theme}&native_export=1"
     )
 
     ctx = {
-        "active_type":     "player",
-        "active_variant":  active_variant,
-        "active_theme":    active_theme,
-        "preview_url":     preview_url,
+        "active_type":      "player",
+        "active_variant":   active_variant,
+        "active_theme":     active_theme,
+        "active_platform":  active_platform,
+        "preview_url":      preview_url,
+        "player_user_id":   user.id,
+        "player_variants":  player_variants,
+        "player_platforms": player_platforms,
+        "player_themes":    player_themes,
         "legacy_editor_url": "/card-editor/player",
         **_STUDIO_NAV_CTX,
     }
@@ -225,14 +294,417 @@ async def card_studio_player(
     db:      Session = Depends(get_db),
     user:    User    = Depends(get_current_user_web),
 ):
-    """CS-S2A: Player Card Studio — preview-only MVP.
+    """CS-S2A+S2B: Player Card Studio — preview + variant/platform/theme selectors.
 
-    Read-only: shows current player card preview iframe.
-    Write functions (photo upload, variant/platform/theme change, publish, export)
-    are deferred to CS-S2B..D.
+    Write: variant/platform/theme via existing dashboard endpoints (no new routes).
+    Photo upload (CS-S2C) and publish (CS-S2D) remain deferred.
     Legacy editor CTA links to /card-editor/player for full write access.
     """
     ctx, redirect = _resolve_player_context(db, user)
+    if redirect:
+        return RedirectResponse(url=redirect, status_code=303)
+
+    return templates.TemplateResponse(
+        "card_studio_shell.html",
+        {"request": request, "user": user, **ctx},
+    )
+
+
+# ── CS-S4B: Challenge Card mode (selector + phase + live preview) ─────────────
+
+_CC_FORMATS_ORDERED = CHALLENGE_CARD_FORMATS  # 2 formats: 16:9 post + 9:16 story
+
+_CC_VALID_PLATFORMS = ("challenge_post_16_9", "challenge_story_9_16")
+
+_CC_RATIO = {
+    "challenge_post_16_9":  "mfg-ratio-169",
+    "challenge_story_9_16": "mfg-ratio-916",
+}
+
+_CC_PLATFORM_LABELS = {
+    "challenge_post_16_9":  "Post (16:9)",
+    "challenge_story_9_16": "Story (9:16)",
+}
+
+# Phase labels (mirrors _PHASE_LABELS in vt_challenges.py — kept local for module independence)
+_CC_PHASE_LABELS = {
+    "challenge_sent":         "Challenge Sent",
+    "challenge_received":     "Challenge Received",
+    "challenge_accepted":     "Challenge Accepted",
+    "waiting_for_opponent":   "Waiting for Opponent",
+    "live_lobby_ready":       "Live Lobby",
+    "live_in_progress":       "Live — In Progress",
+    "completed_score_win":    "Result — Score",
+    "completed_draw":         "Result — Draw",
+    "completed_forfeit_win":  "Result — Forfeit Win",
+    "completed_forfeit_loss": "Result — Forfeit Loss",
+    "no_contest":             "No Contest",
+    "skill_delta_result":     "Skill Progress",
+}
+
+# CS-S4B-FIX3: Studio event labels decouple display name from phase_id.
+# challenge_received represents the same event as challenge_sent — the invitation
+# was sent by the challenger and received by the challenged. Both viewers should
+# see "Challenge Sent" as the first timeline event; the sublabel clarifies direction.
+_CC_PHASE_EVENT_LABELS: dict[str, str] = {
+    "challenge_sent":         "Challenge Sent",
+    "challenge_received":     "Challenge Sent",   # same event, challenged perspective
+    "challenge_accepted":     "Challenge Accepted",
+    "waiting_for_opponent":   "Waiting for Opponent",
+    "live_lobby_ready":       "Live Lobby",
+    "live_in_progress":       "Live — In Progress",
+    "completed_score_win":    "Result — Score",
+    "completed_draw":         "Result — Draw",
+    "completed_forfeit_win":  "Result — Forfeit Win",
+    "completed_forfeit_loss": "Result — Forfeit Loss",
+    "no_contest":             "No Contest",
+    "skill_delta_result":     "Skill Progress",
+}
+
+# Viewer-role sublabels shown under the event label
+_CC_PHASE_SUBLABELS: dict[str, str] = {
+    "challenge_sent":     "sent by you",
+    "challenge_received": "sent to you",
+}
+
+# CS-S4B-FIX: Chronological timeline order for phase chips.
+# Phases with the same order value are peers (e.g. sent/received are the same event
+# from two viewer perspectives; score_win/draw/forfeit are mutually exclusive outcomes).
+_CC_PHASE_TIMELINE_ORDER: dict[str, int] = {
+    "challenge_sent":         1,
+    "challenge_received":     1,
+    "challenge_accepted":     2,
+    "live_lobby_ready":       3,
+    "live_in_progress":       4,
+    "waiting_for_opponent":   4,
+    "completed_score_win":    5,
+    "completed_draw":         5,
+    "completed_forfeit_win":  5,
+    "completed_forfeit_loss": 5,
+    "no_contest":             5,
+    "skill_delta_result":     6,
+}
+
+_CC_ACTIVE_STATUSES = frozenset({
+    ChallengeStatus.PENDING,
+    ChallengeStatus.ACCEPTED,
+    ChallengeStatus.LIVE_LOBBY,
+    ChallengeStatus.LIVE_IN_PROGRESS,
+})
+
+_CC_FILTER_STATUSES = {
+    "active":    list(_CC_ACTIVE_STATUSES),
+    "completed": [ChallengeStatus.COMPLETED, ChallengeStatus.EXPIRED,
+                  ChallengeStatus.CANCELLED, ChallengeStatus.DECLINED],
+    "all":       None,  # None means no status filter
+}
+
+_CC_MAX_LIST = 60  # max challenges shown in selector
+
+# Statuses where get_locked_challenge_card_phases() returns [] but the initial
+# challenge_sent/received event still happened and is previewable.
+# FIX: manually add initial phase to locked for these statuses.
+_CC_STATUSES_WITH_IMPLICIT_INITIAL: frozenset = frozenset({
+    ChallengeStatus.DECLINED,
+    ChallengeStatus.CANCELLED,
+    ChallengeStatus.EXPIRED,
+})
+
+
+def _cc_display_name(user_obj) -> str:
+    if user_obj is None:
+        return "Unknown"
+    return user_obj.nickname if getattr(user_obj, "nickname", None) else (user_obj.email or "Unknown")
+
+
+def _cc_build_challenge_row(ch, user_id: int, my_attempt) -> dict:
+    """Build a selector tile row for one challenge."""
+    is_challenger  = ch.challenger_id == user_id
+    opponent       = ch.challenged if is_challenger else ch.challenger
+    opp_attempt_id = ch.challenged_attempt_id if is_challenger else ch.challenger_attempt_id
+
+    # Opponent score — the attempt objects aren't loaded here; use FK presence as proxy
+    # (full attempt loading only when challenge is selected for preview)
+    my_score  = float(my_attempt.score_normalized) if my_attempt and my_attempt.score_normalized is not None else None
+
+    unlocked = _get_unlocked_phases(ch, user_id, my_attempt)
+
+    # FIX: DECLINED/CANCELLED/EXPIRED always had a send/receive event — has_preview must
+    # reflect that, even though get_unlocked_phases() returns [] for these statuses.
+    has_preview = len(unlocked) > 0 or ch.status in _CC_STATUSES_WITH_IMPLICIT_INITIAL
+
+    return {
+        "id":                    ch.id,
+        "opponent_name":         _cc_display_name(opponent),
+        "game_name":             ch.game.name if ch.game else "—",
+        "status":                ch.status.value,
+        "challenge_mode":        ch.challenge_mode or "async",
+        "is_challenger":         is_challenger,
+        "created_at":            ch.created_at,
+        "completed_at":          ch.completed_at,
+        "my_score":              my_score,
+        "available_phases_count": len(unlocked),
+        "available_phases":      unlocked,
+        "studio_url":            f"/card-studio/challenge?challenge_id={ch.id}",
+        "has_preview":           has_preview,
+    }
+
+
+def _resolve_challenge_context(
+    db: Session,
+    user,
+    challenge_id: int | None = None,
+    phase: str | None = None,
+    platform: str | None = None,
+    filter_val: str = "all",
+):
+    """Build context for Challenge Card Studio shell (CS-S4B).
+
+    Mode A — Selector (no challenge_id):
+      Lists user's challenges with filter. challenge_mode="selector".
+
+    Mode B — Preview (challenge_id provided):
+      Loads challenge, computes phases, builds preview URL.
+      challenge_mode="preview".
+
+    Guards: LFA license + onboarding complete (no CC format ownership guard —
+    users may preview any challenge regardless of format ownership).
+    """
+    lic = _license_guard(db, user.id)
+    if not lic:
+        return None, "/dashboard?info=complete_lfa_onboarding_first"
+    if not lic.onboarding_completed:
+        return None, "/specialization/lfa-player/onboarding"
+
+    # ── Mode A: Challenge selector list ──────────────────────────────────────
+    if challenge_id is None:
+        filter_statuses = _CC_FILTER_STATUSES.get(filter_val)
+
+        q = db.query(VirtualTrainingChallenge).filter(
+            (VirtualTrainingChallenge.challenger_id == user.id) |
+            (VirtualTrainingChallenge.challenged_id == user.id)
+        )
+        if filter_statuses is not None:
+            q = q.filter(VirtualTrainingChallenge.status.in_(filter_statuses))
+        challenges = (
+            q.order_by(VirtualTrainingChallenge.created_at.desc())
+            .limit(_CC_MAX_LIST)
+            .all()
+        )
+
+        # Batch-load attempts for score display
+        attempt_ids = set()
+        for ch in challenges:
+            is_c = ch.challenger_id == user.id
+            aid  = ch.challenger_attempt_id if is_c else ch.challenged_attempt_id
+            if aid:
+                attempt_ids.add(aid)
+        attempts_map: dict[int, VirtualTrainingAttempt] = {}
+        if attempt_ids:
+            for a in db.query(VirtualTrainingAttempt).filter(
+                VirtualTrainingAttempt.id.in_(attempt_ids)
+            ).all():
+                attempts_map[a.id] = a
+
+        rows = []
+        for ch in challenges:
+            is_c = ch.challenger_id == user.id
+            aid  = ch.challenger_attempt_id if is_c else ch.challenged_attempt_id
+            my_att = attempts_map.get(aid) if aid else None
+            rows.append(_cc_build_challenge_row(ch, user.id, my_att))
+
+        ctx = {
+            "active_type":       "challenge",
+            "challenge_mode":    "selector",
+            "challenge_rows":    rows,
+            "active_filter":     filter_val if filter_val in _CC_FILTER_STATUSES else "all",
+            "preview_url":       None,
+            "legacy_editor_url": "/card-editor/challenge",
+            **_STUDIO_NAV_CTX,
+        }
+        return ctx, None
+
+    # ── Mode B: Challenge preview ─────────────────────────────────────────────
+    ch = db.query(VirtualTrainingChallenge).filter(
+        VirtualTrainingChallenge.id == challenge_id
+    ).first()
+
+    if ch is None:
+        # Safe error state — show selector with error flag
+        return {
+            "active_type":       "challenge",
+            "challenge_mode":    "error",
+            "challenge_error":   "not_found",
+            "challenge_rows":    [],
+            "active_filter":     "all",
+            "preview_url":       None,
+            "legacy_editor_url": "/card-editor/challenge",
+            **_STUDIO_NAV_CTX,
+        }, None
+
+    if user.id not in (ch.challenger_id, ch.challenged_id):
+        return {
+            "active_type":       "challenge",
+            "challenge_mode":    "error",
+            "challenge_error":   "not_participant",
+            "challenge_rows":    [],
+            "active_filter":     "all",
+            "preview_url":       None,
+            "legacy_editor_url": "/card-editor/challenge",
+            **_STUDIO_NAV_CTX,
+        }, None
+
+    # Load viewer's attempt for phase calculation
+    is_challenger  = user.id == ch.challenger_id
+    my_attempt_id  = ch.challenger_attempt_id if is_challenger else ch.challenged_attempt_id
+    my_attempt = (
+        db.query(VirtualTrainingAttempt)
+        .filter(VirtualTrainingAttempt.id == my_attempt_id)
+        .first()
+    ) if my_attempt_id else None
+
+    unlocked = _get_unlocked_phases(ch, user.id, my_attempt)
+    locked   = _get_locked_phases(ch, user.id)
+
+    # FIX: DECLINED/CANCELLED/EXPIRED — initial send/receive phase existed but
+    # get_locked_challenge_card_phases() returns [] for these statuses.
+    # Add challenge_sent/received as locked so the timeline is complete.
+    if ch.status in _CC_STATUSES_WITH_IMPLICIT_INITIAL:
+        initial = "challenge_sent" if is_challenger else "challenge_received"
+        if initial not in unlocked and initial not in locked:
+            locked = locked + [initial]
+
+    # NOTE: waiting_for_opponent for COMPLETED+attempt is now returned directly
+    # by get_locked_challenge_card_phases() (updated in vt_challenges.py) so no
+    # local augmentation is needed here.
+
+    # CS-S4B-FIX-1: Build chronological phase list.
+    # Merge unlocked + locked, deduplicate, sort by _CC_PHASE_TIMELINE_ORDER.
+    all_phase_ids = sorted(
+        set(unlocked) | set(locked),
+        key=lambda p: (_CC_PHASE_TIMELINE_ORDER.get(p, 99), p),
+    )
+
+    # Auto-select phase: first by timeline order (prefer unlocked, else locked)
+    if phase is None or phase not in set(all_phase_ids):
+        unlocked_ordered = [p for p in all_phase_ids if p in set(unlocked)]
+        locked_ordered   = [p for p in all_phase_ids if p not in set(unlocked)]
+        if unlocked_ordered:
+            phase = unlocked_ordered[0]
+        elif locked_ordered:
+            phase = locked_ordered[0]
+        else:
+            return None, "/card-studio/challenge"
+
+    # Default/validate platform
+    if platform not in _CC_VALID_PLATFORMS:
+        platform = _CC_VALID_PLATFORMS[0]
+
+    ratio_class = _CC_RATIO[platform]
+    # CS-S4B-FIX4: is_historical_phase replaces is_locked_phase — preview-only
+    # historical phases are NOT "locked" (they ARE previewable), just not exportable.
+    _hist_set     = set(locked)
+    _current_set  = set(unlocked)
+    is_historical_phase = phase in _hist_set and phase not in _current_set
+
+    # Preview URL — uses existing /challenges/{id}/card/preview route
+    preview_url = (
+        f"/challenges/{challenge_id}/card/preview"
+        f"?platform={platform}&phase={phase}"
+    )
+
+    # CS-S4B-FIX-1+FIX3+FIX4: Phase chips.
+    # State model:
+    #   is_historical  = happened in the past, previewable, not exportable (no lock!)
+    #   is_previewable = True for all phases in the timeline (backend accepts them)
+    #   is_exportable  = True only for result phases
+    #   is_disabled    = False for all phases currently in timeline
+    phase_chips = [
+        {
+            "id":            p,
+            "label":         _CC_PHASE_LABELS.get(p, p),
+            "event_label":   _CC_PHASE_EVENT_LABELS.get(p, _CC_PHASE_LABELS.get(p, p)),
+            "sublabel":      _CC_PHASE_SUBLABELS.get(p, ""),
+            "active":        p == phase,
+            "is_historical": p in _hist_set and p not in _current_set,
+            "is_previewable": True,
+            "is_exportable": p in _CC_EXPORTABLE_PHASES,
+            "is_disabled":   False,
+        }
+        for p in all_phase_ids
+    ]
+
+    is_exportable_phase = phase in _CC_EXPORTABLE_PHASES
+    # Export URL for exportable phases (ownership guard is on the export route itself)
+    export_url = (
+        f"/challenges/{challenge_id}/card/export"
+        f"?platform={platform}&phase={phase}"
+    ) if is_exportable_phase else None
+
+    # Platform chips for UI
+    platform_chips = [
+        {
+            "id":     pid,
+            "label":  _CC_PLATFORM_LABELS[pid],
+            "active": pid == platform,
+        }
+        for pid in _CC_VALID_PLATFORMS
+    ]
+
+    opponent = ch.challenged if is_challenger else ch.challenger
+
+    ctx = {
+        "active_type":          "challenge",
+        "challenge_mode":       "preview",
+        "selected_challenge_id": challenge_id,
+        "selected_challenge": {
+            "id":             ch.id,
+            "opponent_name":  _cc_display_name(opponent),
+            "game_name":      ch.game.name if ch.game else "—",
+            "status":         ch.status.value,
+            "challenge_mode": ch.challenge_mode or "async",
+            "created_at":     ch.created_at,
+            "completed_at":   ch.completed_at,
+        },
+        "phase_chips":          phase_chips,
+        "platform_chips":       platform_chips,
+        "active_phase":         phase,
+        "active_platform":      platform,
+        "is_historical_phase":  is_historical_phase,
+        "is_exportable_phase":  is_exportable_phase,
+        "challenge_export_url": export_url,
+        "ratio_class":          ratio_class,
+        "preview_url":          preview_url,
+        "legacy_editor_url":    "/card-editor/challenge",
+        **_STUDIO_NAV_CTX,
+    }
+    return ctx, None
+
+
+@router.get("/card-studio/challenge", response_class=HTMLResponse)
+async def card_studio_challenge_studio(
+    request:      Request,
+    challenge_id: int | None = Query(default=None),
+    phase:        str | None = Query(default=None),
+    platform:     str | None = Query(default=None),
+    filter_val:   str        = Query(default="all", alias="filter"),
+    db:           Session    = Depends(get_db),
+    user:         User       = Depends(get_current_user_web),
+):
+    """CS-S4B: Challenge Card Studio.
+
+    No query params → challenge selector list.
+    ?challenge_id={id} → auto-select first unlocked phase.
+    ?challenge_id={id}&phase={phase}&platform={platform} → live preview iframe.
+
+    Preview iframe: GET /challenges/{id}/card/preview?platform=...&phase=...
+    (existing route, session cookie auth, participant guard).
+    No new routes, no DB migrations.
+    """
+    ctx, redirect = _resolve_challenge_context(
+        db, user, challenge_id=challenge_id, phase=phase,
+        platform=platform, filter_val=filter_val,
+    )
     if redirect:
         return RedirectResponse(url=redirect, status_code=303)
 
