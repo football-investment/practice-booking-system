@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ...dependencies import get_current_user_optional, get_current_user_web
 from ...models.friendship import Friendship, FriendshipStatus, is_friends
+from ...models.license import UserLicense
 from ...models.notification import NotificationType
 from ...models.user import User
 from ...models.virtual_training import VirtualTrainingAttempt, VirtualTrainingGame
@@ -1036,6 +1037,21 @@ def validate_challenge_card_phase(
         )
 
 
+def _get_participant_photo(db: Session, user_id: int) -> str | None:
+    """Return the best available photo URL for a challenge participant.
+
+    CC-DESIGN-1: Priority: player_card_photo_url > wc_photo_url > None.
+    Called once per participant in the preview/export routes.
+    """
+    lic = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+    ).first()
+    if lic is None:
+        return None
+    return lic.player_card_photo_url or lic.wc_photo_url or None
+
+
 def _build_challenge_card_context(
     ch: VirtualTrainingChallenge,
     viewer: User,
@@ -1043,7 +1059,16 @@ def _build_challenge_card_context(
     challenged_attempt: Any,
     phase: str,
     my_attempt: Any = None,
+    challenger_photo_url: str | None = None,
+    challenged_photo_url: str | None = None,
+    selected_photo_url: str | None = None,
 ) -> dict:
+    """Build rendering context for challenge card templates.
+
+    CC-DESIGN-1 additions:
+      challenger_photo_url / challenged_photo_url — player photos for VS layouts.
+      selected_photo_url — viewer-chosen mood/hero photo (query-param MVP, no DB write).
+    """
     def _skill_scores_map(attempt: Any) -> dict[str, float]:
         if attempt is None or not attempt.skill_deltas:
             return {}
@@ -1057,30 +1082,42 @@ def _build_challenge_card_context(
     my_score  = float(my_attempt.score_normalized)  if my_attempt  else None
     opp_score = float(opp_attempt.score_normalized) if opp_attempt else None
 
+    # CC-DESIGN-1: viewer_photo / opponent_photo derived from participant roles
+    viewer_photo   = challenger_photo_url if is_challenger else challenged_photo_url
+    opponent_photo = challenged_photo_url if is_challenger else challenger_photo_url
+
     outcome_reason = _compute_outcome_reason(ch)
     unlocked = get_unlocked_challenge_card_phases(ch, viewer.id, my_attempt)
     is_locked = phase not in unlocked
 
     return {
-        "challenge_id":     ch.id,
-        "phase":            phase,
-        "challenger_name":  _display_name(ch.challenger),
-        "challenged_name":  _display_name(ch.challenged),
-        "game_name":        ch.game.name if ch.game else "Unknown Game",
-        "challenge_mode":   ch.challenge_mode or "async",
-        "outcome_reason":   outcome_reason,
-        "challenger_score": float(challenger_attempt.score_normalized) if challenger_attempt else None,
-        "challenged_score": float(challenged_attempt.score_normalized) if challenged_attempt else None,
-        "winner_name":      _display_name(ch.winner) if ch.winner else None,
-        "is_draw":          bool(ch.is_draw),
-        "my_score":         my_score,
-        "opp_score":        opp_score,
-        "my_skill_scores":  _skill_scores_map(my_attempt),
-        "is_viewer_winner": ch.winner_id is not None and ch.winner_id == viewer.id,
-        "cta_label":        _PHASE_CTA.get(phase, "View challenge"),
-        "completed_at":     ch.completed_at if ch.status == ChallengeStatus.COMPLETED else None,
-        "is_locked":        is_locked,
-        "unlocked_phases":  unlocked,
+        "challenge_id":          ch.id,
+        "phase":                 phase,
+        "challenger_name":       _display_name(ch.challenger),
+        "challenged_name":       _display_name(ch.challenged),
+        "game_name":             ch.game.name if ch.game else "Unknown Game",
+        "challenge_mode":        ch.challenge_mode or "async",
+        "outcome_reason":        outcome_reason,
+        "challenger_score":      float(challenger_attempt.score_normalized) if challenger_attempt else None,
+        "challenged_score":      float(challenged_attempt.score_normalized) if challenged_attempt else None,
+        "winner_name":           _display_name(ch.winner) if ch.winner else None,
+        "is_draw":               bool(ch.is_draw),
+        "my_score":              my_score,
+        "opp_score":             opp_score,
+        "my_skill_scores":       _skill_scores_map(my_attempt),
+        "is_viewer_winner":      ch.winner_id is not None and ch.winner_id == viewer.id,
+        "cta_label":             _PHASE_CTA.get(phase, "View challenge"),
+        "completed_at":          ch.completed_at if ch.status == ChallengeStatus.COMPLETED else None,
+        "is_locked":             is_locked,
+        "unlocked_phases":       unlocked,
+        # CC-DESIGN-1: photo fields
+        "challenger_photo_url":  challenger_photo_url,
+        "challenged_photo_url":  challenged_photo_url,
+        "viewer_photo_url":      viewer_photo,
+        "opponent_photo_url":    opponent_photo,
+        "selected_photo_url":    selected_photo_url,
+        "viewer_is_challenger":  is_challenger,
+        "forfeit_reason":        ch.forfeit_reason,
     }
 
 
@@ -1088,12 +1125,13 @@ def _build_challenge_card_context(
 async def challenge_card_preview(
     challenge_id: int,
     request: Request,
-    platform: str           = Query(...),
-    phase: str              = Query(...),
+    platform: str            = Query(...),
+    phase: str               = Query(...),
     render_token: str | None = Query(default=None),
-    export: bool            = Query(default=False),
-    db: Session             = Depends(get_db),
-    user: "User | None"     = Depends(get_current_user_optional),
+    export: bool             = Query(default=False),
+    photo_url: str | None    = Query(default=None),
+    db: Session              = Depends(get_db),
+    user: "User | None"      = Depends(get_current_user_optional),
 ):
     """Render a challenge social card as HTML.
 
@@ -1151,8 +1189,24 @@ async def challenge_card_preview(
             detail=f"Phase {phase!r} is not applicable to this challenge.",
         )
 
+    # CC-DESIGN-1: batch-load participant photos (1 extra query covering both users)
+    participant_ids = {ch.challenger_id, ch.challenged_id}
+    lics = {
+        lic.user_id: lic
+        for lic in db.query(UserLicense).filter(
+            UserLicense.user_id.in_(participant_ids),
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        ).all()
+    }
+    def _photo(uid: int) -> str | None:
+        lic = lics.get(uid)
+        return (lic.player_card_photo_url or lic.wc_photo_url or None) if lic else None
+
     ctx = _build_challenge_card_context(
-        ch, user, challenger_attempt, challenged_attempt, phase, my_attempt
+        ch, user, challenger_attempt, challenged_attempt, phase, my_attempt,
+        challenger_photo_url=_photo(ch.challenger_id),
+        challenged_photo_url=_photo(ch.challenged_id),
+        selected_photo_url=photo_url,
     )
     template_name = (
         "public/export/challenge/post_16_9.html"
