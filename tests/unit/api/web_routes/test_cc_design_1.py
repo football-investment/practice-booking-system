@@ -289,6 +289,111 @@ class TestCCD18to21MediaPanel:
         assert "cs-cc-mood-section" in src or "cs-cc-mood-grid" in src
 
 
+# ── CCD-SENT: Challenge Sent/Received hero layout fix ─────────────────────────
+
+class TestCCDSentReceivedLayout:
+    """CCD-FIX tests for Challenge Sent/Received photo-dominant layout."""
+
+    def _render(self, tmpl_name: str, phase: str, photo: str | None = None) -> str:
+        from jinja2 import Environment, FileSystemLoader
+        from unittest.mock import MagicMock
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template(tmpl_name)
+        ctx = {
+            "phase": phase, "challenge_id": 1,
+            "challenger_name": "T1B1K3", "challenged_name": "RD14S",
+            "game_name": "Memory Sequence", "challenge_mode": "async",
+            "outcome_reason": "score_win", "is_draw": False,
+            "challenger_score": None, "challenged_score": None,
+            "winner_name": None, "my_score": None, "opp_score": None,
+            "my_skill_scores": {}, "is_viewer_winner": False,
+            "cta_label": "View", "completed_at": None, "is_locked": False,
+            "unlocked_phases": [phase], "viewer_is_challenger": True,
+            "forfeit_reason": None,
+            "challenger_photo_url": photo, "challenged_photo_url": None,
+            "viewer_photo_url": photo, "opponent_photo_url": None,
+            "selected_photo_url": None, "request": MagicMock(),
+        }
+        return tmpl.render(**ctx)
+
+    def test_ccd_sent_01_post_uses_invitation_split_layout(self):
+        """CCD-SENT-01: post_16_9 challenge_sent uses photo-dominant split layout."""
+        html = self._render("public/export/challenge/post_16_9.html", "challenge_sent", "/ch.png")
+        assert "arch-invitation-split" in html, \
+            "post_16_9 challenge_sent must use arch-invitation-split layout"
+        # Must be in the body (not just CSS definition) — check for the div
+        assert '<div class="arch-invitation-split">' in html
+
+    def test_ccd_sent_02_story_uses_large_hero_zone(self):
+        """CCD-SENT-02: story_9_16 challenge_sent uses 850px hero zone."""
+        html = self._render("public/export/challenge/story_9_16.html", "challenge_sent", "/ch.png")
+        assert "ai-story-hero-zone" in html
+        assert '<div class="ai-story-hero-zone">' in html
+
+    def test_ccd_sent_03_no_circular_photo_in_hero_slot(self):
+        """CCD-SENT-03: Hero slot does NOT use border-radius:50% on hero image."""
+        for tmpl in ["public/export/challenge/post_16_9.html", "public/export/challenge/story_9_16.html"]:
+            html = self._render(tmpl, "challenge_sent", "/ch.png")
+            # cc-photo-hero-cutout must NOT have border-radius
+            # Check: img with cc-photo-hero-cutout class is in the body
+            assert 'class="cc-photo-hero-cutout"' in html, \
+                f"{tmpl}: hero image must use cc-photo-hero-cutout class"
+
+    def test_ccd_sent_04_hero_cutout_class_defined(self):
+        """CCD-SENT-04: cc-photo-hero-cutout CSS class is defined in both templates."""
+        for tmpl_name in ["public/export/challenge/post_16_9.html", "public/export/challenge/story_9_16.html"]:
+            src = (TEMPLATES_DIR / tmpl_name).read_text()
+            assert ".cc-photo-hero-cutout" in src, \
+                f"{tmpl_name} must define .cc-photo-hero-cutout CSS"
+            assert "object-fit: contain" in src
+            assert "object-position: center bottom" in src
+
+    def test_ccd_sent_05_story_hero_zone_850px(self):
+        """CCD-SENT-05: story hero zone is 850px (≥40% of 1920px canvas)."""
+        src = (TEMPLATES_DIR / "public/export/challenge/story_9_16.html").read_text()
+        assert "850px" in src, \
+            "story hero zone must be 850px (44% of 1920px canvas)"
+
+    def test_ccd_sent_06_fallback_not_circular_in_hero(self):
+        """CCD-SENT-06: Fallback (no photo) uses cc-initial-hero, not circular avatar."""
+        for tmpl in ["public/export/challenge/post_16_9.html", "public/export/challenge/story_9_16.html"]:
+            html = self._render(tmpl, "challenge_sent", photo=None)  # no photo
+            assert "cc-initial-hero" in html, \
+                f"{tmpl}: fallback must use cc-initial-hero (not circular avatar)"
+            assert 'class="cc-avatar hero"' not in html or "arch-invitation" not in html, \
+                f"{tmpl}: fallback in hero slot must NOT use circular cc-avatar"
+
+    def test_ccd_sent_07_other_archetypes_unchanged(self):
+        """CCD-SENT-07: Other phase archetypes still render correctly (regression)."""
+        from app.api.web_routes.vt_challenges import VALID_CHALLENGE_CARD_PHASES
+        from jinja2 import Environment, FileSystemLoader
+        from unittest.mock import MagicMock
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        other_phases = [p for p in VALID_CHALLENGE_CARD_PHASES
+                        if p not in ("challenge_sent", "challenge_received")]
+        for phase in other_phases:
+            for tmpl_name in ["public/export/challenge/post_16_9.html",
+                               "public/export/challenge/story_9_16.html"]:
+                tmpl = env.get_template(tmpl_name)
+                ctx = {
+                    "phase": phase, "challenge_id": 1,
+                    "challenger_name": "A", "challenged_name": "B",
+                    "game_name": "G", "challenge_mode": "async",
+                    "outcome_reason": "score_win", "is_draw": False,
+                    "challenger_score": 80.0, "challenged_score": 70.0,
+                    "winner_name": "A", "my_score": 80.0, "opp_score": 70.0,
+                    "my_skill_scores": {"acc": 0.1}, "is_viewer_winner": True,
+                    "cta_label": "Play", "completed_at": None, "is_locked": False,
+                    "unlocked_phases": [phase], "viewer_is_challenger": True,
+                    "forfeit_reason": None,
+                    "challenger_photo_url": None, "challenged_photo_url": None,
+                    "viewer_photo_url": None, "opponent_photo_url": None,
+                    "selected_photo_url": None, "request": MagicMock(),
+                }
+                html = tmpl.render(**ctx)
+                assert len(html) > 100, f"{tmpl_name} phase {phase!r} rendered empty"
+
+
 # ── Route / snapshot ──────────────────────────────────────────────────────────
 
 class TestCCD22to23RouteSnapshot:

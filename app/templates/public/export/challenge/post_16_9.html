@@ -160,6 +160,8 @@
 
   /* ── Content area ── */
   .card-content { flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px 40px; }
+  /* Invitation split: remove padding so photo zone fills edge-to-edge */
+  .card-content.card-content--invitation { padding: 0; align-items: stretch; }
 
   /* ── Footer ── */
   .card-footer {
@@ -170,24 +172,62 @@
   .cc-cta { font-size: 0.8rem; font-weight: 700; color: var(--cc-gold); letter-spacing: 0.08em; text-transform: uppercase; }
   .cc-domain { font-size: 0.62rem; color: #2a3a55; }
 
-  /* ── Archetype A: Invitation ── */
-  .arch-invitation {
-    display: flex; align-items: center; justify-content: center; gap: 40px; width: 100%;
+  /* ── CC-DESIGN-1 FIX: Hero cutout class (no circular crop) ── */
+  .cc-photo-hero-cutout {
+    width: 100%; height: 100%;
+    object-fit: contain; object-position: center bottom;
+    display: block;
   }
-  .arch-invitation .challenger-block { flex: 0 0 auto; }
-  .arch-invitation .center-block {
-    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px;
+  .cc-initial-hero {
+    width: 100%; height: 100%;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 24px;
+    font-size: 14rem; font-weight: 900; color: var(--cc-gold);
+    opacity: 0.12; text-transform: uppercase; line-height: 1;
+    user-select: none;
   }
-  .arch-invitation .challenged-block { flex: 0 0 auto; opacity: 0.7; }
-  .challenged-label {
-    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--cc-dim); margin-bottom: 4px;
+
+  /* ── Archetype A: Invitation (CCD-FIX: photo-dominant split) ── */
+  /* Post 16:9: left photo zone (500px) + right text zone */
+  .arch-invitation-split {
+    display: grid;
+    grid-template-columns: 500px 1fr;
+    width: 100%; height: 100%;
   }
-  .arch-invitation .challenged-block .cc-photo,
-  .arch-invitation .challenged-block .cc-avatar {
-    width: 90px; height: 90px; font-size: 1.6rem;
+  .ai-photo-zone {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #0c1624 0%, #111e30 100%);
   }
-  .arch-invitation .challenged-block .cc-name { font-size: 1.2rem; }
+  /* Subtle left edge separator */
+  .ai-photo-zone::after {
+    content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, transparent, var(--cc-border), transparent);
+  }
+  .ai-text-zone {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 40px 52px; gap: 0;
+  }
+  .ai-headline {
+    font-size: 3.4rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--cc-text); line-height: 1.05;
+    margin-bottom: 6px;
+  }
+  .ai-sublabel {
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cc-gold); margin-bottom: 28px;
+  }
+  .ai-divider {
+    width: 48px; height: 2px; background: var(--cc-border); margin-bottom: 22px;
+  }
+  .ai-participants {
+    font-size: 1.7rem; font-weight: 700; color: var(--cc-text);
+    letter-spacing: 0.02em; margin-bottom: 10px; line-height: 1.2;
+  }
+  .ai-participants .arrow { color: var(--cc-gold); margin: 0 10px; }
+  .ai-participants .challenged-name { color: var(--cc-sub); }
+  .ai-game {
+    font-size: 0.88rem; color: var(--cc-sub); margin-top: 4px;
+  }
 
   /* ── Archetype B: Battle / Accepted ── */
   .arch-battle {
@@ -239,39 +279,38 @@
   </div>
 
   {# ── Content ── #}
-  <div class="card-content">
+  <div class="card-content{% if phase in ('challenge_sent','challenge_received') %} card-content--invitation{% endif %}">
 
-  {# ── Archetype A: Invitation (challenge_sent / challenge_received) ── #}
+  {# ── Archetype A: Invitation — CCD-FIX photo-dominant split (challenge_sent / challenge_received) ── #}
   {% if phase in ("challenge_sent", "challenge_received") %}
-  <div class="arch-invitation">
-    {# Challenger hero #}
-    <div class="challenger-block cc-col">
-      {% set _ch_photo = selected_photo_url or challenger_photo_url %}
-      {% if _ch_photo %}
-        <img src="{{ _ch_photo }}" class="cc-photo large" alt="{{ challenger_name }}">
+  {# card-content must fill the area between header and footer — override for this archetype #}
+  {% set _hero_photo = selected_photo_url or challenger_photo_url %}
+  <div class="arch-invitation-split">
+
+    {# LEFT: Hero photo zone — full height, no circular crop #}
+    <div class="ai-photo-zone">
+      {% if _hero_photo %}
+        <img src="{{ _hero_photo }}" class="cc-photo-hero-cutout" alt="{{ challenger_name }}">
       {% else %}
-        <div class="cc-avatar large">{{ challenger_name[0] if challenger_name else '?' }}</div>
+        <div class="cc-initial-hero">{{ (challenger_name[0] if challenger_name else '?') | upper }}</div>
       {% endif %}
-      <div class="cc-name large">{{ challenger_name }}</div>
     </div>
-    {# Center #}
-    <div class="center-block">
-      <div class="cc-headline" style="font-size:2.2rem;">
-        {% if phase == "challenge_sent" %}⚔️ Challenge Sent{% else %}⚔️ Challenged!{% endif %}
+
+    {# RIGHT: Text zone #}
+    <div class="ai-text-zone">
+      <div class="ai-headline">
+        {% if phase == "challenge_sent" %}⚔️ Challenge<br>Sent{% else %}⚔️ You've Been<br>Challenged!{% endif %}
       </div>
-      <div class="cc-subline">{{ challenger_name }} challenges {{ challenged_name }}</div>
-      <div class="cc-subline" style="color:#3a4a65;">{{ game_name }}</div>
+      <div class="ai-sublabel">
+        {% if phase == "challenge_sent" %}sent by you{% else %}sent to you{% endif %}
+      </div>
+      <div class="ai-divider"></div>
+      <div class="ai-participants">
+        {{ challenger_name }}<span class="arrow">→</span><span class="challenged-name">{{ challenged_name }}</span>
+      </div>
+      <div class="ai-game">{{ game_name }}</div>
     </div>
-    {# Challenged (target, muted) #}
-    <div class="challenged-block cc-col">
-      <div class="challenged-label">Challenged</div>
-      {% if challenged_photo_url %}
-        <img src="{{ challenged_photo_url }}" class="cc-photo" alt="{{ challenged_name }}">
-      {% else %}
-        <div class="cc-avatar" style="width:90px;height:90px;font-size:1.6rem;">{{ challenged_name[0] if challenged_name else '?' }}</div>
-      {% endif %}
-      <div class="cc-name" style="font-size:1.2rem;">{{ challenged_name }}</div>
-    </div>
+
   </div>
 
   {# ── Archetype B: Battle (challenge_accepted / live_lobby_ready / live_in_progress) ── #}
