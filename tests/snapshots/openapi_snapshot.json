@@ -41874,8 +41874,68 @@
           "card-studio"
         ],
         "summary": "Card Studio Challenge Studio",
-        "description": "CS-S4A: Challenge Card Studio \u2014 preview placeholder shell.\n\nNo live preview iframe \u2014 no generic challenge card render endpoint exists.\nThe legacy editor CTA links to /card-editor/challenge for format gallery access.\nWrite functions (format select, export, challenge-specific render) are deferred.",
+        "description": "CS-S4B: Challenge Card Studio.\n\nNo query params \u2192 challenge selector list.\n?challenge_id={id} \u2192 auto-select first unlocked phase.\n?challenge_id={id}&phase={phase}&platform={platform} \u2192 live preview iframe.\n\nPreview iframe: GET /challenges/{id}/card/preview?platform=...&phase=...\n(existing route, session cookie auth, participant guard).\nNo new routes, no DB migrations.",
         "operationId": "card_studio_challenge_studio_card_studio_challenge_get",
+        "parameters": [
+          {
+            "name": "challenge_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Challenge Id"
+            }
+          },
+          {
+            "name": "phase",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phase"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "title": "Filter"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -41883,6 +41943,16 @@
               "text/html": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
