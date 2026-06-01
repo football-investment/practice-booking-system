@@ -1,0 +1,41 @@
+{# CS-S2A: Player Card Studio control panel — preview-only MVP.
+   Write functions (photo, variant, platform, color, publish, export)
+   are deferred to CS-S2B..D.
+   Context vars: active_variant, active_theme, legacy_editor_url
+#}
+
+<div class="cs-player-panel">
+
+  {# ── Preview info ── #}
+  <div class="cs-player-info">
+    <p class="cs-section-label">Player Card Preview</p>
+    <p class="cs-player-hint">
+      Viewing your current Player Card design.
+      Use the advanced editor below to customize photo, theme, and export format.
+    </p>
+  </div>
+
+  <hr class="cs-section-divider">
+
+  {# ── Write functions coming soon ── #}
+  <div class="cs-player-coming">
+    <p class="cs-section-label">Customize</p>
+    <p class="cs-coming-note">
+      Color theme, photo, and export controls are coming in the next update.
+    </p>
+  </div>
+
+  <hr class="cs-section-divider">
+
+  {# ── Legacy editor CTA ── #}
+  <div class="cs-player-legacy-cta">
+    <p class="cs-section-label">Advanced Editor</p>
+    <p class="cs-player-hint">
+      Full customization is available in the Player Card editor.
+    </p>
+    <a href="{{ legacy_editor_url }}" class="cs-btn-legacy-editor">
+      Open Player Card Editor →
+    </a>
+  </div>
+
+</div>

@@ -1,18 +1,19 @@
-{# CS-S0: Card Studio Type Switcher (Player/Welcome/Challenge)
+{# CS-S0/CS-S2A: Card Studio Type Switcher (Player/Welcome/Challenge)
    active_type: "welcome" | "player" | "challenge"
-   CS-S0: Welcome fully functional; Player/Challenge shown as Coming Soon. #}
+   CS-S0: Welcome fully functional.
+   CS-S2A: Player preview MVP added (no longer Coming Soon).
+   Challenge still Coming Soon. #}
 <div class="cs-type-switcher" role="tablist" aria-label="Card type">
 
-  {# ── Player Card — Coming Soon in CS-S0 ── #}
-  <button class="cs-type-btn cs-type-soon"
+  {# ── Player Card — CS-S2A: preview MVP (no longer Coming Soon) ── #}
+  <button class="cs-type-btn{% if active_type == 'player' %} cs-type-active{% endif %}"
           role="tab"
-          aria-selected="false"
-          disabled
-          aria-disabled="true"
-          title="Player Card Studio — coming soon">
+          aria-selected="{{ 'true' if active_type == 'player' else 'false' }}"
+          onclick="{% if active_type != 'player' %}window.location='/card-studio/player'{% endif %}"
+          {% if active_type == 'player' %}aria-current="page"{% endif %}
+          title="Player Card Studio">
     <span class="cs-type-icon">👤</span>
     <span class="cs-type-label">Player Card</span>
-    <span class="cs-type-badge">Soon</span>
   </button>
 
   {# ── Welcome Card — active in CS-S0 ── #}
@@ -25,7 +26,7 @@
     <span class="cs-type-label">Welcome Card</span>
   </button>
 
-  {# ── Challenge Card — Coming Soon in CS-S0 ── #}
+  {# ── Challenge Card — Coming Soon ── #}
   <button class="cs-type-btn cs-type-soon"
           role="tab"
           aria-selected="false"

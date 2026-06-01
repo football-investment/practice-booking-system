@@ -243,6 +243,22 @@
 }
 .cs-color-error { font-size: 0.72rem; color: #f87171; margin: 0.25rem 0 0; display: none; }
 
+/* ── CS-S2A: Player Card panel ── */
+.cs-player-panel { }
+.cs-player-info  { margin-bottom: 0; }
+.cs-player-hint  { font-size: 0.78rem; color: #64748b; margin: 0; line-height: 1.5; }
+.cs-player-coming{ }
+.cs-coming-note  { font-size: 0.78rem; color: #475569; margin: 0; }
+.cs-player-legacy-cta { }
+.cs-btn-legacy-editor {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.5rem 1.1rem; background: #FFD200; color: #0f172a;
+  font-size: 0.82rem; font-weight: 700; border-radius: 7px;
+  text-decoration: none; transition: opacity 0.15s;
+  margin-top: 0.5rem;
+}
+.cs-btn-legacy-editor:hover { opacity: 0.88; color: #0f172a; text-decoration: none; }
+
 </style>
 {% endblock %}
 
@@ -256,6 +272,9 @@
     <span>Welcome Card</span>
     <span>›</span>
     <span>{{ fmt.label }}</span>
+    {% elif active_type == "player" %}
+    <span>›</span>
+    <span>Player Card</span>
     {% endif %}
   </nav>
 
@@ -280,7 +299,12 @@
     {# ── LEFT: Control Panel ── #}
     <div class="cs-control-panel">
 
-      {# Determine format-aware photo slot and endpoints #}
+      {# ── CS-S2A: Player Card mode — show player panel, skip Welcome-specific sections #}
+      {% if active_type == "player" %}
+        {% include "includes/cs_player_panel.html" %}
+      {% endif %}
+
+      {# Determine format-aware photo slot and endpoints (Welcome mode only) #}
       {% if active_type == "welcome" and active_format %}
         {% if active_format in ('instagram_portrait', 'instagram_story', 'tiktok') %}
           {% set _cs_photo_current = wc_photo_portrait_url %}
@@ -313,7 +337,8 @@
         {% set _cs_delete_url = '/dashboard/wc-photo/delete' %}
       {% endif %}
 
-      {# ── SECTION 1: Mood Photos Quick Row (ALWAYS VISIBLE) ── #}
+      {# ── SECTION 1: Mood Photos Quick Row (Welcome mode only) ── #}
+      {% if active_type != "player" %}
       <p class="cs-section-label">Mood Photos</p>
       {# Render mood quick row with assign URL and selected detection #}
       {% set mood_photos    = mood_photos    if mood_photos    is defined else {} %}
@@ -343,7 +368,7 @@
 
       <hr class="cs-section-divider">
 
-      {# ── SECTION 2: Upload Fallback ── #}
+      {# ── SECTION 2: Upload Fallback (Welcome mode only) ── #}
       <p class="cs-section-label">{{ _cs_slot_label }}</p>
       {% if _cs_slot_hint %}
       <p class="cs-slot-hint">{{ _cs_slot_hint }}</p>
@@ -382,6 +407,8 @@
         {% include "includes/cs_color_panel.html" %}
       {% endif %}
 
+      {% endif %}{# END active_type != "player" guard #}
+
     </div>{# END .cs-control-panel #}
 
     {# ── RIGHT: Preview + Export ── #}
@@ -391,28 +418,36 @@
       <div class="cs-preview-panel">
         <p class="cs-preview-label">Preview</p>
         <div class="cs-preview-container">
-          <div class="cs-preview-wrap mfg-preview-wrap {{ ratio_class }}">
+          {# CS-S2A: Player uses mfg-ratio-45 (4:5 native FClassic); Welcome uses format ratio #}
+          <div class="cs-preview-wrap mfg-preview-wrap {% if active_type == 'player' %}mfg-ratio-45{% else %}{{ ratio_class }}{% endif %}">
             <iframe
               id="cs-preview-iframe"
               class="mfg-preview-iframe"
               src="{{ preview_url }}"
               loading="lazy"
               scrolling="no"
-              title="{{ fmt.label if fmt else 'Card' }} Preview"
+              title="{% if active_type == 'player' %}Player Card Preview{% elif fmt %}{{ fmt.label }} Preview{% else %}Card Preview{% endif %}"
             ></iframe>
           </div>
         </div>
       </div>
 
-      {# Export panel #}
+      {# Export panel — Welcome only in CS-S2A (Player export via legacy editor) #}
       <div class="cs-export-panel">
+        {% if active_type == "player" %}
+        <p class="cs-export-title">Export</p>
+        <p class="cs-export-dims">Use the Player Card editor for full export options.</p>
+        {% else %}
         <p class="cs-export-title">Download your card</p>
         {% if fmt %}
         <p class="cs-export-dims">{{ fmt.dims }} — {{ fmt.label }}</p>
         {% endif %}
+        {% endif %}
+        {% if active_type != "player" %}
         <a href="{{ export_url }}" class="cs-btn-download" download>
           ↓ Download PNG{% if fmt %} ({{ fmt.dims }}){% endif %}
         </a>
+        {% endif %}
       </div>
 
     </div>{# END .cs-preview-col #}
@@ -420,10 +455,17 @@
   </div>{# END .cs-shell-body #}
 
   {# ── Bottom nav ── #}
+  {% if active_type == "welcome" %}
   <div class="wcs-nav">
     <a href="/my-cards/welcome" class="wcs-nav-back">← My Welcome Cards</a>
     <a href="/shop?type=welcome_card" class="wcs-nav-shop">Browse Formats →</a>
   </div>
+  {% elif active_type == "player" %}
+  <div class="wcs-nav">
+    <a href="/my-cards" class="wcs-nav-back">← My Cards</a>
+    <a href="/card-editor/player" class="wcs-nav-shop">Player Card Editor →</a>
+  </div>
+  {% endif %}
 
 </div>{# END .cs-shell-wrap #}
 
