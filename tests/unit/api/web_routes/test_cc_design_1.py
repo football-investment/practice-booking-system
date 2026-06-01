@@ -70,6 +70,13 @@ def _make_mock_ctx(
     winner_name: str | None = None,
     my_skill_scores: dict | None = None,
 ) -> dict:
+    # Derive viewer_action_text matching _build_challenge_card_context logic
+    if phase == "challenge_sent":
+        _vat = "You challenged RD14S"
+    elif phase == "challenge_received":
+        _vat = "T1B1K3 challenged you"
+    else:
+        _vat = ""
     return {
         "challenge_id": 1, "phase": phase,
         "challenger_name": "T1B1K3", "challenged_name": "RD14S",
@@ -87,6 +94,7 @@ def _make_mock_ctx(
         "selected_photo_url": selected_photo,
         "viewer_is_challenger": viewer_is_challenger,
         "forfeit_reason": None,
+        "viewer_action_text": _vat,
     }
 
 
@@ -325,6 +333,9 @@ class TestCCDSentReceivedLayout:
             "challenger_photo_url": photo, "challenged_photo_url": None,
             "viewer_photo_url": photo, "opponent_photo_url": None,
             "selected_photo_url": None, "request": MagicMock(),
+            "viewer_action_text": ("You challenged RD14S" if phase == "challenge_sent"
+                                   else "T1B1K3 challenged you" if phase == "challenge_received"
+                                   else ""),
         }
         return tmpl.render(**ctx)
 
@@ -360,11 +371,13 @@ class TestCCDSentReceivedLayout:
             assert "object-fit: contain" in src
             assert "object-position: center bottom" in src
 
-    def test_ccd_sent_05_story_hero_zone_850px(self):
-        """CCD-SENT-05: story hero zone is 850px (≥40% of 1920px canvas)."""
+    def test_ccd_sent_05_story_hero_zone_large(self):
+        """CCD-SENT-05: story hero zone is ≥700px (large portion of 1920px canvas).
+        CC-DESIGN-1 two-participant: zone reduced from 850px→750px to make room for target card.
+        """
         src = (TEMPLATES_DIR / "public/export/challenge/story_9_16.html").read_text()
-        assert "850px" in src, \
-            "story hero zone must be 850px (44% of 1920px canvas)"
+        assert "750px" in src, \
+            "story hero zone must be 750px (CC-DESIGN-1 two-participant target card layout)"
 
     def test_ccd_sent_06_fallback_not_circular_in_hero(self):
         """CCD-SENT-06: Fallback (no photo) uses cc-initial-hero, not circular avatar."""
@@ -781,3 +794,167 @@ class TestCCDHeroRule:
             # A direct check: the src= of .cc-photo-hero-cutout must be challenger, not selected
             assert 'src="/ch1.png"' in html, \
                 f"{tmpl}: challenge_received hero img src must be challenger_photo_url (/ch1.png)"
+
+
+# ── CCD-VACTION: viewer_action_text context field ─────────────────────────────
+
+class TestCCDViewerActionText:
+    """CCD-VACTION-01..02: viewer_action_text derived from phase + participant names."""
+
+    def _ctx_fn(self):
+        from app.api.web_routes.vt_challenges import _build_challenge_card_context
+        return _build_challenge_card_context
+
+    def _make_ch(self, challenger_id=10, challenged_id=20):
+        from app.models.vt_challenge import ChallengeStatus
+        ch = MagicMock()
+        ch.challenger_id = challenger_id; ch.challenged_id = challenged_id
+        ch.status = ChallengeStatus.PENDING; ch.challenge_mode = "async"
+        ch.winner_id = None; ch.is_draw = False
+        ch.forfeit_user_id = None; ch.forfeit_reason = None
+        ch.completed_at = None
+        ch.challenger = MagicMock(); ch.challenger.nickname = "T1B1K3"; ch.challenger.email = "t@t.com"
+        ch.challenged = MagicMock(); ch.challenged.nickname = "RD14S"; ch.challenged.email = "r@r.com"
+        ch.winner = None
+        ch.game = MagicMock(); ch.game.name = "Memory Sequence"
+        return ch
+
+    def test_ccd_vaction_01_challenge_sent(self):
+        """CCD-VACTION-01: challenge_sent viewer_action_text = 'You challenged RD14S'."""
+        fn = self._ctx_fn()
+        ctx = fn(self._make_ch(), MagicMock(id=10), None, None, "challenge_sent")
+        assert ctx["viewer_action_text"] == "You challenged RD14S", \
+            f"Expected 'You challenged RD14S', got: {ctx['viewer_action_text']!r}"
+
+    def test_ccd_vaction_02_challenge_received(self):
+        """CCD-VACTION-02: challenge_received viewer_action_text = 'T1B1K3 challenged you'."""
+        fn = self._ctx_fn()
+        ctx = fn(self._make_ch(), MagicMock(id=20), None, None, "challenge_received")
+        assert ctx["viewer_action_text"] == "T1B1K3 challenged you", \
+            f"Expected 'T1B1K3 challenged you', got: {ctx['viewer_action_text']!r}"
+
+    def test_ccd_vaction_03_other_phases_empty(self):
+        """CCD-VACTION-03: non-invitation phases produce empty viewer_action_text."""
+        fn = self._ctx_fn()
+        ctx = fn(self._make_ch(), MagicMock(id=10), None, None, "challenge_accepted")
+        assert ctx["viewer_action_text"] == "", \
+            f"Non-invitation phase must produce empty viewer_action_text, got: {ctx['viewer_action_text']!r}"
+
+
+# ── CCD-INVITE-2P: Two-participant invitation layout ─────────────────────────
+
+class TestCCDInviteTwoParticipant:
+    """CCD-INVITE-2P-01..09: Challenged player target card rendered in invitation phase."""
+
+    def _render_invitation(
+        self,
+        phase: str,
+        challenger_photo: str | None = "/ch.png",
+        challenged_photo: str | None = "/cd.png",
+        selected_photo: str | None = None,
+        platform: str = "challenge_post_16_9",
+    ) -> str:
+        from jinja2 import Environment, FileSystemLoader
+        from unittest.mock import MagicMock
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        if platform == "challenge_post_16_9":
+            tmpl = env.get_template("public/export/challenge/post_16_9.html")
+        else:
+            tmpl = env.get_template("public/export/challenge/story_9_16.html")
+
+        if phase == "challenge_sent":
+            _vat = "You challenged RD14S"
+        elif phase == "challenge_received":
+            _vat = "T1B1K3 challenged you"
+        else:
+            _vat = ""
+
+        ctx = {
+            "phase": phase, "challenge_id": 1,
+            "challenger_name": "T1B1K3", "challenged_name": "RD14S",
+            "game_name": "Memory Sequence", "challenge_mode": "async",
+            "outcome_reason": "score_win", "is_draw": False,
+            "challenger_score": None, "challenged_score": None,
+            "winner_name": None, "my_score": None, "opp_score": None,
+            "my_skill_scores": {}, "is_viewer_winner": False,
+            "cta_label": "View", "completed_at": None, "is_locked": False,
+            "unlocked_phases": [phase], "viewer_is_challenger": True,
+            "forfeit_reason": None,
+            "challenger_photo_url": challenger_photo,
+            "challenged_photo_url": challenged_photo,
+            "viewer_photo_url": challenger_photo,
+            "opponent_photo_url": challenged_photo,
+            "selected_photo_url": selected_photo,
+            "viewer_action_text": _vat,
+            "request": MagicMock(),
+        }
+        return tmpl.render(**ctx)
+
+    def test_ccd_invite_2p_01_post_sent_renders_challenged_photo(self):
+        """CCD-INVITE-2P-01: challenge_sent post renders challenged_photo_url in target card."""
+        html = self._render_invitation("challenge_sent", challenged_photo="/cd.png")
+        assert "/cd.png" in html, \
+            "post_16_9 challenge_sent must render challenged_photo_url in target card"
+
+    def test_ccd_invite_2p_02_post_received_renders_challenged_photo(self):
+        """CCD-INVITE-2P-02: challenge_received post renders challenged_photo_url."""
+        html = self._render_invitation("challenge_received", challenged_photo="/cd.png")
+        assert "/cd.png" in html, \
+            "post_16_9 challenge_received must render challenged_photo_url in target card"
+
+    def test_ccd_invite_2p_03_story_sent_renders_challenged_photo(self):
+        """CCD-INVITE-2P-03: challenge_sent story renders challenged_photo_url."""
+        html = self._render_invitation("challenge_sent", challenged_photo="/cd.png",
+                                       platform="challenge_story_9_16")
+        assert "/cd.png" in html, \
+            "story_9_16 challenge_sent must render challenged_photo_url in target card"
+
+    def test_ccd_invite_2p_04_story_received_renders_challenged_photo(self):
+        """CCD-INVITE-2P-04: challenge_received story renders challenged_photo_url."""
+        html = self._render_invitation("challenge_received", challenged_photo="/cd.png",
+                                       platform="challenge_story_9_16")
+        assert "/cd.png" in html, \
+            "story_9_16 challenge_received must render challenged_photo_url in target card"
+
+    def test_ccd_invite_2p_05_selected_photo_does_not_replace_target_card(self):
+        """CCD-INVITE-2P-05: selected_photo_url appears in hero slot; target card still shows challenged_photo_url."""
+        html = self._render_invitation(
+            "challenge_sent",
+            challenger_photo="/ch.png",
+            challenged_photo="/cd.png",
+            selected_photo="/sel.png",
+        )
+        # selected appears in hero zone (hero uses it for challenge_sent)
+        assert "/sel.png" in html, "selected_photo_url must appear in hero zone for challenge_sent"
+        # challenged photo still in target card
+        assert "/cd.png" in html, "challenged_photo_url must still appear in target card"
+
+    def test_ccd_invite_2p_06_participant_line_contains_arrow(self):
+        """CCD-INVITE-2P-06: participant line renders challenger → challenged direction."""
+        html = self._render_invitation("challenge_sent")
+        assert "→" in html, "Participant line must contain → arrow"
+        assert "T1B1K3" in html, "Challenger name must appear in participant line"
+        assert "RD14S" in html, "Challenged name must appear in participant line"
+
+    def test_ccd_invite_2p_07_challenge_received_headline(self):
+        """CCD-INVITE-2P-07: challenge_received headline contains 'Challenged'."""
+        html = self._render_invitation("challenge_received")
+        assert "Challenged" in html, \
+            "challenge_received headline must contain 'Challenged'"
+
+    def test_ccd_invite_2p_08_challenge_sent_headline(self):
+        """CCD-INVITE-2P-08: challenge_sent headline contains 'Challenge Sent'."""
+        html = self._render_invitation("challenge_sent")
+        assert "Challenge Sent" in html or "Challenge\nSent" in html, \
+            "challenge_sent headline must contain 'Challenge Sent'"
+
+    def test_ccd_invite_2p_09_no_challenged_photo_shows_initial(self):
+        """CCD-INVITE-2P-09: No challenged_photo_url → initials fallback in target card."""
+        html = self._render_invitation("challenge_sent", challenged_photo=None)
+        # The first letter of challenged_name "RD14S" should appear in initials fallback
+        # Template renders: {{ (challenged_name[0] if challenged_name else '?') | upper }} = "R"
+        assert "R" in html, \
+            "When no challenged_photo_url, first letter of challenged_name must appear as initial"
+        # The target card initial container class must be present (not a real img src)
+        assert "ai-target-initial" in html or "ai-story-target-initial" in html, \
+            "When no challenged_photo_url, initials container class must be rendered"
