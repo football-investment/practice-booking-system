@@ -407,10 +407,12 @@ class TestChallengeCardTemplates:
         assert "phase" in self._post()
 
     def test_sc14_post_template_has_challenger_score(self):
-        assert "challenger_score" in self._post()
+        # D2 redesign: scores rendered via challenger_result_summary.primary_value (CC-DESIGN-1)
+        assert "challenger_result_summary" in self._post()
 
     def test_sc14_post_template_has_challenged_score(self):
-        assert "challenged_score" in self._post()
+        # D2 redesign: scores rendered via challenged_result_summary.primary_value (CC-DESIGN-1)
+        assert "challenged_result_summary" in self._post()
 
     def test_sc15_story_template_has_phase_variable(self):
         assert "phase" in self._story()

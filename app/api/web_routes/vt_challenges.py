@@ -1201,7 +1201,7 @@ def _build_result_summary(attempt: Any, game_code: str | None) -> dict:
             secondary.append({"label": "Sequence", "value": str(best_seq)})
         stim = attempt.stimuli_count
         corr = attempt.correct_count
-        if stim and stim > 0 and corr is not None:
+        if isinstance(stim, (int, float)) and stim > 0 and isinstance(corr, (int, float)):
             secondary.append({"label": "Accuracy", "value": f"{round(corr / stim * 100)}%"})
 
     elif attempt is not None and game_code == "target_tracking":
@@ -1211,7 +1211,7 @@ def _build_result_summary(attempt: Any, game_code: str | None) -> dict:
             secondary.append({"label": "Difficulty", "value": diff.title()})
         stim = attempt.stimuli_count
         corr = attempt.correct_count
-        if stim and stim > 0 and corr is not None:
+        if isinstance(stim, (int, float)) and stim > 0 and isinstance(corr, (int, float)):
             secondary.append({"label": "Hit Rate", "value": f"{round(corr / stim * 100)}%"})
 
     return {
