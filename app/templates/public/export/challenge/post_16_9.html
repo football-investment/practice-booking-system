@@ -204,6 +204,28 @@
     font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--cc-text);
   }
+  /* CC-DESIGN-1: stats overlay — position + OVR on player zones */
+  .aib-pos-block {
+    position: absolute; top: 14px; left: 14px;
+    display: flex; flex-direction: column; gap: 3px; z-index: 3;
+  }
+  .aib-player-zone--right .aib-pos-block {
+    left: auto; right: 14px; align-items: flex-end;
+  }
+  .aib-pos-primary {
+    font-size: 1.5rem; font-weight: 900;
+    color: #f5c518; letter-spacing: 0.06em; line-height: 1;
+  }
+  .aib-pos-secondary {
+    font-size: 0.82rem; font-weight: 700;
+    color: rgba(232,234,240,0.5); letter-spacing: 0.06em;
+  }
+  .aib-overall {
+    position: absolute; bottom: 52px; left: 0; right: 0;
+    text-align: center; z-index: 3;
+    font-size: 0.78rem; font-weight: 700;
+    color: rgba(232,234,240,0.55); letter-spacing: 0.06em;
+  }
   .aib-center-msg {
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     text-align: center; padding: 24px 32px; gap: 0;
@@ -309,7 +331,7 @@
   </div>
 
   {# ── Content ── #}
-  <div class="card-content{% if phase in ('challenge_sent','challenge_received') %} card-content--invitation{% endif %}">
+  <div class="card-content{% if phase in ('challenge_sent','challenge_received','challenge_cancelled','challenge_declined') %} card-content--invitation{% endif %}">
 
   {#
     CC-DESIGN-1: Archetype A — Two-Participant Invitation
@@ -334,6 +356,15 @@
         <img src="{{ _left_photo }}" class="aib-player-photo" alt="{{ challenger_name }}">
       {% else %}
         <div class="aib-player-initial">{{ (challenger_name[0] if challenger_name else '?') | upper }}</div>
+      {% endif %}
+      {% if challenger_primary_pos %}
+      <div class="aib-pos-block">
+        <span class="aib-pos-primary">{{ challenger_primary_pos }}</span>
+        {% if challenger_secondary_pos %}<span class="aib-pos-secondary">{{ challenger_secondary_pos }}</span>{% endif %}
+      </div>
+      {% endif %}
+      {% if challenger_overall is not none %}
+      <div class="aib-overall">OVR {{ challenger_overall }}</div>
       {% endif %}
       <div class="aib-player-name">{{ challenger_name }}</div>
     </div>
@@ -361,6 +392,15 @@
         <img src="{{ _right_photo }}" class="aib-player-photo" alt="{{ challenged_name }}">
       {% else %}
         <div class="aib-player-initial">{{ (challenged_name[0] if challenged_name else '?') | upper }}</div>
+      {% endif %}
+      {% if challenged_primary_pos %}
+      <div class="aib-pos-block">
+        <span class="aib-pos-primary">{{ challenged_primary_pos }}</span>
+        {% if challenged_secondary_pos %}<span class="aib-pos-secondary">{{ challenged_secondary_pos }}</span>{% endif %}
+      </div>
+      {% endif %}
+      {% if challenged_overall is not none %}
+      <div class="aib-overall">OVR {{ challenged_overall }}</div>
       {% endif %}
       <div class="aib-player-name">{{ challenged_name }}</div>
     </div>
@@ -483,19 +523,65 @@
     </div>
   </div>
 
-  {# ── Archetype F: Terminal Rejection (challenge_cancelled / challenge_declined) ── #}
+  {# ── Archetype F: Terminal Rejection — two-player layout (challenge_cancelled / challenge_declined) ── #}
+  {# Reuses Archetype A player zones + stats overlays; center message is dimmed/terminal. #}
   {% elif phase in ("challenge_cancelled", "challenge_declined") %}
-  <div class="arch-terminal">
-    <div class="atr-status-meta">Challenge Closed</div>
-    <div class="atr-headline">
-      {% if phase == "challenge_cancelled" %}Challenge Cancelled{% else %}Challenge Declined{% endif %}
+  {% set _left_photo  = challenger_photo_url %}
+  {% set _right_photo = challenged_photo_url %}
+  <div class="arch-invitation-balanced">
+
+    {# LEFT: Challenger photo zone #}
+    <div class="aib-player-zone">
+      {% if _left_photo %}
+        <img src="{{ _left_photo }}" class="aib-player-photo" alt="{{ challenger_name }}">
+      {% else %}
+        <div class="aib-player-initial">{{ (challenger_name[0] if challenger_name else '?') | upper }}</div>
+      {% endif %}
+      {% if challenger_primary_pos %}
+      <div class="aib-pos-block">
+        <span class="aib-pos-primary">{{ challenger_primary_pos }}</span>
+        {% if challenger_secondary_pos %}<span class="aib-pos-secondary">{{ challenger_secondary_pos }}</span>{% endif %}
+      </div>
+      {% endif %}
+      {% if challenger_overall is not none %}
+      <div class="aib-overall">OVR {{ challenger_overall }}</div>
+      {% endif %}
+      <div class="aib-player-name">{{ challenger_name }}</div>
     </div>
-    <div class="atr-sublabel">{{ viewer_action_text }}</div>
-    <div class="atr-divider"></div>
-    <div class="atr-participants">
-      {{ challenger_name }}<span class="arrow">→</span>{{ challenged_name }}
+
+    {# CENTER: Terminal message (dimmed, no active CTA) #}
+    <div class="aib-center-msg">
+      <div class="aib-status-meta">Challenge Closed</div>
+      <div class="aib-headline" style="color:var(--cc-dim);">
+        {% if phase == "challenge_cancelled" %}Challenge<br>Cancelled{% else %}Challenge<br>Declined{% endif %}
+      </div>
+      <div class="aib-sublabel" style="color:var(--cc-sub);">{{ viewer_action_text }}</div>
+      <div class="aib-divider"></div>
+      <div class="aib-participants" style="color:var(--cc-sub);">
+        {{ challenger_name }}<span class="arrow" style="color:var(--cc-dim);">→</span>{{ challenged_name }}
+      </div>
+      <div class="aib-game">{{ game_name }}</div>
     </div>
-    <div class="atr-game">{{ game_name }}</div>
+
+    {# RIGHT: Challenged photo zone #}
+    <div class="aib-player-zone aib-player-zone--right">
+      {% if _right_photo %}
+        <img src="{{ _right_photo }}" class="aib-player-photo" alt="{{ challenged_name }}">
+      {% else %}
+        <div class="aib-player-initial">{{ (challenged_name[0] if challenged_name else '?') | upper }}</div>
+      {% endif %}
+      {% if challenged_primary_pos %}
+      <div class="aib-pos-block">
+        <span class="aib-pos-primary">{{ challenged_primary_pos }}</span>
+        {% if challenged_secondary_pos %}<span class="aib-pos-secondary">{{ challenged_secondary_pos }}</span>{% endif %}
+      </div>
+      {% endif %}
+      {% if challenged_overall is not none %}
+      <div class="aib-overall">OVR {{ challenged_overall }}</div>
+      {% endif %}
+      <div class="aib-player-name">{{ challenged_name }}</div>
+    </div>
+
   </div>
 
   {# ── Archetype E: Skill Progress ── #}
@@ -547,7 +633,7 @@
     {% if phase in ("challenge_sent", "challenge_received") %}
     <div class="cc-game-info">Invitation Pending</div>
     {% elif phase in ("challenge_cancelled", "challenge_declined") %}
-    <div class="cc-game-info" style="color:var(--cc-dim);">Challenge Closed</div>
+    <div class="cc-game-info" style="color:var(--cc-dim);">Closed</div>
     {% else %}
     <div class="cc-cta">{{ cta_label }} →</div>
     {% endif %}

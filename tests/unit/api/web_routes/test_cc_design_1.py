@@ -95,6 +95,12 @@ def _make_mock_ctx(
     challenged_score: float | None = None,
     winner_name: str | None = None,
     my_skill_scores: dict | None = None,
+    challenger_overall: float | None = None,
+    challenger_primary_pos: str | None = None,
+    challenger_secondary_pos: str | None = None,
+    challenged_overall: float | None = None,
+    challenged_primary_pos: str | None = None,
+    challenged_secondary_pos: str | None = None,
 ) -> dict:
     # Derive viewer_action_text matching _build_challenge_card_context logic
     if phase == "challenge_sent":
@@ -125,6 +131,12 @@ def _make_mock_ctx(
         "viewer_is_challenger": viewer_is_challenger,
         "forfeit_reason": None,
         "viewer_action_text": _vat,
+        "challenger_overall":       challenger_overall,
+        "challenger_primary_pos":   challenger_primary_pos,
+        "challenger_secondary_pos": challenger_secondary_pos,
+        "challenged_overall":       challenged_overall,
+        "challenged_primary_pos":   challenged_primary_pos,
+        "challenged_secondary_pos": challenged_secondary_pos,
     }
 
 
@@ -1513,23 +1525,25 @@ class TestCCDCancelled:
         ctx = _build_challenge_card_context(ch, viewer, None, None, "challenge_cancelled")
         assert ctx["viewer_action_text"] == "T1B1K3 cancelled"
 
-    def test_ccd_can_08_post_renders_arch_terminal(self):
-        """CCD-CAN-08: post_16_9 renders arch-terminal for challenge_cancelled."""
+    def test_ccd_can_08_post_renders_two_player_layout(self):
+        """CCD-CAN-08: post_16_9 renders arch-invitation-balanced (two-player) for challenge_cancelled."""
         html = self._render_post()
-        assert "arch-terminal" in html, "arch-terminal class must appear in rendered HTML"
-        assert "Challenge Cancelled" in html
+        assert '<div class="arch-invitation-balanced">' in html, \
+            "challenge_cancelled must use two-player invitation layout"
+        assert "Cancelled" in html
 
-    def test_ccd_can_09_post_no_invitation_layout(self):
-        """CCD-CAN-09: post_16_9 does NOT render arch-invitation-balanced div for cancelled."""
+    def test_ccd_can_09_post_uses_invitation_grid(self):
+        """CCD-CAN-09: post_16_9 DOES render arch-invitation-balanced (two-player) for cancelled."""
         html = self._render_post()
-        assert '<div class="arch-invitation-balanced">' not in html, \
-            "challenge_sent invitation layout must NOT render for challenge_cancelled"
+        assert '<div class="arch-invitation-balanced">' in html, \
+            "challenge_cancelled must use two-player invitation grid, not a pure center layout"
 
-    def test_ccd_can_10_story_renders_arch_terminal(self):
-        """CCD-CAN-10: story_9_16 renders arch-terminal-story for challenge_cancelled."""
+    def test_ccd_can_10_story_renders_two_player_layout(self):
+        """CCD-CAN-10: story_9_16 renders arch-story-balanced (two-player) for challenge_cancelled."""
         html = self._render_story()
-        assert "arch-terminal-story" in html
-        assert "Challenge Cancelled" in html
+        assert '<div class="arch-story-balanced">' in html, \
+            "challenge_cancelled must use two-player story layout"
+        assert "Cancelled" in html
 
 
 class TestCCDDeclined:
@@ -1618,23 +1632,25 @@ class TestCCDDeclined:
         ctx = _build_challenge_card_context(ch, viewer, None, None, "challenge_declined")
         assert ctx["viewer_action_text"] == "declined by you"
 
-    def test_ccd_dec_08_post_renders_arch_terminal(self):
-        """CCD-DEC-08: post_16_9 renders arch-terminal for challenge_declined."""
+    def test_ccd_dec_08_post_renders_two_player_layout(self):
+        """CCD-DEC-08: post_16_9 renders arch-invitation-balanced (two-player) for challenge_declined."""
         html = self._render_post()
-        assert "arch-terminal" in html
-        assert "Challenge Declined" in html
+        assert '<div class="arch-invitation-balanced">' in html, \
+            "challenge_declined must use two-player invitation layout"
+        assert "Declined" in html
 
-    def test_ccd_dec_09_post_no_invitation_layout(self):
-        """CCD-DEC-09: post_16_9 does NOT render arch-invitation-balanced div for declined."""
+    def test_ccd_dec_09_post_uses_invitation_grid(self):
+        """CCD-DEC-09: post_16_9 DOES render arch-invitation-balanced (two-player) for declined."""
         html = self._render_post()
-        assert '<div class="arch-invitation-balanced">' not in html, \
-            "challenge_sent invitation layout must NOT render for challenge_declined"
+        assert '<div class="arch-invitation-balanced">' in html, \
+            "challenge_declined must use two-player invitation grid"
 
-    def test_ccd_dec_10_story_renders_arch_terminal(self):
-        """CCD-DEC-10: story_9_16 renders arch-terminal-story for challenge_declined."""
+    def test_ccd_dec_10_story_renders_two_player_layout(self):
+        """CCD-DEC-10: story_9_16 renders arch-story-balanced (two-player) for challenge_declined."""
         html = self._render_story()
-        assert "arch-terminal-story" in html
-        assert "Challenge Declined" in html
+        assert '<div class="arch-story-balanced">' in html, \
+            "challenge_declined must use two-player story layout"
+        assert "Declined" in html
 
 
 class TestCCDTerminalStudio:
@@ -1855,3 +1871,263 @@ class TestCCDTerminalTimeline:
         """CCD-LABEL-04: _CC_PHASE_EVENT_LABELS['challenge_declined'] is set."""
         from app.api.web_routes.card_studio import _CC_PHASE_EVENT_LABELS
         assert "challenge_declined" in _CC_PHASE_EVENT_LABELS
+
+
+# ── Participant stats: _get_participant_stats + overlay rendering ─────────────
+
+class TestCCDStats:
+    """CCD-STATS: overall + position stats helper, context propagation, template overlay.
+
+    CCD-STATS-01  overall = average of football_skills current_level (1dp)
+    CCD-STATS-02  primary_pos = position_short(positions[0])
+    CCD-STATS-03  secondary_pos = position_short(positions[1])
+    CCD-STATS-04  no UserLicense → all None
+    CCD-STATS-05  empty positions list → primary/secondary None
+    CCD-STATS-06  empty football_skills → overall None
+    CCD-STATS-07  _build_challenge_card_context propagates challenger_overall + challenged_overall
+    CCD-STATS-08  post_16_9 challenge_sent: aib-pos-block rendered when primary_pos present
+    CCD-STATS-09  post_16_9 challenge_sent: OVR text rendered when overall present
+    CCD-STATS-10  post_16_9: overall=None → OVR text absent
+    CCD-STATS-11  post_16_9: primary_pos=None → aib-pos-block absent
+    CCD-STATS-12  story_9_16 challenge_sent: asb-pos-block + OVR rendered
+    CCD-STATS-13  post_16_9 challenge_received: aib-pos-block + OVR rendered (historical phase)
+    CCD-STATS-14  post_16_9 challenge_cancelled: arch-invitation-balanced rendered (two-player)
+    CCD-STATS-15  post_16_9 challenge_cancelled: challenger photo present in layout
+    CCD-STATS-16  post_16_9 challenge_cancelled: aib-pos-block rendered when stats present
+    CCD-STATS-17  post_16_9 challenge_declined: arch-invitation-balanced rendered
+    CCD-STATS-18  story_9_16 challenge_cancelled: arch-story-balanced rendered (two-player)
+    CCD-STATS-19  story_9_16 challenge_declined: arch-story-balanced rendered
+    CCD-STATS-20  post_16_9 challenge_cancelled: no layout break when stats are all None
+    """
+
+    # ── Helper: _get_participant_stats ────────────────────────────────────────
+
+    def _make_lic(self, football_skills: dict | None, positions: list | None):
+        """Build a mock UserLicense with given skills/positions."""
+        lic = MagicMock()
+        lic.football_skills   = football_skills
+        lic.motivation_scores = {"positions": positions} if positions is not None else {}
+        return lic
+
+    def _run_stats(self, lic_or_none):
+        from app.api.web_routes.vt_challenges import _get_participant_stats
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = lic_or_none
+        return _get_participant_stats(db, user_id=1)
+
+    def test_ccd_stats_01_overall_average(self):
+        """CCD-STATS-01: overall = average of current_level values (1 decimal place)."""
+        lic = self._make_lic(
+            football_skills={
+                "ball_control": {"current_level": 80.0},
+                "shooting":     {"current_level": 70.0},
+                "passing":      {"current_level": 60.0},
+            },
+            positions=["centre_midfield"],
+        )
+        result = self._run_stats(lic)
+        assert result["overall"] == round((80.0 + 70.0 + 60.0) / 3, 1)
+
+    def test_ccd_stats_02_primary_pos(self):
+        """CCD-STATS-02: primary_pos = position_short(positions[0])."""
+        from app.utils.football_positions import position_short
+        lic = self._make_lic(
+            football_skills={"passing": {"current_level": 70.0}},
+            positions=["centre_midfield", "striker"],
+        )
+        result = self._run_stats(lic)
+        assert result["primary_pos"] == position_short("centre_midfield")
+
+    def test_ccd_stats_03_secondary_pos(self):
+        """CCD-STATS-03: secondary_pos = position_short(positions[1])."""
+        from app.utils.football_positions import position_short
+        lic = self._make_lic(
+            football_skills={"passing": {"current_level": 70.0}},
+            positions=["centre_midfield", "striker"],
+        )
+        result = self._run_stats(lic)
+        assert result["secondary_pos"] == position_short("striker")
+
+    def test_ccd_stats_04_no_license(self):
+        """CCD-STATS-04: no LFA license → all None."""
+        result = self._run_stats(None)
+        assert result == {"overall": None, "primary_pos": None, "secondary_pos": None}
+
+    def test_ccd_stats_05_empty_positions(self):
+        """CCD-STATS-05: empty positions list → primary_pos and secondary_pos None."""
+        lic = self._make_lic(
+            football_skills={"passing": {"current_level": 70.0}},
+            positions=[],
+        )
+        result = self._run_stats(lic)
+        assert result["primary_pos"] is None
+        assert result["secondary_pos"] is None
+
+    def test_ccd_stats_06_empty_football_skills(self):
+        """CCD-STATS-06: empty football_skills → overall None."""
+        lic = self._make_lic(football_skills={}, positions=["striker"])
+        result = self._run_stats(lic)
+        assert result["overall"] is None
+
+    # ── Context builder propagation ───────────────────────────────────────────
+
+    def test_ccd_stats_07_context_builder_propagates_stats(self):
+        """CCD-STATS-07: _build_challenge_card_context passes challenger/challenged stats."""
+        from app.api.web_routes.vt_challenges import _build_challenge_card_context
+        ch = MagicMock()
+        ch.challenger_id = 10; ch.challenged_id = 20
+        ch.challenger = MagicMock(nickname="T1B1K3", email="t@x.com")
+        ch.challenged = MagicMock(nickname="RD14S", email="r@x.com")
+        ch.game = MagicMock(name="Memory Sequence")
+        ch.challenge_mode = "async"; ch.status = MagicMock()
+        ch.winner_id = None; ch.winner = None; ch.is_draw = False
+        ch.completed_at = None; ch.forfeit_reason = None; ch.forfeit_user_id = None
+        ch.challenger_attempt_id = None; ch.challenged_attempt_id = None
+        viewer = MagicMock(id=10)
+        ctx = _build_challenge_card_context(
+            ch, viewer, None, None, "challenge_sent",
+            challenger_stats={"overall": 78.5, "primary_pos": "CM", "secondary_pos": "RM"},
+            challenged_stats={"overall": 65.2, "primary_pos": "ST", "secondary_pos": None},
+        )
+        assert ctx["challenger_overall"] == 78.5
+        assert ctx["challenger_primary_pos"] == "CM"
+        assert ctx["challenger_secondary_pos"] == "RM"
+        assert ctx["challenged_overall"] == 65.2
+        assert ctx["challenged_primary_pos"] == "ST"
+        assert ctx["challenged_secondary_pos"] is None
+
+    # ── Template rendering helpers ────────────────────────────────────────────
+
+    def _render(self, template_path: str, phase: str, **kwargs) -> str:
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template(template_path)
+        ctx = _make_mock_ctx(phase=phase, **kwargs)
+        ctx["request"] = MagicMock()
+        return tmpl.render(**ctx)
+
+    # ── post_16_9 — Archetype A stats overlay ────────────────────────────────
+
+    def test_ccd_stats_08_post_sent_pos_block(self):
+        """CCD-STATS-08: post_16_9 challenge_sent: aib-pos-block rendered when primary_pos set."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_sent",
+            challenger_primary_pos="CM", challenger_secondary_pos="RM",
+        )
+        assert "aib-pos-block" in html
+        assert "CM" in html
+
+    def test_ccd_stats_09_post_sent_ovr(self):
+        """CCD-STATS-09: post_16_9 challenge_sent: OVR text rendered when overall present."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_sent",
+            challenger_overall=78.5,
+        )
+        assert "OVR 78.5" in html
+
+    def test_ccd_stats_10_post_no_ovr_when_none(self):
+        """CCD-STATS-10: post_16_9: overall=None → aib-overall element absent from body."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_sent",
+            challenger_overall=None, challenged_overall=None,
+        )
+        assert 'class="aib-overall"' not in html
+
+    def test_ccd_stats_11_post_no_pos_block_when_none(self):
+        """CCD-STATS-11: post_16_9: primary_pos=None → aib-pos-block div absent from body."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_sent",
+            challenger_primary_pos=None, challenged_primary_pos=None,
+        )
+        assert '<div class="aib-pos-block">' not in html
+
+    # ── story_9_16 — Archetype A stats overlay ────────────────────────────────
+
+    def test_ccd_stats_12_story_sent_overlays(self):
+        """CCD-STATS-12: story_9_16 challenge_sent: asb-pos-block + OVR rendered."""
+        html = self._render(
+            "public/export/challenge/story_9_16.html", "challenge_sent",
+            challenger_primary_pos="ST", challenger_overall=72.3,
+        )
+        assert "asb-pos-block" in html
+        assert "ST" in html
+        assert "OVR 72.3" in html
+
+    # ── post_16_9 — challenge_received (historical) ───────────────────────────
+
+    def test_ccd_stats_13_post_received_pos_and_ovr(self):
+        """CCD-STATS-13: post_16_9 challenge_received: aib-pos-block + OVR rendered."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_received",
+            viewer_is_challenger=False,
+            challenger_primary_pos="LW", challenger_overall=61.0,
+            challenged_primary_pos="GK",
+        )
+        assert "aib-pos-block" in html
+        assert "LW" in html
+        assert "OVR 61.0" in html
+
+    # ── post_16_9 — challenge_cancelled two-player layout ────────────────────
+
+    def test_ccd_stats_14_post_cancelled_two_player_layout(self):
+        """CCD-STATS-14: post_16_9 challenge_cancelled: arch-invitation-balanced rendered."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_cancelled",
+        )
+        assert '<div class="arch-invitation-balanced">' in html
+
+    def test_ccd_stats_15_post_cancelled_photo_present(self):
+        """CCD-STATS-15: post_16_9 challenge_cancelled: challenger photo present."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_cancelled",
+            challenger_photo="/ch_photo.png",
+        )
+        assert "/ch_photo.png" in html
+
+    def test_ccd_stats_16_post_cancelled_stats_overlay(self):
+        """CCD-STATS-16: post_16_9 challenge_cancelled: stats overlay rendered."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_cancelled",
+            challenger_primary_pos="CM", challenger_overall=78.5,
+            challenged_primary_pos="ST", challenged_overall=65.0,
+        )
+        assert "aib-pos-block" in html
+        assert "OVR 78.5" in html
+        assert "OVR 65.0" in html
+
+    # ── post_16_9 — challenge_declined two-player layout ─────────────────────
+
+    def test_ccd_stats_17_post_declined_two_player_layout(self):
+        """CCD-STATS-17: post_16_9 challenge_declined: arch-invitation-balanced rendered."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_declined",
+        )
+        assert '<div class="arch-invitation-balanced">' in html
+
+    # ── story_9_16 — cancelled/declined two-player layout ────────────────────
+
+    def test_ccd_stats_18_story_cancelled_two_player_layout(self):
+        """CCD-STATS-18: story_9_16 challenge_cancelled: arch-story-balanced rendered."""
+        html = self._render(
+            "public/export/challenge/story_9_16.html", "challenge_cancelled",
+        )
+        assert '<div class="arch-story-balanced">' in html
+
+    def test_ccd_stats_19_story_declined_two_player_layout(self):
+        """CCD-STATS-19: story_9_16 challenge_declined: arch-story-balanced rendered."""
+        html = self._render(
+            "public/export/challenge/story_9_16.html", "challenge_declined",
+        )
+        assert '<div class="arch-story-balanced">' in html
+
+    def test_ccd_stats_20_post_cancelled_no_stats_no_crash(self):
+        """CCD-STATS-20: post_16_9 challenge_cancelled with all stats None — layout intact."""
+        html = self._render(
+            "public/export/challenge/post_16_9.html", "challenge_cancelled",
+            challenger_overall=None, challenger_primary_pos=None,
+            challenged_overall=None, challenged_primary_pos=None,
+        )
+        assert "Cancelled" in html
+        assert '<div class="aib-pos-block">' not in html
+        assert 'class="aib-overall"' not in html
+        assert len(html) > 500

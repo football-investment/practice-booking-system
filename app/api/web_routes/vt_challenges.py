@@ -59,6 +59,7 @@ from ...models.vt_challenge import (
 )
 from ...core.redis_pubsub import publish_challenge_event
 from ...services import card_export_service as _export_svc
+from ...utils.football_positions import position_short
 from ...services.mood_photo_service import get_mood_photos_for_user as _mood_photos_for_user
 from .card_editor import _MOOD_SLOT_META as _SEND_MOOD_SLOT_META
 from ...services import notification_service
@@ -1123,6 +1124,36 @@ def _get_participant_photo(db: Session, user_id: int) -> str | None:
     return lic.player_card_photo_url or lic.wc_photo_url or None
 
 
+def _get_participant_stats(db: Session, user_id: int) -> dict:
+    """Return overall skill + primary/secondary position for a challenge card participant.
+
+    overall:       float | None  — average of football_skills current_level values (1dp)
+    primary_pos:   str   | None  — position_short of motivation_scores["positions"][0]
+    secondary_pos: str   | None  — position_short of motivation_scores["positions"][1]
+    Returns all-None dict when no LFA_FOOTBALL_PLAYER license exists.
+    """
+    lic = db.query(UserLicense).filter(
+        UserLicense.user_id == user_id,
+        UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+    ).first()
+    if lic is None:
+        return {"overall": None, "primary_pos": None, "secondary_pos": None}
+
+    levels = [
+        v["current_level"]
+        for v in (lic.football_skills or {}).values()
+        if isinstance(v, dict) and v.get("current_level") is not None
+    ]
+    overall = round(sum(levels) / len(levels), 1) if levels else None
+
+    positions = (lic.motivation_scores or {}).get("positions", [])
+    return {
+        "overall":       overall,
+        "primary_pos":   position_short(positions[0]) if positions else None,
+        "secondary_pos": position_short(positions[1]) if len(positions) > 1 else None,
+    }
+
+
 def _build_challenge_card_context(
     ch: VirtualTrainingChallenge,
     viewer: User,
@@ -1133,12 +1164,16 @@ def _build_challenge_card_context(
     challenger_photo_url: str | None = None,
     challenged_photo_url: str | None = None,
     selected_photo_url: str | None = None,
+    challenger_stats: dict | None = None,
+    challenged_stats: dict | None = None,
 ) -> dict:
     """Build rendering context for challenge card templates.
 
     CC-DESIGN-1 additions:
       challenger_photo_url / challenged_photo_url — player photos for VS layouts.
       selected_photo_url — viewer-chosen mood/hero photo (query-param MVP, no DB write).
+      challenger_stats / challenged_stats — {overall, primary_pos, secondary_pos} dicts
+        from _get_participant_stats(); all values may be None.
     """
     def _skill_scores_map(attempt: Any) -> dict[str, float]:
         if attempt is None or not attempt.skill_deltas:
@@ -1205,6 +1240,13 @@ def _build_challenge_card_context(
         "forfeit_reason":        ch.forfeit_reason,
         # CC-DESIGN-1: two-participant invitation narrative
         "viewer_action_text":    viewer_action_text,
+        # CC-DESIGN-1: participant stats (overall skill + position)
+        "challenger_overall":       (challenger_stats or {}).get("overall"),
+        "challenger_primary_pos":   (challenger_stats or {}).get("primary_pos"),
+        "challenger_secondary_pos": (challenger_stats or {}).get("secondary_pos"),
+        "challenged_overall":       (challenged_stats or {}).get("overall"),
+        "challenged_primary_pos":   (challenged_stats or {}).get("primary_pos"),
+        "challenged_secondary_pos": (challenged_stats or {}).get("secondary_pos"),
     }
 
 
@@ -1285,6 +1327,10 @@ async def challenge_card_preview(
     challenger_photo = _photo(ch.challenger_id, ch.challenger_card_photo_url)
     challenged_photo = _photo(ch.challenged_id, ch.challenged_card_photo_url)
 
+    # CC-DESIGN-1: participant stats (overall skill + position overlay)
+    ch_stats = _get_participant_stats(db, ch.challenger_id)
+    cd_stats = _get_participant_stats(db, ch.challenged_id)
+
     # photo_url query param is the viewer's in-session override for their own slot
     selected = photo_url  # applied per viewer_is_challenger in the template
 
@@ -1293,6 +1339,8 @@ async def challenge_card_preview(
         challenger_photo_url=challenger_photo,
         challenged_photo_url=challenged_photo,
         selected_photo_url=selected,
+        challenger_stats=ch_stats,
+        challenged_stats=cd_stats,
     )
     template_name = (
         "public/export/challenge/post_16_9.html"
