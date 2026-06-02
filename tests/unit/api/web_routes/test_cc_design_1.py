@@ -326,12 +326,12 @@ class TestCCD08to17TemplateRender:
                             selected_photo="/mood_selected.png", my_score=80.0)
         assert "/mood_selected.png" in html
 
-    def test_ccd_17_winner_photo_gets_winner_ring(self):
-        """CCD-17: Winner player block gets winner-ring CSS class."""
+    def test_ccd_17_winner_zone_gets_winner_bar(self):
+        """CCD-17 (updated): Winner player zone gets ard2-winner-bar (D2 full-zone layout)."""
         html = self._render("public/export/challenge/post_16_9.html", "completed_score_win",
                             challenger_score=90.0, challenged_score=70.0, winner_name="T1B1K3",
                             challenger_photo="/ch1.png", challenged_photo="/ch2.png")
-        assert "winner-ring" in html
+        assert "ard2-winner-bar" in html
 
 
 # ── Media panel tests ─────────────────────────────────────────────────────────
@@ -3150,15 +3150,15 @@ class TestCCDResult:
         assert "Hit: 72%" in html
         assert "Diff: Medium" in html
         assert "✓ WINNER" not in html
-        assert "winner-ring\"" not in html  # class applied to element (not CSS definition)
+        assert 'class="ard2-winner-bar"' not in html  # no winner bar on draw
 
     def test_ccd_result_09_post_no_secondary_div_absent(self):
-        """CCD-RESULT-09: completed_score_win: no secondary_items → ard-secondary class absent."""
+        """CCD-RESULT-09: completed_score_win: no secondary_items → ard2-secondary-row absent."""
         html = self._render(
             "public/export/challenge/post_16_9.html", "completed_score_win",
             challenger_score=85.0, challenged_score=71.0, winner_name="T1B1K3",
         )
-        assert 'class="ard-secondary"' not in html
+        assert 'class="ard2-secondary-row"' not in html
 
     def test_ccd_result_10_post_draw_badge_and_no_winner_label(self):
         """CCD-RESULT-10: completed_draw: DRAW badge present, no ✓ WINNER."""
@@ -3171,8 +3171,8 @@ class TestCCDResult:
 
     # ── Story 9:16 template tests ─────────────────────────────────────────────
 
-    def test_ccd_result_11_story_arch_result_story_with_ovr_and_secondary(self):
-        """CCD-RESULT-11: story completed_score_win: arch-result-story + OVR + secondary."""
+    def test_ccd_result_11_story_arch_result_d2_story_with_ovr_and_secondary(self):
+        """CCD-RESULT-11: story completed_score_win: arch-result-d2-story + OVR + secondary."""
         rs_ch = _ms_rs(85.0, seq=7, acc=80)
         rs_cd = _ms_rs(71.0, seq=5, acc=70)
         html = self._render(
@@ -3181,53 +3181,53 @@ class TestCCDResult:
             challenger_overall=78.5, challenged_overall=81.0,
             challenger_result_summary=rs_ch, challenged_result_summary=rs_cd,
         )
-        assert 'class="arch-result-story"' in html
+        assert 'class="arch-result-d2-story"' in html
         assert "OVR 78.5" in html
         assert "OVR 81.0" in html
         assert "Seq: 7" in html
         assert "Seq: 5" in html
 
-    def test_ccd_result_12_story_winner_ring(self):
-        """CCD-RESULT-12: story completed_score_win: winner-ring on winning photo."""
+    def test_ccd_result_12_story_winner_bar_on_winner_zone(self):
+        """CCD-RESULT-12: story completed_score_win: ard2-winner-bar on winning zone."""
         html = self._render(
             "public/export/challenge/story_9_16.html", "completed_score_win",
             challenger_score=85.0, challenged_score=71.0, winner_name="T1B1K3",
             challenger_photo="/ch1.png", challenged_photo="/ch2.png",
         )
-        assert "winner-ring" in html
+        assert "ard2-winner-bar" in html
 
     # ── Regression — forfeit / no_contest must still render ──────────────────
 
     def test_ccd_result_reg_01_forfeit_win_post_renders(self):
-        """CCD-RESULT-REG-01: completed_forfeit_win post: arch-result div present."""
+        """CCD-RESULT-REG-01: completed_forfeit_win post: arch-result-d2 div present."""
         html = self._render(
             "public/export/challenge/post_16_9.html", "completed_forfeit_win",
             winner_name="T1B1K3",
         )
-        assert '<div class="arch-result">' in html
+        assert 'class="arch-result-d2"' in html
         assert "FORFEIT WIN" in html
 
     def test_ccd_result_reg_02_forfeit_loss_post_renders(self):
-        """CCD-RESULT-REG-02: completed_forfeit_loss post: arch-result div present."""
+        """CCD-RESULT-REG-02: completed_forfeit_loss post: arch-result-d2 div present."""
         html = self._render(
             "public/export/challenge/post_16_9.html", "completed_forfeit_loss",
         )
-        assert '<div class="arch-result">' in html
+        assert 'class="arch-result-d2"' in html
         assert "FORFEIT LOSS" in html
 
     def test_ccd_result_reg_03_no_contest_post_renders(self):
-        """CCD-RESULT-REG-03: no_contest post: arch-result div present."""
+        """CCD-RESULT-REG-03: no_contest post: arch-result-d2 div present."""
         html = self._render(
             "public/export/challenge/post_16_9.html", "no_contest",
         )
-        assert '<div class="arch-result">' in html
+        assert 'class="arch-result-d2"' in html
         assert "NO CONTEST" in html
 
     def test_ccd_result_reg_04_forfeit_win_story_renders(self):
-        """CCD-RESULT-REG-04: completed_forfeit_win story: arch-result-story div present."""
+        """CCD-RESULT-REG-04: completed_forfeit_win story: arch-result-d2-story div present."""
         html = self._render(
             "public/export/challenge/story_9_16.html", "completed_forfeit_win",
             winner_name="T1B1K3",
         )
-        assert 'class="arch-result-story"' in html
+        assert 'class="arch-result-d2-story"' in html
         assert "FORFEIT WIN" in html
