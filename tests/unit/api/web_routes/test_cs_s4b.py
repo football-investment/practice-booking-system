@@ -920,13 +920,16 @@ class TestS4B3PreviewIframe:
         assert ctx["preview_url"] is None
         assert ctx["challenge_mode"] == "error"
 
-    def test_s4b3_07_challenge_panel_has_legacy_cta(self):
-        """S4B3-07: cs_challenge_panel.html references legacy_editor_url;
-        context sets it to /card-editor/challenge."""
+    def test_s4b3_07_challenge_panel_mood_section_no_legacy_cta(self):
+        """S4B3-07: CC-DESIGN-1 removed legacy editor CTA from cs_challenge_panel.html.
+        Panel has mood photo selector instead; context still provides legacy_editor_url."""
         src = (INCLUDES_DIR / "cs_challenge_panel.html").read_text()
-        assert "legacy_editor_url" in src  # template uses context var
+        assert "cs-cc-mood-section" in src, \
+            "CC-DESIGN-1: panel must have mood photo selector"
+        assert "Open Challenge Editor" not in src, \
+            "CC-DESIGN-1: legacy CTA must be removed from panel"
 
-        # Context must set legacy_editor_url = /card-editor/challenge
+        # Context still provides legacy_editor_url for backward compat
         from app.api.web_routes.card_studio import _resolve_challenge_context
         user = _make_user(10)
         with patch("app.api.web_routes.card_studio._license_guard", return_value=_make_license(True)):
