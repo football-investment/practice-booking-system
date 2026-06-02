@@ -387,6 +387,9 @@ _CC_PHASE_TIMELINE_ORDER: dict[str, int] = {
     "completed_forfeit_loss": 5,
     "no_contest":             5,
     "skill_delta_result":     6,
+    # Terminal rejection phases — timeline position 2 (after sent, before any result)
+    "challenge_cancelled":    2,
+    "challenge_declined":     2,
 }
 
 _CC_ACTIVE_STATUSES = frozenset({
@@ -406,11 +409,10 @@ _CC_FILTER_STATUSES = {
 _CC_MAX_LIST = 60  # max challenges shown in selector
 
 # Statuses where get_locked_challenge_card_phases() returns [] but the initial
-# challenge_sent/received event still happened and is previewable.
-# FIX: manually add initial phase to locked for these statuses.
+# challenge_sent/received event still happened and is previewable as a locked phase.
+# CANCELLED and DECLINED now have their own unlocked phases (challenge_cancelled /
+# challenge_declined) so they no longer need the implicit-initial workaround.
 _CC_STATUSES_WITH_IMPLICIT_INITIAL: frozenset = frozenset({
-    ChallengeStatus.DECLINED,
-    ChallengeStatus.CANCELLED,
     ChallengeStatus.EXPIRED,
 })
 

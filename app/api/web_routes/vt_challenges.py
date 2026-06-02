@@ -878,6 +878,9 @@ VALID_CHALLENGE_CARD_PHASES = frozenset({
     "completed_forfeit_loss",
     "no_contest",
     "skill_delta_result",
+    # Terminal rejection phases (CC-DESIGN-1 extension)
+    "challenge_cancelled",  # challenger withdrew
+    "challenge_declined",   # challenged refused
 })
 
 # Phases that are exportable — all require format ownership (CDO row).
@@ -888,6 +891,9 @@ _EXPORTABLE_PHASES = frozenset({
     # Social moment phases (CC-DESIGN-1 addition)
     "challenge_sent",
     "challenge_received",
+    # Terminal rejection phases
+    "challenge_cancelled",
+    "challenge_declined",
     # Result phases (unchanged)
     "completed_score_win",
     "completed_draw",
@@ -915,6 +921,8 @@ _PHASE_LABELS = {
     "completed_forfeit_loss": "Result — Forfeit Loss",
     "no_contest":             "No Contest",
     "skill_delta_result":     "Skill Progress",
+    "challenge_cancelled":    "Cancelled",
+    "challenge_declined":     "Declined",
 }
 
 _PHASE_CTA = {
@@ -930,6 +938,8 @@ _PHASE_CTA = {
     "completed_forfeit_loss":  "Play again",
     "no_contest":              "Challenge again",
     "skill_delta_result":      "View profile",
+    "challenge_cancelled":     "Challenge again",
+    "challenge_declined":      "Challenge again",
 }
 
 
@@ -1005,6 +1015,12 @@ def get_unlocked_challenge_card_phases(
         outcome = _compute_outcome_reason(ch)
         if outcome == "no_contest":
             phases.append("no_contest")
+
+    elif s == ChallengeStatus.CANCELLED:
+        phases.append("challenge_cancelled")
+
+    elif s == ChallengeStatus.DECLINED:
+        phases.append("challenge_declined")
 
     return phases
 
@@ -1148,6 +1164,10 @@ def _build_challenge_card_context(
         viewer_action_text = f"You challenged {_challenged_dn}"
     elif phase == "challenge_received":
         viewer_action_text = f"{_challenger_dn} challenged you"
+    elif phase == "challenge_cancelled":
+        viewer_action_text = "cancelled by you" if is_challenger else f"{_challenger_dn} cancelled"
+    elif phase == "challenge_declined":
+        viewer_action_text = f"{_challenged_dn} declined" if is_challenger else "declined by you"
     else:
         viewer_action_text = ""
 

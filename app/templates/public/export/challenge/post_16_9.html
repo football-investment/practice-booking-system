@@ -238,6 +238,32 @@
     display: flex; align-items: center; justify-content: center; gap: 48px; width: 100%;
   }
 
+  /* ── Archetype F: Terminal Rejection (cancelled / declined) ── */
+  .arch-terminal {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 0; width: 100%; padding: 0 48px;
+  }
+  .atr-status-meta {
+    font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--cc-dim); border: 1px solid var(--cc-border); border-radius: 3px;
+    padding: 3px 8px; margin-bottom: 14px;
+  }
+  .atr-headline {
+    font-size: 2.5rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--cc-dim); line-height: 1.05; margin-bottom: 6px;
+  }
+  .atr-sublabel {
+    font-size: 0.74rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--cc-sub); margin-bottom: 18px;
+  }
+  .atr-divider { width: 36px; height: 2px; background: var(--cc-border); margin-bottom: 14px; }
+  .atr-participants {
+    font-size: 1.1rem; font-weight: 700; color: var(--cc-sub);
+    letter-spacing: 0.02em; margin-bottom: 6px; line-height: 1.2;
+  }
+  .atr-participants .arrow { color: var(--cc-dim); margin: 0 6px; }
+  .atr-game { font-size: 0.76rem; color: var(--cc-dim); }
+
   /* ── Archetype D: Result VS ── */
   .arch-result {
     display: flex; align-items: center; justify-content: center; gap: 40px; width: 100%;
@@ -275,6 +301,8 @@
         {% elif phase in ("completed_forfeit_win","completed_forfeit_loss") %}Forfeit
         {% elif phase == "no_contest" %}No Contest
         {% elif phase == "skill_delta_result" %}Skill Progress
+        {% elif phase == "challenge_cancelled" %}Cancelled
+        {% elif phase == "challenge_declined" %}Declined
         {% else %}{{ phase | replace("_"," ") | title }}{% endif %}
       </span>
     </div>
@@ -455,6 +483,21 @@
     </div>
   </div>
 
+  {# ── Archetype F: Terminal Rejection (challenge_cancelled / challenge_declined) ── #}
+  {% elif phase in ("challenge_cancelled", "challenge_declined") %}
+  <div class="arch-terminal">
+    <div class="atr-status-meta">Challenge Closed</div>
+    <div class="atr-headline">
+      {% if phase == "challenge_cancelled" %}Challenge Cancelled{% else %}Challenge Declined{% endif %}
+    </div>
+    <div class="atr-sublabel">{{ viewer_action_text }}</div>
+    <div class="atr-divider"></div>
+    <div class="atr-participants">
+      {{ challenger_name }}<span class="arrow">→</span>{{ challenged_name }}
+    </div>
+    <div class="atr-game">{{ game_name }}</div>
+  </div>
+
   {# ── Archetype E: Skill Progress ── #}
   {% elif phase == "skill_delta_result" %}
   <div class="cc-flex-center" style="gap:52px; width:100%;">
@@ -503,6 +546,8 @@
     <div class="cc-game-info">{{ game_name }}{% if completed_at %} · {{ completed_at.strftime("%b %d, %Y") }}{% endif %}</div>
     {% if phase in ("challenge_sent", "challenge_received") %}
     <div class="cc-game-info">Invitation Pending</div>
+    {% elif phase in ("challenge_cancelled", "challenge_declined") %}
+    <div class="cc-game-info" style="color:var(--cc-dim);">Challenge Closed</div>
     {% else %}
     <div class="cc-cta">{{ cta_label }} →</div>
     {% endif %}

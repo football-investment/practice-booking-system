@@ -206,6 +206,32 @@
   }
   .asb-participants .arrow { color: var(--cc-gold); margin: 0 8px; }
   .asb-game { font-size: 0.84rem; color: var(--cc-sub); }
+
+  /* ── Archetype F: Terminal Rejection (cancelled / declined) ── */
+  .arch-terminal-story {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 0; width: 100%; flex: 1; padding: 0 60px;
+  }
+  .ats-status-meta {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--cc-dim); border: 1px solid var(--cc-border); border-radius: 3px;
+    padding: 3px 10px; margin-bottom: 12px;
+  }
+  .ats-headline {
+    font-size: 3.2rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--cc-dim); line-height: 1.0; margin-bottom: 8px;
+  }
+  .ats-sublabel {
+    font-size: 0.84rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--cc-sub); margin-bottom: 14px;
+  }
+  .ats-divider { width: 48px; height: 2px; background: var(--cc-border); margin-bottom: 14px; }
+  .ats-participants {
+    font-size: 1.4rem; font-weight: 700; color: var(--cc-sub);
+    letter-spacing: 0.02em; margin-bottom: 8px;
+  }
+  .ats-participants .arrow { color: var(--cc-dim); margin: 0 8px; }
+  .ats-game { font-size: 0.84rem; color: var(--cc-dim); }
 </style>
 </head>
 <body>
@@ -226,6 +252,8 @@
         {% elif phase == "challenge_received" %}You've Been Challenged
         {% elif phase == "challenge_accepted" %}Accepted
         {% elif phase == "waiting_for_opponent" %}Waiting
+        {% elif phase == "challenge_cancelled" %}Cancelled
+        {% elif phase == "challenge_declined" %}Declined
         {% elif phase == "live_lobby_ready" %}Lobby
         {% elif phase == "live_in_progress" %}Live
         {% elif phase in ("completed_score_win","completed_draw") %}Result
@@ -386,6 +414,21 @@
       </div>
     </div>
 
+  {# ── Archetype F: Terminal Rejection (challenge_cancelled / challenge_declined) ── #}
+  {% elif phase in ("challenge_cancelled", "challenge_declined") %}
+  <div class="arch-terminal-story">
+    <div class="ats-status-meta">Challenge Closed</div>
+    <div class="ats-headline">
+      {% if phase == "challenge_cancelled" %}Challenge Cancelled{% else %}Challenge Declined{% endif %}
+    </div>
+    <div class="ats-sublabel">{{ viewer_action_text }}</div>
+    <div class="ats-divider"></div>
+    <div class="ats-participants">
+      {{ challenger_name }}<span class="arrow">→</span>{{ challenged_name }}
+    </div>
+    <div class="ats-game">{{ game_name }}</div>
+  </div>
+
   {# ── Archetype E: Skill Progress ── #}
   {% elif phase == "skill_delta_result" %}
     {% set _v_photo = selected_photo_url or viewer_photo_url %}
@@ -427,6 +470,8 @@
     <div class="cc-game-info">{{ game_name }}{% if completed_at %} · {{ completed_at.strftime("%b %d, %Y") }}{% endif %}</div>
     {% if phase in ("challenge_sent", "challenge_received") %}
     <div class="cc-game-info">Invitation Pending</div>
+    {% elif phase in ("challenge_cancelled", "challenge_declined") %}
+    <div class="cc-game-info" style="color:var(--cc-dim);">Challenge Closed</div>
     {% else %}
     <div class="cc-cta">{{ cta_label }} →</div>
     {% endif %}

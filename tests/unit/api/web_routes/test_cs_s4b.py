@@ -494,8 +494,10 @@ class TestS4BFixPhaseOrdering:
         row = _cc_build_challenge_row(ch, user_id=10, my_attempt=None)
         assert row["has_preview"] is True
 
-    def test_fix_11_declined_preview_shows_challenge_sent(self):
-        """FIX-11: DECLINED preview mode includes challenge_sent as locked chip."""
+    def test_fix_11_declined_preview_shows_challenge_declined(self):
+        """FIX-11 (updated): DECLINED preview mode includes challenge_declined as unlocked chip.
+        Previously showed challenge_sent via workaround; now challenge_declined is a real phase.
+        """
         fn   = _ctx_fn()
         user = _make_user(10)
         ch   = _make_challenge(77, 10, 20, "declined")
@@ -507,13 +509,16 @@ class TestS4BFixPhaseOrdering:
 
         if ctx.get("challenge_mode") == "preview":
             ids = [c["id"] for c in ctx.get("phase_chips", [])]
-            assert "challenge_sent" in ids, \
-                f"challenge_sent must appear in DECLINED preview chips, got: {ids}"
-            wfo = next((c for c in ctx["phase_chips"] if c["id"] == "challenge_sent"), None)
-            assert wfo and wfo["is_historical"] is True, "challenge_sent must be locked in DECLINED"
+            assert "challenge_declined" in ids, \
+                f"challenge_declined must appear in DECLINED preview chips, got: {ids}"
+            chip = next((c for c in ctx["phase_chips"] if c["id"] == "challenge_declined"), None)
+            assert chip and chip["is_historical"] is False, \
+                "challenge_declined must be an unlocked (non-historical) chip"
 
-    def test_fix_12_declined_challenged_shows_challenge_received(self):
-        """FIX-12: DECLINED challenged view shows challenge_received as locked chip."""
+    def test_fix_12_declined_challenged_shows_challenge_declined(self):
+        """FIX-12 (updated): DECLINED challenged view shows challenge_declined chip.
+        Previously showed challenge_received via workaround; now challenge_declined is correct.
+        """
         fn   = _ctx_fn()
         user = _make_user(20)  # challenged
         ch   = _make_challenge(78, 10, 20, "declined")
@@ -525,8 +530,8 @@ class TestS4BFixPhaseOrdering:
 
         if ctx.get("challenge_mode") == "preview":
             ids = [c["id"] for c in ctx.get("phase_chips", [])]
-            assert "challenge_received" in ids, \
-                f"challenge_received must appear for DECLINED challenged view, got: {ids}"
+            assert "challenge_declined" in ids, \
+                f"challenge_declined must appear for DECLINED challenged view, got: {ids}"
 
 
 # ── S4B-FIX2: Template navigability + export + get_locked fix ─────────────────

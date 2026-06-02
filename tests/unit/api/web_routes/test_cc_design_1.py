@@ -43,6 +43,32 @@ CCD-NAMING-06  Card Studio chip event_label for challenge_received = "Challenge 
 Hero rule:
 CCD-HERO-01  challenge_sent: hero uses selected_photo_url when present
 CCD-HERO-02  challenge_received: hero always uses challenger_photo_url (selected does not override)
+
+Terminal rejection phases (CANCELLED / DECLINED):
+CCD-CAN-01  get_unlocked_challenge_card_phases: CANCELLED → ["challenge_cancelled"]
+CCD-CAN-02  challenge_cancelled in VALID_CHALLENGE_CARD_PHASES
+CCD-CAN-03  challenge_cancelled in _EXPORTABLE_PHASES
+CCD-CAN-04  challenge_cancelled in _PHASE_LABELS with label "Cancelled"
+CCD-CAN-05  challenge_cancelled in _PHASE_CTA
+CCD-CAN-06  viewer_action_text: cancelled + challenger → "cancelled by you"
+CCD-CAN-07  viewer_action_text: cancelled + challenged → "[name] cancelled"
+CCD-CAN-08  post_16_9 challenge_cancelled renders Archetype F (arch-terminal)
+CCD-CAN-09  post_16_9 challenge_cancelled does NOT render arch-invitation-balanced
+CCD-CAN-10  story_9_16 challenge_cancelled renders arch-terminal-story
+
+CCD-DEC-01  get_unlocked_challenge_card_phases: DECLINED → ["challenge_declined"]
+CCD-DEC-02  challenge_declined in VALID_CHALLENGE_CARD_PHASES
+CCD-DEC-03  challenge_declined in _EXPORTABLE_PHASES
+CCD-DEC-04  challenge_declined in _PHASE_LABELS with label "Declined"
+CCD-DEC-05  challenge_declined in _PHASE_CTA
+CCD-DEC-06  viewer_action_text: declined + challenger → "[name] declined"
+CCD-DEC-07  viewer_action_text: declined + challenged → "declined by you"
+CCD-DEC-08  post_16_9 challenge_declined renders Archetype F (arch-terminal)
+CCD-DEC-09  post_16_9 challenge_declined does NOT render arch-invitation-balanced
+CCD-DEC-10  story_9_16 challenge_declined renders arch-terminal-story
+
+CCD-CAN-STUDIO-01  _CC_STATUSES_WITH_IMPLICIT_INITIAL does NOT contain CANCELLED
+CCD-DEC-STUDIO-01  _CC_STATUSES_WITH_IMPLICIT_INITIAL does NOT contain DECLINED
 """
 from __future__ import annotations
 
@@ -75,6 +101,10 @@ def _make_mock_ctx(
         _vat = "You challenged RD14S"
     elif phase == "challenge_received":
         _vat = "T1B1K3 challenged you"
+    elif phase == "challenge_cancelled":
+        _vat = "cancelled by you" if viewer_is_challenger else "T1B1K3 cancelled"
+    elif phase == "challenge_declined":
+        _vat = "RD14S declined" if viewer_is_challenger else "declined by you"
     else:
         _vat = ""
     return {
@@ -223,7 +253,7 @@ class TestCCD08to17TemplateRender:
         assert "+0.50" in html
 
     def test_ccd_14_story_all_12_phases_render(self):
-        """CCD-14: story_9_16 renders all 12 phases without Jinja2 error."""
+        """CCD-14: story_9_16 renders all valid phases (14) without Jinja2 error."""
         from app.api.web_routes.vt_challenges import VALID_CHALLENGE_CARD_PHASES
         from jinja2 import Environment, FileSystemLoader
         env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
@@ -1393,3 +1423,233 @@ class TestCCDMoodSelectorLabel:
         assert "_saveSnapshot" in src, "JS must call _saveSnapshot (POST endpoint)"
         assert "_refreshPreview" in src, "JS must refresh preview iframe"
         assert "card/photo" in src, "JS must POST to /challenges/{id}/card/photo"
+
+
+# ── Terminal rejection phases: CANCELLED + DECLINED ───────────────────────────
+
+class TestCCDCancelled:
+    """CCD-CAN: challenge_cancelled phase — phase system + template rendering."""
+
+    def _render_post(self, viewer_is_challenger: bool = True) -> str:
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template("public/export/challenge/post_16_9.html")
+        ctx = _make_mock_ctx(phase="challenge_cancelled",
+                             viewer_is_challenger=viewer_is_challenger)
+        ctx["request"] = MagicMock()
+        return tmpl.render(**ctx)
+
+    def _render_story(self, viewer_is_challenger: bool = True) -> str:
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template("public/export/challenge/story_9_16.html")
+        ctx = _make_mock_ctx(phase="challenge_cancelled",
+                             viewer_is_challenger=viewer_is_challenger)
+        ctx["request"] = MagicMock()
+        return tmpl.render(**ctx)
+
+    def test_ccd_can_01_unlocked_phases_for_cancelled(self):
+        """CCD-CAN-01: CANCELLED status → unlocked = ['challenge_cancelled']."""
+        from app.api.web_routes.vt_challenges import get_unlocked_challenge_card_phases
+        from app.models.vt_challenge import ChallengeStatus
+        ch = MagicMock()
+        ch.status = ChallengeStatus.CANCELLED
+        ch.challenger_id = 1
+        ch.challenged_id = 2
+        ch.challenger_attempt_id = None
+        ch.challenged_attempt_id = None
+        result = get_unlocked_challenge_card_phases(ch, viewer_id=1)
+        assert result == ["challenge_cancelled"]
+
+    def test_ccd_can_02_in_valid_phases(self):
+        """CCD-CAN-02: challenge_cancelled in VALID_CHALLENGE_CARD_PHASES."""
+        from app.api.web_routes.vt_challenges import VALID_CHALLENGE_CARD_PHASES
+        assert "challenge_cancelled" in VALID_CHALLENGE_CARD_PHASES
+
+    def test_ccd_can_03_in_exportable_phases(self):
+        """CCD-CAN-03: challenge_cancelled in _EXPORTABLE_PHASES."""
+        from app.api.web_routes.vt_challenges import _EXPORTABLE_PHASES
+        assert "challenge_cancelled" in _EXPORTABLE_PHASES
+
+    def test_ccd_can_04_phase_label(self):
+        """CCD-CAN-04: _PHASE_LABELS['challenge_cancelled'] == 'Cancelled'."""
+        from app.api.web_routes.vt_challenges import _PHASE_LABELS
+        assert _PHASE_LABELS.get("challenge_cancelled") == "Cancelled"
+
+    def test_ccd_can_05_phase_cta(self):
+        """CCD-CAN-05: challenge_cancelled has a CTA label."""
+        from app.api.web_routes.vt_challenges import _PHASE_CTA
+        assert "challenge_cancelled" in _PHASE_CTA
+
+    def test_ccd_can_06_viewer_action_text_challenger(self):
+        """CCD-CAN-06: challenger view → viewer_action_text = 'cancelled by you'."""
+        from app.api.web_routes.vt_challenges import _build_challenge_card_context
+        ch = MagicMock()
+        ch.challenger_id = 10; ch.challenged_id = 20
+        ch.challenger = MagicMock(nickname="T1B1K3", email="t@x.com")
+        ch.challenged = MagicMock(nickname="RD14S", email="r@x.com")
+        ch.game = MagicMock(name="Memory Sequence")
+        ch.challenge_mode = "async"; ch.status = MagicMock()
+        ch.winner_id = None; ch.winner = None; ch.is_draw = False
+        ch.completed_at = None; ch.forfeit_reason = None; ch.forfeit_user_id = None
+        ch.challenger_attempt_id = None; ch.challenged_attempt_id = None
+        viewer = MagicMock(id=10)
+        ctx = _build_challenge_card_context(ch, viewer, None, None, "challenge_cancelled")
+        assert ctx["viewer_action_text"] == "cancelled by you"
+
+    def test_ccd_can_07_viewer_action_text_challenged(self):
+        """CCD-CAN-07: challenged view → viewer_action_text = '[name] cancelled'."""
+        from app.api.web_routes.vt_challenges import _build_challenge_card_context
+        ch = MagicMock()
+        ch.challenger_id = 10; ch.challenged_id = 20
+        ch.challenger = MagicMock(nickname="T1B1K3", email="t@x.com")
+        ch.challenged = MagicMock(nickname="RD14S", email="r@x.com")
+        ch.game = MagicMock(name="Memory Sequence")
+        ch.challenge_mode = "async"; ch.status = MagicMock()
+        ch.winner_id = None; ch.winner = None; ch.is_draw = False
+        ch.completed_at = None; ch.forfeit_reason = None; ch.forfeit_user_id = None
+        ch.challenger_attempt_id = None; ch.challenged_attempt_id = None
+        viewer = MagicMock(id=20)
+        ctx = _build_challenge_card_context(ch, viewer, None, None, "challenge_cancelled")
+        assert ctx["viewer_action_text"] == "T1B1K3 cancelled"
+
+    def test_ccd_can_08_post_renders_arch_terminal(self):
+        """CCD-CAN-08: post_16_9 renders arch-terminal for challenge_cancelled."""
+        html = self._render_post()
+        assert "arch-terminal" in html, "arch-terminal class must appear in rendered HTML"
+        assert "Challenge Cancelled" in html
+
+    def test_ccd_can_09_post_no_invitation_layout(self):
+        """CCD-CAN-09: post_16_9 does NOT render arch-invitation-balanced div for cancelled."""
+        html = self._render_post()
+        assert '<div class="arch-invitation-balanced">' not in html, \
+            "challenge_sent invitation layout must NOT render for challenge_cancelled"
+
+    def test_ccd_can_10_story_renders_arch_terminal(self):
+        """CCD-CAN-10: story_9_16 renders arch-terminal-story for challenge_cancelled."""
+        html = self._render_story()
+        assert "arch-terminal-story" in html
+        assert "Challenge Cancelled" in html
+
+
+class TestCCDDeclined:
+    """CCD-DEC: challenge_declined phase — phase system + template rendering."""
+
+    def _render_post(self, viewer_is_challenger: bool = True) -> str:
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template("public/export/challenge/post_16_9.html")
+        ctx = _make_mock_ctx(phase="challenge_declined",
+                             viewer_is_challenger=viewer_is_challenger)
+        ctx["request"] = MagicMock()
+        return tmpl.render(**ctx)
+
+    def _render_story(self, viewer_is_challenger: bool = True) -> str:
+        from jinja2 import Environment, FileSystemLoader
+        env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+        tmpl = env.get_template("public/export/challenge/story_9_16.html")
+        ctx = _make_mock_ctx(phase="challenge_declined",
+                             viewer_is_challenger=viewer_is_challenger)
+        ctx["request"] = MagicMock()
+        return tmpl.render(**ctx)
+
+    def test_ccd_dec_01_unlocked_phases_for_declined(self):
+        """CCD-DEC-01: DECLINED status → unlocked = ['challenge_declined']."""
+        from app.api.web_routes.vt_challenges import get_unlocked_challenge_card_phases
+        from app.models.vt_challenge import ChallengeStatus
+        ch = MagicMock()
+        ch.status = ChallengeStatus.DECLINED
+        ch.challenger_id = 1
+        ch.challenged_id = 2
+        ch.challenger_attempt_id = None
+        ch.challenged_attempt_id = None
+        result = get_unlocked_challenge_card_phases(ch, viewer_id=1)
+        assert result == ["challenge_declined"]
+
+    def test_ccd_dec_02_in_valid_phases(self):
+        """CCD-DEC-02: challenge_declined in VALID_CHALLENGE_CARD_PHASES."""
+        from app.api.web_routes.vt_challenges import VALID_CHALLENGE_CARD_PHASES
+        assert "challenge_declined" in VALID_CHALLENGE_CARD_PHASES
+
+    def test_ccd_dec_03_in_exportable_phases(self):
+        """CCD-DEC-03: challenge_declined in _EXPORTABLE_PHASES."""
+        from app.api.web_routes.vt_challenges import _EXPORTABLE_PHASES
+        assert "challenge_declined" in _EXPORTABLE_PHASES
+
+    def test_ccd_dec_04_phase_label(self):
+        """CCD-DEC-04: _PHASE_LABELS['challenge_declined'] == 'Declined'."""
+        from app.api.web_routes.vt_challenges import _PHASE_LABELS
+        assert _PHASE_LABELS.get("challenge_declined") == "Declined"
+
+    def test_ccd_dec_05_phase_cta(self):
+        """CCD-DEC-05: challenge_declined has a CTA label."""
+        from app.api.web_routes.vt_challenges import _PHASE_CTA
+        assert "challenge_declined" in _PHASE_CTA
+
+    def test_ccd_dec_06_viewer_action_text_challenger(self):
+        """CCD-DEC-06: challenger view → viewer_action_text = '[name] declined'."""
+        from app.api.web_routes.vt_challenges import _build_challenge_card_context
+        ch = MagicMock()
+        ch.challenger_id = 10; ch.challenged_id = 20
+        ch.challenger = MagicMock(nickname="T1B1K3", email="t@x.com")
+        ch.challenged = MagicMock(nickname="RD14S", email="r@x.com")
+        ch.game = MagicMock(name="Memory Sequence")
+        ch.challenge_mode = "async"; ch.status = MagicMock()
+        ch.winner_id = None; ch.winner = None; ch.is_draw = False
+        ch.completed_at = None; ch.forfeit_reason = None; ch.forfeit_user_id = None
+        ch.challenger_attempt_id = None; ch.challenged_attempt_id = None
+        viewer = MagicMock(id=10)
+        ctx = _build_challenge_card_context(ch, viewer, None, None, "challenge_declined")
+        assert ctx["viewer_action_text"] == "RD14S declined"
+
+    def test_ccd_dec_07_viewer_action_text_challenged(self):
+        """CCD-DEC-07: challenged view → viewer_action_text = 'declined by you'."""
+        from app.api.web_routes.vt_challenges import _build_challenge_card_context
+        ch = MagicMock()
+        ch.challenger_id = 10; ch.challenged_id = 20
+        ch.challenger = MagicMock(nickname="T1B1K3", email="t@x.com")
+        ch.challenged = MagicMock(nickname="RD14S", email="r@x.com")
+        ch.game = MagicMock(name="Memory Sequence")
+        ch.challenge_mode = "async"; ch.status = MagicMock()
+        ch.winner_id = None; ch.winner = None; ch.is_draw = False
+        ch.completed_at = None; ch.forfeit_reason = None; ch.forfeit_user_id = None
+        ch.challenger_attempt_id = None; ch.challenged_attempt_id = None
+        viewer = MagicMock(id=20)
+        ctx = _build_challenge_card_context(ch, viewer, None, None, "challenge_declined")
+        assert ctx["viewer_action_text"] == "declined by you"
+
+    def test_ccd_dec_08_post_renders_arch_terminal(self):
+        """CCD-DEC-08: post_16_9 renders arch-terminal for challenge_declined."""
+        html = self._render_post()
+        assert "arch-terminal" in html
+        assert "Challenge Declined" in html
+
+    def test_ccd_dec_09_post_no_invitation_layout(self):
+        """CCD-DEC-09: post_16_9 does NOT render arch-invitation-balanced div for declined."""
+        html = self._render_post()
+        assert '<div class="arch-invitation-balanced">' not in html, \
+            "challenge_sent invitation layout must NOT render for challenge_declined"
+
+    def test_ccd_dec_10_story_renders_arch_terminal(self):
+        """CCD-DEC-10: story_9_16 renders arch-terminal-story for challenge_declined."""
+        html = self._render_story()
+        assert "arch-terminal-story" in html
+        assert "Challenge Declined" in html
+
+
+class TestCCDTerminalStudio:
+    """CCD-CAN/DEC-STUDIO: Card Studio no longer uses implicit-initial workaround."""
+
+    def test_ccd_can_studio_01_cancelled_not_in_implicit_initial(self):
+        """CCD-CAN-STUDIO-01: CANCELLED removed from _CC_STATUSES_WITH_IMPLICIT_INITIAL."""
+        from app.api.web_routes.card_studio import _CC_STATUSES_WITH_IMPLICIT_INITIAL
+        from app.models.vt_challenge import ChallengeStatus
+        assert ChallengeStatus.CANCELLED not in _CC_STATUSES_WITH_IMPLICIT_INITIAL, \
+            "CANCELLED now has a real unlocked phase; workaround no longer needed"
+
+    def test_ccd_dec_studio_01_declined_not_in_implicit_initial(self):
+        """CCD-DEC-STUDIO-01: DECLINED removed from _CC_STATUSES_WITH_IMPLICIT_INITIAL."""
+        from app.api.web_routes.card_studio import _CC_STATUSES_WITH_IMPLICIT_INITIAL
+        from app.models.vt_challenge import ChallengeStatus
+        assert ChallengeStatus.DECLINED not in _CC_STATUSES_WITH_IMPLICIT_INITIAL, \
+            "DECLINED now has a real unlocked phase; workaround no longer needed"
