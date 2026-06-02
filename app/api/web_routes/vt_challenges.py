@@ -449,6 +449,11 @@ async def send_challenge(
         )
 
     now = datetime.now(timezone.utc)
+    # CC-DESIGN-1 AUTO-SNAPSHOT: capture the challenger's current best photo at
+    # send time so the challenged user always sees the same image regardless of
+    # later profile changes.  Manual override via POST /challenges/{id}/card/photo
+    # can still replace this after creation.
+    challenger_snapshot = _get_participant_photo(db, user.id)
     challenge = VirtualTrainingChallenge(
         challenger_id              = user.id,
         challenged_id              = challenged_user_id,
@@ -461,6 +466,7 @@ async def send_challenge(
         completion_window_seconds  = resolved_window,
         expires_at                 = make_expires_at(now),
         created_at                 = now,
+        challenger_card_photo_url  = challenger_snapshot,
     )
     db.add(challenge)
     db.flush()

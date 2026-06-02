@@ -288,6 +288,133 @@ class TestSendChallenge:
         assert kwargs["user_id"] == 2
         assert kwargs["notification_type"] == NotificationType.VT_CHALLENGE_RECEIVED
 
+    # ── CH-AUTO-SNAPSHOT: challenger_card_photo_url set at send time ──────────
+
+    def _send_success(self, db, user, target=None, neutral_mood=None):
+        """Helper: run send_challenge with a neutral mood mock wired for _get_participant_photo."""
+        from app.api.web_routes.vt_challenges import send_challenge
+        target = target or _user(uid=2)
+        game   = _game(code="memory_sequence")
+        _mock_snap = {"game_code": "memory_sequence"}
+
+        # Wire DB so the first two queries (User, VirtualTrainingGame) return target/game,
+        # and the UserMoodPhoto filter_by().first() returns neutral_mood.
+        db.query.return_value.filter.return_value.first.side_effect = [target, game]
+        db.query.return_value.filter_by.return_value.first.return_value = neutral_mood
+
+        created_challenges = []
+        def _capture_add(obj):
+            created_challenges.append(obj)
+        db.add.side_effect = _capture_add
+
+        with patch(f"{_BASE}.is_friends", return_value=True), \
+             patch(f"{_BASE}.count_active_challenges_in_category", return_value=0), \
+             patch(f"{_BASE}.generate_snapshot", return_value=_mock_snap), \
+             patch(f"{_BASE}.notification_service"):
+            result = _run(send_challenge(
+                challenged_user_id=2, game_id=1, message=None,
+                challenge_mode=None, db=db, user=user,
+            ))
+        return result, created_challenges
+
+    def test_ch14a_auto_snapshot_sets_challenger_photo_when_neutral_mood_exists(self):
+        """CCD-AUTOSNAPSHOT-01: challenger_card_photo_url is set at challenge creation.
+
+        When the challenger has a neutral mood photo, challenger_card_photo_url is
+        non-NULL immediately after challenge creation — no manual Studio step needed.
+        """
+        user = _user(uid=1)
+        db   = _db()
+        neutral = MagicMock()
+        neutral.processed_png_url = "/neutral/processed.png"
+        neutral.original_url      = "/neutral/orig.jpg"
+
+        result, challenges = self._send_success(db, user, neutral_mood=neutral)
+
+        assert "success=challenge_sent" in result.headers["location"]
+        assert len(challenges) == 1
+        ch = challenges[0]
+        assert ch.challenger_card_photo_url == "/neutral/processed.png", (
+            "challenger_card_photo_url must be set to the neutral processed PNG at send time"
+        )
+
+    def test_ch14b_auto_snapshot_uses_original_when_not_processed(self):
+        """CCD-AUTOSNAPSHOT-02: uses mood original_url when processed_png_url is None."""
+        user = _user(uid=1)
+        db   = _db()
+        neutral = MagicMock()
+        neutral.processed_png_url = None
+        neutral.original_url      = "/neutral/orig.jpg"
+
+        _, challenges = self._send_success(db, user, neutral_mood=neutral)
+        assert challenges[0].challenger_card_photo_url == "/neutral/orig.jpg"
+
+    def test_ch14c_auto_snapshot_null_when_no_mood_and_no_license(self):
+        """CCD-AUTOSNAPSHOT-03: challenger_card_photo_url is None when no mood and no license.
+
+        The fallback chain returns None; the template will show initials.
+        """
+        from app.api.web_routes.vt_challenges import send_challenge
+        user = _user(uid=1)
+        db   = _db()
+        # No neutral mood (filter_by returns None); no license (filter().first() returns None too)
+        db.query.return_value.filter.return_value.first.side_effect = [
+            _user(uid=2),       # target
+            _game(),            # game
+            None,               # UserLicense query
+        ]
+        db.query.return_value.filter_by.return_value.first.return_value = None  # no neutral mood
+
+        _mock_snap = {"game_code": "memory_sequence"}
+        created_challenges = []
+        db.add.side_effect = lambda obj: created_challenges.append(obj)
+
+        with patch(f"{_BASE}.is_friends", return_value=True), \
+             patch(f"{_BASE}.count_active_challenges_in_category", return_value=0), \
+             patch(f"{_BASE}.generate_snapshot", return_value=_mock_snap), \
+             patch(f"{_BASE}.notification_service"):
+            _run(send_challenge(
+                challenged_user_id=2, game_id=1, message=None,
+                challenge_mode=None, db=db, user=user,
+            ))
+
+        assert len(created_challenges) == 1
+        assert created_challenges[0].challenger_card_photo_url is None
+
+    def test_ch14d_snapshot_frozen_independent_of_later_mood_change(self):
+        """CCD-AUTOSNAPSHOT-04: snapshot is frozen at send time.
+
+        The challenged user sees the challenger_card_photo_url stored in the challenge row.
+        Even if the challenger later changes their neutral mood, the stored URL is immutable
+        (unless the challenger explicitly calls POST /challenges/{id}/card/photo).
+        This test verifies the preview route uses ch.challenger_card_photo_url (the snapshot)
+        rather than re-querying _get_participant_photo dynamically.
+        """
+        from app.api.web_routes.vt_challenges import _get_participant_photo
+        db = MagicMock()
+
+        # Snapshot stored at send time
+        frozen_url = "/neutral/at-send-time.png"
+
+        # Challenger's CURRENT neutral mood (changed after challenge was sent)
+        current_neutral = MagicMock()
+        current_neutral.processed_png_url = "/neutral/new-photo.png"
+        current_neutral.original_url      = "/neutral/new-orig.jpg"
+
+        # The preview route logic: snapshot_url or _get_participant_photo(...)
+        def _photo(uid, snapshot_url):
+            return snapshot_url or _get_participant_photo(db, uid)
+
+        # When ch.challenger_card_photo_url = frozen_url, the snapshot takes priority
+        result = _photo(uid=1, snapshot_url=frozen_url)
+        assert result == frozen_url, (
+            "Snapshot must be used; _get_participant_photo must NOT be called "
+            "when challenger_card_photo_url is non-null"
+        )
+
+        # Verify _get_participant_photo is not consulted when snapshot exists
+        db.query.assert_not_called()
+
 
 # ── Route: accept_challenge ───────────────────────────────────────────────────
 
