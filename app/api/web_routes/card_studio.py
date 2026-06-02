@@ -198,9 +198,11 @@ async def card_studio_welcome(
     if redirect:
         return RedirectResponse(url=redirect, status_code=303)
 
+    _cc_owned = any(is_design_accessible(db, user.id, "challenge_card", pid)
+                    for pid in _CC_VALID_PLATFORMS)
     return templates.TemplateResponse(
         "card_studio_shell.html",
-        {"request": request, "user": user, **ctx},
+        {"request": request, "user": user, "cc_owned": _cc_owned, **ctx},
     )
 
 
@@ -304,9 +306,11 @@ async def card_studio_player(
     if redirect:
         return RedirectResponse(url=redirect, status_code=303)
 
+    _cc_owned = any(is_design_accessible(db, user.id, "challenge_card", pid)
+                    for pid in _CC_VALID_PLATFORMS)
     return templates.TemplateResponse(
         "card_studio_shell.html",
-        {"request": request, "user": user, **ctx},
+        {"request": request, "user": user, "cc_owned": _cc_owned, **ctx},
     )
 
 
@@ -644,11 +648,13 @@ def _resolve_challenge_context(
     ]
 
     is_exportable_phase = phase in _CC_EXPORTABLE_PHASES
-    # Export URL for exportable phases (ownership guard is on the export route itself)
+    # CDO ownership check for the active platform
+    active_platform_owned = is_design_accessible(db, user.id, "challenge_card", platform)
+    # Export URL only when phase is exportable AND format is owned
     export_url = (
         f"/challenges/{challenge_id}/card/export"
         f"?platform={platform}&phase={phase}"
-    ) if is_exportable_phase else None
+    ) if (is_exportable_phase and active_platform_owned) else None
 
     # Platform chips for UI
     platform_chips = [
@@ -679,12 +685,13 @@ def _resolve_challenge_context(
         "platform_chips":       platform_chips,
         "active_phase":         phase,
         "active_platform":      platform,
-        "is_historical_phase":  is_historical_phase,
-        "is_exportable_phase":  is_exportable_phase,
-        "challenge_export_url": export_url,
-        "ratio_class":          ratio_class,
-        "preview_url":          preview_url,
-        "legacy_editor_url":    "/card-editor/challenge",
+        "is_historical_phase":      is_historical_phase,
+        "is_exportable_phase":      is_exportable_phase,
+        "active_platform_owned":    active_platform_owned,
+        "challenge_export_url":     export_url,
+        "ratio_class":              ratio_class,
+        "preview_url":              preview_url,
+        "legacy_editor_url":        "/card-editor/challenge",
         # CC-DESIGN-1: mood photo media panel for challenge Studio
         "mood_photos":          mood_photos,
         "mood_slot_meta":       _MOOD_SLOT_META,
@@ -713,6 +720,18 @@ async def card_studio_challenge_studio(
     (existing route, session cookie auth, participant guard).
     No new routes, no DB migrations.
     """
+    # CDO guard: user must own at least one challenge card format to access the Studio.
+    # No ownership → redirect to shop with a clear message.
+    _any_cc_owned = any(
+        is_design_accessible(db, user.id, "challenge_card", pid)
+        for pid in _CC_VALID_PLATFORMS
+    )
+    if not _any_cc_owned:
+        return RedirectResponse(
+            url="/shop?type=challenge_card&info=purchase_required_for_studio",
+            status_code=303,
+        )
+
     ctx, redirect = _resolve_challenge_context(
         db, user, challenge_id=challenge_id, phase=phase,
         platform=platform, filter_val=filter_val,
@@ -722,5 +741,5 @@ async def card_studio_challenge_studio(
 
     return templates.TemplateResponse(
         "card_studio_shell.html",
-        {"request": request, "user": user, **ctx},
+        {"request": request, "user": user, "cc_owned": True, **ctx},
     )

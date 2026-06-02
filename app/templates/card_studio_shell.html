@@ -40,6 +40,11 @@
 .cs-type-btn.cs-type-soon {
   opacity: 0.45; cursor: not-allowed;
 }
+.cs-type-btn.cs-type-locked {
+  opacity: 0.6; border-style: dashed;
+  color: #64748b;
+}
+.cs-type-btn.cs-type-locked:hover { border-color: #f87171; color: #fca5a5; }
 .cs-type-icon { font-size: 1rem; }
 .cs-type-badge {
   font-size: 0.62rem; font-weight: 700;
@@ -572,24 +577,32 @@
         {% elif active_type == "challenge" %}
         <p class="cs-export-title">Export</p>
         {% if challenge_mode == "preview" %}
-          {% if is_exportable_phase and challenge_export_url %}
-          {# CC-DESIGN-1: Direct export — no redirect to editor #}
-          {% set _is_social_moment = active_phase in ("challenge_sent", "challenge_received") %}
+          {% set _owned = active_platform_owned if active_platform_owned is defined else false %}
+          {% if not _owned %}
+          {# Format not owned — clear purchase prompt, no download button #}
+          <p class="cs-export-dims" style="color:#f87171;">
+            🔒 You don't own this card format.
+          </p>
+          <a href="/shop?type=challenge_card" class="cs-btn-download"
+             style="display:inline-flex;background:#4f46e5;">
+            Purchase at Shop →
+          </a>
+          {% elif is_exportable_phase and challenge_export_url %}
+          {# Owned + exportable phase → Download PNG #}
           <p class="cs-export-dims">
-            {% if _is_social_moment %}
-            This social moment card is exportable. Requires owning this format.
+            {% if active_phase in ("challenge_sent", "challenge_received") %}
+            Social moment card — ready to download.
             {% else %}
-            This result phase is exportable. Requires owning this format.
+            Result card — ready to download.
             {% endif %}
           </p>
-          {# Direct download: uses existing /challenges/{id}/card/export route (Playwright PNG) #}
           <a href="{{ challenge_export_url }}" class="cs-btn-download" style="display:inline-flex;">
             ↓ Download PNG
           </a>
           {% elif is_exportable_phase %}
-          <p class="cs-export-dims">Export available — select a platform to download.</p>
+          <p class="cs-export-dims">Select a format to download.</p>
           {% else %}
-          <p class="cs-export-dims">Preview only. Export available for result and social moment phases.</p>
+          <p class="cs-export-dims">Preview only — this phase is not exportable.</p>
           {% endif %}
         {% else %}
         <p class="cs-export-dims">Select a challenge phase to see export options.</p>
