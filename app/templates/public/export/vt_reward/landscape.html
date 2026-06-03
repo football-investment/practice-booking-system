@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280">
+<title>LFA Virtual Training Reward Card</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1280px; height: 720px; overflow: hidden;
+    background: #0d0d1a;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-wrap {
+    width: 1280px; height: 720px;
+    background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #0d0d1a 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; color: #f0f0f0;
+  }
+  .label { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: #888; }
+  .tier-label { font-size: 20px; letter-spacing: 2px; text-transform: uppercase; color: #f5c518; }
+  .title { font-size: 52px; font-weight: 700; color: #fff; }
+  .count { font-size: 24px; color: #aaa; }
+  .date { font-size: 16px; color: #666; }
+</style>
+</head>
+<body>
+<div class="card-wrap">
+  <div class="label">LFA Virtual Training</div>
+  <div class="tier-label">Tier {{ tier }} Reward</div>
+  <div class="title">{{ completed_games }} Games Completed</div>
+  <div class="date">{{ attempt_date }}</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>LFA Virtual Training Card</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1080px; height: 1920px; overflow: hidden;
+    background: #0d0d1a;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-wrap {
+    width: 1080px; height: 1920px;
+    background: linear-gradient(180deg, #0d0d1a 0%, #1a1a2e 50%, #0d0d1a 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 32px; color: #f0f0f0;
+  }
+  .label { font-size: 16px; letter-spacing: 4px; text-transform: uppercase; color: #888; }
+  .game-name { font-size: 56px; font-weight: 700; color: #fff; letter-spacing: 1px; text-align: center; padding: 0 40px; }
+  .date { font-size: 22px; color: #aaa; }
+  .badge {
+    display: inline-block; padding: 12px 48px;
+    background: #f5c518; color: #0d0d1a;
+    font-size: 28px; font-weight: 700; border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="card-wrap">
+  <div class="label">LFA Virtual Training</div>
+  <div class="game-name">{{ game.name }}</div>
+  <div class="date">{{ attempt_date }}</div>
+  <div class="badge">{{ completed_count }}/{{ max_attempts }}</div>
+</div>
+</body>
+</html>

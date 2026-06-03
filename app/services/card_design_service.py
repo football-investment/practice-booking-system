@@ -241,7 +241,7 @@ def get_card_family(card_type_id: str, design_id: str | None = None) -> str | No
         if design_id is not None and resolve_design_id(design_id) == FCLASSIC_FAMILY_ID:
             return FCLASSIC_FAMILY_ID
         return None
-    if card_type_id in ("welcome_card", "challenge_card"):
+    if card_type_id in ("welcome_card", "challenge_card", "virtual_training_card"):
         return FCLASSIC_FAMILY_ID
     return None
 
@@ -279,6 +279,14 @@ WELCOME_CARD_FORMATS: list[NonPlayerCardFormatDefinition] = [
 CHALLENGE_CARD_FORMATS: list[NonPlayerCardFormatDefinition] = [
     NonPlayerCardFormatDefinition("challenge_post_16_9",   "Post (16:9)",  "POST",  "1280 × 720",  100,  "challenge_post_16_9",   0),
     NonPlayerCardFormatDefinition("challenge_story_9_16",  "Story (9:16)", "STORY", "1080 × 1920", 100,  "challenge_story_9_16",  1),
+]
+
+# Virtual Training Card formats — eligibility-gated (no credit cost, no CDO row required).
+VT_CARD_FORMATS: list[NonPlayerCardFormatDefinition] = [
+    NonPlayerCardFormatDefinition("vt_landscape",        "Landscape (16:9)",  "GAME",   "1280 × 720",  0,  "vt_landscape",        0),
+    NonPlayerCardFormatDefinition("vt_portrait",         "Portrait (9:16)",   "GAME",   "1080 × 1920", 0,  "vt_portrait",         1),
+    NonPlayerCardFormatDefinition("vt_reward_landscape", "Reward Landscape",  "REWARD", "1280 × 720",  0,  "vt_reward_landscape", 2),
+    NonPlayerCardFormatDefinition("vt_reward_portrait",  "Reward Portrait",   "REWARD", "1080 × 1920", 0,  "vt_reward_portrait",  3),
 ]
 
 
