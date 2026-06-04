@@ -281,12 +281,13 @@ CHALLENGE_CARD_FORMATS: list[NonPlayerCardFormatDefinition] = [
     NonPlayerCardFormatDefinition("challenge_story_9_16",  "Story (9:16)", "STORY", "1080 × 1920", 100,  "challenge_story_9_16",  1),
 ]
 
-# Virtual Training Card formats — eligibility-gated (no credit cost, no CDO row required).
+# Virtual Training Card formats — ownership + performance gated (CDO required, same as CC).
+# Prices are 75 CR placeholder; update _NON_PLAYER_CARD_PRICES when product pricing is final.
 VT_CARD_FORMATS: list[NonPlayerCardFormatDefinition] = [
-    NonPlayerCardFormatDefinition("vt_landscape",        "Landscape (16:9)",  "GAME",   "1280 × 720",  0,  "vt_landscape",        0),
-    NonPlayerCardFormatDefinition("vt_portrait",         "Portrait (9:16)",   "GAME",   "1080 × 1920", 0,  "vt_portrait",         1),
-    NonPlayerCardFormatDefinition("vt_reward_landscape", "Reward Landscape",  "REWARD", "1280 × 720",  0,  "vt_reward_landscape", 2),
-    NonPlayerCardFormatDefinition("vt_reward_portrait",  "Reward Portrait",   "REWARD", "1080 × 1920", 0,  "vt_reward_portrait",  3),
+    NonPlayerCardFormatDefinition("vt_landscape",        "Landscape (16:9)",  "GAME",   "1280 × 720",  75,  "vt_landscape",        0),
+    NonPlayerCardFormatDefinition("vt_portrait",         "Portrait (9:16)",   "GAME",   "1080 × 1920", 75,  "vt_portrait",         1),
+    NonPlayerCardFormatDefinition("vt_reward_landscape", "Reward Landscape",  "REWARD", "1280 × 720",  75,  "vt_reward_landscape", 2),
+    NonPlayerCardFormatDefinition("vt_reward_portrait",  "Reward Portrait",   "REWARD", "1080 × 1920", 75,  "vt_reward_portrait",  3),
 ]
 
 
@@ -393,10 +394,10 @@ def is_animated_capable(design_id: str, platform_id: str, db=None) -> bool:
 
 # Valid card type IDs — checked at service entry points.
 _VALID_CARD_TYPE_IDS: frozenset[str] = frozenset(
-    {"player_card", "welcome_card", "challenge_card"}
+    {"player_card", "welcome_card", "challenge_card", "virtual_training_card"}
 )
 
-# Service-level price map for WC/CC format designs.
+# Service-level price map for WC/CC/VTC format designs.
 # player_card prices come from CardDesign.credit_cost (DB-backed).
 # Update these constants when pricing changes — do NOT hardcode in templates.
 _NON_PLAYER_CARD_PRICES: dict[tuple[str, str], int] = {
@@ -411,6 +412,11 @@ _NON_PLAYER_CARD_PRICES: dict[tuple[str, str], int] = {
     # Challenge Card formats
     ("challenge_card", "challenge_post_16_9"):  100,
     ("challenge_card", "challenge_story_9_16"): 100,
+    # Virtual Training Card formats — 75 CR placeholder; update via product decision
+    ("virtual_training_card", "vt_landscape"):        75,
+    ("virtual_training_card", "vt_portrait"):         75,
+    ("virtual_training_card", "vt_reward_landscape"): 75,
+    ("virtual_training_card", "vt_reward_portrait"):  75,
     # Legacy sentinel keys — NOT purchasable (FreeDesignError), backward compat only
     ("welcome_card",   "default"):    0,
     ("challenge_card", "challenge"):  0,

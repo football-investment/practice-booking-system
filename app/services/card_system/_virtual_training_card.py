@@ -1,7 +1,14 @@
 """Virtual Training Card — v1 spec.
 
-Single-game and reward variants.  Eligibility is game-completion gated,
-not credit/ownership gated — no CardDesignOwnership row is required.
+Single-game and reward variants.
+
+Access model (dual-gated):
+  1. Ownership  — CDO row required per format (same as Challenge Card).
+                  Purchase via /shop?type=virtual_training_card.
+  2. Performance — user must have completed enough standalone attempts
+                  (check_single_game_eligibility / check_reward_eligibility).
+
+No family shim: owning player_card/fclassic does NOT grant VTC access.
 """
 from app.services.card_system._types import (
     CardContentContract,

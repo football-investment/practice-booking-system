@@ -34,6 +34,7 @@ from ...models.user import User
 from ...models.virtual_training import VirtualTrainingAttempt, VirtualTrainingGame
 from ...services import card_export_service as _export_svc
 from ...services.card_constants import VT_CARD_PLATFORMS, VT_REWARD_CARD_PLATFORMS
+from ...services.card_design_service import is_design_accessible as _is_accessible
 from ...services.vt_card_eligibility import (
     REWARD_TIERS,
     check_reward_eligibility,
@@ -290,6 +291,17 @@ async def vt_card_export(
             detail=f"Unsupported platform: {platform!r}. Valid: {sorted(VT_CARD_PLATFORMS)}",
         )
 
+    # Ownership guard — CDO row required for this format (same pattern as Challenge Card).
+    # Preview is performance-only gated; export requires both ownership AND performance.
+    if not _is_accessible(db, user.id, "virtual_training_card", platform):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Virtual Training Card format {platform!r} not owned. "
+                "Purchase it at /shop?type=virtual_training_card"
+            ),
+        )
+
     day = _parse_date(date_str)
     eligible, count, required = check_single_game_eligibility(db, user.id, game_id, day)
     if not eligible:
@@ -420,6 +432,16 @@ async def vt_reward_card_export(
         raise HTTPException(
             status_code=422,
             detail=f"Invalid tier: {tier!r}. Valid: {list(REWARD_TIERS)}",
+        )
+
+    # Ownership guard — CDO row required for this reward format.
+    if not _is_accessible(db, user.id, "virtual_training_card", platform):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Virtual Training Card format {platform!r} not owned. "
+                "Purchase it at /shop?type=virtual_training_card"
+            ),
         )
 
     day = _parse_date(date_str)
