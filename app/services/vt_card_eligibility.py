@@ -80,6 +80,30 @@ def check_single_game_eligibility(
     return (count >= required, count, required)
 
 
+def get_completed_game_ids(
+    db: Session,
+    user_id: int,
+    day: date | None = None,
+) -> list[int]:
+    """Return IDs of active games the user has fully completed (standalone) today.
+
+    "Completed" means _standalone_count >= game.max_daily_attempts.
+    """
+    if day is None:
+        day = datetime.now(timezone.utc).date()
+
+    active_games = (
+        db.query(VirtualTrainingGame)
+        .filter(VirtualTrainingGame.is_active == True)  # noqa: E712
+        .all()
+    )
+    return [
+        game.id
+        for game in active_games
+        if _standalone_count(db, user_id, game.id, day) >= game.max_daily_attempts
+    ]
+
+
 def check_reward_eligibility(
     db: Session,
     user_id: int,
