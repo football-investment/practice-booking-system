@@ -229,10 +229,12 @@ body {
             {% set _x = 14 + loop.index0 * 52 %}
             {% if pt.score is not none %}
               {% set _bh = (pt.score / 100 * 82)|round(1) %}
+              {% set _bh_d = [_bh, 2]|max %}
               {% set _by = (84 - _bh)|round(1) %}
+              {% set _by_d = (84 - _bh_d)|round(1) %}
               {% set _ns.pts = _ns.pts ~ (_x + 20)|string ~ "," ~ _by|string ~ " " %}
-              <rect x="{{ _x }}" y="{{ _by }}" width="40" height="{{ _bh }}" rx="2" fill="rgba(30,64,128,0.9)"/>
-              <rect x="{{ _x }}" y="{{ _by }}" width="40" height="3" rx="2" fill="#60a5fa"/>
+              <rect x="{{ _x }}" y="{{ _by_d }}" width="40" height="{{ _bh_d }}" rx="2" fill="rgba(30,64,128,0.9)"/>
+              <rect x="{{ _x }}" y="{{ _by_d }}" width="40" height="3" rx="2" fill="#60a5fa"/>
               <circle cx="{{ _x + 20 }}" cy="{{ _by }}" r="3" fill="#60a5fa"/>
               <text x="{{ _x + 20 }}" y="{{ (_by - 4)|round(0)|int }}" text-anchor="middle" font-size="7" fill="#e8eaf0" font-family="system-ui" font-weight="700">{{ pt.label }}</text>
             {% else %}
