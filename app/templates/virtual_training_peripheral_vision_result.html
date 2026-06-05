@@ -196,13 +196,13 @@
         {% else %}
 
         {# Status icon by score threshold #}
-        {% if attempt.score_normalized >= 85 %}
+        {% if attempt.score_normalized is not none and attempt.score_normalized >= 85 %}
         <div class="pvr-status-icon">🏆</div>
         <div class="pvr-status-title">Excellent awareness!</div>
-        {% elif attempt.score_normalized >= 65 %}
+        {% elif attempt.score_normalized is not none and attempt.score_normalized >= 65 %}
         <div class="pvr-status-icon">⚡</div>
         <div class="pvr-status-title">Strong peripheral detection!</div>
-        {% elif attempt.score_normalized >= 45 %}
+        {% elif attempt.score_normalized is not none and attempt.score_normalized >= 45 %}
         <div class="pvr-status-icon">💪</div>
         <div class="pvr-status-title">Keep training your periphery!</div>
         {% else %}
@@ -210,8 +210,13 @@
         <div class="pvr-status-title">Focus on the far targets!</div>
         {% endif %}
 
+        {% if attempt.score_normalized is not none %}
         <div class="pvr-score-big">{{ attempt.score_normalized | round(0) | int }}%</div>
         <div class="pvr-score-label">Eccentricity-weighted score</div>
+        {% else %}
+        <div class="pvr-score-big">—</div>
+        <div class="pvr-score-label">Score pending</div>
+        {% endif %}
 
         {% if attempt.xp_awarded > 0 %}
         <span class="pvr-xp-badge">+{{ attempt.xp_awarded }} XP earned</span>
