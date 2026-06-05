@@ -70,6 +70,11 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    /* width:100% is required: without it the flex container expands to fit
+       all nowrap items instead of creating a scroll context */
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 .spec-quicknav::-webkit-scrollbar { display: none; }
 @media (max-width: 640px) {

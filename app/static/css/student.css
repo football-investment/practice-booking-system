@@ -6,10 +6,12 @@
 
 /* ── Reset (same as admin.css baseline) ──────────────────────────────────── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { overflow-x: hidden; }   /* prevent horizontal scroll at document level */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: #f5f7fa;
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 /* ── Design Tokens ────────────────────────────────────────────────────────── */
@@ -843,11 +845,16 @@ body {
     text-decoration: none;
 }
 .mod-nav-icon  { font-size: 1.75rem; line-height: 1; }
-.mod-nav-title { font-size: 0.82rem; font-weight: 600; color: #4a5568; white-space: nowrap; }
+.mod-nav-title {
+    font-size: 0.82rem; font-weight: 600; color: #4a5568;
+    white-space: normal; word-break: break-word;
+    text-align: center; max-width: 100%;
+}
 
 @media (max-width: 768px) {
     .mod-nav-grid    { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
     .mod-nav-section { padding: 1rem 1rem 0.25rem; }
+    .mod-nav-card    { min-width: 0; }
 }
 @media (max-width: 480px) {
     .mod-nav-grid  { gap: 0.5rem; }
