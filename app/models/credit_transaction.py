@@ -75,7 +75,7 @@ class CreditTransaction(Base):
     )
 
     # Relationships
-    user = relationship("User", foreign_keys=[user_id], back_populates="credit_transactions")
+    user = relationship("User", foreign_keys=[user_id], back_populates="credit_transactions", passive_deletes=True)
     user_license = relationship("UserLicense", back_populates="credit_transactions")
     semester = relationship("Semester")
     enrollment = relationship("SemesterEnrollment")

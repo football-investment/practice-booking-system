@@ -197,7 +197,8 @@ class User(Base):
     credit_transactions = relationship(
         "CreditTransaction",
         foreign_keys="CreditTransaction.user_id",
-        back_populates="user"
+        back_populates="user",
+        passive_deletes=True,
     )
 
     # ⭐ XP transaction relationships (experience points history)
