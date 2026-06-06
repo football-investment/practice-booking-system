@@ -66,7 +66,7 @@ _GAMES = [
         },
     },
 
-    # ── 2. stroop_challenge (QA-gated — is_active=False, show_in_hub=False) ────
+    # ── 2. stroop_challenge ───────────────────────────────────────────────────
     {
         "code": "stroop_challenge",
         "name": "Stroop Challenge",
@@ -76,7 +76,7 @@ _GAMES = [
             "respond to what you see."
         ),
         "game_type": "cognitive_inhibition",
-        "is_active": False,
+        "is_active": True,
         "base_xp": 12,
         "max_daily_attempts": 5,
         "skill_targets": {
@@ -117,7 +117,7 @@ _GAMES = [
                 "Sharpens selective attention and response inhibition under pressure — "
                 "trains you to ignore misleading cues and act on the right information."
             ),
-            "show_in_hub": False,
+            "show_in_hub": True,
             "validation_overrides": {
                 "min_duration_seconds": 20.0,
                 "min_stimuli_count":    20,
