@@ -32,6 +32,13 @@
 const MEDIAPIPE_BASE = '/static/mediapipe';
 const MODEL_PATH     = '/static/mediapipe/hand_landmarker.task';
 
+// Platform detection (module scope — used by both initModel and processFrame).
+// iOS/iPadOS uses IMAGE mode + detect() because VIDEO mode + detectForVideo()
+// causes RuntimeError: Aborted() on every frame after CPU-only init.
+// Desktop keeps VIDEO mode + detectForVideo() for temporal tracking.
+const _isIOS = typeof self.navigator !== 'undefined'
+    && /iP(hone|ad|od)/.test(self.navigator.userAgent || '');
+
 let _landmarker      = null;
 let _modelReady      = false;
 let _frameInFlight   = false;
@@ -72,19 +79,17 @@ async function initModel() {
         return;
     }
 
-    // iOS/iPadOS: CPU-only — skip GPU entirely.
-    // On iOS Safari, the GPU delegate fails with "kGpuService not provided /
-    // Error querying for GL extensions". This failure leaves the WASM module's
-    // internal WebGL/OpenGL state partially initialised and corrupted. When the
-    // CPU delegate subsequently calls detectForVideo(), the corrupted state
-    // causes a C++ assertion failure → RuntimeError: Aborted() on every frame.
-    // By skipping GPU on iOS, the CPU path starts from a clean state.
-    //
-    // Desktop (non-iOS): keep GPU → CPU fallback for better performance.
-    const _isIOS = typeof self.navigator !== 'undefined'
-        && /iP(hone|ad|od)/.test(self.navigator.userAgent);
-    const _delegates = _isIOS ? ['CPU'] : ['GPU', 'CPU'];
-    _D('platform: isIOS=' + _isIOS + ' delegates=' + JSON.stringify(_delegates));
+    // iOS/iPadOS: CPU-only + IMAGE mode.
+    // GPU delegate fails with "kGpuService" on iOS, corrupting WebGL state.
+    // VIDEO mode + detectForVideo() then throws RuntimeError: Aborted() on every
+    // frame even with CPU delegate. IMAGE mode + detect() uses a stateless
+    // inference path that avoids the corrupted WebGL rendering pipeline.
+    // Desktop: GPU → CPU fallback with VIDEO mode for temporal tracking.
+    const _delegates   = _isIOS ? ['CPU'] : ['GPU', 'CPU'];
+    const _runningMode = _isIOS ? 'IMAGE' : 'VIDEO';
+    _D('platform: isIOS=' + _isIOS
+        + ' delegates=' + JSON.stringify(_delegates)
+        + ' runningMode=' + _runningMode);
 
     // forVisionTasks() is called inside the loop so each delegate attempt gets
     // a fresh fileset object (GPU failure contaminates the vision object's
@@ -112,7 +117,7 @@ async function initModel() {
                 minHandDetectionConfidence: 0.60,
                 minHandPresenceConfidence:  0.60,
                 minTrackingConfidence:      0.50,
-                runningMode:                'VIDEO',
+                runningMode:                _runningMode,
             });
             _modelReady = true;
             _D('createFromOptions OK — delegate=' + delegate + ' → posting ready');
@@ -132,20 +137,27 @@ function processFrame(bitmap, timestamp) {
     if (!_landmarker || !_modelReady) { bitmap.close(); return; }
     _frameCount++;
     if (_frameCount === 1) {
-        _D('first detectForVideo call — timestamp=' + timestamp.toFixed(1));
+        var method = _isIOS ? 'detect (IMAGE mode)' : 'detectForVideo (VIDEO mode)';
+        _D('first inference call — method=' + method
+            + (_isIOS ? '' : ' timestamp=' + timestamp.toFixed(1)));
     }
     let result;
     try {
-        result = _landmarker.detectForVideo(bitmap, timestamp);
+        // IMAGE mode (iOS): stateless per-frame detection, no timestamp required.
+        // VIDEO mode (desktop): temporal tracking with monotonically increasing ts.
+        result = _isIOS
+            ? _landmarker.detect(bitmap)
+            : _landmarker.detectForVideo(bitmap, timestamp);
     } catch (err) {
         if (_frameCount <= 5) {
-            _Derr('detectForVideo THREW (frame #' + _frameCount + ')', err);
+            var method2 = _isIOS ? 'detect' : 'detectForVideo';
+            _Derr(method2 + ' THREW (frame #' + _frameCount + ')', err);
         }
         bitmap.close();
         return;
     }
     if (_frameCount === 1) {
-        _D('first detectForVideo OK — handLandmarks='
+        _D('first inference OK — handLandmarks='
             + (result.handLandmarks || []).length
             + ' handedness=' + (result.handedness || []).length);
     }
