@@ -260,12 +260,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.csp_policy = csp_policy or (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            # wasm-unsafe-eval: required for WebAssembly.Module compilation (MediaPipe WASM).
+            # Does NOT enable JS eval() — only WASM binary instantiation.
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "img-src 'self' data: https://i.ytimg.com https:; "
             "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com; "
             "connect-src 'self' http://localhost:8000; "
-            "font-src 'self'"
+            "font-src 'self'; "
+            # worker-src: allows same-origin Web Workers (hand/face tracking workers).
+            # blob: covers browsers that wrap the worker URL in a Blob object URL.
+            "worker-src 'self' blob:"
         )
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -292,7 +297,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Referrer-Policy": "strict-origin-when-cross-origin",
             
             # Permissions Policy
-            "Permissions-Policy": "geolocation=(self), microphone=(), camera=()",
+            "Permissions-Policy": "geolocation=(self), microphone=(), camera=(self)",
             
             # Remove server information
             "Server": "Practice-Booking-API"

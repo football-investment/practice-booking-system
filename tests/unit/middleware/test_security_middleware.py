@@ -615,6 +615,74 @@ class TestSecurityHeadersMiddleware:
             "Permissions-Policy must include geolocation=(self)"
         )
 
+    # WASM-SEC-01
+    def test_wasm_sec_01_script_src_contains_wasm_unsafe_eval(self):
+        """WASM-SEC-01: script-src must include 'wasm-unsafe-eval' for MediaPipe WASM init.
+
+        Safari iOS refuses WebAssembly.Module compilation without this directive.
+        'wasm-unsafe-eval' does NOT enable JS eval() — only WASM binary instantiation.
+        """
+        response = self._dispatch()
+        csp = response.headers["Content-Security-Policy"]
+        script_src = [p for p in csp.split(";") if "script-src" in p]
+        assert script_src, "CSP must contain a script-src directive"
+        assert "'wasm-unsafe-eval'" in script_src[0], (
+            "script-src must include 'wasm-unsafe-eval' for MediaPipe WASM "
+            "(Safari iOS blocks WebAssembly.Module without it)"
+        )
+
+    # WASM-SEC-02
+    def test_wasm_sec_02_worker_src_allows_self_and_blob(self):
+        """WASM-SEC-02: CSP must include worker-src 'self' blob: for Web Workers.
+
+        Same-origin Web Workers (hand/face tracking) require 'self'.
+        blob: covers browsers that wrap the worker URL in a Blob object URL.
+        Without worker-src, Safari iOS may block dynamic import() inside workers.
+        """
+        response = self._dispatch()
+        csp = response.headers["Content-Security-Policy"]
+        assert "worker-src" in csp, "CSP must contain a worker-src directive"
+        worker_src = [p for p in csp.split(";") if "worker-src" in p][0]
+        assert "'self'" in worker_src, "worker-src must include 'self'"
+        assert "blob:" in worker_src, "worker-src must include blob:"
+
+    # WASM-SEC-03
+    def test_wasm_sec_03_permissions_policy_camera_self(self):
+        """WASM-SEC-03: Permissions-Policy must set camera=(self), not camera=().
+
+        camera=() blocks getUserMedia entirely — even for same-origin pages.
+        camera=(self) restricts camera access to same-origin only (correct).
+        """
+        response = self._dispatch()
+        pp = response.headers.get("Permissions-Policy", "")
+        assert "camera=(self)" in pp, (
+            "Permissions-Policy must include camera=(self) "
+            "(camera=() blocks getUserMedia even for same-origin pages)"
+        )
+        assert "camera=()" not in pp, (
+            "Permissions-Policy must not contain camera=() — "
+            "this disables getUserMedia entirely"
+        )
+
+    # WASM-SEC-04
+    def test_wasm_sec_04_script_src_no_plain_unsafe_eval(self):
+        """WASM-SEC-04: script-src must NOT contain 'unsafe-eval' (only wasm-unsafe-eval).
+
+        'unsafe-eval' would allow arbitrary JS eval() — a significant XSS risk.
+        'wasm-unsafe-eval' is the narrow, WASM-only permission needed.
+        """
+        response = self._dispatch()
+        csp = response.headers["Content-Security-Policy"]
+        script_src = [p for p in csp.split(";") if "script-src" in p]
+        if script_src:
+            # 'unsafe-eval' should not appear unless it's part of 'wasm-unsafe-eval'
+            # Remove the wasm-unsafe-eval token, then check the remainder
+            remaining = script_src[0].replace("'wasm-unsafe-eval'", "")
+            assert "'unsafe-eval'" not in remaining, (
+                "script-src must not contain plain 'unsafe-eval' — "
+                "use 'wasm-unsafe-eval' only"
+            )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # RequestSizeLimitMiddleware
