@@ -72,22 +72,26 @@ async function initModel() {
         return;
     }
 
-    // Load WASM fileset once — reused across GPU→CPU fallback.
-    // Calling forVisionTasks() inside the loop caused double WASM loading (+9 MB)
-    // and left GPU fileset resources unreleased on iOS, leading to OOM crashes
-    // after the CPU delegate sent 'ready'.
-    let vision;
-    _D('FilesetResolver.forVisionTasks start — base=' + MEDIAPIPE_BASE);
-    try {
-        vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_BASE);
-        _D('FilesetResolver.forVisionTasks OK — vision=' + typeof vision);
-    } catch (err) {
-        _Derr('FilesetResolver.forVisionTasks FAILED', err);
-        self.postMessage({ type: 'error', code: 'fileset_failed', message: err.message });
-        return;
-    }
-
+    // forVisionTasks() is called inside the loop so each delegate attempt gets
+    // a fresh fileset object. A GPU failure on iOS Safari contaminates the
+    // internal WebGL/canvas state of the vision object (t.alpha → null);
+    // reusing the same vision for the CPU fallback causes the same crash.
+    // This matches the pattern used by the working BQR hand-worker.js.
     for (const delegate of ['GPU', 'CPU']) {
+        _D('FilesetResolver.forVisionTasks start — delegate=' + delegate
+            + ' base=' + MEDIAPIPE_BASE);
+        let vision;
+        try {
+            vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_BASE);
+            _D('FilesetResolver.forVisionTasks OK — delegate=' + delegate);
+        } catch (err) {
+            _Derr('FilesetResolver.forVisionTasks FAILED — delegate=' + delegate, err);
+            if (delegate === 'CPU') {
+                self.postMessage({ type: 'error', code: 'fileset_failed', message: err.message });
+            }
+            continue;
+        }
+
         _D('HandLandmarker.createFromOptions try — delegate=' + delegate);
         try {
             _landmarker = await HandLandmarker.createFromOptions(vision, {
@@ -129,14 +133,19 @@ function processFrame(bitmap, timestamp) {
         return;
     }
     if (_frameCount === 1) {
-        _D('first detectForVideo OK — hands=' + (result.handedness || []).length);
+        _D('first detectForVideo OK — handLandmarks='
+            + (result.handLandmarks || []).length
+            + ' handedness=' + (result.handedness || []).length);
     }
     bitmap.close();
 
-    const handedness = result.handedness || [];
-    const landmarks  = result.landmarks  || [];
+    // Use result.handLandmarks (correct MediaPipe Tasks API field).
+    // result.landmarks does not exist in HandLandmarkerResult — using it
+    // returns undefined, causing 'always no_hands' even with hands present.
+    const handedness = result.handedness    || [];
+    const landmarks  = result.handLandmarks || [];
 
-    if (!handedness.length) {
+    if (!landmarks.length) {
         self.postMessage({ type: 'no_hands' });
         return;
     }
