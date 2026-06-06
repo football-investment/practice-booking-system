@@ -1,17 +1,17 @@
 """Stroop Challenge — route, submit, scoring, and regression tests.
 
-SC-01   Seed: stroop_challenge is_active=False
+SC-01   Seed: stroop_challenge is_active=True (activated for QA testing)
 SC-02   Seed: 3 phases defined (3×8=24 stimuli)
 SC-03   Seed: protocol_assignment="free"
 SC-04   Seed: validation_overrides uses canonical keys (min_duration_seconds, min_stimuli_count)
 SC-04b  Seed: validation_overrides no legacy keys (min_dur, min_stim absent)
 SC-04c  Seed: 24 stimuli passes validation with Stroop overrides applied
 SC-05   Seed: skill_targets {decisions:0.50, concentration:0.30, composure:0.20}
-SC-06   Seed: show_in_hub=False
+SC-06   Seed: show_in_hub=True (hub-visible after activation)
 SC-07   Seed: colours is a dict (not a list)
 
 SC-R01  GET /virtual-training/stroop-challenge → 200 when is_active=True (QA direct URL)
-SC-R02  GET /virtual-training/stroop-challenge → hub+error when is_active=False (normal state)
+SC-R02  GET /virtual-training/stroop-challenge → hub+error when is_active=False
 SC-R03  GET /virtual-training/stroop-challenge → 303 redirect when not onboarded
 SC-R04  POST /virtual-training/stroop-challenge/submit → 200 + attempt_id on valid payload
 SC-R05  POST submit → 429 when daily cap exhausted (5/5 via training_local_date)
@@ -199,9 +199,9 @@ class TestStroopSeedConfig:
         from scripts.seed_virtual_training_games import _GAMES
         self._game = next(g for g in _GAMES if g["code"] == "stroop_challenge")
 
-    def test_sc01_stroop_is_inactive(self):
-        """SC-01: stroop_challenge is_active=False (QA-gated)."""
-        assert self._game["is_active"] is False
+    def test_sc01_stroop_is_active(self):
+        """SC-01: stroop_challenge is_active=True (activated for QA testing)."""
+        assert self._game["is_active"] is True
 
     def test_sc02_three_phases_24_stimuli(self):
         """SC-02: config has 3 phases summing to 24 stimuli."""
@@ -264,9 +264,9 @@ class TestStroopSeedConfig:
         assert st["concentration"] == 0.30
         assert st["composure"]     == 0.20
 
-    def test_sc06_show_in_hub_false(self):
-        """SC-06: show_in_hub=False — game hidden from the hub listing."""
-        assert self._game["config"]["show_in_hub"] is False
+    def test_sc06_show_in_hub_true(self):
+        """SC-06: show_in_hub=True — game visible in the Virtual Games hub after activation."""
+        assert self._game["config"]["show_in_hub"] is True
 
     def test_sc07_colours_is_dict(self):
         """SC-07: colours is a dict {name: hex} not a list."""
