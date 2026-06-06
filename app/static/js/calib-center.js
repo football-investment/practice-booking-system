@@ -23,6 +23,13 @@
  */
 var CalibCenter = (function () {
 
+    // ── Diagnostic helpers (DIAG prefix — remove after iPhone QA) ────────────
+    function _D(msg) { console.log('[CALIB_MAIN] ' + msg); }
+    function _Derr(msg, err) {
+        console.error('[CALIB_MAIN] ' + msg,
+            err ? (err.name + ': ' + (err.message || String(err))) : '(no error)');
+    }
+
     // ── Config ───────────────────────────────────────────────────────────────
     var MIN_HAND_CONF    = 0.60;
     var HAND_FRAMES_NEED = 5;      // consecutive frames with hand required
@@ -244,8 +251,10 @@ var CalibCenter = (function () {
 
     // ── Frame loop ───────────────────────────────────────────────────────────
     var _mainInFlight = false;  // one createImageBitmap in-flight at a time
+    var _framesSent   = 0;      // diagnostic counter
 
     function _startFrameLoop(videoEl) {
+        _D('_startFrameLoop started');
         function loop() {
             _rafId = requestAnimationFrame(loop);
             if (_paused) return;
@@ -258,6 +267,10 @@ var CalibCenter = (function () {
             try {
                 createImageBitmap(videoEl).then(function (bmp) {
                     _mainInFlight = false;
+                    _framesSent++;
+                    if (_framesSent === 1) {
+                        _D('first bitmap created and posted to worker');
+                    }
                     if (_worker) {
                         // Use performance.now() at bitmap-ready time, not the stale
                         // RAF ts captured before the async createImageBitmap call.
@@ -269,8 +282,16 @@ var CalibCenter = (function () {
                     } else {
                         bmp.close();
                     }
-                }).catch(function () { _mainInFlight = false; });
-            } catch (_) { _mainInFlight = false; }
+                }).catch(function (err) {
+                    _mainInFlight = false;
+                    if (_framesSent === 0) {
+                        _Derr('createImageBitmap FAILED on first frame', err);
+                    }
+                });
+            } catch (ex) {
+                _mainInFlight = false;
+                if (_framesSent === 0) { _Derr('createImageBitmap THREW', ex); }
+            }
         }
         _rafId = requestAnimationFrame(loop);
     }
@@ -359,10 +380,17 @@ var CalibCenter = (function () {
 
     function _startWorkerPhase(videoEl) {
         _setStatus('ccModel', 'Loading…', 'cc-s-checking');
+        _D('_startWorkerPhase — creating Worker');
+        _D('env: createImageBitmap=' + (typeof createImageBitmap !== 'undefined')
+            + ' WebAssembly=' + (typeof WebAssembly !== 'undefined')
+            + ' crossOriginIsolated=' + (typeof crossOriginIsolated !== 'undefined'
+                ? crossOriginIsolated : 'N/A'));
 
         try {
             _worker = new Worker('/static/js/vt/calib-hand-worker.js');
+            _D('Worker created OK');
         } catch (err) {
+            _Derr('new Worker() THREW', err);
             _setStatus('ccModel', 'FAIL', 'cc-s-fail');
             _showError('model_failed');
             _running = false;
@@ -374,28 +402,40 @@ var CalibCenter = (function () {
             if (!msg) return;
 
             if (msg.type === 'ready') {
+                _D('worker → ready — delegate=' + msg.delegate
+                    + ' elapsed=' + (performance.now() | 0) + 'ms');
                 clearTimeout(_modelTimer); _modelTimer = null;
                 _modelReady = true;
                 _setStatus('ccModel', 'OK', 'cc-s-ok');
                 _startFramePhase(videoEl);
 
             } else if (msg.type === 'error') {
+                _D('worker → error — code=' + msg.code + ' msg=' + msg.message
+                    + ' _modelReady=' + _modelReady);
                 clearTimeout(_modelTimer); _modelTimer = null;
                 _setStatus('ccModel', 'FAIL', 'cc-s-fail');
                 _showError('model_failed');
                 _running = false;
 
             } else if (msg.type === 'hands') {
+                if (_framesRcvd === 0) {
+                    _D('first hands message received — hands=' + (msg.hands || []).length);
+                }
                 _framesRcvd++;
                 _onHands(msg.hands);
 
             } else if (msg.type === 'no_hands') {
+                if (_framesRcvd === 0) { _D('first no_hands message received'); }
                 _framesRcvd++;
                 _onHands([]);
             }
         };
 
-        _worker.onerror = function () {
+        _worker.onerror = function (ev) {
+            _D('worker.onerror fired — _modelReady=' + _modelReady
+                + ' msg=' + (ev && ev.message ? ev.message : 'none')
+                + ' filename=' + (ev && ev.filename ? ev.filename : '?')
+                + ' lineno=' + (ev && ev.lineno ? ev.lineno : '?'));
             clearTimeout(_modelTimer); _modelTimer = null;
             _setStatus('ccModel', 'FAIL', 'cc-s-fail');
             // Distinguish init failure from post-ready crash:
@@ -406,9 +446,11 @@ var CalibCenter = (function () {
         };
 
         _worker.postMessage({ type: 'init' });
+        _D('init message posted — modelTimer=' + MODEL_TIMEOUT_MS + 'ms');
 
         // 25 s model load timeout
         _modelTimer = setTimeout(function () {
+            _D('modelTimer FIRED — _modelReady=' + _modelReady);
             if (!_modelReady) {
                 _setStatus('ccModel', 'FAIL', 'cc-s-fail');
                 _showError('model_failed');
@@ -517,6 +559,13 @@ var CalibCenter = (function () {
         if (_running) return;
         _running = true;
         _paused  = false;
+
+        _D('start() — UA=' + navigator.userAgent.substring(0, 100));
+        _D('isSecureContext=' + window.isSecureContext
+            + ' createImageBitmap=' + (typeof createImageBitmap !== 'undefined')
+            + ' WebAssembly=' + (typeof WebAssembly !== 'undefined')
+            + ' crossOriginIsolated=' + (typeof crossOriginIsolated !== 'undefined'
+                ? crossOriginIsolated : 'N/A'));
 
         _resetChecklist();
 
