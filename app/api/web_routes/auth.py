@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pathlib import Path
-from datetime import timedelta, datetime, date
+from datetime import timedelta, datetime, date, timezone
 import asyncio
 import logging
 import traceback
@@ -54,9 +54,9 @@ def _safe_next(url: str) -> str:
 
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, next: str = ""):
+async def login_page(request: Request, next: str = "", registered: str = ""):
     """Display login page"""
-    return templates.TemplateResponse("login.html", {"request": request, "next_url": next})
+    return templates.TemplateResponse("login.html", {"request": request, "next_url": next, "registered": registered == "1"})
 
 
 @router.post("/login")
@@ -350,11 +350,16 @@ async def register_submit(
         ).first()
 
         if inv_code is None:
-            return error("Invalid invitation code.")
-        if not inv_code.is_valid():
-            return error("This invitation code has already been used or has expired.")
+            return error("Invalid invitation code. Please check for typos and try again.")
+        if inv_code.is_used:
+            return error("This invitation code has already been used.")
+        if inv_code.expires_at and inv_code.expires_at < datetime.now(timezone.utc):
+            return error("This invitation code has expired. Please request a new one from your administrator.")
         if not inv_code.can_be_used_by_email(email):
-            return error("This invitation code is restricted to a different email address.")
+            return error(
+                "This invitation code was issued for a specific email address. "
+                "Please register using the email address you received the invitation on."
+            )
 
         # Create user
         new_user = User(
@@ -403,13 +408,19 @@ async def register_submit(
 
         logger.info("new_registration", extra={"user": new_user.email, "credits": new_user.credit_balance})
 
-        # Auto-login: create session cookie and redirect
+    except Exception as e:
+        logger.error("registration_error", exc_info=True)
+        traceback.print_exc()
+        return error(f"Registration failed: {str(e)}")
+
+    # Post-commit: user + invite code are now permanently saved.
+    # If session creation fails here, send the user to login instead of
+    # showing a generic error that implies registration itself failed.
+    try:
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": new_user.email}, expires_delta=access_token_expires
         )
-        # Fresh student always needs age verification... but DOB is already set.
-        # Redirect directly to dashboard.
         response = RedirectResponse(url="/dashboard", status_code=303)
         response.set_cookie(
             key="access_token",
@@ -421,8 +432,9 @@ async def register_submit(
             path="/"
         )
         return response
-
-    except Exception as e:
-        logger.error("registration_error", exc_info=True)
-        traceback.print_exc()
-        return error(f"Registration failed: {str(e)}")
+    except Exception:
+        logger.error("post_registration_session_error", exc_info=True)
+        return RedirectResponse(
+            url="/login?registered=1",
+            status_code=303
+        )
