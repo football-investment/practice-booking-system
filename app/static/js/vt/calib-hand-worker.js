@@ -38,10 +38,18 @@ let _frameInFlight   = false;
 let _frameCount      = 0;    // diagnostic only — logged for first frame
 
 // ── Diagnostic helpers (DIAG prefix — remove after iPhone QA) ────────────────
-function _D(msg) { console.log('[CALIB_WORKER] ' + msg); }
+// Logs go to console AND are relayed to the main thread via postMessage so
+// they appear in the on-screen debug panel without needing Remote Inspector.
+function _D(msg) {
+    var line = '[CALIB_WORKER] ' + msg;
+    console.log(line);
+    self.postMessage({ type: 'log', level: 'info', msg: line });
+}
 function _Derr(msg, err) {
-    console.error('[CALIB_WORKER] ' + msg,
-        err ? (err.name + ': ' + err.message) : '(no error object)');
+    var detail = err ? (err.name + ': ' + (err.message || String(err))) : '(no error object)';
+    var line   = '[CALIB_WORKER] ' + msg + ' — ' + detail;
+    console.error(line);
+    self.postMessage({ type: 'log', level: 'error', msg: line });
 }
 
 async function initModel() {

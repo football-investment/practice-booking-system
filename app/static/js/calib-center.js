@@ -23,11 +23,19 @@
  */
 var CalibCenter = (function () {
 
-    // ── Diagnostic helpers (DIAG prefix — remove after iPhone QA) ────────────
-    function _D(msg) { console.log('[CALIB_MAIN] ' + msg); }
+    // ── Diagnostic helpers (DIAG — remove after iPhone QA) ───────────────────
+    // Logs go to both browser console AND the on-screen debug panel (ccDbgAdd).
+    // ccDbgAdd is defined in the page's inline <script> (profile_calibration_center.html).
+    function _D(msg) {
+        var line = '[CALIB_MAIN] ' + msg;
+        console.log(line);
+        if (typeof window.ccDbgAdd === 'function') window.ccDbgAdd(line, 'info');
+    }
     function _Derr(msg, err) {
-        console.error('[CALIB_MAIN] ' + msg,
-            err ? (err.name + ': ' + (err.message || String(err))) : '(no error)');
+        var detail = err ? (err.name + ': ' + (err.message || String(err))) : '(no error)';
+        var line   = '[CALIB_MAIN] ' + msg + ' — ' + detail;
+        console.error(line);
+        if (typeof window.ccDbgAdd === 'function') window.ccDbgAdd(line, 'error');
     }
 
     // ── Config ───────────────────────────────────────────────────────────────
@@ -416,6 +424,19 @@ var CalibCenter = (function () {
                 _setStatus('ccModel', 'FAIL', 'cc-s-fail');
                 _showError('model_failed');
                 _running = false;
+
+            } else if (msg.type === 'log') {
+                // Worker relays its diagnostic logs to the main thread so they
+                // appear in the on-screen debug panel (no Remote Inspector needed).
+                var workerLine = msg.msg || '';
+                if (msg.level === 'error') {
+                    console.error(workerLine);
+                } else {
+                    console.log(workerLine);
+                }
+                if (typeof window.ccDbgAdd === 'function') {
+                    window.ccDbgAdd(workerLine, msg.level || 'info');
+                }
 
             } else if (msg.type === 'hands') {
                 if (_framesRcvd === 0) {
