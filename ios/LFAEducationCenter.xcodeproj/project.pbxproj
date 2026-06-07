@@ -22,6 +22,8 @@
 		BB000004000000000000013 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000015 /* AuthManager.swift */; };
 		BB000004000000000000014 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000016 /* LoginView.swift */; };
 		BB000004000000000000015 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000017 /* APIClient.swift */; };
+		BB000004000000000000016 /* APIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000018 /* APIConfig.swift */; };
+		BB000004000000000000017 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000019 /* UserProfile.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +44,8 @@
 		BB000003000000000000015 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		BB000003000000000000016 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		BB000003000000000000017 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		BB000003000000000000018 /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
+		BB000003000000000000019 /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -130,6 +134,7 @@
 			isa = PBXGroup;
 			children = (
 				BB000003000000000000010 /* SkeletonFrame.swift */,
+				BB000003000000000000019 /* UserProfile.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -169,6 +174,7 @@
 		BB000002000000000000013 /* Networking */ = {
 			isa = PBXGroup;
 			children = (
+				BB000003000000000000018 /* APIConfig.swift */,
 				BB000003000000000000017 /* APIClient.swift */,
 			);
 			path = Networking;
@@ -257,6 +263,8 @@
 				BB000004000000000000013 /* AuthManager.swift in Sources */,
 				BB000004000000000000014 /* LoginView.swift in Sources */,
 				BB000004000000000000015 /* APIClient.swift in Sources */,
+				BB000004000000000000016 /* APIConfig.swift in Sources */,
+				BB000004000000000000017 /* UserProfile.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

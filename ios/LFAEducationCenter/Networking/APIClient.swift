@@ -1,37 +1,50 @@
 import Foundation
 
-// MARK: — Base URL
-
-// Simulator: localhost works directly.
-// Physical iPhone: replace with your Mac's local IP, e.g. http://192.168.1.100:8000
-// Production:      replace with the production domain.
-private let kBaseURL = "http://localhost:8000"
-
 // MARK: — APIClient
 
-// Minimal URLSession wrapper for Phase B (login only).
-// Phase C adds: Authorization header injection, 401 refresh/retry, GET support.
+// Stateless HTTP client. Auth logic (Bearer inject, 401 refresh) lives in AuthManager.
+// Base URL sourced from APIConfig — one place to change for all environments.
 enum APIClient {
+
+    // MARK: — POST
 
     static func post<B: Encodable, T: Decodable>(
         path:  String,
         body:  B,
         token: String? = nil
     ) async throws -> T {
-        guard let url = URL(string: kBaseURL + path) else {
+        var request = try buildRequest(path: path, method: "POST", token: token)
+        request.httpBody = try JSONEncoder().encode(body)
+        return try await execute(request)
+    }
+
+    // MARK: — GET
+
+    static func get<T: Decodable>(
+        path:  String,
+        token: String? = nil
+    ) async throws -> T {
+        let request = try buildRequest(path: path, method: "GET", token: token)
+        return try await execute(request)
+    }
+
+    // MARK: — Private helpers
+
+    private static func buildRequest(path: String, method: String, token: String?) throws -> URLRequest {
+        guard let url = URL(string: APIConfig.baseURL + path) else {
             throw APIError.invalidURL
         }
-
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpBody = try JSONEncoder().encode(body)
-
         if let token = token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        return request
+    }
 
+    private static func execute<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await perform(request)
 
         guard let http = response as? HTTPURLResponse else {
@@ -74,6 +87,7 @@ enum APIError: Error {
     case httpError(statusCode: Int, detail: String?)
     case decodingError
     case networkError(Error)
+    case unauthorized   // no token available or refresh failed
 }
 
 private struct ErrorBody: Decodable {
