@@ -74,15 +74,19 @@ struct DashboardView: View {
                     CreditCard(balance: balance)
                 }
 
-                LicenseSection(licenses: dashboardVM.licenses)
+                // LFA Player license — from /api/v1/lfa-player/licenses/me
+                LFALicenseCard(license: dashboardVM.lfaLicense)
 
-                // /api/v1/licenses/dashboard — schema not yet confirmed.
-                // Deferred to Phase E; shown as a placeholder card here.
-                PlaceholderInfoCard(
-                    title: "Training Stats",
-                    subtitle: "Full stats coming in Phase E",
-                    icon: "chart.bar.fill"
-                )
+                // Overall progress from /api/v1/licenses/dashboard — shown if decode succeeds
+                if let progress = dashboardVM.dashboard?.overallProgress {
+                    DashboardProgressCard(progress: progress)
+                } else {
+                    PlaceholderInfoCard(
+                        title: "Training Stats",
+                        subtitle: "Full stats coming in Phase E",
+                        icon: "chart.bar.fill"
+                    )
+                }
             }
             .padding(Theme.Spacing.md)
         }
@@ -107,6 +111,16 @@ private struct ProfileCard: View {
                 Text(profile.email)
                     .font(.subheadline)
                     .foregroundColor(Theme.Color.muted)
+                if let pos = profile.position {
+                    Text(pos)
+                        .font(.caption)
+                        .foregroundColor(Theme.Color.muted)
+                }
+                if let xp = profile.xpBalance, xp > 0 {
+                    Text("\(xp) XP")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(Theme.Color.secondary)
+                }
             }
 
             Spacer()
@@ -130,7 +144,7 @@ private struct ProfileCard: View {
 // MARK: — Credits card
 
 private struct CreditCard: View {
-    let balance: Double
+    let balance: Int  // Int matches backend credit_balance type
 
     var body: some View {
         HStack {
@@ -140,7 +154,7 @@ private struct CreditCard: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(Theme.Color.onSurface)
             Spacer()
-            Text("\(Int(balance)) CR")
+            Text("\(balance) CR")
                 .font(.headline.monospacedDigit())
                 .foregroundColor(Theme.Color.secondary)
         }
@@ -150,33 +164,44 @@ private struct CreditCard: View {
     }
 }
 
-// MARK: — Licenses section
+// MARK: — LFA Player license card
 
-private struct LicenseSection: View {
-    let licenses: [UserLicense]
-
-    private var activeLicenses: [UserLicense] {
-        licenses.filter { $0.isActive == true }
-    }
+private struct LFALicenseCard: View {
+    let license: LFAPlayerLicense?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("My Licenses (\(activeLicenses.count) active)")
+            Text("LFA Player License")
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(Theme.Color.onSurface)
 
-            if licenses.isEmpty {
-                Text("No licenses found.")
-                    .font(.subheadline)
-                    .foregroundColor(Theme.Color.muted)
-                    .padding(.vertical, Theme.Spacing.sm)
-            } else {
-                ForEach(licenses) { license in
-                    LicenseRow(license: license)
-                    if license.id != licenses.last?.id {
-                        Divider()
+            if let license = license {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: license.isActive ? "checkmark.seal.fill" : "seal")
+                        .foregroundColor(license.isActive ? Theme.Color.primary : Theme.Color.muted)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Level \(license.currentLevel)")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(Theme.Color.onSurface)
+                        Text(license.isActive ? "Active" : "Inactive")
+                            .font(.caption)
+                            .foregroundColor(license.isActive ? Theme.Color.primary : Theme.Color.muted)
+                    }
+
+                    Spacer()
+
+                    if license.onboardingCompleted {
+                        Label("Onboarded", systemImage: "person.badge.plus")
+                            .font(.caption)
+                            .foregroundColor(Theme.Color.muted)
                     }
                 }
+            } else {
+                Text("No active LFA Player license.")
+                    .font(.subheadline)
+                    .foregroundColor(Theme.Color.muted)
+                    .padding(.vertical, Theme.Spacing.xs)
             }
         }
         .padding(Theme.Spacing.md)
@@ -185,35 +210,30 @@ private struct LicenseSection: View {
     }
 }
 
-private struct LicenseRow: View {
-    let license: UserLicense
+// MARK: — Dashboard overall progress card
+
+private struct DashboardProgressCard: View {
+    let progress: LicenseDashboard.OverallProgress
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: license.isActive == true ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(license.isActive == true ? Theme.Color.primary : Theme.Color.muted)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(license.displayName)
-                    .font(.subheadline.weight(.medium))
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .foregroundColor(Theme.Color.primary)
+                Text("Overall Progress")
+                    .font(.subheadline.weight(.semibold))
                     .foregroundColor(Theme.Color.onSurface)
-
-                HStack(spacing: Theme.Spacing.xs) {
-                    if license.isOnboarded == true {
-                        Label("Onboarded", systemImage: "person.badge.plus")
-                            .font(.caption)
-                            .foregroundColor(Theme.Color.muted)
-                    }
-                    if let level = license.level {
-                        Label("Level \(level)", systemImage: "star.fill")
-                            .font(.caption)
-                            .foregroundColor(Theme.Color.muted)
-                    }
-                }
+                Spacer()
+                Text(String(format: "%.1f%%", progress.percentage))
+                    .font(.headline.monospacedDigit())
+                    .foregroundColor(Theme.Color.primary)
             }
-            Spacer()
+            ProgressView(value: min(progress.percentage / 100.0, 1.0))
+                .accentColor(Theme.Color.primary)
         }
-        .padding(.vertical, Theme.Spacing.xs)
+        .padding(Theme.Spacing.md)
+        .background(Theme.Color.surface)
+        .cornerRadius(Theme.Radius.md)
     }
 }
 

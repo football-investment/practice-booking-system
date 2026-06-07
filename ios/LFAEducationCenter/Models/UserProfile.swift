@@ -1,22 +1,47 @@
 import Foundation
 
 // Decoded from GET /api/v1/users/me.
-// Phase D: adds creditBalance and role (Optional — degrade gracefully if absent).
-// Phase E+: add dateOfBirth, nationality, xp, etc. as needed.
+//
+// Backend sends "name" (full name, single field) — NOT "first_name"/"last_name".
+// credit_balance is Int on the backend (not Float/Double).
+// xp_balance added for Phase E display.
 struct UserProfile: Decodable {
-    let email:         String
-    let firstName:     String
-    let lastName:      String
-    let creditBalance: Double?  // credit_balance — may be Float on backend
-    let role:          String?  // "STUDENT", "INSTRUCTOR", etc.
+    let id:                  Int?
+    let name:                String
+    let email:               String
+    let role:                String?       // "STUDENT", "INSTRUCTOR", "ADMIN"
+    let creditBalance:       Int?          // credit_balance
+    let xpBalance:           Int?          // xp_balance — Phase E stat display
+    let onboardingCompleted: Bool?
+    let position:            String?       // football position
+    let licenses:            [UserLicenseBrief]?  // embedded from response
 
-    var displayName: String { "\(firstName) \(lastName)" }
+    // displayName maps directly to name — no first/last split in the backend schema.
+    var displayName: String { name }
 
     enum CodingKeys: String, CodingKey {
-        case email
-        case firstName     = "first_name"
-        case lastName      = "last_name"
-        case creditBalance = "credit_balance"
-        case role
+        case id, name, email, role, position
+        case creditBalance       = "credit_balance"
+        case xpBalance           = "xp_balance"
+        case onboardingCompleted = "onboarding_completed"
+        case licenses
+    }
+}
+
+// Embedded license summary inside GET /api/v1/users/me response.
+// Full LFA Player license data: use LFAPlayerLicense from /api/v1/lfa-player/licenses/me.
+struct UserLicenseBrief: Decodable, Identifiable {
+    let id:                  Int
+    let specializationType:  String
+    let isActive:            Bool
+    let paymentVerified:     Bool?
+    let onboardingCompleted: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case specializationType  = "specialization_type"
+        case isActive            = "is_active"
+        case paymentVerified     = "payment_verified"
+        case onboardingCompleted = "onboarding_completed"
     }
 }

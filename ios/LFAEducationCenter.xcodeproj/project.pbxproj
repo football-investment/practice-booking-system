@@ -27,6 +27,8 @@
 		BB000004000000000000018 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000020 /* DashboardView.swift */; };
 		BB000004000000000000019 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000021 /* DashboardViewModel.swift */; };
 		BB000004000000000000020 /* UserLicense.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000022 /* UserLicense.swift */; };
+		BB000004000000000000021 /* LFAPlayerLicense.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000023 /* LFAPlayerLicense.swift */; };
+		BB000004000000000000022 /* LicenseDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000024 /* LicenseDashboard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +54,8 @@
 		BB000003000000000000020 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		BB000003000000000000021 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		BB000003000000000000022 /* UserLicense.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserLicense.swift; sourceTree = "<group>"; };
+		BB000003000000000000023 /* LFAPlayerLicense.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFAPlayerLicense.swift; sourceTree = "<group>"; };
+		BB000003000000000000024 /* LicenseDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LicenseDashboard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,6 +146,8 @@
 				BB000003000000000000010 /* SkeletonFrame.swift */,
 				BB000003000000000000019 /* UserProfile.swift */,
 				BB000003000000000000022 /* UserLicense.swift */,
+				BB000003000000000000023 /* LFAPlayerLicense.swift */,
+				BB000003000000000000024 /* LicenseDashboard.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -277,6 +283,8 @@
 				BB000004000000000000018 /* DashboardView.swift in Sources */,
 				BB000004000000000000019 /* DashboardViewModel.swift in Sources */,
 				BB000004000000000000020 /* UserLicense.swift in Sources */,
+				BB000004000000000000021 /* LFAPlayerLicense.swift in Sources */,
+				BB000004000000000000022 /* LicenseDashboard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

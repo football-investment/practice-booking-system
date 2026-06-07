@@ -10,8 +10,15 @@ import Foundation
 //                          on 401: logout(); on network error: preserve tokens
 //   logout()             → clearAll Keychain → isLoggedIn = false
 //
+// Concurrent 401 race protection:
+//   pendingRefresh is a shared Task<Bool, Never>?. If multiple concurrent callers
+//   get 401 simultaneously, the first creates the Task; subsequent callers find
+//   pendingRefresh != nil and await the same Task.value — no second refresh fires.
+//   This prevents the dual-logout race where isRefreshing=true caused the second
+//   caller to incorrectly receive .unauthorized and trigger logout prematurely.
+//
 // All @Published mutations run on the main actor.
-// isRefreshing prevents concurrent refresh attempts (works because the class is @MainActor).
+// pendingRefresh is accessed only from the main actor — no data race possible.
 @MainActor
 final class AuthManager: ObservableObject {
 
@@ -19,8 +26,9 @@ final class AuthManager: ObservableObject {
     @Published private(set) var isLoading:    Bool    = false
     @Published              var errorMessage: String? = nil
 
-    // Prevents concurrent refresh attempts. @MainActor ensures no data race.
-    private var isRefreshing = false
+    // Shared-task barrier replacing the former isRefreshing: Bool flag.
+    // A non-nil value means a refresh is in-flight; new callers join via .value.
+    private var pendingRefresh: Task<Bool, Never>?
 
     init() {
         // Optimistic: if tokens exist, show MainTabView immediately.
@@ -48,19 +56,14 @@ final class AuthManager: ObservableObject {
                 path: "/api/v1/users/me",
                 token: token
             )
-            isLoggedIn = true   // token still valid
+            isLoggedIn = true
 
         } catch APIError.httpError(401, _) {
-            // Access token expired — try refresh before giving up.
             let refreshed = await performRefresh()
-            // If refreshed: Keychain updated, isLoggedIn stays true.
-            // If not refreshed due to 401: logout() already called → isLoggedIn = false.
-            // If not refreshed due to network: tokens preserved, isLoggedIn stays true.
             if refreshed { isLoggedIn = true }
 
         } catch {
             // Network error on launch — remain optimistically logged in.
-            // The next protected API call will handle re-auth if needed.
         }
     }
 
@@ -97,7 +100,7 @@ final class AuthManager: ObservableObject {
         isLoggedIn = false
     }
 
-    // MARK: — Protected request wrappers (Phase D+ views call these)
+    // MARK: — Protected request wrappers
 
     // GET with automatic Bearer inject, single 401 refresh + retry, logout on refresh failure.
     func authenticatedGet<T: Decodable>(path: String) async throws -> T {
@@ -108,7 +111,6 @@ final class AuthManager: ObservableObject {
         } catch APIError.httpError(401, _) {
             let refreshed = await performRefresh()
             guard refreshed, let newToken = accessToken else { throw APIError.unauthorized }
-            // Single retry — if this 401s again it propagates without another refresh.
             return try await APIClient.get(path: path, token: newToken)
         }
     }
@@ -138,17 +140,32 @@ final class AuthManager: ObservableObject {
 
     // MARK: — Private
 
-    // Performs a single token refresh. Returns true on success.
-    // On 401: calls logout() (tokens invalid) and returns false.
-    // On network error: preserves existing tokens and returns false.
-    // isRefreshing prevents concurrent refresh attempts.
+    // Concurrent-safe refresh coordinator.
+    //
+    // If pendingRefresh is already set, all callers await the same Task.value —
+    // only one HTTP request fires regardless of how many 401s arrive concurrently.
+    // After completion, pendingRefresh is cleared so the next error cycle starts fresh.
+    //
+    // On 401 from the refresh endpoint: calls logout() (session unrecoverable).
+    // On network error: preserves tokens (offline tolerance), returns false.
     @discardableResult
     private func performRefresh() async -> Bool {
-        guard !isRefreshing else { return false }
-        guard let rt = refreshToken else { logout(); return false }
+        if let pending = pendingRefresh {
+            return await pending.value   // join the in-flight refresh
+        }
 
-        isRefreshing = true
-        defer { isRefreshing = false }
+        // Task inherits @MainActor context — saveTokens/logout run on main actor.
+        let task = Task<Bool, Never> { await self.runRefresh() }
+        pendingRefresh = task
+        let result = await task.value
+        pendingRefresh = nil
+        return result
+    }
+
+    // Executes the actual token refresh HTTP call.
+    // Called only from performRefresh() Task — always on @MainActor.
+    private func runRefresh() async -> Bool {
+        guard let rt = refreshToken else { logout(); return false }
 
         do {
             let response: AuthResponse = try await APIClient.post(

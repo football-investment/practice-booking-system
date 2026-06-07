@@ -16,23 +16,26 @@ enum DashboardLoadState: Equatable {
     }
 }
 
-// Fetches user profile + license data and drives DashboardView state.
+// Fetches user profile + LFA Player license + dashboard stats.
 //
-// Requests are sequential (not concurrent) to avoid the dual-401 race condition:
-// if both GET /users/me and GET /licenses/me get 401 concurrently, AuthManager's
-// isRefreshing flag would block the second refresh attempt, causing it to throw
-// .unauthorized before the first refresh completes. Sequential requests mean the
-// second request always uses the refreshed token from the first. (Phase E: use an
-// actor-based shared refresh task to support safe concurrent requests.)
+// Endpoint mapping (Phase D.1 corrected):
+//   /api/v1/users/me                   → profile (fatal — dashboard can't render without it)
+//   /api/v1/lfa-player/licenses/me     → lfaLicense (non-fatal — user may not have one yet)
+//   /api/v1/licenses/dashboard          → dashboard (non-fatal — complex schema, graceful)
+//   /api/v1/licenses/me                 → licenses  (GānCuju COACH/PLAYER/INTERNSHIP,
+//                                                     reserved, not displayed in LFA UI)
 //
-// /api/v1/licenses/me is treated as non-fatal: if it fails the profile still shows.
-// /api/v1/licenses/dashboard schema is not yet confirmed — deferred to Phase E.
+// Requests are sequential to avoid concurrent 401 within the same load cycle.
+// Cross-call concurrent 401 (e.g. simultaneous DashboardView + ProfileTab fetches)
+// is handled by AuthManager.performRefresh() shared Task barrier.
 @MainActor
 final class DashboardViewModel: ObservableObject {
 
-    @Published private(set) var loadState: DashboardLoadState = .idle
-    @Published private(set) var profile:   UserProfile?       = nil
-    @Published private(set) var licenses:  [UserLicense]      = []
+    @Published private(set) var loadState:  DashboardLoadState = .idle
+    @Published private(set) var profile:    UserProfile?       = nil
+    @Published private(set) var lfaLicense: LFAPlayerLicense?  = nil
+    @Published private(set) var dashboard:  LicenseDashboard?  = nil
+    @Published private(set) var licenses:   [UserLicense]      = []  // GānCuju, reserved
 
     // MARK: — Load (initial, guarded)
 
@@ -44,18 +47,22 @@ final class DashboardViewModel: ObservableObject {
     // MARK: — Reload (manual retry, resets state)
 
     func reload(using authManager: AuthManager) async {
-        loadState = .idle
-        profile   = nil
-        licenses  = []
+        loadState  = .idle
+        profile    = nil
+        lfaLicense = nil
+        dashboard  = nil
+        licenses   = []
         await fetchData(using: authManager)
     }
 
     // MARK: — Reset (called on logout so next login fetches fresh data)
 
     func reset() {
-        loadState = .idle
-        profile   = nil
-        licenses  = []
+        loadState  = .idle
+        profile    = nil
+        lfaLicense = nil
+        dashboard  = nil
+        licenses   = []
     }
 
     // MARK: — Private
@@ -64,16 +71,28 @@ final class DashboardViewModel: ObservableObject {
         loadState = .loading
 
         do {
-            // Sequential: ensures the second request uses a refreshed token
-            // if the first triggered a 401 → refresh cycle.
+            // 1. User profile — fatal (dashboard cannot render without it).
+            //    /users/me now correctly returns "name" (not first_name/last_name).
             profile = try await authManager.authenticatedGet(path: "/api/v1/users/me")
 
-            // Non-fatal: licenses missing is tolerable — show empty state in UI.
-            licenses = (try? await authManager.authenticatedGet(path: "/api/v1/licenses/me")) ?? []
+            // 2. LFA Player license — non-fatal (user may not have one yet).
+            //    Uses /lfa-player/licenses/me — NOT /licenses/me (which is GānCuju).
+            lfaLicense = try? await authManager.authenticatedGet(
+                path: "/api/v1/lfa-player/licenses/me"
+            )
 
-            // /api/v1/licenses/dashboard schema not confirmed — deferred to Phase E.
-            // It returns Dict[str, Any] from license_service.get_user_license_dashboard().
-            // Placeholder card shown in DashboardView until schema is confirmed.
+            // 3. License dashboard — non-fatal. Shows overall_progress % if decode succeeds.
+            //    Schema is Dict[str, Any] — LicenseDashboard decodes only what it needs.
+            dashboard = try? await authManager.authenticatedGet(
+                path: "/api/v1/licenses/dashboard"
+            )
+
+            // 4. GānCuju licenses (COACH/PLAYER/INTERNSHIP) — reserved for future tracks.
+            //    Schema mismatch with UserLicense model is non-fatal (all fields Optional).
+            //    Not displayed in the LFA Player UI.
+            licenses = (try? await authManager.authenticatedGet(
+                path: "/api/v1/licenses/me"
+            )) ?? []
 
             loadState = .loaded
 
