@@ -10,7 +10,8 @@ import SwiftUI
 struct MainHubView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var dashboardVM: DashboardViewModel
-    @State private var isShowingLFASpec = false
+    @State private var isShowingLFASpec   = false
+    @State private var isShowingAcademyID = false
 
     private let gridColumns = [GridItem(.adaptive(minimum: 150), spacing: Theme.Spacing.sm)]
 
@@ -64,6 +65,8 @@ struct MainHubView: View {
                     }
 
                     Divider().padding(.vertical, Theme.Spacing.xs)
+                    academyIDButton
+                    Divider().padding(.vertical, Theme.Spacing.xs)
                     signOutButton
                 }
                 .padding(Theme.Spacing.md)
@@ -76,6 +79,11 @@ struct MainHubView: View {
         }
         .fullScreenCover(isPresented: $isShowingLFASpec) {
             LFASpecTabView()
+        }
+        .fullScreenCover(isPresented: $isShowingAcademyID) {
+            AcademyIDFullScreenView()
+                .environmentObject(authManager)
+                .environmentObject(dashboardVM)
         }
     }
 
@@ -132,6 +140,28 @@ struct MainHubView: View {
                     .background(Theme.Color.secondary.opacity(0.12))
                     .cornerRadius(Theme.Radius.sm)
             }
+        }
+    }
+
+    // My Academy ID — universal entry (not gated by LFA card state)
+    private var academyIDButton: some View {
+        Button { isShowingAcademyID = true } label: {
+            HStack {
+                Image(systemName: "creditcard.fill")
+                    .font(.system(size: 15))
+                    .foregroundColor(Theme.Color.secondary)
+                Text("My Academy ID")
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(Theme.Color.onSurface)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Theme.Color.muted)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .frame(height: 48)
+            .background(Theme.Color.surface)
+            .cornerRadius(Theme.Radius.sm)
         }
     }
 

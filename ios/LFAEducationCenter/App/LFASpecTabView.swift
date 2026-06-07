@@ -37,15 +37,23 @@ private struct LFAProfileTab: View {
     @EnvironmentObject var dashboardVM: DashboardViewModel
     let onReturnToHub: () -> Void
 
+    @State private var isShowingAcademyID = false
+
     var body: some View {
         NavigationView {
             VStack(spacing: Theme.Spacing.md) {
                 profileHeader
                 Spacer()
+                academyIDRow
                 returnToHubButton
                 signOutButton
             }
             .navigationTitle("Profile")
+            .fullScreenCover(isPresented: $isShowingAcademyID) {
+                AcademyIDFullScreenView()
+                    .environmentObject(authManager)
+                    .environmentObject(dashboardVM)
+            }
         }
         .navigationViewStyle(.stack)
     }
@@ -89,6 +97,27 @@ private struct LFAProfileTab: View {
                     ProgressView().padding(.top, Theme.Spacing.sm)
                 }
             }
+        }
+    }
+
+    // My Academy ID — universally accessible from Profile tab
+    private var academyIDRow: some View {
+        Button { isShowingAcademyID = true } label: {
+            HStack {
+                Image(systemName: "creditcard.fill")
+                    .font(.system(size: 15))
+                    .foregroundColor(Theme.Color.secondary)
+                    .frame(width: 28)
+                Text("My Academy ID")
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(Theme.Color.onSurface)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Theme.Color.muted)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+            .frame(height: 48)
         }
     }
 

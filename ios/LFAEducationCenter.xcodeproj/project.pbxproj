@@ -42,6 +42,10 @@
 		BB000004000000000000033 /* RegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000035 /* RegisterView.swift */; };
 		BB000004000000000000034 /* WelcomeSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000036 /* WelcomeSuccessView.swift */; };
 		BB000004000000000000035 /* AcademyIDCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000037 /* AcademyIDCardView.swift */; };
+		BB000004000000000000036 /* QRCodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000038 /* QRCodeGenerator.swift */; };
+		BB000004000000000000037 /* AcademyIDResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000039 /* AcademyIDResponse.swift */; };
+		BB000004000000000000038 /* AcademyIDViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000040 /* AcademyIDViewModel.swift */; };
+		BB000004000000000000039 /* AcademyIDFullScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000041 /* AcademyIDFullScreenView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -82,6 +86,10 @@
 		BB000003000000000000035 /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
 		BB000003000000000000036 /* WelcomeSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeSuccessView.swift; sourceTree = "<group>"; };
 		BB000003000000000000037 /* AcademyIDCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDCardView.swift; sourceTree = "<group>"; };
+		BB000003000000000000038 /* QRCodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeGenerator.swift; sourceTree = "<group>"; };
+		BB000003000000000000039 /* AcademyIDResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDResponse.swift; sourceTree = "<group>"; };
+		BB000003000000000000040 /* AcademyIDViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDViewModel.swift; sourceTree = "<group>"; };
+		BB000003000000000000041 /* AcademyIDFullScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDFullScreenView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,6 +156,7 @@
 			children = (
 				BB000003000000000000006 /* Theme.swift */,
 				BB000003000000000000033 /* BrandLogoView.swift */,
+				BB000003000000000000038 /* QRCodeGenerator.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -183,6 +192,7 @@
 				BB000003000000000000026 /* SpecializationStatus.swift */,
 				BB000003000000000000027 /* SpecializationProgress.swift */,
 				BB000003000000000000028 /* SkillProfile.swift */,
+				BB000003000000000000039 /* AcademyIDResponse.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -196,6 +206,8 @@
 				BB000003000000000000016 /* LoginView.swift */,
 				BB000003000000000000035 /* RegisterView.swift */,
 				BB000003000000000000037 /* AcademyIDCardView.swift */,
+				BB000003000000000000040 /* AcademyIDViewModel.swift */,
+				BB000003000000000000041 /* AcademyIDFullScreenView.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -337,6 +349,10 @@
 				BB000004000000000000033 /* RegisterView.swift in Sources */,
 				BB000004000000000000034 /* WelcomeSuccessView.swift in Sources */,
 				BB000004000000000000035 /* AcademyIDCardView.swift in Sources */,
+				BB000004000000000000036 /* QRCodeGenerator.swift in Sources */,
+				BB000004000000000000037 /* AcademyIDResponse.swift in Sources */,
+				BB000004000000000000038 /* AcademyIDViewModel.swift in Sources */,
+				BB000004000000000000039 /* AcademyIDFullScreenView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
