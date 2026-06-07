@@ -69,17 +69,12 @@ struct AcademyIDCardView: View {
         .padding(.vertical, 10)
     }
 
-    // MARK: — Body (80pt photo left | data fields right)
+    // MARK: — Body (portrait photo panel left | data fields right)
 
     private var bodyRows: some View {
         HStack(alignment: .top, spacing: 14) {
-            // Photo column
-            VStack(spacing: 5) {
-                photoCircle
-                Text("PHOTO")
-                    .font(.system(size: 6.5, weight: .semibold))
-                    .foregroundColor(Theme.Color.muted.opacity(profileImage == nil ? 0.35 : 0))
-            }
+            // Portrait photo panel (ID-card style, not circular)
+            photoPanel
 
             // Data column
             VStack(alignment: .leading, spacing: 7) {
@@ -148,29 +143,37 @@ struct AcademyIDCardView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: — Photo circle (80pt ID-card style)
+    // MARK: — Portrait photo panel (ID-card style, 80×104pt, not circular)
 
-    private var photoCircle: some View {
+    private var photoPanel: some View {
         Group {
             if let img = profileImage {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 80, height: 80)
-                    .clipShape(Circle())
+                    .frame(width: 80, height: 104)
+                    .clipped()
             } else {
-                Circle()
-                    .fill(Theme.Color.muted.opacity(0.08))
-                    .frame(width: 80, height: 80)
+                Rectangle()
+                    .fill(Theme.Color.muted.opacity(0.06))
+                    .frame(width: 80, height: 104)
                     .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(Theme.Color.muted.opacity(0.3))
+                        VStack(spacing: 5) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 30))
+                                .foregroundColor(Theme.Color.muted.opacity(0.22))
+                            Text("PHOTO")
+                                .font(.system(size: 6.5, weight: .semibold))
+                                .foregroundColor(Theme.Color.muted.opacity(0.22))
+                        }
                     )
             }
         }
-        .overlay(Circle().stroke(Theme.Color.secondary.opacity(0.4), lineWidth: 1.5))
-        .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Theme.Color.secondary.opacity(0.3), lineWidth: 1)
+        )
         .animation(.easeIn(duration: 0.2), value: profileImage != nil)
     }
 
