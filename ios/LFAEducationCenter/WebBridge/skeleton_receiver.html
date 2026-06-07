@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>LFA Skeleton Bridge</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: transparent; font-family: "Menlo", "SF Mono", monospace; pointer-events: none; }
+    #dbg {
+      position: fixed;
+      bottom: 24px;
+      right: 14px;
+      background: rgba(0, 0, 0, 0.72);
+      color: #00ff88;
+      font-size: 11px;
+      line-height: 1.75;
+      padding: 9px 13px;
+      border-radius: 9px;
+      min-width: 152px;
+      border: 1px solid rgba(0, 255, 136, 0.18);
+    }
+    #dbg .lbl  { color: #888; }
+    #dbg .warn { color: #ffcc00; }
+    #dbg .hi   { color: #00ccff; }
+  </style>
+</head>
+<body>
+  <div id="dbg"><span class="lbl">bridge: </span><span class="warn">waiting…</span></div>
+  <script>
+    'use strict';
+    var totalFrames  = 0;
+    var lateFrames   = 0;
+    var lastRecvTime = 0;
+
+    window.onSkeletonFrame = function(data) {
+      var now     = Date.now();
+      var latency = now - data.ts_ms;
+      window.webkit.messageHandlers.bridgeLatency.postMessage(latency);
+      if (lastRecvTime > 0 && (now - lastRecvTime) > 100) { lateFrames++; }
+      lastRecvTime = now;
+      totalFrames++;
+
+      var faceStr = data.face
+        ? 'yes  roll:' + (data.face.roll !== null ? data.face.roll.toFixed(2) : '—')
+             + ' yaw:'  + (data.face.yaw  !== null ? data.face.yaw.toFixed(2)  : '—')
+        : '—';
+
+      document.getElementById('dbg').innerHTML =
+        '<span class="lbl">body   </span>' + data.body.length       + ' joints<br>' +
+        '<span class="lbl">l.hand </span>' + data.left_hand.length  + ' joints<br>' +
+        '<span class="lbl">r.hand </span>' + data.right_hand.length + ' joints<br>' +
+        '<span class="lbl">face   </span>' + faceStr                + '<br>'        +
+        '<span class="lbl">fps    </span><span class="hi">' + data.fps + '</span><br>' +
+        '<span class="lbl">lat    </span>' + latency    + ' ms<br>' +
+        '<span class="lbl">recv   </span>' + totalFrames + '<br>'   +
+        '<span class="lbl">late   </span>' + lateFrames;
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      window.webkit.messageHandlers.skeletonReady.postMessage({ version: 1 });
+    });
+  </script>
+</body>
+</html>
