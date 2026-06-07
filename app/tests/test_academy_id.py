@@ -239,6 +239,67 @@ def test_aid16_qr_data_uses_verify_base_url(client, student_token):
 
 
 # ---------------------------------------------------------------------------
+# AID-17 — Registration smoke: new user INSERT succeeds with Phase 2A columns
+#
+# Regression for: "RegisterView Join the Academy → 500" caused by
+# lfa_academy_id / public_token columns missing from DB (migration not run).
+# This test catches that class of breakage at the integration level.
+# ---------------------------------------------------------------------------
+
+def test_aid17_new_user_register_does_not_500(client, db_session):
+    """
+    AID-17: POST /api/v1/auth/register-with-invitation succeeds (200) for a
+    fresh user — verifying lfa_academy_id (nullable) and public_token
+    (DB default gen_random_uuid()) don't break the INSERT.
+
+    If migration 2026_06_09_1000 is not applied, this raises UndefinedColumn
+    and the endpoint returns 500 — the bug this regression guards against.
+    """
+    from ..models.invitation_code import InvitationCode
+    from datetime import datetime, timezone
+
+    # Create a fresh, unrestricted invite code for this test
+    invite = InvitationCode(
+        code="AID17-TEST-CODE",
+        invited_name="AID17 Test Invitee",
+        is_used=False,
+        bonus_credits=50,
+        invited_email=None,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(invite)
+    db_session.flush()
+
+    r = client.post(
+        "/api/v1/auth/register-with-invitation",
+        json={
+            "email":          "aid17.regression@test.lfa",
+            "password":       "TestPass123!",
+            "name":           "AID17 Regression",
+            "first_name":     "AID17",
+            "last_name":      "Regression",
+            "nickname":       "aid17reg",
+            "phone":          "+36301234500",
+            "date_of_birth":  "2000-06-01T00:00:00",
+            "nationality":    "HU",
+            "gender":         "Male",
+            "street_address": "Teszt u. 17",
+            "city":           "Budapest",
+            "postal_code":    "1000",
+            "country":        "Hungary",
+            "invitation_code": "AID17-TEST-CODE",
+        },
+    )
+    assert r.status_code == 200, (
+        f"Registration returned {r.status_code} — "
+        f"likely missing migration 2026_06_09_1000 (lfa_academy_id/public_token).\n"
+        f"Response: {r.text[:300]}"
+    )
+    body = r.json()
+    assert "access_token" in body, "No access_token in registration response"
+
+
+# ---------------------------------------------------------------------------
 # Unit: specialization display labels
 # ---------------------------------------------------------------------------
 
