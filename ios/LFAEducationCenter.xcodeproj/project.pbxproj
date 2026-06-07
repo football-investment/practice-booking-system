@@ -17,6 +17,11 @@
 		BB000004000000000000008 /* SkeletonFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000010 /* SkeletonFrame.swift */; };
 		BB000004000000000000009 /* SkeletonBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000011 /* SkeletonBridge.swift */; };
 		BB000004000000000000010 /* skeleton_receiver.html in Resources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000012 /* skeleton_receiver.html */; };
+		BB000004000000000000011 /* AuthToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000013 /* AuthToken.swift */; };
+		BB000004000000000000012 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000014 /* KeychainService.swift */; };
+		BB000004000000000000013 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000015 /* AuthManager.swift */; };
+		BB000004000000000000014 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000016 /* LoginView.swift */; };
+		BB000004000000000000015 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000017 /* APIClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +37,11 @@
 		BB000003000000000000010 /* SkeletonFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonFrame.swift; sourceTree = "<group>"; };
 		BB000003000000000000011 /* SkeletonBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonBridge.swift; sourceTree = "<group>"; };
 		BB000003000000000000012 /* skeleton_receiver.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = skeleton_receiver.html; sourceTree = "<group>"; };
+		BB000003000000000000013 /* AuthToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthToken.swift; sourceTree = "<group>"; };
+		BB000003000000000000014 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		BB000003000000000000015 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		BB000003000000000000016 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		BB000003000000000000017 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,6 +137,10 @@
 		BB000002000000000000009 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				BB000003000000000000013 /* AuthToken.swift */,
+				BB000003000000000000014 /* KeychainService.swift */,
+				BB000003000000000000015 /* AuthManager.swift */,
+				BB000003000000000000016 /* LoginView.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -155,6 +169,7 @@
 		BB000002000000000000013 /* Networking */ = {
 			isa = PBXGroup;
 			children = (
+				BB000003000000000000017 /* APIClient.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -237,6 +252,11 @@
 				BB000004000000000000007 /* CameraManager.swift in Sources */,
 				BB000004000000000000008 /* SkeletonFrame.swift in Sources */,
 				BB000004000000000000009 /* SkeletonBridge.swift in Sources */,
+				BB000004000000000000011 /* AuthToken.swift in Sources */,
+				BB000004000000000000012 /* KeychainService.swift in Sources */,
+				BB000004000000000000013 /* AuthManager.swift in Sources */,
+				BB000004000000000000014 /* LoginView.swift in Sources */,
+				BB000004000000000000015 /* APIClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

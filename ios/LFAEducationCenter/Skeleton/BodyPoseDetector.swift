@@ -148,7 +148,7 @@ final class BodyPoseDetector: NSObject, ObservableObject, AVCaptureVideoDataOutp
         }
 
         // ── Hands ─────────────────────────────────────────────────────────────
-        let rawHandObs = (handRequest.results as? [VNHumanHandPoseObservation]) ?? []
+        let rawHandObs = handRequest.results ?? []
         typealias HandEntry = (obs: VNHumanHandPoseObservation,
                                pts: [VNHumanHandPoseObservation.JointName: NormalizedPoint])
         var entries: [HandEntry] = []
@@ -186,7 +186,7 @@ final class BodyPoseDetector: NSObject, ObservableObject, AVCaptureVideoDataOutp
         // ── Face ──────────────────────────────────────────────────────────────
         var faceResult: FaceLandmarksData? = nil
         if let fr = faceRequest,
-           let obs = (fr.results as? [VNFaceObservation])?.first {
+           let obs = fr.results?.first {
 
             let bb = obs.boundingBox
             let regionDefs: [(String, VNFaceLandmarkRegion2D?)] = [

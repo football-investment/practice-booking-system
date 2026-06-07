@@ -1,12 +1,20 @@
 import SwiftUI
 
-// Phase A: tab navigation shell.
-// Phase B replaces this with auth-gated routing (LoginView → MainTabView).
+// Auth-gated root: shows LoginView until isLoggedIn, then MainTabView.
+// Phase C adds: token refresh on 401, session expiry handling.
 struct RootView: View {
+    @EnvironmentObject var authManager: AuthManager
+
     var body: some View {
-        MainTabView()
+        if authManager.isLoggedIn {
+            MainTabView()
+        } else {
+            LoginView()
+        }
     }
 }
+
+// MARK: — Main tab navigation
 
 struct MainTabView: View {
     var body: some View {
@@ -26,16 +34,54 @@ struct MainTabView: View {
                               icon: "stopwatch.fill")
                 .tabItem { Label("Training", systemImage: "stopwatch.fill") }
 
-            PlaceholderScreen(title: "Profile",
-                              subtitle: "User profile — Phase D",
-                              icon: "person.fill")
+            ProfileTab()
                 .tabItem { Label("Profile", systemImage: "person.fill") }
         }
         .accentColor(Theme.Color.primary)
     }
 }
 
-// Shared placeholder used in Phase A for screens not yet implemented.
+// MARK: — Profile tab (logout available in Phase B)
+
+private struct ProfileTab: View {
+    @EnvironmentObject var authManager: AuthManager
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "person.fill")
+                .font(.system(size: 52))
+                .foregroundColor(Theme.Color.muted)
+                .padding(.top, Theme.Spacing.xl)
+
+            Text("Profile")
+                .font(.title2.weight(.semibold))
+                .foregroundColor(Theme.Color.onSurface)
+
+            Text("Native profile — Phase D")
+                .font(.subheadline)
+                .foregroundColor(Theme.Color.muted)
+
+            Spacer()
+
+            Button {
+                authManager.logout()
+            } label: {
+                Text("Sign Out")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(Theme.Color.error.opacity(0.12))
+                    .foregroundColor(Theme.Color.error)
+                    .cornerRadius(Theme.Radius.sm)
+            }
+            .padding(.horizontal, Theme.Spacing.xl)
+            .padding(.bottom, Theme.Spacing.xl)
+        }
+    }
+}
+
+// MARK: — Generic placeholder for Phase A tabs
+
 struct PlaceholderScreen: View {
     let title:    String
     let subtitle: String
@@ -46,17 +92,14 @@ struct PlaceholderScreen: View {
             Image(systemName: icon)
                 .font(.system(size: 52))
                 .foregroundColor(Theme.Color.muted)
-
             Text(title)
                 .font(.title2.weight(.semibold))
                 .foregroundColor(Theme.Color.onSurface)
-
             Text(subtitle)
                 .font(.subheadline)
                 .foregroundColor(Theme.Color.muted)
                 .multilineTextAlignment(.center)
         }
         .padding(Theme.Spacing.xl)
-        .navigationTitle(title)
     }
 }
