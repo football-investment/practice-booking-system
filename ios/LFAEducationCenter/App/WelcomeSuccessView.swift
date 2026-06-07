@@ -32,13 +32,20 @@ struct WelcomeSuccessView: View {
                     .opacity(appeared ? 1 : 0)
                     .scaleEffect(appeared ? 1 : 0.88)
 
-                // Welcome headline
-                Text("Welcome, \(firstName)!")
-                    .font(.title2.weight(.bold))
-                    .foregroundColor(Theme.Color.onSurface)
-                    .multilineTextAlignment(.center)
-                    .opacity(appeared ? 1 : 0)
-                    .padding(.bottom, Theme.Spacing.sm)
+                // Welcome headline — explicit line break prevents single-line truncation
+                VStack(spacing: 2) {
+                    Text("Welcome, \(firstName)!")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(Theme.Color.onSurface)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("LFA Education Center")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(Theme.Color.muted)
+                        .multilineTextAlignment(.center)
+                }
+                .opacity(appeared ? 1 : 0)
+                .padding(.bottom, Theme.Spacing.sm)
 
                 // Sub-messages
                 VStack(spacing: Theme.Spacing.sm) {
@@ -46,11 +53,13 @@ struct WelcomeSuccessView: View {
                         .font(.subheadline)
                         .foregroundColor(Theme.Color.muted)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("Choose your first specialization and start your journey.")
                         .font(.subheadline)
                         .foregroundColor(Theme.Color.muted)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     // Credit balance — shown only when loaded; hidden on fetch error.
                     if let cr = creditBalance {
