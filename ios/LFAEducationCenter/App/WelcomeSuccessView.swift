@@ -32,18 +32,22 @@ struct WelcomeSuccessView: View {
                     .opacity(appeared ? 1 : 0)
                     .scaleEffect(appeared ? 1 : 0.88)
 
-                // Welcome headline — explicit line break prevents single-line truncation
-                VStack(spacing: 2) {
-                    Text("Welcome, \(firstName)!")
+                // Welcome headline — name on its own line, width-constrained to force wrap.
+                VStack(spacing: 6) {
+                    Text("Welcome,")
                         .font(.title2.weight(.bold))
                         .foregroundColor(Theme.Color.onSurface)
+                    Text("\(firstName)!")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(Theme.Color.primary)
                         .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(nil)
                     Text("LFA Education Center")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(Theme.Color.muted)
-                        .multilineTextAlignment(.center)
                 }
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Spacing.xl)
                 .opacity(appeared ? 1 : 0)
                 .padding(.bottom, Theme.Spacing.sm)
 
