@@ -2,6 +2,7 @@ import SwiftUI
 
 // Central hub — mirrors hub_specializations.html.
 // Login → MainHubView (this) → LFA card tap → LFASpecTabView (fullScreenCover).
+// LFASpecTabView is only accessible from the .active card state.
 // All other specializations are "Coming Soon" for now.
 struct MainHubView: View {
     @EnvironmentObject var authManager: AuthManager
@@ -16,15 +17,15 @@ struct MainHubView: View {
                     creditSection
                     Divider()
 
-                    // LFA Football Player — primary active specialization
+                    // LFA Football Player — state-driven card
+                    let lfaState = dashboardVM.lfaCardState
                     SpecCard(
                         icon:     "⚽",
                         title:    "LFA Football Player",
-                        subtitle: "Skill development · Tournaments · Cards",
-                        status:   .active
-                    ) {
-                        isShowingLFASpec = true
-                    }
+                        subtitle: lfaSubtitle(for: lfaState),
+                        status:   lfaSpecStatus(for: lfaState),
+                        action:   lfaState == .active ? { isShowingLFASpec = true } : nil
+                    )
 
                     // Coming-soon specializations
                     SpecCard(icon: "🏮", title: "GānCuju Player",
@@ -46,11 +47,36 @@ struct MainHubView: View {
         }
         .navigationViewStyle(.stack)
         .onAppear {
-            // Pre-load profile so credit balance appears without entering the spec.
             Task { await dashboardVM.load(using: authManager) }
         }
         .fullScreenCover(isPresented: $isShowingLFASpec) {
             LFASpecTabView()
+        }
+    }
+
+    // MARK: — LFA card helpers
+
+    private func lfaSpecStatus(for state: LFACardState) -> SpecStatus {
+        switch state {
+        case .loading:             return .comingSoon
+        case .ageLocked:           return .ageLocked
+        case .insufficientCredits: return .insufficientCredits
+        case .unlockAvailable:     return .unlockAvailable
+        case .setupPending:        return .setupPending
+        case .active:              return .active
+        }
+    }
+
+    private func lfaSubtitle(for state: LFACardState) -> String {
+        switch state {
+        case .loading:             return "Loading..."
+        case .ageLocked:           return "Minimum age: 5 years"
+        case .insufficientCredits: return "100 CR required to unlock"
+        case .unlockAvailable:
+            let cr = dashboardVM.profile?.creditBalance ?? 0
+            return "Ready to unlock · \(cr) CR available"
+        case .setupPending:        return "Complete onboarding to continue"
+        case .active:              return "Skill development · Tournaments · Cards"
         }
     }
 
@@ -101,7 +127,22 @@ struct MainHubView: View {
 
 // MARK: — Specialization card
 
-private enum SpecStatus { case active, comingSoon }
+private enum SpecStatus {
+    case active
+    case ageLocked
+    case insufficientCredits
+    case unlockAvailable
+    case setupPending
+    case comingSoon
+
+    // Full opacity + primary title colour for actionable/prominent states.
+    var isProminent: Bool {
+        switch self {
+        case .active, .unlockAvailable: return true
+        default: return false
+        }
+    }
+}
 
 private struct SpecCard: View {
     let icon:     String
@@ -120,7 +161,7 @@ private struct SpecCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(status == .active ? Theme.Color.onSurface : Theme.Color.muted)
+                        .foregroundColor(status.isProminent ? Theme.Color.onSurface : Theme.Color.muted)
                     Text(subtitle)
                         .font(.caption)
                         .foregroundColor(Theme.Color.muted)
@@ -133,7 +174,7 @@ private struct SpecCard: View {
             .padding(Theme.Spacing.md)
             .background(Theme.Color.surface)
             .cornerRadius(Theme.Radius.md)
-            .opacity(status == .active ? 1.0 : 0.55)
+            .opacity(status.isProminent ? 1.0 : 0.55)
         }
         .disabled(action == nil)
     }
@@ -145,6 +186,43 @@ private struct SpecCard: View {
             Text("Open →")
                 .font(.caption.weight(.semibold))
                 .foregroundColor(Theme.Color.primary)
+
+        case .unlockAvailable:
+            Text("Unlock Available")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(Theme.Color.primary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Theme.Color.primary.opacity(0.12))
+                .cornerRadius(4)
+
+        case .setupPending:
+            Text("Setup Pending")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(Theme.Color.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Theme.Color.secondary.opacity(0.12))
+                .cornerRadius(4)
+
+        case .ageLocked:
+            Text("Age Locked")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(Theme.Color.error)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Theme.Color.error.opacity(0.12))
+                .cornerRadius(4)
+
+        case .insufficientCredits:
+            Text("Need Credits")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(Theme.Color.muted)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Theme.Color.muted.opacity(0.15))
+                .cornerRadius(4)
+
         case .comingSoon:
             Text("Coming Soon")
                 .font(.caption.weight(.semibold))

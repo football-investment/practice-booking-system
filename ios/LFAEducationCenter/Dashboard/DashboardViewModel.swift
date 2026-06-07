@@ -1,5 +1,23 @@
 import Foundation
 
+// LFA Football Player card state — drives MainHubView card badge/action.
+//
+// State machine (evaluated in order):
+//   profile not loaded yet         → loading
+//   profile.calculatedAge < 5      → ageLocked        (tap disabled)
+//   no lfaLicense, credit < 100    → insufficientCredits (tap disabled)
+//   no lfaLicense, credit ≥ 100    → unlockAvailable  (tap disabled; R3 adds confirm)
+//   license, onboarding incomplete → setupPending      (tap disabled; R4 adds flow)
+//   license, onboarding complete   → active            (tap opens LFASpecTabView)
+enum LFACardState {
+    case loading
+    case ageLocked
+    case insufficientCredits
+    case unlockAvailable
+    case setupPending
+    case active
+}
+
 // Dashboard load state.
 enum DashboardLoadState: Equatable {
     case idle
@@ -36,6 +54,17 @@ final class DashboardViewModel: ObservableObject {
     @Published private(set) var lfaLicense: LFAPlayerLicense?  = nil
     @Published private(set) var dashboard:  LicenseDashboard?  = nil
     @Published private(set) var licenses:   [UserLicense]      = []  // GānCuju, reserved
+
+    // MARK: — LFA Card State
+
+    var lfaCardState: LFACardState {
+        guard loadState == .loaded, let profile else { return .loading }
+        if let age = profile.calculatedAge, age < 5 { return .ageLocked }
+        if let license = lfaLicense {
+            return (license.onboardingCompleted && license.isActive) ? .active : .setupPending
+        }
+        return (profile.creditBalance ?? 0) >= 100 ? .unlockAvailable : .insufficientCredits
+    }
 
     // MARK: — Load (initial, guarded)
 
