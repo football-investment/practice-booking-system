@@ -12,6 +12,8 @@ struct MainHubView: View {
     @EnvironmentObject var dashboardVM: DashboardViewModel
     @State private var isShowingLFASpec   = false
     @State private var isShowingAcademyID = false
+    @State private var isShowingCredits   = false
+    @State private var isShowingProfile   = false
 
     private let gridColumns = [GridItem(.adaptive(minimum: 150), spacing: Theme.Spacing.sm)]
 
@@ -34,7 +36,9 @@ struct MainHubView: View {
                             subtitle: lfaSubtitle(for: lfaState),
                             ageLabel: "5+",
                             status:   lfaSpecStatus(for: lfaState),
-                            action:   lfaState == .active ? { isShowingLFASpec = true } : nil
+                            // .active → open LFASpecTabView
+                            // .insufficientCredits → open CreditsView (R3A)
+                            action:   lfaCardAction(for: lfaState)
                         )
                         SpecCard(
                             icon:     "🏮",
@@ -66,6 +70,8 @@ struct MainHubView: View {
 
                     Divider().padding(.vertical, Theme.Spacing.xs)
                     academyIDButton
+                    creditsButton
+                    profileButton
                     Divider().padding(.vertical, Theme.Spacing.xs)
                     signOutButton
                 }
@@ -85,9 +91,31 @@ struct MainHubView: View {
                 .environmentObject(authManager)
                 .environmentObject(dashboardVM)
         }
+        .fullScreenCover(isPresented: $isShowingCredits) {
+            CreditsView()
+                .environmentObject(authManager)
+                .environmentObject(dashboardVM)
+        }
+        .fullScreenCover(isPresented: $isShowingProfile) {
+            ProfileView()
+                .environmentObject(authManager)
+                .environmentObject(dashboardVM)
+        }
     }
 
     // MARK: — LFA card helpers
+
+    // Returns the tap action for the LFA Football Player SpecCard.
+    // .active            → open LFASpecTabView (specialization dashboard)
+    // .insufficientCredits → open CreditsView (R3A: no more zsákutca)
+    // all other states   → nil (tap disabled)
+    private func lfaCardAction(for state: LFACardState) -> (() -> Void)? {
+        switch state {
+        case .active:              return { isShowingLFASpec = true }
+        case .insufficientCredits: return { isShowingCredits = true }
+        default:                   return nil
+        }
+    }
 
     private func lfaSpecStatus(for state: LFACardState) -> SpecStatus {
         switch state {
@@ -104,7 +132,9 @@ struct MainHubView: View {
         switch state {
         case .loading:             return "Loading..."
         case .ageLocked:           return "Min. age: 5 years"
-        case .insufficientCredits: return "100 CR to unlock"
+        case .insufficientCredits:
+            let cr = dashboardVM.profile?.creditBalance ?? 0
+            return "\(cr)/100 CR · Tap for credits"
         case .unlockAvailable:
             let cr = dashboardVM.profile?.creditBalance ?? 0
             return "\(cr) CR · Ready"
@@ -145,15 +175,57 @@ struct MainHubView: View {
 
     // My Academy ID — universal entry (not gated by LFA card state)
     private var academyIDButton: some View {
-        Button { isShowingAcademyID = true } label: {
+        hubEntryButton(
+            icon: "creditcard.fill",
+            label: "My Academy ID",
+            action: { isShowingAcademyID = true }
+        )
+    }
+
+    // Credits — balance overview + history + how to get info
+    private var creditsButton: some View {
+        hubEntryButton(
+            icon: "banknote",
+            label: "Credits",
+            badge: "\(dashboardVM.profile?.creditBalance ?? 0) CR",
+            action: { isShowingCredits = true }
+        )
+    }
+
+    // Profile — read-only name / email / role / Academy ID link
+    private var profileButton: some View {
+        hubEntryButton(
+            icon: "person.fill",
+            label: "Profile",
+            action: { isShowingProfile = true }
+        )
+    }
+
+    private func hubEntryButton(
+        icon: String,
+        label: String,
+        badge: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             HStack {
-                Image(systemName: "creditcard.fill")
+                Image(systemName: icon)
                     .font(.system(size: 15))
                     .foregroundColor(Theme.Color.secondary)
-                Text("My Academy ID")
+                    .frame(width: 24)
+                Text(label)
                     .font(.body.weight(.semibold))
                     .foregroundColor(Theme.Color.onSurface)
                 Spacer()
+                if let badge = badge {
+                    Text(badge)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Theme.Color.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Theme.Color.secondary.opacity(0.12))
+                        .cornerRadius(Theme.Radius.sm)
+                }
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(Theme.Color.muted)
@@ -193,8 +265,8 @@ private enum SpecStatus {
     // Full opacity + primary title colour for actionable/prominent states.
     var isProminent: Bool {
         switch self {
-        case .active, .unlockAvailable: return true
-        default:                        return false
+        case .active, .unlockAvailable, .insufficientCredits: return true
+        default:                                              return false
         }
     }
 }

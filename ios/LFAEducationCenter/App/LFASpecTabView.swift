@@ -38,6 +38,8 @@ private struct LFAProfileTab: View {
     let onReturnToHub: () -> Void
 
     @State private var isShowingAcademyID = false
+    @State private var isShowingCredits   = false
+    @State private var isShowingProfile   = false
 
     var body: some View {
         NavigationView {
@@ -45,12 +47,24 @@ private struct LFAProfileTab: View {
                 profileHeader
                 Spacer()
                 academyIDRow
+                creditsRow
+                profileRow
                 returnToHubButton
                 signOutButton
             }
             .navigationTitle("Profile")
             .fullScreenCover(isPresented: $isShowingAcademyID) {
                 AcademyIDFullScreenView()
+                    .environmentObject(authManager)
+                    .environmentObject(dashboardVM)
+            }
+            .fullScreenCover(isPresented: $isShowingCredits) {
+                CreditsView()
+                    .environmentObject(authManager)
+                    .environmentObject(dashboardVM)
+            }
+            .fullScreenCover(isPresented: $isShowingProfile) {
+                ProfileView()
                     .environmentObject(authManager)
                     .environmentObject(dashboardVM)
             }
@@ -100,18 +114,26 @@ private struct LFAProfileTab: View {
         }
     }
 
-    // My Academy ID — universally accessible from Profile tab
-    private var academyIDRow: some View {
-        Button { isShowingAcademyID = true } label: {
+    private func tabRow(icon: String, label: String, badge: String? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack {
-                Image(systemName: "creditcard.fill")
+                Image(systemName: icon)
                     .font(.system(size: 15))
                     .foregroundColor(Theme.Color.secondary)
                     .frame(width: 28)
-                Text("My Academy ID")
+                Text(label)
                     .font(.body.weight(.semibold))
                     .foregroundColor(Theme.Color.onSurface)
                 Spacer()
+                if let badge = badge {
+                    Text(badge)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Theme.Color.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Theme.Color.secondary.opacity(0.12))
+                        .cornerRadius(Theme.Radius.sm)
+                }
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(Theme.Color.muted)
@@ -119,6 +141,19 @@ private struct LFAProfileTab: View {
             .padding(.horizontal, Theme.Spacing.xl)
             .frame(height: 48)
         }
+    }
+
+    private var academyIDRow: some View {
+        tabRow(icon: "creditcard.fill", label: "My Academy ID") { isShowingAcademyID = true }
+    }
+
+    private var creditsRow: some View {
+        let cr = dashboardVM.profile?.creditBalance ?? 0
+        return tabRow(icon: "banknote", label: "Credits", badge: "\(cr) CR") { isShowingCredits = true }
+    }
+
+    private var profileRow: some View {
+        tabRow(icon: "person.fill", label: "Profile") { isShowingProfile = true }
     }
 
     private var returnToHubButton: some View {

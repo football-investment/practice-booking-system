@@ -46,6 +46,10 @@
 		BB000004000000000000037 /* AcademyIDResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000039 /* AcademyIDResponse.swift */; };
 		BB000004000000000000038 /* AcademyIDViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000040 /* AcademyIDViewModel.swift */; };
 		BB000004000000000000039 /* AcademyIDFullScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000041 /* AcademyIDFullScreenView.swift */; };
+		BB000004000000000000040 /* CreditTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000042 /* CreditTransaction.swift */; };
+		BB000004000000000000041 /* CreditsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000043 /* CreditsViewModel.swift */; };
+		BB000004000000000000042 /* CreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000044 /* CreditsView.swift */; };
+		BB000004000000000000043 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000045 /* ProfileView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -90,6 +94,10 @@
 		BB000003000000000000039 /* AcademyIDResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDResponse.swift; sourceTree = "<group>"; };
 		BB000003000000000000040 /* AcademyIDViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDViewModel.swift; sourceTree = "<group>"; };
 		BB000003000000000000041 /* AcademyIDFullScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDFullScreenView.swift; sourceTree = "<group>"; };
+		BB000003000000000000042 /* CreditTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreditTransaction.swift; sourceTree = "<group>"; };
+		BB000003000000000000043 /* CreditsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreditsViewModel.swift; sourceTree = "<group>"; };
+		BB000003000000000000044 /* CreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreditsView.swift; sourceTree = "<group>"; };
+		BB000003000000000000045 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +140,8 @@
 				BB000002000000000000011 /* Education */,
 				BB000002000000000000012 /* Training */,
 				BB000002000000000000013 /* Networking */,
+				BB000002000000000000014 /* Credits */,
+				BB000002000000000000015 /* Profile */,
 				BB000003000000000000004 /* Assets.xcassets */,
 			);
 			path = LFAEducationCenter;
@@ -193,6 +203,7 @@
 				BB000003000000000000027 /* SpecializationProgress.swift */,
 				BB000003000000000000028 /* SkillProfile.swift */,
 				BB000003000000000000039 /* AcademyIDResponse.swift */,
+				BB000003000000000000042 /* CreditTransaction.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -244,6 +255,23 @@
 				BB000003000000000000017 /* APIClient.swift */,
 			);
 			path = Networking;
+			sourceTree = "<group>";
+		};
+		BB000002000000000000014 /* Credits */ = {
+			isa = PBXGroup;
+			children = (
+				BB000003000000000000043 /* CreditsViewModel.swift */,
+				BB000003000000000000044 /* CreditsView.swift */,
+			);
+			path = Credits;
+			sourceTree = "<group>";
+		};
+		BB000002000000000000015 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				BB000003000000000000045 /* ProfileView.swift */,
+			);
+			path = Profile;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -353,6 +381,10 @@
 				BB000004000000000000037 /* AcademyIDResponse.swift in Sources */,
 				BB000004000000000000038 /* AcademyIDViewModel.swift in Sources */,
 				BB000004000000000000039 /* AcademyIDFullScreenView.swift in Sources */,
+				BB000004000000000000040 /* CreditTransaction.swift in Sources */,
+				BB000004000000000000041 /* CreditsViewModel.swift in Sources */,
+				BB000004000000000000042 /* CreditsView.swift in Sources */,
+				BB000004000000000000043 /* ProfileView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
