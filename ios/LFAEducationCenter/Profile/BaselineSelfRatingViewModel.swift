@@ -31,7 +31,7 @@ enum SelfAssessmentState {
 // Scale: 0–99 (integer), default: 60 (SYSTEM_BASELINE).
 // Does NOT modify current_level, system_baseline, OVR, or onboarding_completed.
 @MainActor
-final class GoalsMotivationViewModel: ObservableObject {
+final class BaselineSelfRatingViewModel: ObservableObject {
 
     // One Double per skill key — Double for SwiftUI Slider compatibility.
     // Initialised to 60.0 (backend SYSTEM_BASELINE).

@@ -13,14 +13,14 @@ import SwiftUI
 //   - motivation_scores["self_assessment_completed"] is set to true on success
 //
 // On success: onSuccess() → dashboardVM.reload() → ProfileCompletionScore +15.
-struct GoalsMotivationView: View {
+struct BaselineSelfRatingView: View {
 
     @EnvironmentObject private var authManager: AuthManager
     @Environment(\.presentationMode) private var presentationMode
 
     let onSuccess: () -> Void
 
-    @StateObject private var vm = GoalsMotivationViewModel()
+    @StateObject private var vm = BaselineSelfRatingViewModel()
 
     var body: some View {
         NavigationView {

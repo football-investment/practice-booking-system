@@ -14,7 +14,7 @@ struct ProfileView: View {
 
     @State private var isShowingAcademyID       = false
     @State private var isShowingPhotoUpload     = false
-    @State private var isShowingGoalsMotivation = false
+    @State private var isShowingBaselineSelfRating = false
 
     var body: some View {
         NavigationView {
@@ -55,8 +55,8 @@ struct ProfileView: View {
                 .environmentObject(authManager)
                 .environmentObject(dashboardVM)
             }
-            .fullScreenCover(isPresented: $isShowingGoalsMotivation) {
-                GoalsMotivationView {
+            .fullScreenCover(isPresented: $isShowingBaselineSelfRating) {
+                BaselineSelfRatingView {
                     Task { await dashboardVM.reload(using: authManager) }
                 }
                 .environmentObject(authManager)
@@ -149,13 +149,13 @@ struct ProfileView: View {
             let score = ProfileCompletionScore.compute(
                 profile:             profile,
                 lfaLicense:          dashboardVM.lfaLicense,
-                motivationCompleted: dashboardVM.motivationCompleted
+                selfRatingCompleted: dashboardVM.selfRatingCompleted
             )
             ProfileCompletionSection(
-                score:                score,
-                onAcademyIDTap:       { isShowingAcademyID = true },
-                onPhotoTap:           { isShowingPhotoUpload = true },
-                onGoalsMotivationTap: { isShowingGoalsMotivation = true }
+                score:                   score,
+                onAcademyIDTap:          { isShowingAcademyID = true },
+                onPhotoTap:              { isShowingPhotoUpload = true },
+                onBaselineSelfRatingTap: { isShowingBaselineSelfRating = true }
             )
                 .padding(.top, Theme.Spacing.lg)
         }

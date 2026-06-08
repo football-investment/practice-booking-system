@@ -55,7 +55,7 @@ final class DashboardViewModel: ObservableObject {
     @Published private(set) var lfaLicense:         LFAPlayerLicense?  = nil
     @Published private(set) var dashboard:          LicenseDashboard?  = nil
     @Published private(set) var licenses:           [UserLicense]      = []  // GānCuju, reserved
-    @Published private(set) var motivationCompleted: Bool              = false
+    @Published private(set) var selfRatingCompleted: Bool              = false
 
     // MARK: — LFA Card State
 
@@ -83,7 +83,7 @@ final class DashboardViewModel: ObservableObject {
         lfaLicense          = nil
         dashboard           = nil
         licenses            = []
-        motivationCompleted = false
+        selfRatingCompleted = false
         await fetchData(using: authManager)
     }
 
@@ -97,7 +97,7 @@ final class DashboardViewModel: ObservableObject {
         lfaLicense          = nil
         dashboard           = nil
         licenses            = []
-        motivationCompleted = false
+        selfRatingCompleted = false
         await fetchData(using: authManager)
     }
 
@@ -109,7 +109,7 @@ final class DashboardViewModel: ObservableObject {
         lfaLicense          = nil
         dashboard           = nil
         licenses            = []
-        motivationCompleted = false
+        selfRatingCompleted = false
     }
 
     // MARK: — Private
@@ -145,7 +145,7 @@ final class DashboardViewModel: ObservableObject {
             //    Returns {completed: bool} for the user's most recent license.
             //    404 (no license) or any decode error → false.
             struct MotivationCheck: Decodable { let completed: Bool }
-            motivationCompleted = (try? await authManager.authenticatedGet(
+            selfRatingCompleted = (try? await authManager.authenticatedGet(
                 path: "/api/v1/licenses/motivation-assessment"
             ) as MotivationCheck)?.completed ?? false
 
