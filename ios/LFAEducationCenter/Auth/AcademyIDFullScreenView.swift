@@ -93,8 +93,8 @@ struct AcademyIDFullScreenView: View {
             age:                      dashboardVM.profile?.calculatedAge,
             nationality:              dashboardVM.profile?.nationality ?? "",
             gender:                   dashboardVM.profile?.gender,
-            city:                     nil,   // Part B: city not yet in /users/me response
-            country:                  nil,   // Part B: country not yet in /users/me response
+            city:                     dashboardVM.profile?.city,
+            country:                  dashboardVM.profile?.country,
             profileImage:             nil,
             profilePhotoURL:          dashboardVM.profile?.profilePhotoUrl,
             profilePhotoProcessedURL: dashboardVM.profile?.profilePhotoProcessedUrl,
