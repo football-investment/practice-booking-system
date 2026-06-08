@@ -89,12 +89,12 @@ struct AcademyIDFullScreenView: View {
         AcademyIDCardView(
             firstName:                cardFirstName,
             lastName:                 cardLastName,
-            nickname:                 nil,
+            nickname:                 dashboardVM.profile?.nickname,
             age:                      dashboardVM.profile?.calculatedAge,
-            nationality:              "",
-            gender:                   nil,
-            city:                     nil,
-            country:                  nil,
+            nationality:              dashboardVM.profile?.nationality ?? "",
+            gender:                   dashboardVM.profile?.gender,
+            city:                     nil,   // Part B: city not yet in /users/me response
+            country:                  nil,   // Part B: country not yet in /users/me response
             profileImage:             nil,
             profilePhotoURL:          dashboardVM.profile?.profilePhotoUrl,
             profilePhotoProcessedURL: dashboardVM.profile?.profilePhotoProcessedUrl,
