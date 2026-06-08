@@ -86,8 +86,9 @@ struct DashboardView: View {
 
                 if dashboardVM.lfaLicense?.onboardingCompleted == true {
                     let score = ProfileCompletionScore.compute(
-                        profile: profile,
-                        lfaLicense: dashboardVM.lfaLicense
+                        profile:             profile,
+                        lfaLicense:          dashboardVM.lfaLicense,
+                        motivationCompleted: dashboardVM.motivationCompleted
                     )
                     ProfileCompletionCard(score: score,
                                          onViewAll: { isShowingProfile = true })

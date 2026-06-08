@@ -12,8 +12,9 @@ struct ProfileView: View {
 
     @Environment(\.presentationMode) private var presentationMode
 
-    @State private var isShowingAcademyID   = false
-    @State private var isShowingPhotoUpload = false
+    @State private var isShowingAcademyID       = false
+    @State private var isShowingPhotoUpload     = false
+    @State private var isShowingGoalsMotivation = false
 
     var body: some View {
         NavigationView {
@@ -49,6 +50,13 @@ struct ProfileView: View {
             }
             .fullScreenCover(isPresented: $isShowingPhotoUpload) {
                 ProfilePhotoUploadView {
+                    Task { await dashboardVM.reload(using: authManager) }
+                }
+                .environmentObject(authManager)
+                .environmentObject(dashboardVM)
+            }
+            .fullScreenCover(isPresented: $isShowingGoalsMotivation) {
+                GoalsMotivationView {
                     Task { await dashboardVM.reload(using: authManager) }
                 }
                 .environmentObject(authManager)
@@ -138,11 +146,17 @@ struct ProfileView: View {
     private var completionSection: some View {
         if let profile = dashboardVM.profile,
            dashboardVM.lfaLicense?.onboardingCompleted == true {
-            let score = ProfileCompletionScore.compute(profile: profile,
-                                                       lfaLicense: dashboardVM.lfaLicense)
-            ProfileCompletionSection(score: score,
-                                     onAcademyIDTap: { isShowingAcademyID = true },
-                                     onPhotoTap:     { isShowingPhotoUpload = true })
+            let score = ProfileCompletionScore.compute(
+                profile:             profile,
+                lfaLicense:          dashboardVM.lfaLicense,
+                motivationCompleted: dashboardVM.motivationCompleted
+            )
+            ProfileCompletionSection(
+                score:                score,
+                onAcademyIDTap:       { isShowingAcademyID = true },
+                onPhotoTap:           { isShowingPhotoUpload = true },
+                onGoalsMotivationTap: { isShowingGoalsMotivation = true }
+            )
                 .padding(.top, Theme.Spacing.lg)
         }
     }

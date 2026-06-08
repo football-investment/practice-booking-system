@@ -9,14 +9,14 @@ import SwiftUI
 //   Position & Physical  30  ← lfaLicense.onboardingCompleted
 //   Academy ID           10  ← profile.lfaAcademyId != nil
 //   Profile Photo        15  ← profile.profilePhotoUrl != nil
-//   Goals & Motivation   15  ← R3F (always 0 until implemented)
+//   Goals & Motivation   15  ← motivationCompleted (dashboardVM.motivationCompleted)
 //   Skill Assessment     20  ← R3E (always 0 until implemented)
 //   Mood Photos          10  ← R3D (always 0 until implemented)
 struct ProfileCompletionScore {
     let positionPhysical: Int
     let academyID:        Int
     let profilePhoto:     Int
-    let goalsMotivation:  Int   // R3F
+    let goalsMotivation:  Int   // R3F — live from motivationCompleted
     let skillAssessment:  Int   // R3E
     let moodPhotos:       Int   // R3D
 
@@ -27,12 +27,13 @@ struct ProfileCompletionScore {
     var fraction: Double { min(Double(total) / 100.0, 1.0) }
 
     static func compute(profile: UserProfile,
-                        lfaLicense: LFAPlayerLicense?) -> ProfileCompletionScore {
+                        lfaLicense: LFAPlayerLicense?,
+                        motivationCompleted: Bool = false) -> ProfileCompletionScore {
         ProfileCompletionScore(
             positionPhysical: lfaLicense?.onboardingCompleted == true ? 30 : 0,
             academyID:        profile.lfaAcademyId != nil ? 10 : 0,
             profilePhoto:     profile.profilePhotoUrl != nil ? 15 : 0,
-            goalsMotivation:  0,
+            goalsMotivation:  motivationCompleted ? 15 : 0,
             skillAssessment:  0,
             moodPhotos:       0
         )
@@ -142,11 +143,12 @@ struct ProfileCompletionCard: View {
 // MARK: — ProfileView full section
 
 // Full checklist shown in ProfileView.
-// Academy ID row is tappable; all future modules are "Coming Next".
+// Academy ID, Profile Photo, and Goals & Motivation rows are tappable.
 struct ProfileCompletionSection: View {
-    let score:           ProfileCompletionScore
-    let onAcademyIDTap:  () -> Void
-    let onPhotoTap:      () -> Void
+    let score:                ProfileCompletionScore
+    let onAcademyIDTap:       () -> Void
+    let onPhotoTap:           () -> Void
+    let onGoalsMotivationTap: () -> Void
 
     private static let successGreen = Color(red: 0.18, green: 0.80, blue: 0.44)
 
@@ -203,7 +205,8 @@ struct ProfileCompletionSection: View {
             row(icon: "target",
                 title: "Goals & Motivation",
                 subtitle: "Your football goals and drive",
-                state: score.goalsMotivation > 0 ? .complete : .upcoming("R3F"))
+                state: score.goalsMotivation > 0 ? .complete : .incomplete(action: onGoalsMotivationTap),
+                tapAction: score.goalsMotivation > 0 ? onGoalsMotivationTap : nil)
 
             row(icon: "slider.horizontal.3",
                 title: "Skill Assessment",
