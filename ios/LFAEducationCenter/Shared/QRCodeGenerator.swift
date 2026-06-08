@@ -21,9 +21,13 @@ enum QRCodeGenerator {
 
         guard let output = filter.outputImage else { return nil }
 
-        let transform = CGAffineTransform(scaleX: scale, y: scale)
-        let scaled    = output.transformed(by: transform)
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 
-        return UIImage(ciImage: scaled)
+        // CIImage-backed UIImage does not render in SwiftUI Image(uiImage:).
+        // Rasterise to CGImage via CIContext so both AcademyIDFullScreenView
+        // (200 pt) and AcademyIDCardView (56 pt) display correctly.
+        let context = CIContext()
+        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 }
