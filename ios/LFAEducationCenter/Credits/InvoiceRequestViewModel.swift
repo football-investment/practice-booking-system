@@ -53,10 +53,12 @@ private struct InvoiceRequestBody: Encodable {
 }
 
 struct InvoiceResult {
+    let invoiceId:        Int?
     let paymentReference: String
     let amountEur:        Double
     let creditAmount:     Int
     let status:           String
+    let createdAt:        String?   // ISO 8601 string from backend
 }
 
 private struct InvoiceResponse: Decodable {
@@ -66,12 +68,14 @@ private struct InvoiceResponse: Decodable {
     let creditAmount:     Int?
     let status:           String?
     let message:          String?
+    let createdAt:        String?
 
     enum CodingKeys: String, CodingKey {
         case id, status, message
         case paymentReference = "payment_reference"
         case amountEur        = "amount_eur"
         case creditAmount     = "credit_amount"
+        case createdAt        = "created_at"
     }
 }
 
@@ -81,7 +85,7 @@ private struct InvoiceResponse: Decodable {
 //
 // API: POST /api/v1/users/request-invoice (Bearer JSON)
 // Request: { "package_type": "PACKAGE_500", "specialization_type": "LFA_FOOTBALL_PLAYER" }
-// Response: payment_reference, amount_eur, credit_amount, status="pending"
+// Response: payment_reference, amount_eur, credit_amount, status="pending", created_at
 //
 // IMPORTANT: No immediate credit jóváírás — admin verifies bank transfer, then credits added.
 @MainActor
@@ -118,10 +122,12 @@ final class InvoiceRequestViewModel: ObservableObject {
                 return
             }
             state = .success(InvoiceResult(
+                invoiceId:        resp.id,
                 paymentReference: ref,
                 amountEur:        eur,
                 creditAmount:     cr,
-                status:           resp.status ?? "pending"
+                status:           resp.status ?? "pending",
+                createdAt:        resp.createdAt
             ))
         } catch APIError.httpError(let code, let detail) where code == 409 {
             state = .error(detail ?? "You already have a pending invoice. Complete your existing payment first.")
