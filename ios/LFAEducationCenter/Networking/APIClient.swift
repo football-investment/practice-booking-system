@@ -18,6 +18,26 @@ enum APIClient {
         return try await execute(request)
     }
 
+    // MARK: — POST (Multipart/form-data)
+    // Used for file upload endpoints (e.g. POST /api/v1/users/me/profile-photo).
+    // fieldName must match the FastAPI File(...) parameter name.
+
+    static func multipartPost<T: Decodable>(
+        path:      String,
+        imageData: Data,
+        mimeType:  String,
+        fieldName: String = "photo",
+        token:     String? = nil
+    ) async throws -> T {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request  = try buildMultipartRequest(path: path, boundary: boundary, token: token)
+        request.httpBody = buildMultipartBody(
+            imageData: imageData, mimeType: mimeType,
+            fieldName: fieldName, boundary: boundary
+        )
+        return try await execute(request)
+    }
+
     // MARK: — POST (Form-encoded)
     // Used by endpoints that declare FastAPI Form(...) parameters (e.g. /specialization/unlock).
 
@@ -58,6 +78,33 @@ enum APIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         return request
+    }
+
+    private static func buildMultipartRequest(path: String, boundary: String, token: String?) throws -> URLRequest {
+        guard let url = URL(string: APIConfig.baseURL + path) else {
+            throw APIError.invalidURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        return request
+    }
+
+    private static func buildMultipartBody(
+        imageData: Data, mimeType: String, fieldName: String, boundary: String
+    ) -> Data {
+        var body = Data()
+        let crlf = "\r\n"
+        body.append(Data("--\(boundary)\(crlf)".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"photo.jpg\"\(crlf)".utf8))
+        body.append(Data("Content-Type: \(mimeType)\(crlf)\(crlf)".utf8))
+        body.append(imageData)
+        body.append(Data("\(crlf)--\(boundary)--\(crlf)".utf8))
+        return body
     }
 
     private static func buildFormRequest(path: String, token: String?) throws -> URLRequest {

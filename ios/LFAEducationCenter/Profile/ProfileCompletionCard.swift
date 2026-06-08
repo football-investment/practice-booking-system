@@ -146,6 +146,7 @@ struct ProfileCompletionCard: View {
 struct ProfileCompletionSection: View {
     let score:           ProfileCompletionScore
     let onAcademyIDTap:  () -> Void
+    let onPhotoTap:      () -> Void
 
     private static let successGreen = Color(red: 0.18, green: 0.80, blue: 0.44)
 
@@ -196,7 +197,8 @@ struct ProfileCompletionSection: View {
             row(icon: "camera.fill",
                 title: "Profile Photo",
                 subtitle: "Your player profile photo",
-                state: score.profilePhoto > 0 ? .complete : .upcoming("R3D"))
+                state: score.profilePhoto > 0 ? .complete : .incomplete(action: onPhotoTap),
+                tapAction: score.profilePhoto > 0 ? onPhotoTap : nil)
 
             row(icon: "target",
                 title: "Goals & Motivation",
