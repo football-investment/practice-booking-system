@@ -2,41 +2,22 @@ import Foundation
 
 // MARK: — Request / Response
 
-private struct GoalsMotivationRequest: Encodable {
-    let lfaPlayer: LFAPlayerMotivationPayload
-    enum CodingKeys: String, CodingKey { case lfaPlayer = "lfa_player" }
+private struct SelfAssessmentRequest: Encodable {
+    let skills: [String: Int]
 }
 
-private struct LFAPlayerMotivationPayload: Encodable {
-    let preferredPosition:    String
-    let headingSelfRating:    Int
-    let shootingSelfRating:   Int
-    let crossingSelfRating:   Int
-    let passingSelfRating:    Int
-    let dribblingSelfRating:  Int
-    let ballControlSelfRating: Int
-    let defendingSelfRating:  Int
-
+private struct SelfAssessmentResponse: Decodable {
+    let success:            Bool
+    let selfAssessmentAverage: Double?
     enum CodingKeys: String, CodingKey {
-        case preferredPosition    = "preferred_position"
-        case headingSelfRating    = "heading_self_rating"
-        case shootingSelfRating   = "shooting_self_rating"
-        case crossingSelfRating   = "crossing_self_rating"
-        case passingSelfRating    = "passing_self_rating"
-        case dribblingSelfRating  = "dribbling_self_rating"
-        case ballControlSelfRating = "ball_control_self_rating"
-        case defendingSelfRating  = "defending_self_rating"
+        case success
+        case selfAssessmentAverage = "self_assessment_average"
     }
-}
-
-private struct GoalsMotivationSaveResponse: Decodable {
-    let success: Bool
-    let message: String
 }
 
 // MARK: — State
 
-enum GoalsMotivationState {
+enum SelfAssessmentState {
     case idle
     case saving
     case success
@@ -45,45 +26,33 @@ enum GoalsMotivationState {
 
 // MARK: — ViewModel
 
+// Manages the 44-skill baseline self-rating form.
+// POSTs to POST /api/v1/lfa-player/self-assessment.
+// Scale: 0–99 (integer), default: 60 (SYSTEM_BASELINE).
+// Does NOT modify current_level, system_baseline, OVR, or onboarding_completed.
 @MainActor
 final class GoalsMotivationViewModel: ObservableObject {
 
-    // Position picker
-    @Published var selectedPosition: String = "Striker"
-    let positions = ["Striker", "Midfielder", "Defender", "Goalkeeper"]
+    // One Double per skill key — Double for SwiftUI Slider compatibility.
+    // Initialised to 60.0 (backend SYSTEM_BASELINE).
+    @Published var ratings: [String: Double] = {
+        Dictionary(uniqueKeysWithValues: SkillConfig.allKeys.map { ($0, 60.0) })
+    }()
 
-    // Skill self-ratings (1–10, stored as Double for Slider compatibility)
-    @Published var heading:     Double = 5
-    @Published var shooting:    Double = 5
-    @Published var crossing:    Double = 5
-    @Published var passing:     Double = 5
-    @Published var dribbling:   Double = 5
-    @Published var ballControl: Double = 5
-    @Published var defending:   Double = 5
+    @Published private(set) var state: SelfAssessmentState = .idle
 
-    @Published private(set) var state: GoalsMotivationState = .idle
+    // MARK: — Save
 
-    // POST /api/v1/licenses/motivation-assessment
     func save(using authManager: AuthManager) async {
         state = .saving
 
-        let payload = GoalsMotivationRequest(
-            lfaPlayer: LFAPlayerMotivationPayload(
-                preferredPosition:    selectedPosition,
-                headingSelfRating:    Int(heading.rounded()),
-                shootingSelfRating:   Int(shooting.rounded()),
-                crossingSelfRating:   Int(crossing.rounded()),
-                passingSelfRating:    Int(passing.rounded()),
-                dribblingSelfRating:  Int(dribbling.rounded()),
-                ballControlSelfRating: Int(ballControl.rounded()),
-                defendingSelfRating:  Int(defending.rounded())
-            )
-        )
+        let intRatings = ratings.mapValues { Int($0.rounded()) }
+        let body = SelfAssessmentRequest(skills: intRatings)
 
         do {
-            let response: GoalsMotivationSaveResponse = try await authManager.authenticatedPost(
-                path: "/api/v1/licenses/motivation-assessment",
-                body: payload
+            let response: SelfAssessmentResponse = try await authManager.authenticatedPost(
+                path: "/api/v1/lfa-player/self-assessment",
+                body: body
             )
             state = response.success ? .success : .error("Could not save. Please try again.")
         } catch APIError.httpError(let code, let detail) {

@@ -1,10 +1,18 @@
 import SwiftUI
 
-// Goals & Motivation — LFA Football Player self-assessment.
+// Baseline Self-Rating — 44-skill self-assessment for LFA Football Player.
 //
-// Collects preferred position + 7 skill self-ratings (1–10) and
-// POSTs to /api/v1/licenses/motivation-assessment as lfa_player data.
-// On success: onSuccess() → dashboardVM.reload() → ProfileCompletionScore +15%.
+// Collects a self-rating (0–99) for each of the 44 football skills,
+// grouped into 4 categories matching the backend SKILL_CATEGORIES order.
+// POSTs to POST /api/v1/lfa-player/self-assessment.
+//
+// Rules:
+//   - current_level stays at 60.0 (SYSTEM_BASELINE) — not touched
+//   - system_baseline / baseline / OVR / onboarding_completed — not touched
+//   - Only football_skills[key].self_assessment is updated per skill
+//   - motivation_scores["self_assessment_completed"] is set to true on success
+//
+// On success: onSuccess() → dashboardVM.reload() → ProfileCompletionScore +15.
 struct GoalsMotivationView: View {
 
     @EnvironmentObject private var authManager: AuthManager
@@ -18,16 +26,17 @@ struct GoalsMotivationView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                    positionSection
-                    Divider()
-                    skillSection
+                    headerSection
+                    ForEach(SkillConfig.categories, id: \.nameEn) { category in
+                        categorySection(category)
+                    }
                     saveButton
                     Spacer(minLength: Theme.Spacing.xl)
                 }
                 .padding(Theme.Spacing.md)
             }
             .background(Color(UIColor.systemBackground).ignoresSafeArea())
-            .navigationTitle("Goals & Motivation")
+            .navigationTitle("Baseline Self-Rating")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -51,81 +60,61 @@ struct GoalsMotivationView: View {
         }
     }
 
-    // MARK: — Position section
+    // MARK: — Header
 
-    private var positionSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            sectionHeader("PREFERRED POSITION")
-            LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
-                spacing: Theme.Spacing.sm
-            ) {
-                ForEach(vm.positions, id: \.self) { pos in
-                    Button { vm.selectedPosition = pos } label: {
-                        Text(pos)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(
-                                vm.selectedPosition == pos
-                                    ? Theme.Color.primary
-                                    : Theme.Color.surface
-                            )
-                            .foregroundColor(
-                                vm.selectedPosition == pos ? .white : Theme.Color.onSurface
-                            )
-                            .cornerRadius(Theme.Radius.sm)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: Theme.Radius.sm)
-                                    .stroke(
-                                        vm.selectedPosition == pos
-                                            ? Theme.Color.primary
-                                            : Theme.Color.muted.opacity(0.3),
-                                        lineWidth: 1
-                                    )
-                            )
-                    }
-                    .disabled(isSaving)
-                }
-            }
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text("Rate yourself honestly. Your real skill level starts from 60 and will evolve based on your training and assessments.")
+                .font(.subheadline)
+                .foregroundColor(Theme.Color.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    // MARK: — Skill section
+    // MARK: — Category section
 
-    private var skillSection: some View {
+    private func categorySection(_ category: SkillCategory) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            sectionHeader("SKILL SELF-ASSESSMENT  (1 – 10)")
-            VStack(spacing: 2) {
-                skillRow(label: "Heading",      binding: $vm.heading)
-                skillRow(label: "Shooting",     binding: $vm.shooting)
-                skillRow(label: "Crossing",     binding: $vm.crossing)
-                skillRow(label: "Passing",      binding: $vm.passing)
-                skillRow(label: "Dribbling",    binding: $vm.dribbling)
-                skillRow(label: "Ball Control", binding: $vm.ballControl)
-                skillRow(label: "Defending",    binding: $vm.defending)
+            sectionHeader(category.nameEn)
+            VStack(spacing: 0) {
+                ForEach(category.skills, id: \.key) { skill in
+                    skillRow(skill: skill)
+                    if skill.key != category.skills.last?.key {
+                        Divider()
+                            .padding(.leading, Theme.Spacing.md)
+                    }
+                }
             }
             .background(Theme.Color.surface)
             .cornerRadius(Theme.Radius.md)
         }
     }
 
-    private func skillRow(label: String, binding: Binding<Double>) -> some View {
+    private func skillRow(skill: SkillDefinition) -> some View {
         HStack(spacing: Theme.Spacing.sm) {
-            Text(label)
+            Text(skill.nameEn)
                 .font(.subheadline)
                 .foregroundColor(Theme.Color.onSurface)
-                .frame(width: 100, alignment: .leading)
-            Slider(value: binding, in: 1...10, step: 1)
-                .accentColor(Theme.Color.primary)
-                .disabled(isSaving)
-            Text("\(Int(binding.wrappedValue.rounded()))")
+                .frame(width: 130, alignment: .leading)
+                .minimumScaleFactor(0.8)
+                .lineLimit(1)
+            Slider(
+                value: Binding(
+                    get: { vm.ratings[skill.key] ?? 60.0 },
+                    set: { vm.ratings[skill.key] = $0 }
+                ),
+                in: 0...99,
+                step: 1
+            )
+            .accentColor(Theme.Color.primary)
+            .disabled(isSaving)
+            Text("\(Int((vm.ratings[skill.key] ?? 60.0).rounded()))")
                 .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundColor(Theme.Color.primary)
-                .frame(width: 22, alignment: .trailing)
+                .frame(width: 28, alignment: .trailing)
         }
         .padding(.horizontal, Theme.Spacing.md)
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
     }
 
     // MARK: — Save button
@@ -134,7 +123,7 @@ struct GoalsMotivationView: View {
     private var saveButton: some View {
         switch vm.state {
         case .idle:
-            primaryButton(title: "Save Assessment") {
+            primaryButton(title: "Save Self-Rating") {
                 Task { await vm.save(using: authManager) }
             }
 
@@ -153,14 +142,14 @@ struct GoalsMotivationView: View {
             HStack(spacing: 8) {
                 Spacer()
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(Color(red: 0.18, green: 0.80, blue: 0.44))
+                    .foregroundColor(successGreen)
                 Text("Saved!")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(Color(red: 0.18, green: 0.80, blue: 0.44))
+                    .foregroundColor(successGreen)
                 Spacer()
             }
             .padding(.vertical, 12)
-            .background(Color(red: 0.18, green: 0.80, blue: 0.44).opacity(0.10))
+            .background(successGreen.opacity(0.10))
             .cornerRadius(Theme.Radius.sm)
 
         case .error(let message):
@@ -180,7 +169,7 @@ struct GoalsMotivationView: View {
     // MARK: — Helpers
 
     private func sectionHeader(_ title: String) -> some View {
-        Text(title)
+        Text(title.uppercased())
             .font(.system(size: 10, weight: .semibold))
             .foregroundColor(Theme.Color.muted)
             .kerning(0.8)
@@ -197,6 +186,8 @@ struct GoalsMotivationView: View {
                 .cornerRadius(Theme.Radius.sm)
         }
     }
+
+    private let successGreen = Color(red: 0.18, green: 0.80, blue: 0.44)
 
     private var isSaving: Bool {
         if case .saving = vm.state { return true }
