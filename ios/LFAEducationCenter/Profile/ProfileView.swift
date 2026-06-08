@@ -12,7 +12,8 @@ struct ProfileView: View {
 
     @Environment(\.presentationMode) private var presentationMode
 
-    @State private var isShowingAcademyID = false
+    @State private var isShowingAcademyID   = false
+    @State private var isShowingPhotoUpload = false
 
     var body: some View {
         NavigationView {
@@ -46,6 +47,13 @@ struct ProfileView: View {
                     .environmentObject(authManager)
                     .environmentObject(dashboardVM)
             }
+            .fullScreenCover(isPresented: $isShowingPhotoUpload) {
+                ProfilePhotoUploadView {
+                    Task { await dashboardVM.reload(using: authManager) }
+                }
+                .environmentObject(authManager)
+                .environmentObject(dashboardVM)
+            }
         }
         .navigationViewStyle(.stack)
     }
@@ -57,22 +65,37 @@ struct ProfileView: View {
                     ?? dashboardVM.profile?.profilePhotoUrl
 
         return VStack(spacing: Theme.Spacing.sm) {
-            Group {
-                if let url = photoUrl {
-                    ProfileURLPhotoView(urlPath: url)
-                        .frame(width: 88, height: 88)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Theme.Color.secondary.opacity(0.3), lineWidth: 2))
-                } else {
-                    Circle()
-                        .fill(Theme.Color.muted.opacity(0.08))
-                        .frame(width: 88, height: 88)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 36))
-                                .foregroundColor(Theme.Color.muted.opacity(0.3))
-                        )
+            Button { isShowingPhotoUpload = true } label: {
+                Group {
+                    if let url = photoUrl {
+                        ProfileURLPhotoView(urlPath: url)
+                            .frame(width: 88, height: 88)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Theme.Color.secondary.opacity(0.3), lineWidth: 2))
+                    } else {
+                        Circle()
+                            .fill(Theme.Color.muted.opacity(0.08))
+                            .frame(width: 88, height: 88)
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(Theme.Color.muted.opacity(0.3))
+                            )
+                    }
                 }
+                // Camera badge — bottom trailing corner (iOS 13-compatible overlay form)
+                .overlay(
+                    Circle()
+                        .fill(Theme.Color.primary)
+                        .frame(width: 26, height: 26)
+                        .overlay(
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.white)
+                        )
+                        .offset(x: 2, y: 2),
+                    alignment: .bottomTrailing
+                )
             }
             .padding(.bottom, 4)
         }
@@ -118,7 +141,8 @@ struct ProfileView: View {
             let score = ProfileCompletionScore.compute(profile: profile,
                                                        lfaLicense: dashboardVM.lfaLicense)
             ProfileCompletionSection(score: score,
-                                     onAcademyIDTap: { isShowingAcademyID = true })
+                                     onAcademyIDTap: { isShowingAcademyID = true },
+                                     onPhotoTap:     { isShowingPhotoUpload = true })
                 .padding(.top, Theme.Spacing.lg)
         }
     }

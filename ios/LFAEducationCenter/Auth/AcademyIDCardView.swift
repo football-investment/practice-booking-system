@@ -274,8 +274,10 @@ struct AcademyIDCardView: View {
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
-    // Short nationality for narrow column: just the flag + ISO code
+    // Short nationality for narrow column: just the flag + ISO code.
+    // Returns nil for empty string so fieldBlock shows "———" placeholder instead of a space.
     private var nationalityShort: String? {
+        guard !nationality.isEmpty else { return nil }
         let flags: [String: String] = [
             "HU": "🇭🇺", "AT": "🇦🇹", "DE": "🇩🇪", "SK": "🇸🇰",
             "RO": "🇷🇴", "RS": "🇷🇸", "HR": "🇭🇷", "SI": "🇸🇮",

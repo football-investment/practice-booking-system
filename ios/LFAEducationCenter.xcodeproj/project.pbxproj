@@ -63,6 +63,9 @@
 		BB000004000000000000054 /* InvoiceItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000056 /* InvoiceItem.swift */; };
 		BB000004000000000000055 /* PendingInvoicesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000057 /* PendingInvoicesViewModel.swift */; };
 		BB000004000000000000056 /* ProfileCompletionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000058 /* ProfileCompletionCard.swift */; };
+		BB000004000000000000057 /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000059 /* PhotoPicker.swift */; };
+		BB000004000000000000058 /* ProfilePhotoUploadViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000060 /* ProfilePhotoUploadViewModel.swift */; };
+		BB000004000000000000059 /* ProfilePhotoUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000061 /* ProfilePhotoUploadView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -124,6 +127,9 @@
 		BB000003000000000000056 /* InvoiceItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceItem.swift; sourceTree = "<group>"; };
 		BB000003000000000000057 /* PendingInvoicesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingInvoicesViewModel.swift; sourceTree = "<group>"; };
 		BB000003000000000000058 /* ProfileCompletionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionCard.swift; sourceTree = "<group>"; };
+		BB000003000000000000059 /* PhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoPicker.swift; sourceTree = "<group>"; };
+		BB000003000000000000060 /* ProfilePhotoUploadViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePhotoUploadViewModel.swift; sourceTree = "<group>"; };
+		BB000003000000000000061 /* ProfilePhotoUploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePhotoUploadView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -305,6 +311,9 @@
 			children = (
 				BB000003000000000000045 /* ProfileView.swift */,
 				BB000003000000000000058 /* ProfileCompletionCard.swift */,
+				BB000003000000000000059 /* PhotoPicker.swift */,
+				BB000003000000000000060 /* ProfilePhotoUploadViewModel.swift */,
+				BB000003000000000000061 /* ProfilePhotoUploadView.swift */,
 			);
 			path = Profile;
 			sourceTree = "<group>";
@@ -453,6 +462,9 @@
 				BB000004000000000000054 /* InvoiceItem.swift in Sources */,
 				BB000004000000000000055 /* PendingInvoicesViewModel.swift in Sources */,
 				BB000004000000000000056 /* ProfileCompletionCard.swift in Sources */,
+				BB000004000000000000057 /* PhotoPicker.swift in Sources */,
+				BB000004000000000000058 /* ProfilePhotoUploadViewModel.swift in Sources */,
+				BB000004000000000000059 /* ProfilePhotoUploadView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
