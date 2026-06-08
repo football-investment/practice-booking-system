@@ -6,14 +6,19 @@ import SwiftUI
 // The backend creates a pending InvoiceRequest and returns a payment reference.
 // Credits are added ONLY after an administrator verifies the bank transfer.
 //
+// Success state is PERSISTENT — user must explicitly copy the reference before closing.
+// "Copy Reference & Close" = primary action.
+// "Close Without Copying" = secondary, triggers confirmation alert.
+//
 // API: POST /api/v1/users/request-invoice (Bearer JSON)
-// No immediate credit jóváírás — pending admin approval.
 struct InvoiceRequestView: View {
 
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var dashboardVM: DashboardViewModel
     @StateObject         private var viewModel  = InvoiceRequestViewModel()
     @Environment(\.presentationMode) private var presentationMode
+
+    @State private var showCloseWarning = false
 
     var body: some View {
         NavigationView {
@@ -33,13 +38,29 @@ struct InvoiceRequestView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if !isLoading {
-                        Button { presentationMode.wrappedValue.dismiss() } label: {
+                        Button {
+                            if case .success = viewModel.state {
+                                showCloseWarning = true
+                            } else {
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(Theme.Color.onSurface)
                         }
                     }
                 }
+            }
+            .alert(isPresented: $showCloseWarning) {
+                Alert(
+                    title: Text("Leave Without Copying?"),
+                    message: Text("You will need the payment reference to complete your bank transfer."),
+                    primaryButton: .destructive(Text("Leave Anyway")) {
+                        presentationMode.wrappedValue.dismiss()
+                    },
+                    secondaryButton: .cancel(Text("Stay"))
+                )
             }
         }
         .navigationViewStyle(.stack)
@@ -66,29 +87,33 @@ struct InvoiceRequestView: View {
         .padding(.vertical, Theme.Spacing.lg)
     }
 
-    // MARK: — Package picker
+    // MARK: — Package picker (hidden when success state shown)
 
+    @ViewBuilder
     private var packageSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("SELECT PACKAGE")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(Theme.Color.muted)
-                .kerning(0.8)
-                .padding(.top, Theme.Spacing.sm)
+        if case .success = viewModel.state {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("SELECT PACKAGE")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Theme.Color.muted)
+                    .kerning(0.8)
+                    .padding(.top, Theme.Spacing.sm)
 
-            VStack(spacing: 1) {
-                ForEach(CreditPackage.allCases) { pkg in
-                    packageRow(pkg)
+                VStack(spacing: 1) {
+                    ForEach(CreditPackage.allCases) { pkg in
+                        packageRow(pkg)
+                    }
                 }
+                .background(Theme.Color.surface)
+                .cornerRadius(Theme.Radius.md)
             }
-            .background(Theme.Color.surface)
-            .cornerRadius(Theme.Radius.md)
         }
     }
 
     private func packageRow(_ pkg: CreditPackage) -> some View {
         let isSelected = viewModel.selectedPackage == pkg
-
         return Button { viewModel.selectedPackage = pkg } label: {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -199,10 +224,11 @@ struct InvoiceRequestView: View {
         }
     }
 
-    // MARK: — Success view
+    // MARK: — Persistent success view
 
     private func successView(result: InvoiceResult) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 22))
@@ -212,41 +238,67 @@ struct InvoiceRequestView: View {
                     .foregroundColor(Theme.Color.onSurface)
             }
 
+            // Reference highlight card
+            VStack(alignment: .leading, spacing: 6) {
+                Text("PAYMENT REFERENCE")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Theme.Color.muted)
+                    .kerning(0.8)
+
+                Text(result.paymentReference)
+                    .font(.system(size: 15, weight: .bold, design: .monospaced))
+                    .foregroundColor(Theme.Color.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Theme.Spacing.md)
+            .background(Theme.Color.primary.opacity(0.07))
+            .cornerRadius(Theme.Radius.sm)
+
+            // Detail rows
             VStack(spacing: 1) {
-                resultRow(label: "Payment Reference", value: result.paymentReference, isMonospaced: true)
-                resultRow(label: "Amount", value: String(format: "€%.2f", result.amountEur), isMonospaced: false)
-                resultRow(label: "Credits on approval", value: "\(result.creditAmount) CR", isMonospaced: false)
-                resultRow(label: "Status", value: result.status.capitalized, isMonospaced: false)
+                resultRow(label: "Amount",             value: String(format: "€%.2f", result.amountEur))
+                resultRow(label: "Credits on approval", value: "\(result.creditAmount) CR")
+                resultRow(label: "Status",              value: result.status.capitalized)
+                if let date = result.createdAt {
+                    resultRow(label: "Requested",       value: formatDate(date))
+                }
             }
             .background(Theme.Color.surface)
             .cornerRadius(Theme.Radius.md)
 
-            // Copy reference button
-            Button {
-                UIPasteboard.general.string = result.paymentReference
-            } label: {
-                Label("Copy Payment Reference", systemImage: "doc.on.doc")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(Theme.Color.primary.opacity(0.12))
-                    .foregroundColor(Theme.Color.primary)
-                    .cornerRadius(Theme.Radius.sm)
+            // Admin notice
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .foregroundColor(Theme.Color.secondary)
+                    .padding(.top, 1)
+                Text("Include this reference in your bank transfer description. Credits will be added after your payment is verified by an administrator.")
+                    .font(.caption)
+                    .foregroundColor(Theme.Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            Text("Include this reference in your bank transfer description. Credits will be added to your account after your payment is verified by an administrator.")
-                .font(.caption)
-                .foregroundColor(Theme.Color.muted)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Button { presentationMode.wrappedValue.dismiss() } label: {
-                Text("Done")
+            // Primary action: Copy & Close
+            Button {
+                UIPasteboard.general.string = result.paymentReference
+                presentationMode.wrappedValue.dismiss()
+            } label: {
+                Label("Copy Reference & Close", systemImage: "doc.on.doc.fill")
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 48)
+                    .frame(height: 50)
                     .background(Theme.Color.primary)
                     .foregroundColor(.white)
                     .cornerRadius(Theme.Radius.sm)
+            }
+
+            // Secondary action: Close without copying
+            Button { showCloseWarning = true } label: {
+                Text("Close Without Copying")
+                    .font(.caption)
+                    .foregroundColor(Theme.Color.muted)
+                    .frame(maxWidth: .infinity)
             }
         }
         .padding(Theme.Spacing.md)
@@ -255,19 +307,15 @@ struct InvoiceRequestView: View {
         .padding(.top, Theme.Spacing.md)
     }
 
-    private func resultRow(label: String, value: String, isMonospaced: Bool) -> some View {
+    private func resultRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
                 .font(.caption)
                 .foregroundColor(Theme.Color.muted)
             Spacer()
             Text(value)
-                .font(isMonospaced
-                      ? .system(size: 13, weight: .semibold, design: .monospaced)
-                      : .subheadline.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundColor(Theme.Color.onSurface)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
         }
         .padding(.horizontal, Theme.Spacing.md)
         .padding(.vertical, 10)
@@ -278,5 +326,23 @@ struct InvoiceRequestView: View {
     private var isLoading: Bool {
         if case .loading = viewModel.state { return true }
         return false
+    }
+
+    private func formatDate(_ iso: String) -> String {
+        // Try with fractional seconds first, then without
+        for formatOptions: ISO8601DateFormatter.Options in [
+            [.withInternetDateTime, .withFractionalSeconds],
+            [.withInternetDateTime]
+        ] {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = formatOptions
+            if let date = f.date(from: iso) {
+                let out = DateFormatter()
+                out.dateStyle = .medium
+                out.timeStyle = .none
+                return out.string(from: date)
+            }
+        }
+        return String(iso.prefix(10))
     }
 }
