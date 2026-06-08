@@ -1,26 +1,31 @@
 import SwiftUI
 
-// Credits overview — balance hero, how to get credits info, transaction history.
+// Credits overview — balance hero, credit acquisition CTAs, how-to info, transaction history.
 //
-// Balance:        read from DashboardViewModel.profile.creditBalance (already loaded)
-// Transactions:   CreditsViewModel loads from GET /api/v1/lfa-player/credits/transactions
-//                 Returns 404 if no license yet → empty list, no error shown
+// Balance:        DashboardViewModel.profile.creditBalance (no extra fetch)
+// Transactions:   CreditsViewModel → GET /api/v1/users/me/credit-transactions?limit=50
+//                 User-level endpoint — works without LFA Player license.
 //
-// NOTE: There is no in-app credit purchase gateway.
-// Credits are admin-verified (offline payment / registration bonus / academic milestone).
+// Credit acquisition:
+//   Redeem a Code → RedeemCodeView (coupon + INV-* invitation codes)
+//   Request Invoice → InvoiceRequestView (package picker → offline bank transfer)
 struct CreditsView: View {
 
-    @EnvironmentObject private var authManager:  AuthManager
-    @EnvironmentObject private var dashboardVM:  DashboardViewModel
-    @StateObject         private var viewModel   = CreditsViewModel()
+    @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var dashboardVM: DashboardViewModel
+    @StateObject         private var viewModel  = CreditsViewModel()
 
     @Environment(\.presentationMode) private var presentationMode
+
+    @State private var isShowingRedeemCode    = false
+    @State private var isShowingInvoiceRequest = false
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 0) {
                     balanceHero
+                    getCreditsSection
                     howToGetSection
                     transactionSection
                     Spacer(minLength: Theme.Spacing.xl)
@@ -31,9 +36,7 @@ struct CreditsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        presentationMode.wrappedValue.dismiss()
-                    } label: {
+                    Button { presentationMode.wrappedValue.dismiss() } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(Theme.Color.onSurface)
@@ -53,6 +56,16 @@ struct CreditsView: View {
         }
         .navigationViewStyle(.stack)
         .onAppear { Task { await viewModel.load(using: authManager) } }
+        .fullScreenCover(isPresented: $isShowingRedeemCode) {
+            RedeemCodeView()
+                .environmentObject(authManager)
+                .environmentObject(dashboardVM)
+        }
+        .fullScreenCover(isPresented: $isShowingInvoiceRequest) {
+            InvoiceRequestView()
+                .environmentObject(authManager)
+                .environmentObject(dashboardVM)
+        }
     }
 
     // MARK: — Balance hero
@@ -71,7 +84,6 @@ struct CreditsView: View {
                 .font(.subheadline)
                 .foregroundColor(Theme.Color.muted)
 
-            // Unlock cost context when insufficient
             if (dashboardVM.profile?.creditBalance ?? 0) < 100 {
                 let needed = 100 - (dashboardVM.profile?.creditBalance ?? 0)
                 Text("You need \(needed) more CR to unlock LFA Football Player")
@@ -90,11 +102,11 @@ struct CreditsView: View {
         .cornerRadius(Theme.Radius.md)
     }
 
-    // MARK: — How to get credits
+    // MARK: — Get credits CTAs
 
-    private var howToGetSection: some View {
+    private var getCreditsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("HOW TO GET CREDITS")
+            Text("GET CREDITS")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(Theme.Color.muted)
                 .kerning(0.8)
@@ -102,9 +114,66 @@ struct CreditsView: View {
                 .padding(.top, Theme.Spacing.lg)
 
             VStack(spacing: 1) {
-                infoRow(icon: "gift.fill",          title: "Registration Bonus",        detail: "Granted automatically when you join")
-                infoRow(icon: "person.badge.plus",   title: "Academy Milestones",        detail: "Awarded by your LFA instructor")
-                infoRow(icon: "building.columns",    title: "Admin Grant",               detail: "Contact your Academy administrator")
+                ctaRow(
+                    icon: "tag.fill",
+                    title: "Redeem a Code",
+                    subtitle: "Coupon or invitation code",
+                    action: { isShowingRedeemCode = true }
+                )
+                ctaRow(
+                    icon: "doc.text.fill",
+                    title: "Request Invoice",
+                    subtitle: "Credit packages via bank transfer",
+                    action: { isShowingInvoiceRequest = true }
+                )
+            }
+            .background(Theme.Color.surface)
+            .cornerRadius(Theme.Radius.md)
+            .padding(.horizontal, Theme.Spacing.md)
+        }
+    }
+
+    private func ctaRow(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundColor(Theme.Color.primary)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Theme.Color.onSurface)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(Theme.Color.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Theme.Color.muted)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, 10)
+        }
+    }
+
+    // MARK: — How to get credits
+
+    private var howToGetSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("HOW CREDITS WORK")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(Theme.Color.muted)
+                .kerning(0.8)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.lg)
+
+            VStack(spacing: 1) {
+                infoRow(icon: "gift.fill",           title: "Invitation Code",    detail: "Redeem an INV-* code above")
+                infoRow(icon: "tag.fill",             title: "Coupon Code",       detail: "Apply a BONUS_CREDITS coupon above")
+                infoRow(icon: "doc.text.fill",        title: "Invoice Payment",   detail: "Request a package invoice, pay by bank transfer")
+                infoRow(icon: "building.columns",     title: "Admin Grant",       detail: "Credits granted by your Academy administrator")
             }
             .background(Theme.Color.surface)
             .cornerRadius(Theme.Radius.md)
@@ -150,16 +219,16 @@ struct CreditsView: View {
                     .frame(maxWidth: .infinity)
                     .padding(Theme.Spacing.lg)
 
-            case .loaded(let txs) where txs.isEmpty:
+            case .loaded(let page) where page.transactions.isEmpty:
                 Text("No transactions yet.")
                     .font(.subheadline)
                     .foregroundColor(Theme.Color.muted)
                     .frame(maxWidth: .infinity)
                     .padding(Theme.Spacing.lg)
 
-            case .loaded(let txs):
+            case .loaded(let page):
                 VStack(spacing: 1) {
-                    ForEach(txs) { tx in
+                    ForEach(page.transactions) { tx in
                         transactionRow(tx)
                     }
                 }
