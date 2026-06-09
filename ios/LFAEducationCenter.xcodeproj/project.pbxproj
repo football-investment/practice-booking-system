@@ -75,6 +75,10 @@
 		BB000004000000000000069 /* MoodPhotoPreviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000003000000000000069 /* MoodPhotoPreviewSheet.swift */; };
 		BB00000400000000000006A /* CompletionCelebrationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000300000000000006A /* CompletionCelebrationStore.swift */; };
 		BB00000400000000000006B /* ProfileCompletionCelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000300000000000006B /* ProfileCompletionCelebrationView.swift */; };
+		BB00000400000000000006C /* AcademyIDColorTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000300000000000006C /* AcademyIDColorTheme.swift */; };
+		BB00000400000000000006D /* AcademyIDColorConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000300000000000006D /* AcademyIDColorConfig.swift */; };
+		BB00000400000000000006E /* AcademyIDColorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000300000000000006E /* AcademyIDColorViewModel.swift */; };
+		BB00000400000000000006F /* AcademyIDColorPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB00000300000000000006F /* AcademyIDColorPickerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -148,6 +152,10 @@
 		BB000003000000000000069 /* MoodPhotoPreviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodPhotoPreviewSheet.swift; sourceTree = "<group>"; };
 		BB00000300000000000006A /* CompletionCelebrationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionCelebrationStore.swift; sourceTree = "<group>"; };
 		BB00000300000000000006B /* ProfileCompletionCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionCelebrationView.swift; sourceTree = "<group>"; };
+		BB00000300000000000006C /* AcademyIDColorTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDColorTheme.swift; sourceTree = "<group>"; };
+		BB00000300000000000006D /* AcademyIDColorConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDColorConfig.swift; sourceTree = "<group>"; };
+		BB00000300000000000006E /* AcademyIDColorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDColorViewModel.swift; sourceTree = "<group>"; };
+		BB00000300000000000006F /* AcademyIDColorPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcademyIDColorPickerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -256,6 +264,7 @@
 				BB000003000000000000027 /* SpecializationProgress.swift */,
 				BB000003000000000000028 /* SkillProfile.swift */,
 				BB000003000000000000039 /* AcademyIDResponse.swift */,
+				BB00000300000000000006C /* AcademyIDColorTheme.swift */,
 				BB000003000000000000042 /* CreditTransaction.swift */,
 			);
 			path = Models;
@@ -272,6 +281,9 @@
 				BB000003000000000000037 /* AcademyIDCardView.swift */,
 				BB000003000000000000040 /* AcademyIDViewModel.swift */,
 				BB000003000000000000041 /* AcademyIDFullScreenView.swift */,
+				BB00000300000000000006D /* AcademyIDColorConfig.swift */,
+				BB00000300000000000006E /* AcademyIDColorViewModel.swift */,
+				BB00000300000000000006F /* AcademyIDColorPickerView.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -501,6 +513,10 @@
 				BB000004000000000000069 /* MoodPhotoPreviewSheet.swift in Sources */,
 				BB00000400000000000006A /* CompletionCelebrationStore.swift in Sources */,
 				BB00000400000000000006B /* ProfileCompletionCelebrationView.swift in Sources */,
+				BB00000400000000000006C /* AcademyIDColorTheme.swift in Sources */,
+				BB00000400000000000006D /* AcademyIDColorConfig.swift in Sources */,
+				BB00000400000000000006E /* AcademyIDColorViewModel.swift in Sources */,
+				BB00000400000000000006F /* AcademyIDColorPickerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

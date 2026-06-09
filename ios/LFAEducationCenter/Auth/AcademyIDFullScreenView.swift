@@ -68,11 +68,18 @@ struct AcademyIDFullScreenView: View {
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var dashboardVM: DashboardViewModel
     @StateObject         private var viewModel  = AcademyIDViewModel()
+    @StateObject         private var colorVM    = AcademyIDColorViewModel()
 
     @Environment(\.presentationMode) private var presentationMode
 
-    @State private var brightnessBoostActive = false
+    @State private var brightnessBoostActive  = false
     @State private var originalBrightness: CGFloat = UIScreen.main.brightness
+    @State private var isShowingColorPicker   = false
+
+    // Resolved colour config from the active colour ID
+    private var activeColorConfig: AcademyIDColorConfig {
+        AcademyIDColorConfig.resolve(colorVM.activeColorId)
+    }
 
     var body: some View {
         NavigationView {
@@ -107,19 +114,37 @@ struct AcademyIDFullScreenView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        Task { await viewModel.reload(using: authManager, profile: dashboardVM.profile) }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Theme.Color.primary)
+                    HStack(spacing: Theme.Spacing.sm) {
+                        // Colour picker — only shown when licence exists (colour data available)
+                        if dashboardVM.lfaLicense != nil {
+                            Button { isShowingColorPicker = true } label: {
+                                Image(systemName: "paintpalette")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(Theme.Color.primary)
+                            }
+                        }
+                        // Reload
+                        Button {
+                            Task { await viewModel.reload(using: authManager, profile: dashboardVM.profile) }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Theme.Color.primary)
+                        }
+                        .disabled(isReloading)
                     }
-                    .disabled(isReloading)
                 }
             }
         }
         .navigationViewStyle(.stack)
-        .onAppear { Task { await viewModel.load(using: authManager, profile: dashboardVM.profile) } }
+        .sheet(isPresented: $isShowingColorPicker) {
+            AcademyIDColorPickerView(colorVM: colorVM)
+                .environmentObject(authManager)
+        }
+        .onAppear {
+            Task { await viewModel.load(using: authManager, profile: dashboardVM.profile) }
+            Task { await colorVM.load(using: authManager) }
+        }
         .onDisappear { restoreBrightness() }
         // If the slow path just lazy-assigned a new Academy ID, reload the dashboard so
         // ProfileView subtitle and ProfileCompletionScore.academyID (+10%) update immediately.
@@ -162,7 +187,8 @@ struct AcademyIDFullScreenView: View {
             lfaAcademyId:             viewModel.loadState.response?.lfaAcademyId
                                       ?? dashboardVM.profile?.lfaAcademyId,
             publicToken:              viewModel.loadState.response?.publicToken
-                                      ?? dashboardVM.profile?.publicToken
+                                      ?? dashboardVM.profile?.publicToken,
+            colorConfig:              activeColorConfig
         )
     }
 

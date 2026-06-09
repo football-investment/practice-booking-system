@@ -6,6 +6,8 @@ import Foundation
 //   Fast path — publicToken already in UserProfile (from /users/me cache):
 //     qr_data is assembled locally from APIConfig.verifyBaseURL.
 //     Works offline once the token is cached.
+//     activeColorId is nil on the fast path — AcademyIDColorViewModel loads
+//     the colour independently from /me/academy-id/colors.
 //   Slow path — publicToken == nil (first-ever access or fresh install):
 //     Calls GET /api/v1/users/me/academy-id which lazy-assigns the ID on the
 //     backend and returns the complete response including qr_data.
@@ -56,15 +58,17 @@ final class AcademyIDViewModel: ObservableObject {
         loadState = .loading
 
         // Fast path: token already known → assemble qr_data locally, no network needed.
+        // activeColorId is nil here; AcademyIDColorViewModel handles it independently.
         if !forceRemote,
            let token = profile?.publicToken,
            let aid   = profile?.lfaAcademyId {
             let qrData = APIConfig.verifyBaseURL + "/verify/" + token
             loadState = .loaded(AcademyIDResponse(
-                lfaAcademyId: aid,
-                publicToken:  token,
-                qrUrl:        "/verify/" + token,
-                qrData:       qrData
+                lfaAcademyId:  aid,
+                publicToken:   token,
+                qrUrl:         "/verify/" + token,
+                qrData:        qrData,
+                activeColorId: nil
             ))
             return
         }
@@ -79,10 +83,11 @@ final class AcademyIDViewModel: ObservableObject {
             // backend's VERIFY_BASE_URL default (which may be localhost in dev).
             let iosQrData = APIConfig.verifyBaseURL + "/verify/" + response.publicToken
             loadState = .loaded(AcademyIDResponse(
-                lfaAcademyId: response.lfaAcademyId,
-                publicToken:  response.publicToken,
-                qrUrl:        response.qrUrl,
-                qrData:       iosQrData
+                lfaAcademyId:  response.lfaAcademyId,
+                publicToken:   response.publicToken,
+                qrUrl:         response.qrUrl,
+                qrData:        iosQrData,
+                activeColorId: response.activeColorId
             ))
         } catch {
             loadState = .error("Could not load Academy ID. Check your connection.")
