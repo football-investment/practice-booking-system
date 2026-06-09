@@ -38,6 +38,7 @@ from ...services.academy_id_service import (
     check_verify_rate_limit,
     specialization_display_label,
 )
+from ...services.licence_package import sync_active_on_expiry
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -51,7 +52,12 @@ def _compute_card_status(user: User, db: Session) -> tuple[str, str | None]:
     human-readable date string or None.
 
     Priority order (first matching wins):
-      inactive > expired > no_licence > onboarding_required > photo_required > verified
+      no_licence > inactive > expired > onboarding_required > photo_required > verified
+
+    Side effect: if the licence is expired and is_active is still True,
+    sync_active_on_expiry() sets it to False and flushes.
+    The caller (verify endpoint) owns the DB session; commit happens there
+    implicitly when the response is returned (SQLAlchemy autoflush).
     """
     licence = (
         db.query(UserLicense)
@@ -66,19 +72,24 @@ def _compute_card_status(user: User, db: Session) -> tuple[str, str | None]:
     if licence is None:
         return "no_licence", None
 
-    if not licence.is_active:
-        return "inactive", None
-
     now = datetime.now(timezone.utc)
+
+    # Lazy expiry enforcement: deactivate if expired.
+    expired = sync_active_on_expiry(licence, db, now)
+
+    # Build expiry_display from expires_at (None for perpetual legacy licences)
     expiry_display: str | None = None
     if licence.expires_at is not None:
-        # Ensure timezone-aware comparison
         exp = licence.expires_at
         if exp.tzinfo is None:
             exp = exp.replace(tzinfo=timezone.utc)
         expiry_display = exp.strftime("%-d %b %Y")
-        if exp <= now:
-            return "expired", expiry_display
+
+    if expired:
+        return "expired", expiry_display
+
+    if not licence.is_active:
+        return "inactive", None
 
     if not licence.onboarding_completed:
         return "onboarding_required", expiry_display
