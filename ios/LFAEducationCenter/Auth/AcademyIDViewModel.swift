@@ -56,15 +56,18 @@ final class AcademyIDViewModel: ObservableObject {
         loadState = .loading
 
         // Fast path: token already known → assemble qr_data locally, no network needed.
+        // specialization is not cached in UserProfile, so the view derives it from
+        // dashboardVM.lfaLicense instead (always available post-login).
         if !forceRemote,
            let token = profile?.publicToken,
            let aid   = profile?.lfaAcademyId {
             let qrData = APIConfig.verifyBaseURL + "/verify/" + token
             loadState = .loaded(AcademyIDResponse(
-                lfaAcademyId: aid,
-                publicToken:  token,
-                qrUrl:        "/verify/" + token,
-                qrData:       qrData
+                lfaAcademyId:   aid,
+                publicToken:    token,
+                qrUrl:          "/verify/" + token,
+                qrData:         qrData,
+                specialization: nil
             ))
             return
         }
@@ -79,10 +82,11 @@ final class AcademyIDViewModel: ObservableObject {
             // backend's VERIFY_BASE_URL default (which may be localhost in dev).
             let iosQrData = APIConfig.verifyBaseURL + "/verify/" + response.publicToken
             loadState = .loaded(AcademyIDResponse(
-                lfaAcademyId: response.lfaAcademyId,
-                publicToken:  response.publicToken,
-                qrUrl:        response.qrUrl,
-                qrData:       iosQrData
+                lfaAcademyId:   response.lfaAcademyId,
+                publicToken:    response.publicToken,
+                qrUrl:          response.qrUrl,
+                qrData:         iosQrData,
+                specialization: response.specialization
             ))
         } catch {
             loadState = .error("Could not load Academy ID. Check your connection.")

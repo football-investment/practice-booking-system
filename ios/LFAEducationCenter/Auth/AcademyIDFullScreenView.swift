@@ -145,6 +145,17 @@ struct AcademyIDFullScreenView: View {
 
     // MARK: — Academy ID card (same component as RegisterView preview)
 
+    // Specialization label for the football slot on the ID card.
+    // Derived from dashboardVM.lfaLicense so it works on both fast path and slow path:
+    //   active + not expired → "LFA Football Player"
+    //   no licence / inactive / expired → nil (card shows —)
+    private var activeSpecializationLabel: String? {
+        guard let licence = dashboardVM.lfaLicense,
+              licence.isActive,
+              !licence.isExpired else { return nil }
+        return "LFA Football Player"
+    }
+
     private var cardSection: some View {
         AcademyIDCardView(
             firstName:                cardFirstName,
@@ -162,7 +173,8 @@ struct AcademyIDFullScreenView: View {
             lfaAcademyId:             viewModel.loadState.response?.lfaAcademyId
                                       ?? dashboardVM.profile?.lfaAcademyId,
             publicToken:              viewModel.loadState.response?.publicToken
-                                      ?? dashboardVM.profile?.publicToken
+                                      ?? dashboardVM.profile?.publicToken,
+            specialization:           activeSpecializationLabel
         )
     }
 

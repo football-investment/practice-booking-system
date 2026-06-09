@@ -25,6 +25,7 @@ from .....services.profile_photo_service import (
 from .....services.academy_id_service import (
     assign_lfa_academy_id,
     ensure_public_token,
+    specialization_display_label,
 )
 from .....config import settings as _settings
 from .helpers import validate_email_unique, validate_nickname
@@ -237,6 +238,8 @@ def get_academy_id(
         public_token    — UUID used in the QR URL (owner's eyes only)
         qr_url          — relative verify path (/verify/{token})
         qr_data         — absolute URL to embed in the QR code
+        specialization  — display-ready label for the active licence,
+                          e.g. "LFA Football Player"; null when no active licence
     """
     changed = False
 
@@ -256,9 +259,28 @@ def get_academy_id(
     qr_url   = f"/verify/{token}"
     qr_data  = f"{_settings.VERIFY_BASE_URL}/verify/{token}"
 
+    # Resolve the first active, non-expired licence → display label for the ID card.
+    active_lic = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id == current_user.id,
+            UserLicense.is_active == True,
+        )
+        .filter(
+            (UserLicense.expires_at == None) |
+            (UserLicense.expires_at > datetime.now(timezone.utc))
+        )
+        .first()
+    )
+    spec_label = (
+        specialization_display_label(active_lic.specialization_type)
+        if active_lic else None
+    )
+
     return {
         "lfa_academy_id": current_user.lfa_academy_id,
         "public_token":   token,
         "qr_url":         qr_url,
         "qr_data":        qr_data,
+        "specialization": spec_label,
     }

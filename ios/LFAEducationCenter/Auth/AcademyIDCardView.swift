@@ -32,6 +32,8 @@ struct AcademyIDCardView: View {
     // Phase 2A — Academy ID fields (nil during registration flow, set from /me after login)
     let lfaAcademyId:             String?   // "LFA-2026-00142" — shown on card
     let publicToken:              String?   // UUID for QR — build with VERIFY_BASE_URL
+    // Specialization display label — nil shows — in the football slot (registration preview, no licence)
+    let specialization:           String?   = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -114,7 +116,7 @@ struct AcademyIDCardView: View {
                 .foregroundColor(Theme.Color.muted)
             Spacer()
             HStack(spacing: 12) {
-                specSlot("⚽")
+                specSlot("⚽", label: specialization)
                 specSlot("🎓")
                 specSlot("🥋")
                 specSlot("💼")
@@ -258,12 +260,20 @@ struct AcademyIDCardView: View {
 
     // MARK: — Spec slot
 
-    private func specSlot(_ icon: String) -> some View {
+    private func specSlot(_ icon: String, label: String? = nil) -> some View {
         HStack(spacing: 2) {
             Text(icon).font(.system(size: 10))
-            Text("—")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundColor(Theme.Color.muted.opacity(0.4))
+            if let label = label, !label.isEmpty {
+                Text(label)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(Theme.Color.onSurface.opacity(0.75))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Text("—")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(Theme.Color.muted.opacity(0.4))
+            }
         }
     }
 

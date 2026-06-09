@@ -59849,7 +59849,7 @@
     },
     "/api/v1/users/me/academy-id": {
       "get": {
-        "description": "Return the current user's Academy ID fields and the QR verify URL.\n\nLazily assigns lfa_academy_id and public_token if not yet set\n(covers users registered before the Phase 2A migration ran).\n\nResponse:\n    lfa_academy_id  \u2014 human-readable card ID (LFA-YYYY-NNNNN)\n    public_token    \u2014 UUID used in the QR URL (owner's eyes only)\n    qr_url          \u2014 relative verify path (/verify/{token})\n    qr_data         \u2014 absolute URL to embed in the QR code",
+        "description": "Return the current user's Academy ID fields and the QR verify URL.\n\nLazily assigns lfa_academy_id and public_token if not yet set\n(covers users registered before the Phase 2A migration ran).\n\nResponse:\n    lfa_academy_id  \u2014 human-readable card ID (LFA-YYYY-NNNNN)\n    public_token    \u2014 UUID used in the QR URL (owner's eyes only)\n    qr_url          \u2014 relative verify path (/verify/{token})\n    qr_data         \u2014 absolute URL to embed in the QR code\n    specialization  \u2014 display-ready label for the active licence,\n                      e.g. \"LFA Football Player\"; null when no active licence",
         "operationId": "get_academy_id_api_v1_users_me_academy_id_get",
         "responses": {
           "200": {
