@@ -6,15 +6,20 @@ import Foundation
 // qr_data is the absolute URL to encode in the QR code:
 //   {VERIFY_BASE_URL}/verify/{public_token}
 struct AcademyIDResponse: Decodable {
-    let lfaAcademyId: String
-    let publicToken:  String
-    let qrUrl:        String  // relative: /verify/{token}
-    let qrData:       String  // absolute: https://lfa.hu/verify/{token}
+    let lfaAcademyId:  String
+    let publicToken:   String
+    let qrUrl:         String   // relative: /verify/{token}
+    let qrData:        String   // absolute: https://lfa.hu/verify/{token}
+    // Active Academy ID colour — nil when no LFA Player licence exists.
+    // AcademyIDColorViewModel is the authoritative source; this field is
+    // informational only (can seed the fast path if needed in Phase 2).
+    let activeColorId: String?
 
     enum CodingKeys: String, CodingKey {
-        case lfaAcademyId = "lfa_academy_id"
-        case publicToken  = "public_token"
-        case qrUrl        = "qr_url"
-        case qrData       = "qr_data"
+        case lfaAcademyId  = "lfa_academy_id"
+        case publicToken   = "public_token"
+        case qrUrl         = "qr_url"
+        case qrData        = "qr_data"
+        case activeColorId = "active_color_id"
     }
 }

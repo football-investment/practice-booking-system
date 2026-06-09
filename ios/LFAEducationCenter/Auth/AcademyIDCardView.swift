@@ -16,6 +16,9 @@ import SwiftUI
 //
 // QR: generated from publicToken via QRCodeGenerator (CoreImage, no external dep).
 //   nil → placeholder qrcode SF Symbol shown instead.
+//
+// colorConfig: optional AcademyIDColorConfig — nil = official (default system surface).
+//   RegisterView and other registration-flow call sites pass nil for backward compat.
 struct AcademyIDCardView: View {
     let firstName:                String?
     let lastName:                 String?
@@ -32,24 +35,38 @@ struct AcademyIDCardView: View {
     // Phase 2A — Academy ID fields (nil during registration flow, set from /me after login)
     let lfaAcademyId:             String?   // "LFA-2026-00142" — shown on card
     let publicToken:              String?   // UUID for QR — build with VERIFY_BASE_URL
+    // Colour system — nil = official appearance (backward-compatible default)
+    let colorConfig:              AcademyIDColorConfig?
+
+    // MARK: — Derived colours (fall back to system tokens when colorConfig is nil)
+
+    private var cardSurface:       Color  { colorConfig?.surfaceColor ?? Theme.Color.surface }
+    private var cardBorderColor:   Color  { colorConfig?.borderColor  ?? Color(hex: "#b8a06a") }
+    private var cardBorderOpacity: Double { colorConfig?.borderOpacity ?? 0.28 }
+    private var textValue:         Color  { colorConfig?.valueColor   ?? Theme.Color.onSurface }
+    private var textLabel:         Color  { colorConfig?.labelColor   ?? Theme.Color.muted }
+    private var textMuted:         Color  { colorConfig?.mutedColor   ?? Theme.Color.muted.opacity(0.4) }
+    private var textBrand:         Color  { colorConfig?.brandAccent  ?? Theme.Color.secondary }
+    private var photoBorder:       Color  { colorConfig?.panelBorder  ?? Theme.Color.secondary.opacity(0.3) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerRow
-            Divider().background(Theme.Color.secondary.opacity(0.2))
+            Divider().background(cardBorderColor.opacity(0.20))
             bodyRows
-            Divider().background(Theme.Color.secondary.opacity(0.12))
+            Divider().background(cardBorderColor.opacity(0.12))
             specSlotsRow
-            Divider().background(Theme.Color.secondary.opacity(0.12))
+            Divider().background(cardBorderColor.opacity(0.12))
             footerRow
         }
-        .background(Theme.Color.surface)
+        .background(cardSurface)
         .cornerRadius(Theme.Radius.md)
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.md)
-                .stroke(Theme.Color.secondary.opacity(0.28), lineWidth: 1)
+                .stroke(cardBorderColor.opacity(cardBorderOpacity), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .animation(.easeInOut(duration: 0.25), value: colorConfig?.id)
     }
 
     // MARK: — Header
@@ -63,15 +80,15 @@ struct AcademyIDCardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("LION FOOTBALL ACADEMY")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(Theme.Color.secondary)
+                    .foregroundColor(textBrand)
                 Text("LFA EDUCATION CENTER")
                     .font(.system(size: 7, weight: .medium))
-                    .foregroundColor(Theme.Color.muted)
+                    .foregroundColor(textLabel)
             }
             Spacer()
             Text("ACADEMY ID")
                 .font(.system(size: 7, weight: .bold))
-                .foregroundColor(Theme.Color.muted)
+                .foregroundColor(textLabel)
                 .tracking(0.8)
         }
         .padding(.horizontal, 14)
@@ -82,14 +99,10 @@ struct AcademyIDCardView: View {
 
     private var bodyRows: some View {
         HStack(alignment: .top, spacing: 14) {
-            // Portrait photo panel (ID-card style, not circular)
             photoPanel
-
-            // Data column
             VStack(alignment: .leading, spacing: 7) {
                 fieldBlock(label: "FULL NAME", value: fullName)
                 fieldBlock(label: "NICKNAME",  value: nickname)
-
                 HStack(spacing: 0) {
                     fieldBlock(label: "AGE",         value: age.map { "\($0) years" })
                     Spacer()
@@ -97,7 +110,6 @@ struct AcademyIDCardView: View {
                     Spacer()
                     fieldBlock(label: "GENDER",      value: genderDisplay, align: .trailing)
                 }
-
                 fieldBlock(label: "LOCATION", value: locationDisplay)
             }
         }
@@ -111,7 +123,7 @@ struct AcademyIDCardView: View {
         HStack(spacing: 0) {
             Text("SPECIALIZATION")
                 .font(.system(size: 7, weight: .semibold))
-                .foregroundColor(Theme.Color.muted)
+                .foregroundColor(textLabel)
             Spacer()
             HStack(spacing: 12) {
                 specSlot("⚽")
@@ -128,12 +140,10 @@ struct AcademyIDCardView: View {
 
     private var footerRow: some View {
         HStack(alignment: .center, spacing: 10) {
-
-            // Left: lfa_academy_id + ACCESS VERIFIED badge
             VStack(alignment: .leading, spacing: 5) {
                 Text(lfaAcademyId ?? "LFA-????-?????")
                     .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundColor(lfaAcademyId != nil ? Theme.Color.muted : Theme.Color.muted.opacity(0.35))
+                    .foregroundColor(lfaAcademyId != nil ? textLabel : textLabel.opacity(0.35))
                 if isVerified {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.shield.fill")
@@ -152,8 +162,6 @@ struct AcademyIDCardView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isVerified)
 
             Spacer()
-
-            // Right: QR code (56×56 pt)
             qrPanel
         }
         .padding(.horizontal, 14)
@@ -168,7 +176,7 @@ struct AcademyIDCardView: View {
                from: "\(APIConfig.verifyBaseURL)/verify/\(token)"
            ) {
             Image(uiImage: qrImage)
-                .interpolation(.none)           // crisp pixels, no blur
+                .interpolation(.none)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 56, height: 56)
@@ -176,24 +184,21 @@ struct AcademyIDCardView: View {
                 .cornerRadius(4)
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(Theme.Color.secondary.opacity(0.2), lineWidth: 0.5)
+                        .stroke(photoBorder, lineWidth: 0.5)
                 )
         } else {
-            // Placeholder when publicToken not yet available (registration flow)
             RoundedRectangle(cornerRadius: 4)
-                .fill(Theme.Color.muted.opacity(0.06))
+                .fill(textMuted.opacity(0.15))
                 .frame(width: 56, height: 56)
                 .overlay(
                     Image(systemName: "qrcode")
                         .font(.system(size: 22))
-                        .foregroundColor(Theme.Color.muted.opacity(0.20))
+                        .foregroundColor(textMuted)
                 )
         }
     }
 
     // MARK: — Portrait photo panel (ID-card style, 80×104pt, not circular)
-    //
-    // Priority: processedURL → originalURL → local UIImage → silhouette
 
     private var photoPanel: some View {
         ZStack {
@@ -209,16 +214,16 @@ struct AcademyIDCardView: View {
                     .frame(width: 80, height: 104).clipped()
             } else {
                 Rectangle()
-                    .fill(Theme.Color.muted.opacity(0.06))
+                    .fill(textMuted.opacity(0.15))
                     .frame(width: 80, height: 104)
                     .overlay(
                         VStack(spacing: 5) {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 30))
-                                .foregroundColor(Theme.Color.muted.opacity(0.22))
+                                .foregroundColor(textMuted)
                             Text("PHOTO")
                                 .font(.system(size: 6.5, weight: .semibold))
-                                .foregroundColor(Theme.Color.muted.opacity(0.22))
+                                .foregroundColor(textMuted)
                         }
                     )
             }
@@ -226,10 +231,9 @@ struct AcademyIDCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(Theme.Color.secondary.opacity(0.3), lineWidth: 1)
+                .stroke(photoBorder, lineWidth: 1)
         )
     }
-
 
     // MARK: — Field block
 
@@ -238,18 +242,18 @@ struct AcademyIDCardView: View {
         VStack(alignment: align, spacing: 2) {
             Text(label)
                 .font(.system(size: 7, weight: .semibold))
-                .foregroundColor(Theme.Color.muted)
+                .foregroundColor(textLabel)
             if let v = value {
                 Text(v)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Theme.Color.onSurface)
+                    .foregroundColor(textValue)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                     .transition(.opacity)
             } else {
                 Text("———")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Theme.Color.muted.opacity(0.28))
+                    .foregroundColor(textMuted)
                     .transition(.opacity)
             }
         }
@@ -263,7 +267,7 @@ struct AcademyIDCardView: View {
             Text(icon).font(.system(size: 10))
             Text("—")
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundColor(Theme.Color.muted.opacity(0.4))
+                .foregroundColor(textMuted)
         }
     }
 
@@ -274,8 +278,6 @@ struct AcademyIDCardView: View {
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
-    // Full nationality display for ID card: flag emoji + full country name.
-    // Returns nil for empty string so fieldBlock shows "———" placeholder instead of a space.
     private var nationalityDisplay: String? {
         guard !nationality.isEmpty else { return nil }
         let flags: [String: String] = [
@@ -294,7 +296,6 @@ struct AcademyIDCardView: View {
         return flag.isEmpty ? name : "\(flag) \(name)"
     }
 
-    // Full gender display for ID card — no abbreviation.
     private var genderDisplay: String? {
         switch gender {
         case "Male", "Female", "Other": return gender
@@ -310,8 +311,6 @@ struct AcademyIDCardView: View {
 
 // MARK: — URL-based image loader (iOS 14 compatible, no AsyncImage)
 
-// Loads an image from a server-relative path (e.g. "/static/uploads/profile_photos/...").
-// Prepends APIConfig.baseURL. Caches loaded UIImage in @State so re-renders don't refetch.
 private struct URLPhotoView: View {
     let urlPath: String
     @State private var image: UIImage? = nil
@@ -325,10 +324,7 @@ private struct URLPhotoView: View {
             } else {
                 Rectangle()
                     .fill(Theme.Color.muted.opacity(0.08))
-                    .overlay(
-                        ProgressView()
-                            .scaleEffect(0.6)
-                    )
+                    .overlay(ProgressView().scaleEffect(0.6))
             }
         }
         .onAppear { loadImage() }
