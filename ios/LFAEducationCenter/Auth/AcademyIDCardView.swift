@@ -91,11 +91,11 @@ struct AcademyIDCardView: View {
                 fieldBlock(label: "NICKNAME",  value: nickname)
 
                 HStack(spacing: 0) {
-                    fieldBlock(label: "AGE",  value: age.map { "\($0)" })
+                    fieldBlock(label: "AGE",         value: age.map { "\($0) years" })
                     Spacer()
-                    fieldBlock(label: "NAT",  value: nationalityDisplay, align: .center)
+                    fieldBlock(label: "NATIONALITY", value: nationalityDisplay, align: .center)
                     Spacer()
-                    fieldBlock(label: "GEN",  value: genderDisplay, align: .trailing)
+                    fieldBlock(label: "GENDER",      value: genderDisplay, align: .trailing)
                 }
 
                 fieldBlock(label: "LOCATION", value: locationDisplay)
@@ -109,7 +109,7 @@ struct AcademyIDCardView: View {
 
     private var specSlotsRow: some View {
         HStack(spacing: 0) {
-            Text("SPECS")
+            Text("SPECIALIZATION")
                 .font(.system(size: 7, weight: .semibold))
                 .foregroundColor(Theme.Color.muted)
             Spacer()
@@ -284,10 +284,10 @@ struct AcademyIDCardView: View {
             "UA": "🇺🇦", "PL": "🇵🇱", "CZ": "🇨🇿", "Other": "🌐",
         ]
         let names: [String: String] = [
-            "HU": "Hungary",  "AT": "Austria",  "DE": "Germany",
-            "SK": "Slovakia", "RO": "Romania",  "RS": "Serbia",
-            "HR": "Croatia",  "SI": "Slovenia", "UA": "Ukraine",
-            "PL": "Poland",   "CZ": "Czechia",  "Other": "Other",
+            "HU": "Hungarian",  "AT": "Austrian",  "DE": "German",
+            "SK": "Slovak",     "RO": "Romanian",  "RS": "Serbian",
+            "HR": "Croatian",   "SI": "Slovenian", "UA": "Ukrainian",
+            "PL": "Polish",     "CZ": "Czech",     "Other": "Other",
         ]
         let flag = flags[nationality] ?? ""
         let name = names[nationality] ?? nationality
