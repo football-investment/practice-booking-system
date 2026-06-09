@@ -183,7 +183,7 @@ struct RegisterView: View {
                         profileImage:             profileImage,
                         profilePhotoURL:          nil,   // upload not yet wired in RegisterView
                         profilePhotoProcessedURL: nil,
-                        isVerified:               isAccessVerified,
+                        isVerified:               false,  // enrollment preview — invite valid ≠ ID card verified
                         lfaAcademyId:             nil,   // assigned by backend after registration
                         publicToken:              nil    // QR shows placeholder until /me/academy-id
                     )
