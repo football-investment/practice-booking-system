@@ -260,3 +260,21 @@ def test_bca15_schema_fields_no_forbidden_keys():
     for forbidden in ("face_match_score", "embedding_ciphertext", "embedding_iv",
                       "yaw", "roll", "landmarks", "liveness_metadata"):
         assert forbidden not in fields, f"Forbidden field {forbidden!r} in response schema"
+
+
+# ── IP extraction helper coverage ────────────────────────────────────────────
+
+def test_extract_ip_uses_x_forwarded_for():
+    from app.api.api_v1.endpoints.users.biometric_consent import _extract_ip
+    req = MagicMock()
+    req.headers.get = lambda k, default=None: "10.0.0.1, 10.0.0.2" if k == "x-forwarded-for" else default
+    req.client.host = "1.2.3.4"
+    assert _extract_ip(req) == "10.0.0.1"
+
+
+def test_extract_ip_falls_back_to_x_real_ip():
+    from app.api.api_v1.endpoints.users.biometric_consent import _extract_ip
+    req = MagicMock()
+    req.headers.get = lambda k, default=None: "10.1.1.1" if k == "x-real-ip" else None
+    req.client.host = "1.2.3.4"
+    assert _extract_ip(req) == "10.1.1.1"
