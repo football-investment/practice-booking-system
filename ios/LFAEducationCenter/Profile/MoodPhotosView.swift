@@ -21,6 +21,13 @@ struct MoodPhotosView: View {
     @State private var showingPickerForSlot: String? = nil
     @State private var pickerImage: UIImage? = nil
 
+    // Preview sheet state — uses fullScreenCover(item:) to avoid the iOS 14/15
+    // nested-sheet bug that can dismiss this MoodPhotosView when a .sheet closes.
+    @State private var previewSlot: MoodPhotoSlotData? = nil
+    // When Replace is tapped in the preview, the picker opens after the
+    // preview dismisses — pendingReplaceSlot carries the slot name across.
+    @State private var pendingReplaceSlot: String? = nil
+
     var body: some View {
         NavigationView {
             Group {
@@ -77,6 +84,32 @@ struct MoodPhotosView: View {
                 message: Text(vm.uploadError ?? ""),
                 dismissButton: .default(Text("OK")) { vm.uploadError = nil }
             )
+        }
+        // Mood photo preview — fullScreenCover(item:) avoids the nested .sheet
+        // bug that can dismiss this view when the inner sheet closes.
+        .fullScreenCover(item: $previewSlot, onDismiss: {
+            // Replace action: open PhotoPicker after the preview has fully dismissed.
+            if let slot = pendingReplaceSlot {
+                pendingReplaceSlot = nil
+                beginUpload(slot: slot)
+            }
+        }) { slotToPreview in
+            MoodPhotoPreviewSheet(
+                slot:     slotToPreview,
+                onRetry: {
+                    Task { await vm.triggerBgRemoval(slot: slotToPreview.slot, using: authManager) }
+                    previewSlot = nil
+                },
+                onDelete: {
+                    Task { await vm.delete(slot: slotToPreview.slot, using: authManager) }
+                    previewSlot = nil
+                },
+                onReplace: {
+                    pendingReplaceSlot = slotToPreview.slot
+                    previewSlot = nil
+                }
+            )
+            .environmentObject(authManager)
         }
     }
 
@@ -150,7 +183,8 @@ struct MoodPhotosView: View {
                         onUpload:    { beginUpload(slot: slot.slot) },
                         onDelete:    { Task { await vm.delete(slot: slot.slot, using: authManager) } },
                         onRemoveBg:  { Task { await vm.triggerBgRemoval(slot: slot.slot, using: authManager) } },
-                        onReset:     { Task { await vm.resetProcessing(slot: slot.slot, using: authManager) } }
+                        onReset:     { Task { await vm.resetProcessing(slot: slot.slot, using: authManager) } },
+                        onPreview:   { previewSlot = slot }
                     )
                 }
             }

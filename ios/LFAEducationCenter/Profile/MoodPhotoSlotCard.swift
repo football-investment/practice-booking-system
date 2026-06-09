@@ -32,6 +32,7 @@ private struct MoodPhotoThumbnail: View {
 // Per-slot card for the Mood Photos screen.
 // Shows thumbnail (if uploaded), label, upload / delete / BG removal controls,
 // and processing / ready / failed state indicators.
+// Thumbnail is tappable when a photo exists — opens MoodPhotoPreviewSheet.
 struct MoodPhotoSlotCard: View {
 
     let slot:         MoodPhotoSlotData
@@ -40,6 +41,7 @@ struct MoodPhotoSlotCard: View {
     let onDelete:     () -> Void
     let onRemoveBg:   () -> Void
     let onReset:      () -> Void    // reset stuck processing
+    let onPreview:    () -> Void    // tap thumbnail → MoodPhotoPreviewSheet
 
     private static let successGreen = Color(red: 0.18, green: 0.80, blue: 0.44)
 
@@ -70,9 +72,16 @@ struct MoodPhotoSlotCard: View {
                 .frame(width: 56, height: 56)
                 .overlay(ProgressView().scaleEffect(0.7))
         } else if let url = slot.processedPngUrl ?? slot.originalUrl {
-            MoodPhotoThumbnail(urlPath: url)
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+            Button(action: onPreview) {
+                MoodPhotoThumbnail(urlPath: url)
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.sm)
+                            .stroke(Theme.Color.primary.opacity(0.25), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.sm)
                 .fill(Theme.Color.muted.opacity(0.15))
