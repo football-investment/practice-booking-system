@@ -276,7 +276,7 @@ struct AcademyIDFullScreenView: View {
         )
     }
 
-    // MARK: — Card back face (Lion logo only — no user data, no status, no QR)
+    // MARK: — Card back face (Lion crest only — no user data, no status, no QR)
 
     private var cardBackFace: some View {
         ZStack {
@@ -284,11 +284,10 @@ struct AcademyIDFullScreenView: View {
                 .fill(Theme.Color.surface)
             RoundedRectangle(cornerRadius: Theme.Radius.md)
                 .stroke(Theme.Color.secondary.opacity(0.28), lineWidth: 1)
-            Image("LFALogo")
+            Image("LionCrest")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 44)
-                .opacity(0.32)
+                .frame(height: 96)
         }
         .frame(minHeight: 180)
         .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
