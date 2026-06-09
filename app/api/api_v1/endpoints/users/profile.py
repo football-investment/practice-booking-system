@@ -4,6 +4,7 @@ Self-service profile updates, password reset, profile photo and Academy ID manag
 """
 from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import json
@@ -25,6 +26,12 @@ from .....services.profile_photo_service import (
 from .....services.academy_id_service import (
     assign_lfa_academy_id,
     ensure_public_token,
+)
+from .....services.academy_id_color_service import (
+    get_all_colors,
+    get_active_color_id,
+    set_active_color,
+    is_valid_color,
 )
 from .....config import settings as _settings
 from .helpers import validate_email_unique, validate_nickname
@@ -256,9 +263,104 @@ def get_academy_id(
     qr_url   = f"/verify/{token}"
     qr_data  = f"{_settings.VERIFY_BASE_URL}/verify/{token}"
 
+    # Active Academy ID colour — stored on the LFA Player licence row.
+    # Returns None (not included in response) if no licence exists yet.
+    lfa_license = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id == current_user.id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        )
+        .first()
+    )
+    active_color = get_active_color_id(lfa_license) if lfa_license else None
+
     return {
-        "lfa_academy_id": current_user.lfa_academy_id,
-        "public_token":   token,
-        "qr_url":         qr_url,
-        "qr_data":        qr_data,
+        "lfa_academy_id":   current_user.lfa_academy_id,
+        "public_token":     token,
+        "qr_url":           qr_url,
+        "qr_data":          qr_data,
+        "active_color_id":  active_color,
     }
+
+
+# ── Academy ID — Colour system (Phase 1: free colours only) ──────────────────
+
+def _require_lfa_license(db: Session, user: User) -> UserLicense:
+    """Return the user's LFA Football Player licence or raise 404."""
+    lic = (
+        db.query(UserLicense)
+        .filter(
+            UserLicense.user_id == user.id,
+            UserLicense.specialization_type == "LFA_FOOTBALL_PLAYER",
+        )
+        .first()
+    )
+    if not lic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No LFA Football Player licence found.",
+        )
+    return lic
+
+
+@router.get("/me/academy-id/colors")
+def get_academy_id_colors(
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+) -> Any:
+    """
+    Return the Academy ID colour palette and the user's active colour.
+
+    Phase 1: three free colours (official / ivory / charcoal).
+    All colours have is_owned=true and credit_cost=0.
+    Phase 2 will add premium colours with ownership checks.
+
+    Requires an active LFA Football Player licence (404 otherwise).
+    """
+    lfa_license   = _require_lfa_license(db, current_user)
+    active_color  = get_active_color_id(lfa_license)
+    colors        = get_all_colors()
+
+    return {
+        "active_color_id": active_color,
+        "colors": [
+            {
+                "id":          c.id,
+                "label":       c.label,
+                "dot_color":   c.dot_color,
+                "is_premium":  c.is_premium,
+                "credit_cost": c.credit_cost,
+                "is_owned":    True,   # Phase 1: all colours are free → always owned
+                "sort_order":  c.sort_order,
+            }
+            for c in colors
+        ],
+    }
+
+
+class _ColorSelectRequest(BaseModel):
+    color_id: str
+
+
+@router.post("/me/academy-id/colors/select")
+def select_academy_id_color(
+    payload:      _ColorSelectRequest,
+    db:           Session = Depends(get_db),
+    current_user: User    = Depends(get_current_user),
+) -> Any:
+    """
+    Set the active Academy ID colour for the current user.
+
+    Phase 1: only free colours accepted (official / ivory / charcoal).
+    Returns the new active_color_id on success.
+    """
+    if not is_valid_color(payload.color_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown Academy ID colour: {payload.color_id!r}. "
+                   f"Valid options: official, ivory, charcoal.",
+        )
+    lfa_license = _require_lfa_license(db, current_user)
+    new_color   = set_active_color(db, lfa_license, payload.color_id)
+    return {"ok": True, "active_color_id": new_color}

@@ -430,9 +430,9 @@ class TestCE216WelcomeEditorUnchanged:
 
 class TestCE217RouteCount:
     def test_openapi_snapshot_route_count_unchanged(self):
-        """feat/r3f adds POST /api/v1/lfa-player/self-assessment — snapshot path count must equal 869."""
+        """Academy ID colour system Phase 1 adds 2 new routes — snapshot path count must equal 876."""
         from app.main import app
         paths = app.openapi().get("paths", {})
-        assert len(paths) == 874, (
-            f"Expected 869 routes (868 prior baseline + 1 lfa-player/self-assessment route), got {len(paths)}."
+        assert len(paths) == 876, (
+            f"Expected 876 routes (874 prior baseline + 2 academy-id colour routes), got {len(paths)}."
         )

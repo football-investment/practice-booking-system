@@ -22319,6 +22319,19 @@
         "title": "_CardVariantRequest",
         "type": "object"
       },
+      "_ColorSelectRequest": {
+        "properties": {
+          "color_id": {
+            "title": "Color Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "color_id"
+        ],
+        "title": "_ColorSelectRequest",
+        "type": "object"
+      },
       "_HighlightVideoRequest": {
         "properties": {
           "video_url": {
@@ -59869,6 +59882,82 @@
           }
         ],
         "summary": "Get Academy Id",
+        "tags": [
+          "users",
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me/academy-id/colors": {
+      "get": {
+        "description": "Return the Academy ID colour palette and the user's active colour.\n\nPhase 1: three free colours (official / ivory / charcoal).\nAll colours have is_owned=true and credit_cost=0.\nPhase 2 will add premium colours with ownership checks.\n\nRequires an active LFA Football Player licence (404 otherwise).",
+        "operationId": "get_academy_id_colors_api_v1_users_me_academy_id_colors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Academy Id Colors Api V1 Users Me Academy Id Colors Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Academy Id Colors",
+        "tags": [
+          "users",
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me/academy-id/colors/select": {
+      "post": {
+        "description": "Set the active Academy ID colour for the current user.\n\nPhase 1: only free colours accepted (official / ivory / charcoal).\nReturns the new active_color_id on success.",
+        "operationId": "select_academy_id_color_api_v1_users_me_academy_id_colors_select_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_ColorSelectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Select Academy Id Color Api V1 Users Me Academy Id Colors Select Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Select Academy Id Color",
         "tags": [
           "users",
           "users"
