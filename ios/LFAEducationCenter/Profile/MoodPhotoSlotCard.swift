@@ -107,15 +107,9 @@ struct MoodPhotoSlotCard: View {
                     .fill(Theme.Color.primary.opacity(0.07))
                     .frame(width: 56, height: 56)
                     .overlay(
-                        VStack(spacing: 2) {
-                            if let emoji = _moodEmoji[slot.slot] {
-                                Text(emoji).font(.system(size: 20))
-                            } else {
-                                Image(systemName: "camera.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(Theme.Color.primary.opacity(0.6))
-                            }
-                        }
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(Theme.Color.primary.opacity(0.6))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.Radius.sm)

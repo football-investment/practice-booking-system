@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 
 // UIViewControllerRepresentable wrapping PHPickerViewController.
 // Single-image selection, no crop, no camera — MVP scope.
@@ -52,6 +53,49 @@ struct ProfilePhotoPicker: UIViewControllerRepresentable {
             result.itemProvider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
                 DispatchQueue.main.async { self?.onPickerFinished(object as? UIImage) }
             }
+        }
+    }
+}
+
+// UIImagePickerController wrapper for camera capture — mood photos only.
+//
+// IMPORTANT — same dismiss rule as ProfilePhotoPicker:
+//   Do NOT call picker.dismiss(animated:) from the delegate. Doing so triggers
+//   the same UIKit modal-cascade bug that closes the parent MoodPhotosView.
+//   The caller sets showingCamera = false, which drives SwiftUI-native sheet close.
+struct CameraImagePicker: UIViewControllerRepresentable {
+
+    let onPickerFinished: (UIImage?) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker           = UIImagePickerController()
+        picker.sourceType    = .camera
+        picker.allowsEditing = false
+        picker.delegate      = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPickerFinished: onPickerFinished) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        private let onPickerFinished: (UIImage?) -> Void
+
+        init(onPickerFinished: @escaping (UIImage?) -> Void) {
+            self.onPickerFinished = onPickerFinished
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            // Do NOT call picker.dismiss(animated:) — caller closes via SwiftUI binding.
+            let image = info[.originalImage] as? UIImage
+            DispatchQueue.main.async { self.onPickerFinished(image) }
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            // Do NOT call picker.dismiss(animated:)
+            DispatchQueue.main.async { self.onPickerFinished(nil) }
         }
     }
 }

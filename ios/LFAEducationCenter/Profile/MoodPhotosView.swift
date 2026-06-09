@@ -21,6 +21,11 @@ struct MoodPhotosView: View {
     @State private var showingPickerForSlot: String? = nil
     @State private var pickerImage: UIImage? = nil
 
+    // Source selection dialog + camera
+    @State private var showingSourceDialog: Bool    = false
+    @State private var pendingUploadSlot:   String? = nil
+    @State private var showingCamera:       Bool    = false
+
     // Preview sheet state — uses fullScreenCover(item:) to avoid the iOS 14/15
     // nested-sheet bug that can dismiss this MoodPhotosView when a .sheet closes.
     @State private var previewSlot: MoodPhotoSlotData? = nil
@@ -94,6 +99,44 @@ struct MoodPhotosView: View {
                 message: Text(vm.uploadError ?? ""),
                 dismissButton: .default(Text("OK")) { vm.uploadError = nil }
             )
+        }
+        // Add Photo source selection — shown for both placeholder tap and plus tap.
+        // Uses actionSheet (iOS 14-compatible). Take Photo button only included when
+        // camera hardware is available — hidden on Simulator.
+        .actionSheet(isPresented: $showingSourceDialog) {
+            ActionSheet(
+                title: Text("Add Photo"),
+                buttons: {
+                    var buttons: [ActionSheet.Button] = []
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        buttons.append(.default(Text("Take Photo")) {
+                            showingCamera = true
+                        })
+                    }
+                    buttons.append(.default(Text("Choose from Library")) {
+                        if let slot = pendingUploadSlot {
+                            lastPickedSlot       = slot
+                            showingPickerForSlot = slot
+                        }
+                    })
+                    buttons.append(.cancel {
+                        pendingUploadSlot = nil
+                    })
+                    return buttons
+                }()
+            )
+        }
+        // Camera sheet — same dismiss strategy as ProfilePhotoPicker sheet:
+        // callback sets showingCamera = false, SwiftUI drives the close, no UIKit cascade.
+        .sheet(isPresented: $showingCamera) {
+            CameraImagePicker { imageOrNil in
+                showingCamera = false          // SwiftUI-safe: drives sheet close via binding
+                if let image = imageOrNil {
+                    lastPickedSlot = pendingUploadSlot
+                    pickerImage    = image     // triggers onChange → upload
+                }
+                pendingUploadSlot = nil
+            }
         }
         // Mood photo preview — fullScreenCover(item:) avoids the nested .sheet
         // bug that can dismiss this view when the inner sheet closes.
@@ -225,7 +268,7 @@ struct MoodPhotosView: View {
     }
 
     private func beginUpload(slot: String) {
-        lastPickedSlot      = slot
-        showingPickerForSlot = slot
+        pendingUploadSlot   = slot
+        showingSourceDialog = true
     }
 }
