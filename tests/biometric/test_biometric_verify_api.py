@@ -68,8 +68,13 @@ def test_bcm11_feature_flag_off_returns_503(db, student_user):
 
 # ── BCM-12 — no active consent → 403 ─────────────────────────────────────────
 
-def test_bcm12_no_consent_returns_403(db, student_user, biometric_feature_enabled, allow_test_key):
-    # No consent row → 403
+def test_bcm12_no_consent_returns_403(db, student_user, biometric_feature_enabled, allow_test_key, monkeypatch):
+    # Disclosure granted; consent intentionally absent → 403 consent_required
+    monkeypatch.setattr("app.config.settings.BIOMETRIC_DISCLOSURE_ENABLED", True)
+    from app.services.biometric.disclosure_service import accept_disclosure
+    accept_disclosure(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
+
     with pytest.raises(HTTPException) as exc_info:
         _run(verify_biometric(
             payload=_valid_payload(),
@@ -86,6 +91,9 @@ def test_bcm13_no_active_embedding_returns_404(
     db, student_user, biometric_feature_enabled, encryption_test_key
 ):
     from app.services.biometric.consent_service import grant_consent
+    from app.services.biometric.disclosure_service import accept_disclosure as _acc
+    _acc(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     db.flush()
 
@@ -108,6 +116,9 @@ def test_bcm14_match_returns_verified(
     from app.services.biometric.consent_service import grant_consent
     from app.services.biometric.embedding_service import FakeEmbeddingProvider, store_embedding
 
+    from app.services.biometric.disclosure_service import accept_disclosure as _ad
+    _ad(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     seed = b"verify_photo.jpg"
     emb  = FakeEmbeddingProvider().generate(seed)
@@ -134,6 +145,9 @@ def test_bcm15_response_has_no_face_match_score(
     from app.services.biometric.consent_service import grant_consent
     from app.services.biometric.embedding_service import FakeEmbeddingProvider, store_embedding
 
+    from app.services.biometric.disclosure_service import accept_disclosure as _ad
+    _ad(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     seed = b"verify_photo.jpg"
     emb  = FakeEmbeddingProvider().generate(seed)
@@ -162,6 +176,9 @@ def test_bcm16_review_band_outcome(
     from app.services.biometric.consent_service import grant_consent
     from app.services.biometric.embedding_service import FakeEmbeddingProvider, store_embedding
 
+    from app.services.biometric.disclosure_service import accept_disclosure as _ad
+    _ad(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     emb = FakeEmbeddingProvider().generate(b"seed")
     row = store_embedding(db=db, user_id=student_user.id, embedding=emb, model_version="fake_v1")
@@ -186,6 +203,9 @@ def test_bcm17_rejected_outcome(
     from app.services.biometric.consent_service import grant_consent
     from app.services.biometric.embedding_service import FakeEmbeddingProvider, store_embedding
 
+    from app.services.biometric.disclosure_service import accept_disclosure as _ad
+    _ad(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     emb = FakeEmbeddingProvider().generate(b"seed")
     row = store_embedding(db=db, user_id=student_user.id, embedding=emb, model_version="fake_v1")
@@ -210,6 +230,9 @@ def test_bcm18_audit_match_success(
     from app.services.biometric.consent_service import grant_consent
     from app.services.biometric.embedding_service import FakeEmbeddingProvider, store_embedding
 
+    from app.services.biometric.disclosure_service import accept_disclosure as _ad
+    _ad(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     seed = b"verify_photo.jpg"
     emb  = FakeEmbeddingProvider().generate(seed)
@@ -238,6 +261,9 @@ def test_bcm19_audit_match_failed(
     from app.services.biometric.consent_service import grant_consent
     from app.services.biometric.embedding_service import FakeEmbeddingProvider, store_embedding
 
+    from app.services.biometric.disclosure_service import accept_disclosure as _ad
+    _ad(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     emb = FakeEmbeddingProvider().generate(b"ref_seed")
     row = store_embedding(db=db, user_id=student_user.id, embedding=emb, model_version="fake_v1")
@@ -271,6 +297,9 @@ def test_bcm20_audit_match_review_required(
     from app.services.biometric.consent_service import grant_consent
     from app.services.biometric.embedding_service import FakeEmbeddingProvider, store_embedding
 
+    from app.services.biometric.disclosure_service import accept_disclosure as _ad
+    _ad(db=db, user=student_user, disclosure_version="v1.0")
+    db.flush()
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     emb = FakeEmbeddingProvider().generate(b"ref_seed")
     row = store_embedding(db=db, user_id=student_user.id, embedding=emb, model_version="fake_v1")

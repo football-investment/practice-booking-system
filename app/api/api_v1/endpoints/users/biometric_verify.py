@@ -49,6 +49,10 @@ def verify_biometric(
     - Returns result: verified | manual_review_required | rejected.
     - face_match_score is NEVER returned — stored internally in audit log only.
     """
+    # ── Disclosure guard (PR-7A — must precede consent) ──────────────────────
+    from app.services.biometric.disclosure_service import assert_disclosure_current
+    assert_disclosure_current(db=db, user_id=current_user.id)
+
     # ── Consent guard ─────────────────────────────────────────────────────────
     active_consent = (
         db.query(UserBiometricConsent)

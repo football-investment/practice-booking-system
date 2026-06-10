@@ -317,6 +317,12 @@ class User(Base):
         cascade="all, delete-orphan",
         foreign_keys="UserBiometricConsent.user_id",
     )
+    biometric_disclosures = relationship(
+        "UserBiometricDisclosure",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="UserBiometricDisclosure.user_id",
+    )
     face_embedding = relationship(
         "UserFaceEmbedding",
         back_populates="user",

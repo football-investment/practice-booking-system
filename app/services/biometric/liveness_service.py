@@ -52,21 +52,28 @@ def submit_liveness_result(
     Record a completed onboarding liveness challenge on the backend.
 
     Steps:
-      1. Verify active biometric consent exists.
-      2. Guard against duplicate onboarding_liveness submission.
-      3. Sanitize liveness_metadata (layer 3 — mandatory even after Pydantic).
-      4. Validate photo_filename basename safety.
-      5. Update user status columns.
-      6. Write three audit log rows.
-      7. Log embedding-generation placeholder (Celery task in PR-4).
-      8. Return BiometricVerificationStatusOut (no face_match_score).
+      1. Disclosure check (PR-7A) — active current disclosure required.
+      2. Verify active biometric consent exists.
+      3. Guard against duplicate onboarding_liveness submission.
+      4. Sanitize liveness_metadata (layer 3 — mandatory even after Pydantic).
+      5. Validate photo_filename basename safety.
+      6. Update user status columns.
+      7. Write three audit log rows.
+      8. Log embedding-generation placeholder (Celery task in PR-4).
+      9. Return BiometricVerificationStatusOut (no face_match_score).
 
     Raises:
+      403 — biometric_disclosure_required / biometric_disclosure_update_required
       403 — no active biometric consent
       409 — duplicate onboarding_liveness submission
       400 — unsafe photo_filename (path traversal)
     """
-    # ── 1. Consent check ──────────────────────────────────────────────────────
+    # ── 1. Disclosure check (PR-7A — must precede consent check) ─────────────
+    # Raises 403 biometric_disclosure_required / biometric_disclosure_update_required
+    from app.services.biometric.disclosure_service import assert_disclosure_current
+    assert_disclosure_current(db=db, user_id=user.id)
+
+    # ── 2. Consent check ──────────────────────────────────────────────────────
     active_consent = (
         db.query(UserBiometricConsent)
         .filter(

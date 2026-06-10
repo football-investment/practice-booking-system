@@ -73,12 +73,18 @@ def _valid_payload(photo_filename: str | None = "photo_abc.jpg") -> BiometricLiv
 def _grant_consent(db, user):
     from app.services.biometric.consent_service import grant_consent
     grant_consent(db=db, user=user, consent_version="v1.0")
+
+
+def _grant_disclosure(db, user):
+    from app.services.biometric.disclosure_service import accept_disclosure
+    accept_disclosure(db=db, user=user, disclosure_version="v1.0")
     db.flush()
 
 
 # ── BCL-01 / BCL-02 / BCL-03 ─────────────────────────────────────────────────
 
 def test_bcl01_post_returns_201_fields(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     result = _run(submit_biometric_liveness(
         payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -89,6 +95,7 @@ def test_bcl01_post_returns_201_fields(db, student_user, biometric_feature_enabl
 
 
 def test_bcl02_face_reference_photo_status_set(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     _run(submit_biometric_liveness(
         payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -98,6 +105,7 @@ def test_bcl02_face_reference_photo_status_set(db, student_user, biometric_featu
 
 
 def test_bcl03_face_match_status_reference_pending(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     _run(submit_biometric_liveness(
         payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -110,6 +118,7 @@ def test_bcl03_face_match_status_reference_pending(db, student_user, biometric_f
 # ── BCL-04 — three audit log rows ─────────────────────────────────────────────
 
 def test_bcl04_three_audit_log_rows(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     _run(submit_biometric_liveness(
         payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -139,6 +148,7 @@ def test_bcl05_post_503_when_flag_off():
 # ── BCL-06 — no consent → 403 ────────────────────────────────────────────────
 
 def test_bcl06_post_403_no_consent(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)   # disclosure present; consent intentionally absent
     with pytest.raises(HTTPException) as exc:
         _run(submit_biometric_liveness(
             payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -150,6 +160,7 @@ def test_bcl06_post_403_no_consent(db, student_user, biometric_feature_enabled):
 # ── BCL-07 — duplicate submission → 409 ──────────────────────────────────────
 
 def test_bcl07_post_409_duplicate(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     _run(submit_biometric_liveness(
         payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -243,6 +254,7 @@ def test_bcl12_unauthenticated_structural():
 # ── BCL-13 / BCL-14 — no forbidden fields in response ────────────────────────
 
 def test_bcl13_response_no_face_match_score(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     result = _run(submit_biometric_liveness(
         payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -252,6 +264,7 @@ def test_bcl13_response_no_face_match_score(db, student_user, biometric_feature_
 
 
 def test_bcl14_response_no_embedding(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     result = _run(submit_biometric_liveness(
         payload=_valid_payload(), request=_mock_request(), db=db, current_user=student_user
@@ -264,6 +277,7 @@ def test_bcl14_response_no_embedding(db, student_user, biometric_feature_enabled
 # ── BCL-15 — sanitizer runs and strips forbidden keys ────────────────────────
 
 def test_bcl15_sanitizer_strips_forbidden_keys(db, student_user, biometric_feature_enabled, caplog):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     import logging
     # Directly test sanitizer layer — liveness_metadata with a known forbidden key

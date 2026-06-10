@@ -309,6 +309,21 @@ class Settings(BaseSettings):
     # True only in test/dev — allows empty BIOMETRIC_EMBEDDING_KEY without raising
     BIOMETRIC_ENCRYPTION_ALLOW_TEST_KEY: bool = False
 
+    # ── PR-7A Biometric Disclosure (user tájékoztató modal) ──────────────────
+    # BIOMETRIC_DISCLOSURE_ENABLED controls the disclosure/consent-modal endpoints.
+    #   Separate from BIOMETRIC_FACE_MATCHING_ENABLED — allows the disclosure UI
+    #   to be rolled out before full face matching is activated.
+    #   false (default) — disclosure endpoints return HTTP 503.
+    #   true            — disclosure endpoints active; face matching still requires
+    #                     BIOMETRIC_FACE_MATCHING_ENABLED=true separately.
+    BIOMETRIC_DISCLOSURE_ENABLED: bool = False
+
+    # CURRENT_BIOMETRIC_DISCLOSURE_VERSION — the canonical disclosure text version
+    #   that users must accept. Bump this string when the disclosure text changes;
+    #   existing acceptances of older versions will be treated as stale and users
+    #   will be prompted to re-accept before liveness/verify is allowed.
+    CURRENT_BIOMETRIC_DISCLOSURE_VERSION: str = "v1.0"
+
     # ── PR-5 ONNX R&D guards ─────────────────────────────────────────────────
     # BIOMETRIC_ONNX_RND_ENABLED — separate guard for the ONNX provider.
     #   False (default) — ONNX provider is disabled even if provider=onnx is set.
