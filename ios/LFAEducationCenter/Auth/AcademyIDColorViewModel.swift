@@ -10,6 +10,9 @@ import UIKit
 // select(): optimistic update + rollback on error.
 // unlock(): non-optimistic — waits for API response, then updates ownership
 //           and auto-selects the colour on success.
+//
+// Error handling: pattern-match on APIError type/statusCode, never on
+// localizedDescription strings — those don't contain the HTTP status code.
 
 @MainActor
 final class AcademyIDColorViewModel: ObservableObject {
@@ -53,15 +56,27 @@ final class AcademyIDColorViewModel: ObservableObject {
                 path: "/api/v1/users/me/academy-id/colors/select",
                 body: Payload(colorId: colorId)
             )
+        } catch let err as APIError {
+            activeColorId = previous
+            switch err {
+            case .networkError:
+                errorMessage = "Could not apply style. Check your connection."
+            case .httpError(403, _):
+                // color_not_owned — frontend should prevent this, but handle gracefully
+                errorMessage = "Unlock this style first."
+            default:
+                errorMessage = "Could not apply style. Please try again."
+            }
         } catch {
             activeColorId = previous
-            errorMessage  = "Could not apply style. Check your connection."
+            errorMessage  = "Could not apply style. Please try again."
         }
     }
 
     // MARK: — Unlock (purchase + auto-select)
     //
     // Returns true on success so the caller (confirmation alert) can dismiss.
+    // Error mapping is based on HTTP statusCode, never on localizedDescription.
 
     @discardableResult
     func unlock(colorId: String, using authManager: AuthManager) async -> Bool {
@@ -115,14 +130,43 @@ final class AcademyIDColorViewModel: ObservableObject {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             return true
 
-        } catch {
-            let description = error.localizedDescription
-            if description.contains("402") || description.contains("insufficient") {
-                errorMessage = "Not enough credits to unlock this style."
-            } else {
-                errorMessage = "Could not unlock style. Check your connection."
-            }
+        } catch let err as APIError {
+            errorMessage = Self.unlockErrorMessage(for: err)
             return false
+        } catch {
+            // Non-HTTP errors (task cancellation, etc.)
+            errorMessage = "Could not unlock style. Please try again."
+            return false
+        }
+    }
+
+    // MARK: — Error message mapping
+
+    private static func unlockErrorMessage(for error: APIError) -> String {
+        switch error {
+        case .networkError:
+            return "Could not unlock style. Check your connection."
+        case .httpError(let status, _):
+            switch status {
+            case 402:
+                return "Not enough credits. You need 300 CR to unlock this style."
+            case 403:
+                // color_not_owned returned by backend — shouldn't happen normally
+                // since frontend checks ownership before showing the unlock alert
+                return "This style is already locked. Unlock it first."
+            case 404:
+                // No LFA Football Player licence found
+                return "Activate your Academy ID before unlocking premium styles."
+            case 400:
+                // color_is_free or color_unknown — UI should prevent these
+                return "This style cannot be unlocked."
+            default:
+                return "Could not unlock style. Please try again."
+            }
+        case .unauthorized:
+            return "Session expired. Please log in again."
+        default:
+            return "Could not unlock style. Please try again."
         }
     }
 

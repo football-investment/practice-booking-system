@@ -7,19 +7,30 @@ import SwiftUI
 //   Premium section — Navy / Burgundy / Forest     (locked until purchased)
 //
 // Locked swatch: dimmed circle + lock icon + "300 CR" badge.
-// Tap locked swatch → unlock confirmation alert.
+// Tap locked swatch:
+//   • If cardStatus == .noLicence → show "activate first" message (no request made)
+//   • Otherwise → show unlock confirmation alert
+//
 // Unlock confirmation: colour name, price, one-time purchase note, Unlock / Cancel.
 //
 // Unlock success:
 //   ownership updated → colour auto-selects → card switches → haptic (medium).
 //
 // Error banner: shown for select/unlock failures, dismissible.
+//   402 → "Not enough credits"  (not "Check your connection")
+//   404 → "Activate Academy ID" (not "Check your connection")
+//   network → "Check your connection" (only real transport errors)
+//
 // Reduce Motion: respected for swatch selection animations.
 
 struct AcademyIDColorPickerView: View {
 
     @EnvironmentObject private var authManager: AuthManager
-    @ObservedObject var colorVM: AcademyIDColorViewModel
+    @ObservedObject var colorVM:   AcademyIDColorViewModel
+    /// Current card status from AcademyIDFullScreenView.
+    /// Used to gate premium unlock attempts when the licence is absent.
+    var cardStatus: IDCardStatus = .verified
+
     @Environment(\.presentationMode) private var presentationMode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -116,12 +127,19 @@ struct AcademyIDColorPickerView: View {
 
     @ViewBuilder
     private func swatchButton(_ theme: AcademyIDColorTheme) -> some View {
-        let isActive  = colorVM.activeColorId == theme.id
-        let isLocked  = theme.isPremium && !theme.isOwned
+        let isActive = colorVM.activeColorId == theme.id
+        let isLocked = theme.isPremium && !theme.isOwned
 
         Button {
             if isLocked {
-                pendingUnlockTheme = theme
+                if cardStatus == .noLicence {
+                    // No licence at all — can't unlock; inform the user
+                    colorVM.errorMessage = "Activate your Academy ID before unlocking premium styles."
+                } else {
+                    // Has a licence (verified, photo required, onboarding required, etc.)
+                    // Let the backend decide; our error mapping handles 402/403/404 correctly
+                    pendingUnlockTheme = theme
+                }
             } else {
                 let animation: Animation = reduceMotion
                     ? .easeInOut(duration: 0.20)
