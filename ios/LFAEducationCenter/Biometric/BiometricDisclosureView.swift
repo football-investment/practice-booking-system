@@ -43,9 +43,9 @@ struct BiometricDisclosureView: View {
                 .environmentObject(authManager)
             }
         }
-        .task { await vm.load() }
         .onAppear {
             vm.onReadyForLiveness = { showLiveness = true }
+            Task { await vm.load() }
         }
     }
 

@@ -169,8 +169,7 @@ final class BiometricService: ObservableObject {
             throw APIError.networkError(URLError(.badServerResponse))
         }
         guard (200...299).contains(http.statusCode) else {
-            struct D: Decodable { let detail: String? }
-            let d = try? JSONDecoder().decode(D.self, from: data)
+            let d = try? JSONDecoder().decode(_BiometricDeleteErrorBody.self, from: data)
             throw APIError.httpError(statusCode: http.statusCode, detail: d?.detail)
         }
         do {
@@ -182,3 +181,7 @@ final class BiometricService: ObservableObject {
 }
 
 private struct EmptyBody: Encodable {}
+
+private struct _BiometricDeleteErrorBody: Decodable {
+    let detail: String?
+}

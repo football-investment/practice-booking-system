@@ -196,7 +196,7 @@ struct BiometricLivenessView: View {
     private var loadingOverlay: some View {
         Color.black.opacity(0.4)
             .ignoresSafeArea()
-            .overlay(ProgressView().tint(.white))
+            .overlay(ProgressView().accentColor(.white))
     }
 
     private var closeButton: some ToolbarContent {
