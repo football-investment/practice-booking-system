@@ -62,6 +62,10 @@ EVT_GDPR_DELETE      = "gdpr_delete_requested"
 EVT_UPLOAD_NO_FACE        = "upload_rejected_no_face"
 EVT_UPLOAD_MULTIPLE_FACES = "upload_rejected_multiple_faces"
 
+# Disclosure lifecycle (PR-7A)
+EVT_DISCLOSURE_ACCEPTED = "disclosure_accepted"
+EVT_DISCLOSURE_REVOKED  = "disclosure_revoked"
+
 # Complete set — used by test_audit_completeness to ensure coverage
 ALL_EVENT_TYPES: frozenset[str] = frozenset({
     EVT_CONSENT_GRANTED,
@@ -83,6 +87,8 @@ ALL_EVENT_TYPES: frozenset[str] = frozenset({
     EVT_GDPR_DELETE,
     EVT_UPLOAD_NO_FACE,
     EVT_UPLOAD_MULTIPLE_FACES,
+    EVT_DISCLOSURE_ACCEPTED,
+    EVT_DISCLOSURE_REVOKED,
 })
 
 # ── BiometricAuditLogger ──────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
 """
-Biometric face matching models — PR-1 foundation.
+Biometric face matching models — PR-1 foundation + PR-7A disclosure.
 
-Three tables:
+Four tables:
   user_biometric_consents    — GDPR Art. 9 explicit consent records
+  user_biometric_disclosures — user disclosure/tájékoztató modal acceptances (PR-7A)
   user_face_embeddings       — AES-256-GCM encrypted ArcFace embeddings (PR-4+)
   biometric_verification_logs — immutable audit trail for every biometric event
 
@@ -72,6 +73,66 @@ class UserBiometricConsent(Base):
                         default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="biometric_consents")
+
+
+# ── UserBiometricDisclosure ───────────────────────────────────────────────────
+
+class UserBiometricDisclosure(Base):
+    """
+    User disclosure / tájékoztató modal acceptance record — PR-7A.
+
+    Tracks that the user has read and explicitly accepted the biometric
+    data-processing disclosure text before the liveness/verify flow is allowed.
+
+    This is distinct from UserBiometricConsent (GDPR Art. 9 legal basis):
+      disclosure accepted  = user acknowledged the informational modal (PR-7A)
+      consent granted      = GDPR Art. 9(2)(a) explicit biometric consent (PR-2)
+    Both must be active before the liveness/verify flow is permitted.
+
+    Constraints:
+      - Partial unique index enforced in migration:
+          UNIQUE(user_id) WHERE is_active = TRUE
+        → only one active disclosure per user at any time.
+      - Revocation sets is_active=False + revoked_at; row retained for audit.
+      - Retention: 5 years (proof of disclosure obligation).
+      - disclosure_version must match settings.CURRENT_BIOMETRIC_DISCLOSURE_VERSION;
+        stale acceptances block liveness/verify with biometric_disclosure_update_required.
+
+    Design rules:
+      - No embedding, face_match_score, liveness sensor data in this table.
+      - Row is INSERT/soft-delete only; no physical DELETE via application code.
+    """
+    __tablename__ = "user_biometric_disclosures"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Disclosure acceptance
+    disclosure_version = Column(
+        String(20), nullable=False,
+        comment="Disclosure text version accepted, e.g. 'v1.0'. "
+                "Must match CURRENT_BIOMETRIC_DISCLOSURE_VERSION to be valid.",
+    )
+    accepted_at   = Column(DateTime(timezone=True), nullable=False,
+                           default=lambda: datetime.now(timezone.utc))
+    acceptance_ip = Column(String(45), nullable=True,
+                           comment="IPv4 or IPv6 of the accepting request")
+
+    # Revocation (soft-delete)
+    revoked_at        = Column(DateTime(timezone=True), nullable=True)
+    revocation_reason = Column(String(200), nullable=True)
+
+    # State — partial UNIQUE(user_id) WHERE is_active=TRUE enforced in migration
+    is_active  = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False,
+                        default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="biometric_disclosures")
 
 
 # ── UserFaceEmbedding ─────────────────────────────────────────────────────────

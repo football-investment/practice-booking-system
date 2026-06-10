@@ -160,6 +160,38 @@ class BiometricVerificationStatusOut(BaseModel):
     # face_match_score ABSENT — structural enforcement
 
 
+# ── Disclosure request / response (PR-7A) ────────────────────────────────────
+
+class BiometricDisclosureAcceptRequest(BaseModel):
+    """Body for POST /me/biometric-disclosure (PR-7A)."""
+    model_config = ConfigDict(extra="forbid")
+
+    disclosure_version: str = Field(
+        ...,
+        max_length=20,
+        description="Disclosure text version being accepted, e.g. 'v1.0'.",
+    )
+
+    # No score, embedding, raw biometric data — deliberately absent
+
+
+class BiometricDisclosureStatusOut(BaseModel):
+    """
+    Read-only view of the user's biometric disclosure state.
+
+    face_match_score, embedding, raw liveness/sensor data — intentionally absent.
+    """
+    has_disclosure:   bool               = False
+    is_active:        bool               = False
+    accepted_version: Optional[str]      = None
+    accepted_at:      Optional[datetime] = None
+    revoked_at:       Optional[datetime] = None
+
+    # face_match_score ABSENT — structural enforcement
+    # embedding ABSENT — structural enforcement
+    # raw liveness data ABSENT — structural enforcement
+
+
 # ── Face-verify request / response (PR-6) ────────────────────────────────────
 
 class BiometricVerifyRequest(BaseModel):

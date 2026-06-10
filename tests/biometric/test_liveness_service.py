@@ -46,9 +46,17 @@ def _grant_consent(db, user):
     db.flush()
 
 
+def _grant_disclosure(db, user):
+    """Grant a valid disclosure row so the PR-7A guard passes in service tests."""
+    from app.services.biometric.disclosure_service import accept_disclosure
+    accept_disclosure(db=db, user=user, disclosure_version="v1.0")
+    db.flush()
+
+
 # ── BCLS-01 — happy path return value ────────────────────────────────────────
 
 def test_bcls01_happy_path_return_type(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     result = submit_liveness_result(
         db=db,
@@ -68,6 +76,7 @@ def test_bcls01_happy_path_return_type(db, student_user, biometric_feature_enabl
 # ── BCLS-02 — no consent → 403 ───────────────────────────────────────────────
 
 def test_bcls02_no_consent_raises_403(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)   # disclosure granted; consent intentionally absent
     with pytest.raises(HTTPException) as exc:
         submit_liveness_result(
             db=db,
@@ -83,6 +92,7 @@ def test_bcls02_no_consent_raises_403(db, student_user, biometric_feature_enable
 # ── BCLS-03 / BCLS-04 — status columns updated ───────────────────────────────
 
 def test_bcls03_face_reference_photo_status(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     submit_liveness_result(
         db=db, user=student_user, liveness_metadata=_VALID_METADATA,
@@ -93,6 +103,7 @@ def test_bcls03_face_reference_photo_status(db, student_user, biometric_feature_
 
 
 def test_bcls04_face_match_status_not_verified(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     submit_liveness_result(
         db=db, user=student_user, liveness_metadata=_VALID_METADATA,
@@ -106,6 +117,7 @@ def test_bcls04_face_match_status_not_verified(db, student_user, biometric_featu
 # ── BCLS-05 — three audit log rows ───────────────────────────────────────────
 
 def test_bcls05_three_audit_rows(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     submit_liveness_result(
         db=db, user=student_user, liveness_metadata=_VALID_METADATA,
@@ -125,6 +137,7 @@ def test_bcls05_three_audit_rows(db, student_user, biometric_feature_enabled):
 # ── BCLS-06 — sanitizer called unconditionally ────────────────────────────────
 
 def test_bcls06_sanitizer_called(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     with patch(
         "app.services.biometric.liveness_service.sanitize_liveness_metadata",
@@ -143,6 +156,7 @@ def test_bcls06_sanitizer_called(db, student_user, biometric_feature_enabled):
 # ── BCLS-07 — path traversal photo_filename → 400 ────────────────────────────
 
 def test_bcls07_path_traversal_raises_400(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     with pytest.raises(HTTPException) as exc:
         submit_liveness_result(
@@ -156,6 +170,7 @@ def test_bcls07_path_traversal_raises_400(db, student_user, biometric_feature_en
 # ── BCLS-08 — duplicate submission → 409 ─────────────────────────────────────
 
 def test_bcls08_duplicate_submission_raises_409(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     submit_liveness_result(
         db=db, user=student_user, liveness_metadata=_VALID_METADATA,
@@ -177,6 +192,7 @@ def test_bcls09_celery_generate_task_dispatched(db, student_user, biometric_feat
     Replaces the PR-2/3 placeholder log message test.
     """
     from unittest.mock import patch
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
 
     with patch(
@@ -194,6 +210,7 @@ def test_bcls09_celery_generate_task_dispatched(db, student_user, biometric_feat
 # ── BCLS-10 — db.flush() called ──────────────────────────────────────────────
 
 def test_bcls10_db_flush_called(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     original_flush = db.flush
     flush_count = []
@@ -212,6 +229,7 @@ def test_bcls10_db_flush_called(db, student_user, biometric_feature_enabled):
 # ── BCLS-11 — face_match_score absent from return ────────────────────────────
 
 def test_bcls11_no_face_match_score_in_return(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     result = submit_liveness_result(
         db=db, user=student_user, liveness_metadata=_VALID_METADATA,
@@ -224,6 +242,7 @@ def test_bcls11_no_face_match_score_in_return(db, student_user, biometric_featur
 # ── BCLS-12 — ip_address in audit log rows ───────────────────────────────────
 
 def test_bcls12_ip_address_in_audit_log(db, student_user, biometric_feature_enabled):
+    _grant_disclosure(db, student_user)
     _grant_consent(db, student_user)
     submit_liveness_result(
         db=db, user=student_user, liveness_metadata=_VALID_METADATA,

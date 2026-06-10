@@ -314,8 +314,16 @@ def test_bbt15_generate_activates_reference_after_liveness(
 # ── BBT-13 ────────────────────────────────────────────────────────────────────
 
 def test_bbt13_liveness_service_dispatches_generate_task(
-    db, student_user, biometric_feature_enabled
+    db, student_user, biometric_feature_enabled, monkeypatch
 ):
+    # PR-7A: liveness now requires an active current disclosure
+    monkeypatch.setattr("app.config.settings.BIOMETRIC_DISCLOSURE_ENABLED", True)
+    from app.services.biometric.disclosure_service import accept_disclosure
+    accept_disclosure(
+        db=db, user=student_user, disclosure_version="v1.0",
+    )
+    db.flush()
+
     from app.services.biometric.consent_service import grant_consent
     grant_consent(db=db, user=student_user, consent_version="v1.0")
     db.flush()

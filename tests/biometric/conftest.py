@@ -6,6 +6,7 @@ for full test isolation without database pollution between tests.
 """
 from __future__ import annotations
 
+from datetime import date
 from unittest.mock import patch
 
 import pytest
@@ -49,6 +50,7 @@ def admin_user(db):
         email="admin_biometric@test.com",
         password_hash="hashed",
         role=UserRole.ADMIN,
+        date_of_birth=date(1985, 6, 15),  # adult — passes PR-7A age gate
     )
     db.add(user)
     db.flush()
@@ -62,6 +64,7 @@ def student_user(db):
         email="student_biometric@test.com",
         password_hash="hashed",
         role=UserRole.STUDENT,
+        date_of_birth=date(1998, 3, 20),  # adult — passes PR-7A age gate
     )
     db.add(user)
     db.flush()

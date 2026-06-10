@@ -1283,6 +1283,109 @@
         ]
       }
     },
+    "/api/v1/users/me/biometric-disclosure": {
+      "get": {
+        "tags": [
+          "users",
+          "users",
+          "biometric"
+        ],
+        "summary": "Get biometric disclosure acceptance status",
+        "description": "Return the user's current disclosure acceptance state.\n\n- Requires BIOMETRIC_DISCLOSURE_ENABLED=true (503 otherwise).\n- No face_match_score, embedding, or raw biometric data in response.",
+        "operationId": "get_biometric_disclosure_api_v1_users_me_biometric_disclosure_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BiometricDisclosureStatusOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "users",
+          "users",
+          "biometric"
+        ],
+        "summary": "Accept the biometric t\u00e1j\u00e9koztat\u00f3 (disclosure modal)",
+        "description": "Record the user's explicit acceptance of the biometric disclosure modal.\n\n- Requires BIOMETRIC_DISCLOSURE_ENABLED=true (503).\n- Raises 403 parental_consent_required if user is minor or age unknown.\n- Raises 422 if disclosure_version != CURRENT_BIOMETRIC_DISCLOSURE_VERSION.\n- Raises 409 if an active disclosure already exists.\n- No face_match_score, embedding in response.\n\nBCD-22: disclosure acceptance allowed even when BIOMETRIC_FACE_MATCHING_ENABLED=False.",
+        "operationId": "accept_biometric_disclosure_api_v1_users_me_biometric_disclosure_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BiometricDisclosureAcceptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BiometricDisclosureStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "users",
+          "users",
+          "biometric"
+        ],
+        "summary": "Revoke biometric disclosure (cascades to consent revoke)",
+        "description": "Revoke the user's active biometric disclosure.\n\n- Raises 404 if no active disclosure exists.\n- Automatically revokes active biometric consent via the existing\n  revoke_consent() service (cascades Celery embedding delete).\n- Audit: EVT_DISCLOSURE_REVOKED + EVT_CONSENT_REVOKED (if consent was active).\n- No face_match_score, embedding in response.",
+        "operationId": "revoke_biometric_disclosure_api_v1_users_me_biometric_disclosure_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BiometricDisclosureStatusOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/": {
       "post": {
         "tags": [
@@ -47273,6 +47376,75 @@
         ],
         "title": "BiometricConsentStatusOut",
         "description": "Read-only view of the user's biometric consent state."
+      },
+      "BiometricDisclosureAcceptRequest": {
+        "properties": {
+          "disclosure_version": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Disclosure Version",
+            "description": "Disclosure text version being accepted, e.g. 'v1.0'."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "disclosure_version"
+        ],
+        "title": "BiometricDisclosureAcceptRequest",
+        "description": "Body for POST /me/biometric-disclosure (PR-7A)."
+      },
+      "BiometricDisclosureStatusOut": {
+        "properties": {
+          "has_disclosure": {
+            "type": "boolean",
+            "title": "Has Disclosure",
+            "default": false
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": false
+          },
+          "accepted_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Version"
+          },
+          "accepted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "type": "object",
+        "title": "BiometricDisclosureStatusOut",
+        "description": "Read-only view of the user's biometric disclosure state.\n\nface_match_score, embedding, raw liveness/sensor data \u2014 intentionally absent."
       },
       "BiometricLivenessSubmitRequest": {
         "properties": {
