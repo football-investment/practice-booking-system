@@ -434,5 +434,5 @@ class TestCE217RouteCount:
         from app.main import app
         paths = app.openapi().get("paths", {})
         assert len(paths) == 890, (
-            f"Expected 890 routes (888 prior + 2 P4 private-media paths), got {len(paths)}."
+            f"Expected 890 routes (888 prior (now 890 with P4 private media +2) + 2 P4 private-media paths), got {len(paths)}."
         )
