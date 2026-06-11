@@ -242,6 +242,17 @@ class TestThumbnailCommand:
         assert "-vf" in cmd
         assert "transpose=1" in cmd[cmd.index("-vf") + 1]
 
+    def test_rotation_270_transpose_2(self):
+        cmd = build_thumbnail_command(Path("in.mp4"), Path("thumb.jpg"), rotation=270)
+        assert "-vf" in cmd
+        assert "transpose=2" in cmd[cmd.index("-vf") + 1]
+
+    def test_rotation_180_double_transpose(self):
+        cmd = build_thumbnail_command(Path("in.mp4"), Path("thumb.jpg"), rotation=180)
+        assert "-vf" in cmd
+        vf = cmd[cmd.index("-vf") + 1]
+        assert vf.count("transpose=1") >= 2
+
     def test_rotation_0_no_vf(self):
         cmd = build_thumbnail_command(Path("in.mp4"), Path("thumb.jpg"), rotation=0)
         assert "-vf" not in cmd
@@ -426,3 +437,45 @@ class TestSha256File:
         p1.write_bytes(b"aaa")
         p2.write_bytes(b"bbb")
         assert _sha256_file(p1) != _sha256_file(p2)
+
+
+# ── _cleanup ─────────────────────────────────────────────────────────────────
+
+from app.services.juggling.transcode_service import _cleanup
+
+
+class TestCleanup:
+    def test_cleanup_existing_file(self, tmp_path):
+        p = tmp_path / "tmp.mp4"
+        p.write_bytes(b"data")
+        _cleanup(p)
+        assert not p.exists()
+
+    def test_cleanup_nonexistent_is_noop(self, tmp_path):
+        _cleanup(tmp_path / "nonexistent.mp4")  # must not raise
+
+    def test_cleanup_handles_oserror(self, tmp_path):
+        """OSError on unlink is silently swallowed."""
+        p = tmp_path / "locked.mp4"
+        p.write_bytes(b"data")
+        with patch("pathlib.Path.unlink", side_effect=OSError("locked")):
+            _cleanup(p)  # must not raise
+
+
+# ── transcode() — generic exception branch ───────────────────────────────────
+
+class TestTranscodeGenericException:
+    def test_generic_exception_returns_failed(self, tmp_path):
+        """subprocess.run raising a generic Exception → status=failed, error starts with 'ffmpeg_exception:'."""
+        orig = tmp_path / "video.mp4"
+        orig.write_bytes(b"\x00" * 100)
+        with patch("subprocess.run", side_effect=RuntimeError("unexpected")):
+            result = transcode(
+                original_path=orig,
+                video_id="test-exc",
+                metadata={"rotation": 90, "fps": 60.0, "resolution": "1920x1080",
+                          "has_audio": True},
+                upload_dir=tmp_path,
+            )
+        assert result.status == "failed"
+        assert "ffmpeg_exception" in (result.error or "")

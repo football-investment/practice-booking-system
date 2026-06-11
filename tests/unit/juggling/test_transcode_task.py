@@ -235,6 +235,48 @@ def test_jtt06_probe_error_exhausts_retries():
     assert call_args[1] == "probe_failed"
 
 
+def test_jtt08_outer_exception_handler_applies_failure():
+    """JTT-08: unexpected exception during transcode_service → outer except Exception → failure."""
+    video, _ = _make_mock_video()
+    video.storage_path = "/tmp/fake.mp4"
+    failure_mock = MagicMock()
+
+    class FakeMaxRetriesExceeded(Exception):
+        pass
+
+    def fake_retry(exc=None):
+        raise FakeMaxRetriesExceeded()
+
+    with patch("app.tasks.juggling_transcode_task.SessionLocal",
+               return_value=_mock_db(video)), \
+         patch("pathlib.Path.exists", return_value=True), \
+         patch("app.tasks.juggling_transcode_task.metadata_service.probe_video",
+               return_value={"streams": [], "format": {}}), \
+         patch("app.tasks.juggling_transcode_task.metadata_service.extract_server_metadata",
+               return_value={"fps": 60.0, "resolution": "1920x1080",
+                             "rotation": 0, "has_audio": True}), \
+         patch("app.tasks.juggling_transcode_task.transcode_service.transcode",
+               side_effect=RuntimeError("unexpected crash")), \
+         patch("app.tasks.juggling_transcode_task.video_service.set_transcode_processing"), \
+         patch("app.tasks.juggling_transcode_task.video_service.apply_transcode_failure",
+               failure_mock):
+
+        from app.tasks.juggling_transcode_task import transcode_video_task
+        original_retry = transcode_video_task.retry
+        original_max = transcode_video_task.MaxRetriesExceededError
+        transcode_video_task.retry = fake_retry
+        transcode_video_task.MaxRetriesExceededError = FakeMaxRetriesExceeded
+        try:
+            result = transcode_video_task.apply(args=["test-uuid"])
+        finally:
+            transcode_video_task.retry = original_retry
+            transcode_video_task.MaxRetriesExceededError = original_max
+
+    failure_mock.assert_called_once()
+    call_args = failure_mock.call_args[0]
+    assert "task_exception" in call_args[1]
+
+
 def test_jtt07_missing_storage_path_applies_failure():
     """JTT-07: storage_path is None → apply_transcode_failure with missing_storage_path."""
     video = MagicMock()
