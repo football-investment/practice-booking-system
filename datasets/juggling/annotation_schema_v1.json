@@ -2,32 +2,24 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "juggling_annotation_v1",
   "title": "Juggling Video Annotation Schema v1.0",
-  "description": "Ground-truth annotation for a single juggling video clip. Required fields must be filled by the primary annotator. contact_events is optional in v1.0.",
+  "description": "Ground-truth annotation for a single juggling video clip. Objective metadata fields are filled from ffprobe/DB. Human-observation fields must be filled manually and must never be guessed or inferred automatically.",
   "type": "object",
 
   "required": [
     "annotation_schema_version",
     "video_id",
     "filename",
-    "source",
+    "upload_source",
+    "capture_device",
     "duration_seconds",
-    "resolution",
+    "original_resolution",
     "fps",
-    "orientation",
-    "difficulty",
-    "total_juggling_count",
-    "count_confidence",
-    "dominant_body_part",
-    "body_parts_used",
-    "ball_visible_quality",
-    "lighting_quality",
-    "camera_stability",
-    "multi_person_present",
-    "multiple_balls_present",
-    "expected_validity",
-    "annotator",
-    "annotation_date",
-    "annotation_version"
+    "original_rotation_metadata",
+    "display_orientation",
+    "checksum_sha256",
+    "annotation_status",
+    "annotation_version",
+    "privacy_review_status"
   ],
 
   "properties": {
@@ -35,120 +27,183 @@
     "annotation_schema_version": {
       "type": "string",
       "const": "1.0",
-      "description": "Schema version — must be '1.0' for this schema."
+      "description": "Schema version — must be '1.0' for this schema. Appears exactly once per document."
     },
 
     "video_id": {
       "type": "string",
-      "description": "Stable identifier matching dataset_manifest.json. Format: jug_<difficulty>_<NNN> (e.g. jug_easy_001) or UUID from upload system."
+      "description": "Stable dataset identifier. Format: jug_b<batch>_<NNN> (e.g. jug_b1_001). Must match dataset_manifest.json."
     },
 
     "filename": {
       "type": "string",
-      "description": "Original video filename (without path). Must match dataset_manifest.json."
+      "description": "Original video filename (without path). Must match the file whose checksum_sha256 was computed."
     },
 
-    "source": {
+    "upload_source": {
       "type": "string",
-      "enum": ["iphone_14", "iphone_15_pro", "iphone_other", "android", "dji_mini", "gopro", "external_clip", "unknown"],
-      "description": "Device or source used to record the video."
+      "enum": ["app_gallery_upload", "app_camera_capture", "app_file_upload", "external_direct", "unknown"],
+      "description": "How the video was introduced to the system (upload mechanism, not capture device)."
+    },
+
+    "capture_device": {
+      "type": ["string", "null"],
+      "description": "Device used to record the video. 'unknown' when not determinable from metadata. Examples: 'iphone_15_pro', 'iphone_other', 'android', 'dji_mini', 'unknown'."
     },
 
     "duration_seconds": {
       "type": "number",
       "minimum": 1,
-      "description": "Video duration in seconds (from ffprobe or manual measurement)."
+      "description": "Video duration in seconds from ffprobe format.duration."
     },
 
-    "resolution": {
+    "original_resolution": {
       "type": "string",
       "pattern": "^[0-9]+x[0-9]+$",
-      "description": "Width x Height of the processed video file (e.g. '1280x720')."
+      "description": "Width x Height of the ORIGINAL uploaded video file as reported by ffprobe (before any processing or rotation correction)."
+    },
+
+    "processed_resolution": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]+x[0-9]+$|^null$",
+      "description": "Width x Height of the processed/transcoded video file. Null if transcode was skipped or failed."
     },
 
     "fps": {
       "type": "number",
       "minimum": 1,
-      "description": "Detected frame rate of the video (from ffprobe)."
+      "description": "Frame rate of the original video from ffprobe avg_frame_rate."
     },
 
-    "orientation": {
+    "original_rotation_metadata": {
+      "type": "integer",
+      "description": "Rotation value in degrees from the original file's Display Matrix or rotate tag (0, 90, 180, 270). 0 means no rotation metadata present."
+    },
+
+    "display_orientation": {
       "type": "string",
       "enum": ["landscape", "portrait", "square"],
-      "description": "Visual orientation after rotation correction."
+      "description": "Visual orientation of the video as it should appear to a viewer, after applying original_rotation_metadata correction."
+    },
+
+    "checksum_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex digest of the ORIGINAL video file. Used to verify file integrity across environments."
+    },
+
+    "annotation_status": {
+      "type": "string",
+      "enum": ["metadata_ready", "human_review_pending", "annotated", "reviewed", "rejected"],
+      "description": "Current annotation lifecycle state."
+    },
+
+    "annotation_version": {
+      "type": "string",
+      "const": "v1.0",
+      "description": "Annotation workflow version used."
+    },
+
+    "privacy_review_status": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected"],
+      "description": "Whether privacy review has been completed for this video."
+    },
+
+    "ownership_confirmed": {
+      "type": ["boolean", "null"],
+      "description": "Has the uploader confirmed they own or have rights to this footage? Must be confirmed by a human before dataset inclusion."
+    },
+
+    "consent_confirmed": {
+      "type": ["boolean", "null"],
+      "description": "Has consent been confirmed for all persons visible in the video? Must be confirmed by a human."
+    },
+
+    "recognizable_third_party_present": {
+      "type": ["boolean", "null"],
+      "description": "Is there a recognizable third party (other than the uploader) visible in the video? Must be assessed by a human."
+    },
+
+    "minor_present": {
+      "type": ["boolean", "null"],
+      "description": "Is a minor (under 18) visible in the video? Must be assessed by a human."
+    },
+
+    "external_source": {
+      "type": ["boolean", "null"],
+      "description": "Was this video obtained from an external source (not self-recorded)? Must be confirmed by a human."
     },
 
     "difficulty": {
-      "type": "string",
-      "enum": ["easy", "medium", "hard"],
-      "description": "Subjective difficulty tier: easy (good conditions), medium (typical), hard (challenging)."
+      "type": ["string", "null"],
+      "enum": ["easy", "medium", "hard", null],
+      "description": "Subjective difficulty tier. MUST be assessed by a human annotator based on visual inspection. Must never be inferred automatically."
     },
 
     "total_juggling_count": {
-      "type": "integer",
+      "type": ["integer", "null"],
       "minimum": 0,
-      "description": "Total number of juggling touches in the entire clip. Counted manually at 0.5x playback speed."
+      "description": "Total juggling touches in the clip. MUST be counted manually at 0.5x playback speed. Must never be guessed or inferred automatically."
     },
 
     "count_confidence": {
-      "type": "string",
-      "enum": ["high", "medium", "low"],
-      "description": "Annotator's confidence in the count. high = certain ±0, medium = ±1, low = ±2 or more."
+      "type": ["string", "null"],
+      "enum": ["high", "medium", "low", null],
+      "description": "Annotator confidence in the count."
     },
 
     "dominant_body_part": {
-      "type": "string",
-      "enum": ["foot", "knee", "thigh", "shoulder", "head", "chest", "mixed"],
-      "description": "The body part responsible for the majority of touches."
+      "type": ["string", "null"],
+      "enum": ["foot", "knee", "thigh", "shoulder", "head", "chest", "mixed", null],
+      "description": "Body part responsible for the majority of touches. MUST be assessed by a human."
     },
 
     "body_parts_used": {
-      "type": "object",
-      "description": "Which body parts are used at least once in the clip.",
-      "required": ["foot", "knee", "thigh", "shoulder", "head", "chest"],
+      "type": ["object", "null"],
+      "description": "Which body parts are used at least once. MUST be assessed by a human. Null until human review.",
       "properties": {
-        "foot":     {"type": "boolean"},
-        "knee":     {"type": "boolean"},
-        "thigh":    {"type": "boolean"},
-        "shoulder": {"type": "boolean"},
-        "head":     {"type": "boolean"},
-        "chest":    {"type": "boolean"}
-      },
-      "additionalProperties": false
+        "foot":     {"type": ["boolean", "null"]},
+        "knee":     {"type": ["boolean", "null"]},
+        "thigh":    {"type": ["boolean", "null"]},
+        "shoulder": {"type": ["boolean", "null"]},
+        "head":     {"type": ["boolean", "null"]},
+        "chest":    {"type": ["boolean", "null"]}
+      }
     },
 
     "ball_visible_quality": {
-      "type": "string",
-      "enum": ["excellent", "good", "partial", "poor"],
-      "description": "How clearly the ball is visible throughout the clip. excellent = always sharp; poor = frequently occluded/blurred."
+      "type": ["string", "null"],
+      "enum": ["excellent", "good", "partial", "poor", null],
+      "description": "Ball visibility quality. MUST be assessed by a human."
     },
 
     "lighting_quality": {
-      "type": "string",
-      "enum": ["excellent", "good", "variable", "poor"],
-      "description": "Overall lighting quality. variable = changes during clip (e.g. moving past windows)."
+      "type": ["string", "null"],
+      "enum": ["excellent", "good", "variable", "poor", null],
+      "description": "Lighting quality. MUST be assessed by a human."
     },
 
     "camera_stability": {
-      "type": "string",
-      "enum": ["tripod", "handheld_stable", "handheld_moving", "tracking"],
-      "description": "How the camera was held. tracking = camera follows the player."
+      "type": ["string", "null"],
+      "enum": ["tripod", "handheld_stable", "handheld_moving", "tracking", null],
+      "description": "Camera stability. MUST be assessed by a human."
     },
 
     "multi_person_present": {
-      "type": "boolean",
-      "description": "True if more than one person is visible at any point in the clip."
+      "type": ["boolean", "null"],
+      "description": "Is more than one person visible? MUST be assessed by a human."
     },
 
     "multiple_balls_present": {
-      "type": "boolean",
-      "description": "True if more than one ball is visible at any point in the clip."
+      "type": ["boolean", "null"],
+      "description": "Is more than one ball visible? MUST be assessed by a human."
     },
 
     "expected_validity": {
-      "type": "string",
-      "enum": ["valid", "borderline", "invalid"],
-      "description": "Is this clip suitable for detection evaluation? valid = yes; borderline = usable but has issues; invalid = exclude from eval."
+      "type": ["string", "null"],
+      "enum": ["valid", "borderline", "invalid", null],
+      "description": "Suitability for detection evaluation. MUST be assessed by a human."
     },
 
     "invalidity_reason": {
@@ -158,84 +213,51 @@
 
     "notes": {
       "type": ["string", "null"],
-      "description": "Free-text notes about anything unusual in this clip."
+      "description": "Free-text annotator notes."
     },
 
     "annotator": {
-      "type": "string",
-      "description": "Initials or identifier of the primary annotator (e.g. 'ZL')."
+      "type": ["string", "null"],
+      "description": "Initials of the primary annotator. Null until human review begins."
     },
 
     "second_annotator": {
       "type": ["string", "null"],
-      "description": "Initials of the second annotator if cross-check was done. Null if only one annotator."
+      "description": "Initials of second annotator for cross-check. Null until cross-check is performed."
     },
 
     "second_annotator_count": {
       "type": ["integer", "null"],
       "minimum": 0,
-      "description": "total_juggling_count as determined by the second annotator. Null if no second annotator."
+      "description": "Count from second annotator. Null until cross-check."
     },
 
     "inter_annotator_agreement": {
       "type": ["boolean", "null"],
-      "description": "True if both annotators agree within ±2. Null if no second annotator."
+      "description": "True if both annotators agree within ±2. Null until cross-check."
     },
 
     "annotation_date": {
-      "type": "string",
+      "type": ["string", "null"],
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-      "description": "ISO 8601 date when annotation was completed (YYYY-MM-DD)."
-    },
-
-    "annotation_version": {
-      "type": "string",
-      "const": "v1.0",
-      "description": "Annotation workflow version used. Must be 'v1.0' for this schema."
+      "description": "ISO 8601 date of annotation completion. Null until annotated."
     },
 
     "contact_events": {
       "type": ["array", "null"],
-      "description": "Frame-level contact events. Optional in v1.0. Required for Phase D training data.",
+      "description": "Frame-level contact events. Optional in v1.0 — required for Phase D training data. Null until Phase D preparation.",
       "items": {
         "type": "object",
         "required": ["event_id", "timestamp_ms", "body_part", "annotation_confidence"],
         "properties": {
-          "event_id": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Sequential event number within this clip."
-          },
-          "timestamp_ms": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Approximate millisecond offset of the contact frame from video start."
-          },
-          "body_part": {
-            "type": "string",
-            "enum": ["foot", "knee", "thigh", "shoulder", "head", "chest"]
-          },
-          "side": {
-            "type": ["string", "null"],
-            "enum": ["left", "right", "unknown", null],
-            "description": "Which side of the body made contact."
-          },
-          "ball_height_approx_px": {
-            "type": ["integer", "null"],
-            "minimum": 0,
-            "description": "Approximate pixel Y-coordinate of the ball center at contact. Null if not estimated."
-          },
-          "annotation_confidence": {
-            "type": "string",
-            "enum": ["certain", "probable", "uncertain"],
-            "description": "How confident the annotator is that this is a real contact event."
-          },
-          "note": {
-            "type": ["string", "null"],
-            "description": "Optional per-event note."
-          }
-        },
-        "additionalProperties": false
+          "event_id":               {"type": "integer", "minimum": 1},
+          "timestamp_ms":           {"type": "integer", "minimum": 0},
+          "body_part":              {"type": "string", "enum": ["foot","knee","thigh","shoulder","head","chest"]},
+          "side":                   {"type": ["string","null"], "enum": ["left","right","unknown",null]},
+          "ball_height_approx_px":  {"type": ["integer","null"], "minimum": 0},
+          "annotation_confidence":  {"type": "string", "enum": ["certain","probable","uncertain"]},
+          "note":                   {"type": ["string","null"]}
+        }
       }
     }
 
@@ -246,35 +268,43 @@
   "examples": [
     {
       "annotation_schema_version": "1.0",
-      "video_id": "jug_easy_001",
-      "filename": "jug_easy_001.mp4",
-      "source": "iphone_15_pro",
-      "duration_seconds": 18.4,
-      "resolution": "1280x720",
-      "fps": 29.944,
-      "orientation": "landscape",
-      "difficulty": "easy",
-      "total_juggling_count": 14,
-      "count_confidence": "high",
-      "dominant_body_part": "foot",
-      "body_parts_used": {
-        "foot": true, "knee": false, "thigh": true,
-        "shoulder": false, "head": false, "chest": false
-      },
-      "ball_visible_quality": "excellent",
-      "lighting_quality": "good",
-      "camera_stability": "tripod",
-      "multi_person_present": false,
-      "multiple_balls_present": false,
-      "expected_validity": "valid",
+      "video_id": "jug_b1_001",
+      "filename": "d9ffe19a-f143-4458-a816-0a408c211e39.mp4",
+      "upload_source": "app_gallery_upload",
+      "capture_device": "unknown",
+      "duration_seconds": 11.19,
+      "original_resolution": "888x1920",
+      "processed_resolution": "1556x720",
+      "fps": 36.835,
+      "original_rotation_metadata": 90,
+      "display_orientation": "landscape",
+      "checksum_sha256": "631a7febf22f780f4725c34bd001c213a003cccbdd705d329b177ffdf1f13c93",
+      "annotation_status": "metadata_ready",
+      "annotation_version": "v1.0",
+      "privacy_review_status": "pending",
+      "ownership_confirmed": null,
+      "consent_confirmed": null,
+      "recognizable_third_party_present": null,
+      "minor_present": null,
+      "external_source": null,
+      "difficulty": null,
+      "total_juggling_count": null,
+      "count_confidence": null,
+      "dominant_body_part": null,
+      "body_parts_used": null,
+      "ball_visible_quality": null,
+      "lighting_quality": null,
+      "camera_stability": null,
+      "multi_person_present": null,
+      "multiple_balls_present": null,
+      "expected_validity": null,
       "invalidity_reason": null,
-      "notes": "Clear light, static camera, ideal conditions.",
-      "annotator": "ZL",
+      "notes": null,
+      "annotator": null,
       "second_annotator": null,
       "second_annotator_count": null,
       "inter_annotator_agreement": null,
-      "annotation_date": "2026-06-12",
-      "annotation_version": "v1.0",
+      "annotation_date": null,
       "contact_events": null
     }
   ]
