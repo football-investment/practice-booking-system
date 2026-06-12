@@ -22,6 +22,7 @@ struct JugglingPlayerView: View {
     @State private var playerState: PlayerState = .loading
     @State private var tempURL: URL? = nil
     @State private var showLargeFileAlert = false
+    @State private var userConfirmedLargeFile = false
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -71,12 +72,18 @@ struct JugglingPlayerView: View {
         }
         .onAppear { startLoad() }
         .onDisappear { cleanup() }
-        .alert("Large File", isPresented: $showLargeFileAlert) {
-            Button("Download Anyway") { Task { await fetchAndPlay() } }
-            Button("Cancel", role: .cancel) { dismiss() }
-        } message: {
+        // iOS 14-compatible alert (Alert struct, no role: parameter)
+        .alert(isPresented: $showLargeFileAlert) {
             let mb = video.fileSizeDisplay ?? "large file"
-            Text("This video is \(mb). Downloading may take a while on slow connections.")
+            return Alert(
+                title: Text("Large File"),
+                message: Text("This video is \(mb). Downloading may take a while on slow connections."),
+                primaryButton: .default(Text("Download Anyway")) { userConfirmedLargeFile = true },
+                secondaryButton: .cancel(Text("Cancel")) { dismiss() }
+            )
+        }
+        .onChange(of: userConfirmedLargeFile) { confirmed in
+            if confirmed { Task { await fetchAndPlay() } }
         }
     }
 
