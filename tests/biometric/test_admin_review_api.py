@@ -134,7 +134,13 @@ def test_bca_adm02_non_admin_403(db, biometric_feature_enabled):
 
 # ── BCA-ADM-03 — flag off → 503 ──────────────────────────────────────────────
 
-def test_bca_adm03_flag_off_503():
+def test_bca_adm03_flag_off_503(monkeypatch):
+    # Explicitly disable the flag regardless of .env — the test verifies guard
+    # behaviour, not the .env value (which may be True in local dev E2E setups).
+    monkeypatch.setattr("app.config.settings.BIOMETRIC_FACE_MATCHING_ENABLED", False)
+    monkeypatch.setattr(
+        "app.services.biometric.feature_flag.settings.BIOMETRIC_FACE_MATCHING_ENABLED", False
+    )
     from app.services.biometric.feature_flag import require_biometric_enabled
 
     async def _call():
