@@ -55,11 +55,15 @@ struct FaceGestureDetector {
         self.thresholds = thresholds
     }
 
-    func detect(gesture: FaceGestureType, from anchor: FaceAnchorInput) -> Bool {
+    // baselineYaw: caller supplies the rest yaw captured at neutral confirmation.
+    // headLeft/headRight are detected relative to that baseline (symmetric ± delta).
+    // Defaults to 0 so any sequence without a preceding .neutral step falls back to
+    // absolute detection (yaw > +delta / yaw < -delta).
+    func detect(gesture: FaceGestureType, from anchor: FaceAnchorInput, baselineYaw: Float = 0) -> Bool {
         switch gesture {
         case .neutral:    return detectNeutral(anchor)
-        case .headLeft:   return detectHeadLeft(anchor)
-        case .headRight:  return detectHeadRight(anchor)
+        case .headLeft:   return detectHeadLeft(anchor, baseline: baselineYaw)
+        case .headRight:  return detectHeadRight(anchor, baseline: baselineYaw)
         case .chinUp:     return detectChinUp(anchor)
         case .blinkRight: return detectBlinkRight(anchor)
         case .blinkLeft:  return detectBlinkLeft(anchor)
@@ -78,12 +82,12 @@ struct FaceGestureDetector {
         return yawOK && pitchOK && exprOK
     }
 
-    private func detectHeadLeft(_ a: FaceAnchorInput) -> Bool {
-        a.faceEulerAngles.x > thresholds.yawLeft
+    private func detectHeadLeft(_ a: FaceAnchorInput, baseline: Float) -> Bool {
+        a.faceEulerAngles.x > baseline + thresholds.yawLeft
     }
 
-    private func detectHeadRight(_ a: FaceAnchorInput) -> Bool {
-        a.faceEulerAngles.x < -thresholds.yawRight
+    private func detectHeadRight(_ a: FaceAnchorInput, baseline: Float) -> Bool {
+        a.faceEulerAngles.x < baseline - thresholds.yawRight
     }
 
     // Device calibration finding: pitch is NEGATIVE when chin raises (camera held below face).

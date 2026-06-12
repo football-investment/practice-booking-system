@@ -75,9 +75,15 @@ struct ProfileView: View {
             .fullScreenCover(isPresented: $isShowingBiometric) {
                 BiometricDisclosureView(
                     service: BiometricService(auth: authManager),
-                    onDismiss: { isShowingBiometric = false }
+                    onDismiss: {
+                        isShowingBiometric = false
+                        // Reload profile so biometricRegistrationState reflects the
+                        // backend status update from the liveness submission.
+                        Task { await dashboardVM.reload(using: authManager) }
+                    }
                 )
                 .environmentObject(authManager)
+                .environmentObject(dashboardVM)
             }
         }
         .navigationViewStyle(.stack)
@@ -286,6 +292,7 @@ struct ProfileView: View {
     // Debug overlay — visible only in DEBUG builds.
     // Shows the full data pipeline so a physical-device failure can be diagnosed
     // without Xcode attached: API raw value → decoded state → rendered branch.
+    // Also shows spike local completion status (written by SpikeLivenessView on .complete).
     #if DEBUG
     private func biometricDebugOverlay(
         profile: UserProfile?,
@@ -303,12 +310,21 @@ struct ProfileView: View {
         case .rejected:      stateLabel = "rejected → rejectedCTA"
         }
 
-        let lines = [
+        let spikeTs = UserDefaults.standard.double(forKey: kDebugSpikeCompletedAtKey)
+        let spikeLine: String? = spikeTs > 0 ? {
+            let fmt = DateFormatter()
+            fmt.timeStyle = .medium
+            fmt.dateStyle = .none
+            return "⚡ liveness: completed locally at \(fmt.string(from: Date(timeIntervalSince1970: spikeTs)))"
+        }() : nil
+
+        var lines = [
             "build: \(version) (\(build))",
             "faceMatchStatus: \(profile?.faceMatchStatus ?? "<nil>")",
             "faceRefPhotoStatus: \(profile?.faceReferencePhotoStatus ?? "<nil>")",
             "state: \(stateLabel)",
         ]
+        if let s = spikeLine { lines.append(s) }
 
         return VStack(alignment: .leading, spacing: 2) {
             Text("⚙ DEBUG")
@@ -317,7 +333,7 @@ struct ProfileView: View {
             ForEach(lines, id: \.self) { line in
                 Text(line)
                     .font(.system(size: 9, design: .monospaced))
-                    .foregroundColor(.orange.opacity(0.85))
+                    .foregroundColor(line.hasPrefix("⚡") ? .green.opacity(0.9) : .orange.opacity(0.85))
             }
         }
         .padding(6)

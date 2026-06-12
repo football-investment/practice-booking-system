@@ -1,24 +1,25 @@
 import Foundation
 
-// Feature flag for the ARKit auto-capture spike (feat/biometric-auto-capture-spike).
+// PR-iOS-2: SpikeLivenessView is now the production liveness mechanism.
+// kBiometricAutoCaptureSpikeEnabled is no longer used as a routing flag —
+// BiometricDisclosureView routes unconditionally to SpikeLivenessView after
+// disclosure + consent acceptance.
 //
-// Default: false  → existing manual BiometricLivenessView runs unchanged.
-// Set to true     → SpikeLivenessView (ARKit auto-detection) is presented instead.
-//
-// This flag is intentionally a `var` in DEBUG so it can be flipped at runtime from
-// a test or launch argument without a recompile.  In Release it is a constant `false`
-// and the entire spike code path is dead-code-eliminated by the compiler.
-//
-// NEVER merge a change that sets this to `true` in the non-DEBUG branch.
+// This constant is retained for backward compatibility with any debug tooling
+// that checks it, but it has no effect on the production flow in PR-iOS-2+.
 #if DEBUG
-var kBiometricAutoCaptureSpikeEnabled: Bool = true   // LOCAL-ONLY — do NOT commit
+let kBiometricAutoCaptureSpikeEnabled: Bool = false   // retired — see BiometricDisclosureView
 #else
-let kBiometricAutoCaptureSpikeEnabled: Bool = false   // compile-time constant → optimizer strips spike code
+let kBiometricAutoCaptureSpikeEnabled: Bool = false   // compile-time constant
 #endif
 
-// Spike build label — identifies which commit era this binary came from.
-// Shown in console log and #if DEBUG overlay so the device tester can confirm
-// they are running the expected build without Xcode attached.
-// Format: "spike-v<N>/<nearest-parent-sha>"
-// Updated with each fix commit; does NOT need to equal the post-commit SHA.
-let kSpikeLabel = "spike-v7/yaw-calib+chinup-sign"
+// Build label — identifies this binary in the device debug overlay and console.
+// Format: "pr2-v<N>/<scope>"
+let kSpikeLabel = "pr2-v1/liveness-photo-upload"
+
+// DEBUG-only UserDefaults key written by SpikeLivenessView on backend-confirmed completion.
+// Read by ProfileView.biometricDebugOverlay to show local completion timestamp.
+// Never compiled into Release builds; never touches backend or profile state directly.
+#if DEBUG
+let kDebugSpikeCompletedAtKey = "debug_spike_completed_at"
+#endif

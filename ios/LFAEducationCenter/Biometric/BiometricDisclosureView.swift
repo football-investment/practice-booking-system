@@ -2,16 +2,16 @@ import SwiftUI
 
 // Disclosure + consent flow — two sequential steps gated by backend flags.
 //
-// Spike bypass: when kBiometricAutoCaptureSpikeEnabled == true, the entire backend
-// disclosure/consent flow is skipped and SpikeLivenessView is shown directly.
-// This prevents a backend 503 (feature flag off in dev) from blocking the spike.
-// kBiometricAutoCaptureSpikeEnabled is false by default; false in all Release builds.
+// After disclosure and consent are accepted, the user is directed to SpikeLivenessView
+// (ARKit auto-capture) as the production liveness mechanism.
 //
 // Disclosure text is a dev/test placeholder (v1.0).
 // Legal review of the final disclosure text is required before production use.
+// DPIA / DPO approval pending before production deployment.
 struct BiometricDisclosureView: View {
 
     @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var dashboardVM: DashboardViewModel
     @StateObject private var vm: BiometricDisclosureViewModel
 
     @State private var showLiveness = false
@@ -23,14 +23,7 @@ struct BiometricDisclosureView: View {
     }
 
     var body: some View {
-        // Spike short-circuit: bypass backend disclosure/consent entirely.
-        // The spike is local-only — no backend disclosure state is needed.
-        if kBiometricAutoCaptureSpikeEnabled {
-            SpikeLivenessView(onDismiss: onDismiss)
-                .environmentObject(authManager)
-        } else {
-            productionFlow
-        }
+        productionFlow
     }
 
     // MARK: — Production flow (kBiometricAutoCaptureSpikeEnabled == false)
@@ -53,11 +46,14 @@ struct BiometricDisclosureView: View {
                 )
             }
             .fullScreenCover(isPresented: $showLiveness) {
-                BiometricLivenessView(
-                    service: BiometricService(auth: authManager),
-                    onDismiss: { showLiveness = false }
-                )
+                // Production liveness: ARKit auto-capture (PR-iOS-2).
+                // Photo upload + liveness submission happen inside SpikeLivenessView.
+                SpikeLivenessView(onDismiss: {
+                    showLiveness = false
+                    onDismiss()
+                })
                 .environmentObject(authManager)
+                .environmentObject(dashboardVM)
             }
         }
         .onAppear {
@@ -190,7 +186,7 @@ struct BiometricDisclosureView: View {
                 .foregroundColor(Theme.Color.onSurface)
                 .multilineTextAlignment(.center)
 
-            actionButton(label: "Continue to liveness test", color: Theme.Color.primary) {
+            actionButton(label: "Start liveness test", color: Theme.Color.primary) {
                 showLiveness = true
             }
             Button(action: onDismiss) {

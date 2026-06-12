@@ -47,9 +47,19 @@ struct BiometricLivenessMetadata: Encodable {
     }
 }
 
-// POST /me/biometric-liveness — JSON body only.
-// Backend has no image upload endpoint; photo_filename is a string basename placeholder.
-// DEV/TEST MVP: no JPEG bytes are transmitted. Image upload is out of scope for PR-iOS-1.
+// POST /me/biometric-photo — multipart/form-data upload response.
+// photo_filename is the server-generated basename returned after a successful upload.
+// Passed directly into BiometricLivenessSubmitRequest.photoFilename.
+struct BiometricPhotoUploadResponse: Decodable {
+    let photoFilename: String
+    enum CodingKeys: String, CodingKey {
+        case photoFilename = "photo_filename"
+    }
+}
+
+// POST /me/biometric-liveness — JSON body.
+// photo_filename must be a real server-generated basename from POST /me/biometric-photo.
+// No dummy filenames; no null in production flow.
 struct BiometricLivenessSubmitRequest: Encodable {
     let source:           String
     let livenessMetadata: BiometricLivenessMetadata
@@ -62,9 +72,8 @@ struct BiometricLivenessSubmitRequest: Encodable {
     }
 }
 
-// POST /me/biometric-verify — JSON body only.
-// Backend has no image upload endpoint; photo_filename is a string basename placeholder.
-// DEV/TEST MVP: no JPEG bytes are transmitted. Image upload is out of scope for PR-iOS-1.
+// POST /me/biometric-verify — JSON body.
+// photo_filename: server-generated basename from a prior biometric-photo upload.
 struct BiometricVerifyRequestBody: Encodable {
     let photoFilename: String?
     enum CodingKeys: String, CodingKey {
@@ -153,6 +162,9 @@ enum BiometricClientError: Error {
     case disclosureNotFound            // 404 "biometric_disclosure_not_found"
     case referenceNotFound             // 404 "biometric_reference_not_found"
     case pathTraversalRejected         // 400 "photo_filename_path_traversal"
+    case photoMimeRejected             // 422 "biometric_photo_mime_rejected"
+    case photoTooLarge                 // 422 "biometric_photo_too_large"
+    case photoCaptureFailure           // local: ARKit snapshot returned nil
     case unauthorized                  // 401
     case networkError(Error)
     case unknown(Int, String?)
@@ -172,6 +184,9 @@ enum BiometricClientError: Error {
         case .disclosureNotFound:        return "No active disclosure to revoke."
         case .referenceNotFound:         return "No reference photo found. Please complete the liveness test."
         case .pathTraversalRejected:     return "Invalid file name."
+        case .photoMimeRejected:         return "Photo format not supported. Use JPEG or PNG."
+        case .photoTooLarge:             return "Photo is too large. Please try again."
+        case .photoCaptureFailure:       return "Could not capture photo. Please try again."
         case .unauthorized:              return "Session expired. Please log in again."
         case .networkError:              return "Network error. Check your connection."
         case .unknown(let code, let d):  return d ?? "Unknown error (\(code))."
@@ -199,6 +214,8 @@ enum BiometricClientError: Error {
             case (404, "biometric_disclosure_not_found"):     return .disclosureNotFound
             case (404, "biometric_reference_not_found"):      return .referenceNotFound
             case (400, "photo_filename_path_traversal"):      return .pathTraversalRejected
+            case (422, "biometric_photo_mime_rejected"):      return .photoMimeRejected
+            case (422, "biometric_photo_too_large"):          return .photoTooLarge
             case (401, _):                                    return .unauthorized
             default:                                          return .unknown(code, detail)
             }

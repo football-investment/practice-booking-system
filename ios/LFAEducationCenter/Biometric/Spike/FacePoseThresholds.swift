@@ -17,14 +17,14 @@ struct FacePoseThresholds {
 
     // MARK: — Head pose (radians)
 
-    /// Yaw threshold for head-left: eulerAngles.x > yawLeft
-    /// Device calibration: rest yaw ≈ -0.143; visible left turn reached +0.061 (+0.204 delta).
-    /// 0.30 was unreachable; lowered to 0.15 so a clear left turn (≥ ~17° absolute) triggers.
-    var yawLeft:  Float = 0.15      // ≈ +8.6° absolute — empirical spike-v7 calibration
-    /// Yaw threshold for head-right: eulerAngles.x < -yawRight
-    /// Note: from rest -0.143, threshold -0.15 is only 0.007 rad away — headRight is very easy.
-    /// Will be raised after full calibration session if false positives emerge.
-    var yawRight: Float = 0.15      // ≈ -8.6° absolute — matched to yawLeft for symmetry
+    /// Yaw delta for head-left: eulerAngles.x > baselineYaw + yawLeft
+    /// Detection is now RELATIVE to the rest yaw captured at neutral confirmation.
+    /// Device calibration: rest yaw ≈ -0.143; user reached +0.255 (delta ≈ +0.40) in live testing.
+    /// 0.25 rad delta (≈ 14°) is well within the observed turning range.
+    var yawLeft:  Float = 0.25      // ≈ 14° relative delta from baseline — spike-v8 calibration
+    /// Yaw delta for head-right: eulerAngles.x < baselineYaw - yawRight
+    /// Symmetric with yawLeft so left/right turns require equal effort from the rest position.
+    var yawRight: Float = 0.25      // ≈ 14° relative delta from baseline — matched to yawLeft
     /// Pitch threshold for chin-up.
     /// Device data shows pitch is NEGATIVE when chin raises (opposite of initial assumption).
     /// Fix: detectChinUp checks pitch < -pitchUp (more negative = chin up).
@@ -40,7 +40,9 @@ struct FacePoseThresholds {
     // MARK: — Blendshapes [0.0 … 1.0]
 
     /// Eye blink accepted as wink above this value.
-    var blinkMin:      Float = 0.75
+    /// Spike-v8 calibration: user achieved blinkL=0.57 (smile interference reduces max closure).
+    /// Lowered from 0.75 → 0.60 to account for cheek-squint lift from simultaneous smiling.
+    var blinkMin:      Float = 0.60
     /// The OTHER eye must stay below this (prevents both-eyes-shut triggering a wink).
     var blinkOtherMax: Float = 0.35
 

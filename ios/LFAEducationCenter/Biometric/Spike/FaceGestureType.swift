@@ -19,14 +19,20 @@ enum FaceGestureType: String, CaseIterable, Equatable {
     case smile      = "smile"
 
     // Instruction shown to the user during auto-capture flow.
+    //
+    // Blink convention: ARKit eyeBlinkLeft/Right are ANATOMICAL (the person's own sides),
+    // not mirrored screen sides.  The front camera preview is mirrored like a mirror, so:
+    //   user's own LEFT eye  → appears on the RIGHT of the screen → eyeBlinkLeft rises
+    //   user's own RIGHT eye → appears on the LEFT of the screen  → eyeBlinkRight rises
+    // Instructions say "your own left/right" to prevent mirror-confusion during calibration.
     var instruction: String {
         switch self {
         case .neutral:    return "Look straight at the camera"
         case .headLeft:   return "Turn your head LEFT"
         case .headRight:  return "Turn your head RIGHT"
         case .chinUp:     return "Tilt your chin UP"
-        case .blinkRight: return "Wink your RIGHT eye"
-        case .blinkLeft:  return "Wink your LEFT eye"
+        case .blinkRight: return "Wink your RIGHT eye — your own right"
+        case .blinkLeft:  return "Wink your LEFT eye — your own left"
         case .smile:      return "Smile!"
         }
     }

@@ -1,31 +1,36 @@
 import ARKit
 import SwiftUI
 
-// Spike liveness view — ARKit face tracking, fully automatic gesture detection.
-//
-// This view is ONLY presented when kBiometricAutoCaptureSpikeEnabled == true.
-// It is completely isolated from the production BiometricLivenessView.
+// kDebugSpikeCompletedAtKey is defined in BiometricAutoCapture.swift (DEBUG only).
+
+// Production liveness view — ARKit auto-capture, backend-integrated (PR-iOS-2).
 //
 // What it does:
 //   - Runs ARFaceTrackingView (TrueDepth camera feed + ARKit tracking)
-//   - Shows the current target gesture instruction + icon
-//   - Animates a stabilizer progress bar as the gesture is held
-//   - Flashes green + haptic when confirmed; auto-advances to next gesture
-//   - Shows timeout retry after 15 seconds of failed detection
+//   - Guides user through 7 gestures with instruction + icon
+//   - After 7/7: shows neutral recapture progress, then uploads photo + submits liveness
+//   - On backend success: shows confirmed card and calls onDismiss
 //   - Shows non-TrueDepth fallback message on unsupported hardware
 //
-// What it does NOT do (spike scope):
-//   - No image capture, no disk writes, no backend upload
-//   - No JPEG bytes, no filename, no biometric submission
-//   - The flow ends at .complete with a local summary screen only
+// What it does NOT do:
+//   - Does NOT store photos on the iOS device after upload
+//   - Does NOT set biometric_verified status locally
+//   - Does NOT expose face_match_score in any element
+//   - Does NOT show debug overlay in Release / TestFlight builds
 struct SpikeLivenessView: View {
 
-    @EnvironmentObject private var authManager: AuthManager
-    @StateObject private var vm = SpikeLivenessViewModel()
+    @EnvironmentObject private var authManager:  AuthManager
+    @EnvironmentObject private var dashboardVM:  DashboardViewModel
+
+    @StateObject private var vm: SpikeLivenessViewModel
 
     private let onDismiss: () -> Void
 
     init(onDismiss: @escaping () -> Void) {
+        // BiometricService is wired at init via the captured closures in onAppear.
+        // We use a temporary nil-service ViewModel here; the real service is injected
+        // in onAppear once authManager is available via @EnvironmentObject.
+        _vm = StateObject(wrappedValue: SpikeLivenessViewModel())
         self.onDismiss = onDismiss
     }
 
@@ -42,16 +47,28 @@ struct SpikeLivenessView: View {
                     overlayLayer
                 }
             }
-            .navigationTitle("Liveness Test — Spike")
+            .navigationTitle("Liveness Test")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { closeToolbarItem }
         }
         .onAppear {
+            // Inject real BiometricService now that authManager is available.
+            let service = BiometricService(auth: authManager)
+            vm.injectService(service)
+            vm.onFlowComplete = {
+                Task { @MainActor in
+#if DEBUG
+                    UserDefaults.standard.set(Date().timeIntervalSince1970,
+                                             forKey: kDebugSpikeCompletedAtKey)
+#endif
+                    await dashboardVM.reload(using: authManager)
+                }
+            }
             vm.start()
 #if DEBUG
             let build   = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
             let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-            print("[SPIKE] SpikeLivenessView appeared — \(kSpikeLabel) — v\(version)(\(build)) — flag:\(kBiometricAutoCaptureSpikeEnabled) — TrueDepth:\(ARFaceTrackingView.isDeviceSupported)")
+            print("[SPIKE] SpikeLivenessView appeared — \(kSpikeLabel) — v\(version)(\(build))")
 #endif
         }
         .navigationViewStyle(.stack)
@@ -75,7 +92,7 @@ struct SpikeLivenessView: View {
 
     private var progressStepBar: some View {
         VStack(spacing: 4) {
-            Text("\(vm.currentStepIndex + 1) / \(vm.totalSteps)")
+            Text("\(min(vm.currentStepIndex + 1, vm.totalSteps)) / \(vm.totalSteps)")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white)
             GeometryReader { geo in
@@ -102,15 +119,15 @@ struct SpikeLivenessView: View {
         switch vm.stepState {
         case .noFace:
             instructionCard(
-                icon: vm.currentGesture?.systemIcon ?? "questionmark",
-                instruction: vm.currentGesture?.instruction ?? "",
+                icon: vm.currentGesture?.systemIcon ?? "faceid",
+                instruction: vm.currentGesture?.instruction ?? "Position your face",
                 hint: "Position your face in the frame",
                 borderColor: .white.opacity(0.6)
             )
 
         case .detecting:
             instructionCard(
-                icon: vm.currentGesture?.systemIcon ?? "questionmark",
+                icon: vm.currentGesture?.systemIcon ?? "faceid",
                 instruction: vm.currentGesture?.instruction ?? "",
                 hint: nil,
                 borderColor: .white.opacity(0.6)
@@ -119,7 +136,7 @@ struct SpikeLivenessView: View {
         case .stabilizing(let progress):
             VStack(spacing: 8) {
                 instructionCard(
-                    icon: vm.currentGesture?.systemIcon ?? "questionmark",
+                    icon: vm.currentGesture?.systemIcon ?? "faceid",
                     instruction: vm.currentGesture?.instruction ?? "",
                     hint: "Hold...",
                     borderColor: .yellow
@@ -128,13 +145,49 @@ struct SpikeLivenessView: View {
             }
 
         case .confirmed:
-            confirmedCard
+            confirmedStepCard
 
         case .timedOut:
             timedOutCard
 
-        case .complete:
-            completeCard
+        case .gestureDone:
+            instructionCard(
+                icon: "face.smiling",
+                instruction: "Look straight at the camera",
+                hint: "Hold neutral pose for reference photo",
+                borderColor: .white.opacity(0.8)
+            )
+
+        case .neutralRecapture(let progress):
+            VStack(spacing: 8) {
+                instructionCard(
+                    icon: "face.smiling",
+                    instruction: "Look straight at the camera",
+                    hint: "Hold still — capturing reference photo...",
+                    borderColor: Color(red: 0.3, green: 0.85, blue: 0.95)
+                )
+                stabilizerBar(progress: progress)
+            }
+
+        case .uploading:
+            progressCard(
+                icon: "arrow.up.circle",
+                title: "Uploading photo...",
+                tint: .blue
+            )
+
+        case .submittingLiveness:
+            progressCard(
+                icon: "checkmark.shield",
+                title: "Verifying liveness...",
+                tint: .blue
+            )
+
+        case .backendConfirmed:
+            backendConfirmedCard
+
+        case .uploadFailed(let message):
+            uploadFailedCard(message: message)
         }
     }
 
@@ -183,13 +236,30 @@ struct SpikeLivenessView: View {
         .frame(height: 8)
     }
 
-    private var confirmedCard: some View {
+    private func progressCard(icon: String, title: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .frame(width: 36)
+                .colorMultiply(.white)
+            Text(title)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+            Spacer()
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.55))
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(tint, lineWidth: 2))
+    }
+
+    private var confirmedStepCard: some View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 24))
                 .foregroundColor(Theme.Color.primary)
                 .frame(width: 36)
-            Text("Confirmed — next gesture")
+            Text("Confirmed")
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(.white)
             Spacer()
@@ -199,6 +269,73 @@ struct SpikeLivenessView: View {
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.Color.primary, lineWidth: 2))
         .onAppear { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+    }
+
+    private var backendConfirmedCard: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 48))
+                .foregroundColor(Theme.Color.primary)
+            Text("Liveness verified")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+            Text("Your biometric data has been submitted for review.\nNo raw sensor data was transmitted.")
+                .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.8))
+                .multilineTextAlignment(.center)
+            Button {
+                onDismiss()
+            } label: {
+                Text("Continue")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.white)
+                    .cornerRadius(8)
+            }
+        }
+        .padding(20)
+        .background(Color.black.opacity(0.7))
+        .cornerRadius(14)
+        .onAppear {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+    }
+
+    private func uploadFailedCard(message: String) -> some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Theme.Color.warning)
+                    .frame(width: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Submission failed")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text(message)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                Spacer()
+            }
+            Button {
+                vm.retryUpload()
+            } label: {
+                Text("Try again (\(vm.retryCount + 1))")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.white)
+                    .cornerRadius(8)
+            }
+        }
+        .padding(14)
+        .background(Color.black.opacity(0.65))
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.Color.warning, lineWidth: 2))
     }
 
     private var timedOutCard: some View {
@@ -236,36 +373,6 @@ struct SpikeLivenessView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.Color.warning, lineWidth: 2))
     }
 
-    private var completeCard: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 48))
-                .foregroundColor(Theme.Color.primary)
-            Text("Spike flow complete")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
-            Text("All 7 gestures detected.\nNo data was stored or transmitted.")
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.8))
-                .multilineTextAlignment(.center)
-            Button {
-                onDismiss()
-            } label: {
-                Text("Close")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.white)
-                    .cornerRadius(8)
-            }
-        }
-        .padding(20)
-        .background(Color.black.opacity(0.7))
-        .cornerRadius(14)
-        .onAppear { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-    }
-
     // MARK: — Non-TrueDepth fallback
 
     private var unsupportedDeviceView: some View {
@@ -277,7 +384,7 @@ struct SpikeLivenessView: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(Theme.Color.onSurface)
                 .multilineTextAlignment(.center)
-            Text("ARKit face tracking is only available on iPhone X and later with a TrueDepth front camera.\n\nThe standard biometric flow will be used on this device.")
+            Text("ARKit face tracking is only available on iPhone X and later.\n\nThe standard biometric flow will be used on this device.")
                 .font(.system(size: 14))
                 .foregroundColor(Theme.Color.muted)
                 .multilineTextAlignment(.center)
@@ -312,26 +419,42 @@ struct SpikeLivenessView: View {
 
 #if DEBUG
     private var debugOverlay: some View {
-        let v       = vm.debugValues
-        let build   = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let v         = vm.debugValues
+        let build     = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        let version   = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let truedepth = ARFaceTrackingView.isDeviceSupported
 
         let holdPct: Int = {
-            if case .stabilizing(let p) = vm.stepState { return Int(p * 100) }
-            if case .confirmed = vm.stepState { return 100 }
-            return 0
+            switch vm.stepState {
+            case .stabilizing(let p):     return Int(p * 100)
+            case .neutralRecapture(let p): return Int(p * 100)
+            case .confirmed, .backendConfirmed: return 100
+            default: return 0
+            }
+        }()
+
+        let stateLabel: String = {
+            switch vm.stepState {
+            case .gestureDone:       return "gestureDone"
+            case .neutralRecapture:  return "neutralRecapture"
+            case .uploading:         return "uploading"
+            case .submittingLiveness: return "submittingLiveness"
+            case .backendConfirmed:  return "backendConfirmed"
+            case .uploadFailed(let m): return "uploadFailed:\(m.prefix(20))"
+            default:                 return ""
+            }
         }()
 
         let lines: [String] = [
             "\(kSpikeLabel)  TrueDepth:\(truedepth ? "YES" : "NO")  v\(version)(\(build))",
-            "step \(vm.currentStepIndex + 1)/\(vm.totalSteps): \(vm.currentGesture?.debugLabel ?? "—")  detected: \(v.detected ? "YES✓" : "no")",
+            "step \(vm.currentStepIndex + 1)/\(vm.totalSteps): \(vm.currentGesture?.debugLabel ?? stateLabel)  detected: \(v.detected ? "YES✓" : "no")",
             v.gestureDetail,
             String(format: "yaw: %+.3f  pitch: %+.3f  hold: \(holdPct)%%", v.yaw, v.pitch),
             String(format: "blinkL: %.2f  blinkR: %.2f", v.blinkLeft, v.blinkRight),
             String(format: "smileL: %.2f  smileR: %.2f  sqntAvg: %.2f",
                    v.smileLeft, v.smileRight, (v.squintLeft + v.squintRight) / 2),
-        ]
+        ].filter { !$0.isEmpty }
+
         return VStack(alignment: .leading, spacing: 2) {
             Text("⚙ SPIKE DEBUG")
                 .font(.system(size: 9, weight: .bold, design: .monospaced))

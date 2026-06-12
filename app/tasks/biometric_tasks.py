@@ -238,6 +238,7 @@ def biometric_delete_embedding_task(self, user_id: int) -> None:
     from app.models.user import User
     from app.services.biometric.audit_log import BiometricAuditLogger, EVT_EMBEDDING_DELETED
     from app.services.biometric.embedding_service import delete_embedding
+    from app.services.biometric.photo_upload_service import delete_biometric_photos_for_user
 
     db = SessionLocal()
     try:
@@ -250,13 +251,20 @@ def biometric_delete_embedding_task(self, user_id: int) -> None:
             )
             return
 
-        # ── 2. Physical delete ────────────────────────────────────────────────
+        # ── 2. Physical delete: embedding row ─────────────────────────────────
         deleted = delete_embedding(db=db, user_id=user_id)
         if not deleted:
             logger.warning(
                 "biometric_delete_embedding_task: no embedding row for user_id=%s — idempotent success",
                 user_id,
             )
+
+        # ── 2b. Physical delete: biometric photo files (GDPR erasure) ─────────
+        photos_deleted = delete_biometric_photos_for_user(user_id=user_id)
+        logger.info(
+            "biometric_delete_embedding_task: deleted %d photo file(s) for user_id=%s",
+            photos_deleted, user_id,
+        )
 
         # ── 3. Audit log ──────────────────────────────────────────────────────
         BiometricAuditLogger(db).log(
