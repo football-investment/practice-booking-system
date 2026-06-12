@@ -154,14 +154,22 @@ def biometric_generate_embedding_task(
         )
         del embedding   # plaintext protection
 
-        # ── 8. Activate reference (PR-6 approval gate close) ─────────────────
+        # ── 8. Activate reference + set verified status ───────────────────────
         # store_embedding() sets is_active=False; for onboarding_liveness the
         # liveness challenge itself is the approval signal → set is_active=True.
+        # For the fake embedding provider (dev/test), auto-approve immediately:
+        # no real face comparison is performed, so face_match_status → "verified".
+        # For real ONNX provider (PR-5+), verification runs separately via
+        # POST /me/biometric-verify — face_match_status is set there instead.
         from datetime import datetime, timezone as _tz
         row = db.query(UserFaceEmbedding).filter_by(user_id=user_id).first()
         if row is not None and not row.is_active:
             row.is_active   = True
             row.approved_at = datetime.now(_tz.utc)
+            db.flush()
+
+        if settings.BIOMETRIC_EMBEDDING_PROVIDER == "fake":
+            user.face_match_status = "verified"
             db.flush()
 
         # ── 9. Audit log ──────────────────────────────────────────────────────
@@ -172,6 +180,26 @@ def biometric_generate_embedding_task(
             model_version=_FAKE_MODEL_VERSION,
         )
         db.commit()
+
+        # ── 10. Privacy-by-design: delete nyers reference photo after embedding ─
+        # The raw photo is only needed for embedding generation (PR-4/PR-5).
+        # Once the encrypted embedding is stored and activated, the plaintext
+        # image file is no longer required and is deleted immediately.
+        # Retention: consent_revoke path also deletes (biometric_delete_embedding_task).
+        # Exception: if DPIA/legal requires longer retention, set env BIOMETRIC_RETAIN_PHOTOS=true.
+        if not getattr(settings, "BIOMETRIC_RETAIN_PHOTOS", False) and photo_filename:
+            try:
+                from app.services.biometric.photo_upload_service import delete_biometric_photos_for_user
+                n = delete_biometric_photos_for_user(user_id=user_id)
+                logger.info(
+                    "biometric_generate_embedding_task: deleted %d reference photo(s) for user_id=%s (privacy-by-design)",
+                    n, user_id,
+                )
+            except Exception as photo_exc:
+                logger.error(
+                    "biometric_generate_embedding_task: could not delete reference photo(s) for user_id=%s: %s",
+                    user_id, photo_exc,
+                )
         logger.info(
             "biometric_generate_embedding_task: completed for user_id=%s model=%s",
             user_id, _FAKE_MODEL_VERSION,
@@ -238,6 +266,7 @@ def biometric_delete_embedding_task(self, user_id: int) -> None:
     from app.models.user import User
     from app.services.biometric.audit_log import BiometricAuditLogger, EVT_EMBEDDING_DELETED
     from app.services.biometric.embedding_service import delete_embedding
+    from app.services.biometric.photo_upload_service import delete_biometric_photos_for_user
 
     db = SessionLocal()
     try:
@@ -250,13 +279,20 @@ def biometric_delete_embedding_task(self, user_id: int) -> None:
             )
             return
 
-        # ── 2. Physical delete ────────────────────────────────────────────────
+        # ── 2. Physical delete: embedding row ─────────────────────────────────
         deleted = delete_embedding(db=db, user_id=user_id)
         if not deleted:
             logger.warning(
                 "biometric_delete_embedding_task: no embedding row for user_id=%s — idempotent success",
                 user_id,
             )
+
+        # ── 2b. Physical delete: biometric photo files (GDPR erasure) ─────────
+        photos_deleted = delete_biometric_photos_for_user(user_id=user_id)
+        logger.info(
+            "biometric_delete_embedding_task: deleted %d photo file(s) for user_id=%s",
+            photos_deleted, user_id,
+        )
 
         # ── 3. Audit log ──────────────────────────────────────────────────────
         BiometricAuditLogger(db).log(

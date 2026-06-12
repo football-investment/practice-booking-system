@@ -14,6 +14,7 @@ from . import (
     biometric_liveness,
     biometric_verify,
     biometric_disclosure,
+    biometric_photo,
     juggling_consent,
     juggling_videos,
 )
@@ -47,6 +48,9 @@ router.include_router(biometric_verify.router, tags=["users", "biometric"])
 
 # Biometric disclosure modal endpoints (PR-7A; BIOMETRIC_DISCLOSURE_ENABLED gated)
 router.include_router(biometric_disclosure.router, tags=["users", "biometric"])
+
+# Biometric reference photo upload endpoint (PR-2; feature-flag gated; 503 when flag off)
+router.include_router(biometric_photo.router, tags=["users", "biometric"])
 
 # Juggling POC — video intake + quality pipeline (JUGGLING_POC_ENABLED gated; 503 when off)
 router.include_router(juggling_consent.router, tags=["users", "juggling"])

@@ -47,9 +47,19 @@ struct BiometricLivenessMetadata: Encodable {
     }
 }
 
-// POST /me/biometric-liveness — JSON body only.
-// Backend has no image upload endpoint; photo_filename is a string basename placeholder.
-// DEV/TEST MVP: no JPEG bytes are transmitted. Image upload is out of scope for PR-iOS-1.
+// POST /me/biometric-photo — multipart/form-data upload response.
+// photo_filename is the server-generated basename returned after a successful upload.
+// Passed directly into BiometricLivenessSubmitRequest.photoFilename.
+struct BiometricPhotoUploadResponse: Decodable {
+    let photoFilename: String
+    enum CodingKeys: String, CodingKey {
+        case photoFilename = "photo_filename"
+    }
+}
+
+// POST /me/biometric-liveness — JSON body.
+// photo_filename must be a real server-generated basename from POST /me/biometric-photo.
+// No dummy filenames; no null in production flow.
 struct BiometricLivenessSubmitRequest: Encodable {
     let source:           String
     let livenessMetadata: BiometricLivenessMetadata
@@ -62,9 +72,8 @@ struct BiometricLivenessSubmitRequest: Encodable {
     }
 }
 
-// POST /me/biometric-verify — JSON body only.
-// Backend has no image upload endpoint; photo_filename is a string basename placeholder.
-// DEV/TEST MVP: no JPEG bytes are transmitted. Image upload is out of scope for PR-iOS-1.
+// POST /me/biometric-verify — JSON body.
+// photo_filename: server-generated basename from a prior biometric-photo upload.
 struct BiometricVerifyRequestBody: Encodable {
     let photoFilename: String?
     enum CodingKeys: String, CodingKey {
@@ -153,28 +162,34 @@ enum BiometricClientError: Error {
     case disclosureNotFound            // 404 "biometric_disclosure_not_found"
     case referenceNotFound             // 404 "biometric_reference_not_found"
     case pathTraversalRejected         // 400 "photo_filename_path_traversal"
+    case photoMimeRejected             // 422 "biometric_photo_mime_rejected"
+    case photoTooLarge                 // 422 "biometric_photo_too_large"
+    case photoCaptureFailure           // local: ARKit snapshot returned nil
     case unauthorized                  // 401
     case networkError(Error)
     case unknown(Int, String?)
 
     var userFacingMessage: String {
         switch self {
-        case .featureDisabled:           return "A biometrikus ellenőrzés jelenleg nem elérhető."
-        case .rateLimiterUnavailable:    return "A biometrikus rendszer átmenetileg nem elérhető."
-        case .rateLimited:               return "Túl sok kísérlet. Kérjük, várj egy percet."
-        case .parentalConsentRequired:   return "A biometrikus ellenőrzés 18 éves kor felett érhető el."
-        case .disclosureRequired:        return "A tájékoztató elfogadása szükséges."
-        case .disclosureUpdateRequired:  return "A tájékoztató megváltozott. Kérjük, fogadd el újra."
-        case .consentRequired:           return "A hozzájárulás megadása szükséges."
-        case .disclosureAlreadyAccepted: return "A tájékoztató már el lett fogadva."
-        case .consentAlreadyActive:      return "A hozzájárulás már megadásra került."
-        case .livenessAlreadySubmitted:  return "A liveness teszt már elvégzésre került."
-        case .disclosureNotFound:        return "Nincs aktív tájékoztató visszavonni."
-        case .referenceNotFound:         return "Nincs tárolt referencia kép. Végezd el a liveness tesztet."
-        case .pathTraversalRejected:     return "Érvénytelen fájlnév."
-        case .unauthorized:              return "A munkamenet lejárt. Kérjük, jelentkezz be újra."
-        case .networkError:              return "Hálózati hiba. Ellenőrizd a kapcsolatot."
-        case .unknown(let code, let d):  return d ?? "Ismeretlen hiba (\(code))."
+        case .featureDisabled:           return "Biometric verification is currently unavailable."
+        case .rateLimiterUnavailable:    return "The biometric system is temporarily unavailable."
+        case .rateLimited:               return "Too many attempts. Please wait a minute."
+        case .parentalConsentRequired:   return "Biometric verification requires parental consent for users under 18."
+        case .disclosureRequired:        return "Please accept the biometric disclosure first."
+        case .disclosureUpdateRequired:  return "The disclosure has been updated. Please accept it again."
+        case .consentRequired:           return "Biometric consent is required."
+        case .disclosureAlreadyAccepted: return "The disclosure has already been accepted."
+        case .consentAlreadyActive:      return "Biometric consent is already active."
+        case .livenessAlreadySubmitted:  return "Liveness test already completed."
+        case .disclosureNotFound:        return "No active disclosure to revoke."
+        case .referenceNotFound:         return "No reference photo found. Please complete the liveness test."
+        case .pathTraversalRejected:     return "Invalid file name."
+        case .photoMimeRejected:         return "Photo format not supported. Use JPEG or PNG."
+        case .photoTooLarge:             return "Photo is too large. Please try again."
+        case .photoCaptureFailure:       return "Could not capture photo. Please try again."
+        case .unauthorized:              return "Session expired. Please log in again."
+        case .networkError:              return "Network error. Check your connection."
+        case .unknown(let code, let d):  return d ?? "Unknown error (\(code))."
         }
     }
 
@@ -199,6 +214,8 @@ enum BiometricClientError: Error {
             case (404, "biometric_disclosure_not_found"):     return .disclosureNotFound
             case (404, "biometric_reference_not_found"):      return .referenceNotFound
             case (400, "photo_filename_path_traversal"):      return .pathTraversalRejected
+            case (422, "biometric_photo_mime_rejected"):      return .photoMimeRejected
+            case (422, "biometric_photo_too_large"):          return .photoTooLarge
             case (401, _):                                    return .unauthorized
             default:                                          return .unknown(code, detail)
             }

@@ -113,6 +113,12 @@ class User(UserBase):
     # 🪪 Academy ID (Phase 2A) — only exposed on the owner's own authenticated response
     lfa_academy_id:              Optional[str]  = None
     public_token:                Optional[UUID] = None
+    # 🧬 Biometric status — nullable; nil = no biometric activity.
+    # face_match_score is intentionally absent (structural enforcement — never returned).
+    # face_match_status values: "reference_pending" | "verified" | "rejected"
+    #   | "manual_review_required" | "consent_revoked" | "onboarding_liveness_capture"
+    face_match_status:           Optional[str]  = None
+    face_reference_photo_status: Optional[str]  = None
     # 📜 User licenses (NEW - replaces deprecated specialization field)
     licenses: List[UserLicenseSimple] = []
 

@@ -11,6 +11,13 @@ import AVFoundation
 // Automatic Vision/MediaPipe-based head-turn detection is a separate future PR.
 // This view is suitable only for dev/test environments.
 //
+// Navigation contract (white screen fix):
+//   navigateToVerify tracks the active NavigationLink push.
+//   onPopToLiveness resets navigateToVerify = false BEFORE any dismiss so
+//   the navigation stack never enters an inconsistent state. This closure is
+//   passed into BiometricVerifyView as a dedicated callback — separate from
+//   the full-flow onDismiss.
+//
 // CameraManager reuse: CameraPreview (AVCaptureSession) is reused from Skeleton module.
 // detector is set to nil — no BodyPoseDetector is attached in liveness flow.
 struct BiometricLivenessView: View {
@@ -19,8 +26,8 @@ struct BiometricLivenessView: View {
     @StateObject private var cameraManager = CameraManager()
     @StateObject private var vm: BiometricLivenessViewModel
 
-    @State private var showCapturePicker = false
-    @State private var navigateToVerify  = false
+    @State private var showCapturePicker  = false
+    @State private var navigateToVerify   = false
     @State private var photoFilenameForVerify: String?
 
     private let onDismiss: () -> Void
@@ -38,15 +45,15 @@ struct BiometricLivenessView: View {
                 if vm.isLoading { loadingOverlay }
             }
             .ignoresSafeArea(edges: .bottom)
-            .navigationTitle("Liveness Teszt")
+            .navigationTitle("Liveness Test")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { closeButton }
             .alert(item: $vm.error) { err in
                 Alert(
-                    title: Text("Hiba"),
+                    title: Text("Error"),
                     message: Text(err.userFacingMessage),
-                    primaryButton: .default(Text("Újra")) { vm.retry() },
-                    secondaryButton: .cancel(Text("Mégse"), action: onDismiss)
+                    primaryButton: .default(Text("Retry")) { vm.retry() },
+                    secondaryButton: .cancel(Text("Cancel"), action: onDismiss)
                 )
             }
             .sheet(isPresented: $showCapturePicker) {
@@ -58,9 +65,17 @@ struct BiometricLivenessView: View {
             .background(
                 NavigationLink(
                     destination: BiometricVerifyView(
-                        service: BiometricService(auth: authManager),
-                        photoFilename: photoFilenameForVerify,
-                        onDismiss: onDismiss
+                        service:         BiometricService(auth: authManager),
+                        photoFilename:   photoFilenameForVerify,
+                        // onPopToLiveness: reset the NavigationLink FIRST so the
+                        // navigation stack never enters an inconsistent state.
+                        // Does NOT close the biometric fullScreenCover.
+                        onPopToLiveness: { navigateToVerify = false },
+                        // onDismiss: close the entire biometric fullScreenCover.
+                        // BiometricVerifyView always calls onPopToLiveness before
+                        // calling this, so navigateToVerify is false by the time
+                        // the fullScreenCover dismiss animation runs.
+                        onDismiss:       onDismiss
                     )
                     .environmentObject(authManager),
                     isActive: $navigateToVerify
@@ -96,15 +111,15 @@ struct BiometricLivenessView: View {
             Image(systemName: "camera.slash.fill")
                 .font(.system(size: 48))
                 .foregroundColor(Theme.Color.warning)
-            Text("Kamera hozzáférés szükséges.")
+            Text("Camera access required.")
                 .font(.system(size: Theme.FontSize.body, weight: .semibold))
                 .foregroundColor(Theme.Color.onSurface)
                 .multilineTextAlignment(.center)
-            Text("Engedélyezd a kamera hozzáférést a Beállításokban.")
+            Text("Please enable camera access in Settings.")
                 .font(.system(size: Theme.FontSize.body))
                 .foregroundColor(Theme.Color.muted)
                 .multilineTextAlignment(.center)
-            Button("Beállítások megnyitása") {
+            Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
                 }
@@ -168,7 +183,7 @@ struct BiometricLivenessView: View {
             Button {
                 showCapturePicker = true
             } label: {
-                Label("Kép rögzítése", systemImage: "camera.fill")
+                Label("Capture Photo", systemImage: "camera.fill")
                     .font(.system(size: Theme.FontSize.body, weight: .semibold))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
@@ -181,7 +196,7 @@ struct BiometricLivenessView: View {
             Button {
                 vm.advanceStep()
             } label: {
-                Text("Tovább →")
+                Text("Continue →")
                     .font(.system(size: Theme.FontSize.body, weight: .semibold))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)

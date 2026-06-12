@@ -3,17 +3,18 @@ import Foundation
 // Service layer for all biometric backend endpoints.
 // All calls use AuthManager's authenticated wrappers for Bearer inject and 401 refresh retry.
 //
-// Backend contract (PR-iOS-1):
-//   POST /me/biometric-liveness: JSON body only — no image bytes, no multipart.
-//   POST /me/biometric-verify:   JSON body only — no image bytes, no multipart.
-//   photo_filename is a UUID-based string basename (dev/test placeholder only).
-//   Image upload requires a future backend multipart endpoint — out of scope here.
+// Backend contract (PR-iOS-2):
+//   POST /me/biometric-photo:    multipart/form-data — uploads JPEG/PNG, returns photo_filename.
+//   POST /me/biometric-liveness: JSON body — requires real photo_filename from prior upload.
+//   POST /me/biometric-verify:   JSON body — photo_filename from a prior upload.
+//   No dummy filenames; no null photo_filename in production flow.
 //
 // Privacy rules (enforced structurally):
 //   face_match_score: no model field, no return value, no log — ever.
 //   Bearer token: not logged.
 //   user_id: not logged.
 //   Raw error body: not logged — only typed BiometricClientError is propagated.
+//   Image bytes: not cached, not logged, not stored on device after upload.
 //
 // DELETE endpoints for disclosure and consent return 200 + JSON body (not 204).
 // AuthManager.authenticatedDeleteNoContent handles 204 only — a local wrapper handles
@@ -82,11 +83,32 @@ final class BiometricService: ObservableObject {
         }
     }
 
+    // MARK: — Photo upload
+
+    // Uploads the JPEG/PNG captured at liveness completion.
+    // Returns the server-generated filename for use in submitLiveness(photoFilename:).
+    // Image data is not cached or stored on-device after the upload completes.
+    func uploadBiometricPhoto(imageData: Data, mimeType: String = "image/jpeg") async throws -> String {
+        guard let token = auth.accessToken else { throw BiometricClientError.unauthorized }
+        do {
+            let response: BiometricPhotoUploadResponse = try await APIClient.multipartPost(
+                path:      "/api/v1/users/me/biometric-photo",
+                imageData: imageData,
+                mimeType:  mimeType,
+                fieldName: "photo",
+                token:     token
+            )
+            return response.photoFilename
+        } catch {
+            throw BiometricClientError.from(error)
+        }
+    }
+
     // MARK: — Liveness
 
     // Submits completed liveness challenge result.
-    // photo_filename: safe UUID basename, e.g. "liveness_<uuid>.jpg".
-    // No image bytes are sent — JSON body only. Image upload is out of scope for PR-iOS-1.
+    // photoFilename must be the server-generated basename from uploadBiometricPhoto().
+    // No image bytes are sent here — JSON body only.
     func submitLiveness(
         metadata: BiometricLivenessMetadata,
         photoFilename: String?

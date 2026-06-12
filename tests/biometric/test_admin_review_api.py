@@ -134,7 +134,13 @@ def test_bca_adm02_non_admin_403(db, biometric_feature_enabled):
 
 # ── BCA-ADM-03 — flag off → 503 ──────────────────────────────────────────────
 
-def test_bca_adm03_flag_off_503():
+def test_bca_adm03_flag_off_503(monkeypatch):
+    # Explicitly disable the flag regardless of .env — the test verifies guard
+    # behaviour, not the .env value (which may be True in local dev E2E setups).
+    monkeypatch.setattr("app.config.settings.BIOMETRIC_FACE_MATCHING_ENABLED", False)
+    monkeypatch.setattr(
+        "app.services.biometric.feature_flag.settings.BIOMETRIC_FACE_MATCHING_ENABLED", False
+    )
     from app.services.biometric.feature_flag import require_biometric_enabled
 
     async def _call():
@@ -542,7 +548,8 @@ def test_bca_adm21_override_audit_no_score(db, biometric_feature_enabled):
 def test_bca_adm22_route_count_883():
     from app.main import app
     paths = app.openapi().get("paths", {})
-    assert len(paths) == 891, f"Expected 890 routes (P4 private media +2), got {len(paths)}"
+    assert len(paths) == 892, f"Expected 892 routes (PR-2: +1 biometric-photo endpoint), got {len(paths)}"
     assert "/api/v1/admin/biometric/review-queue" in paths
     assert "/api/v1/admin/biometric/{user_id}/history" in paths
     assert "/api/v1/admin/biometric/{user_id}/override" in paths
+    assert "/api/v1/users/me/biometric-photo" in paths

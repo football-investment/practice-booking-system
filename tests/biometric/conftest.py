@@ -115,6 +115,28 @@ def fake_provider_enabled(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_biometric_feature_flags(monkeypatch):
+    """
+    Reset biometric feature flags to their code defaults (False) before each test.
+
+    Without this, a local .env with BIOMETRIC_FACE_MATCHING_ENABLED=true would
+    cause all "flag off → 503" tests to fail.  Tests that need the flag on
+    explicitly use the `biometric_feature_enabled` fixture, which monkeypatches
+    it back to True — this fixture runs first, so the explicit fixture wins.
+    """
+    monkeypatch.setattr("app.config.settings.BIOMETRIC_FACE_MATCHING_ENABLED", False)
+    monkeypatch.setattr(
+        "app.services.biometric.feature_flag.settings.BIOMETRIC_FACE_MATCHING_ENABLED",
+        False,
+    )
+    monkeypatch.setattr("app.config.settings.BIOMETRIC_DISCLOSURE_ENABLED", False)
+    monkeypatch.setattr(
+        "app.services.biometric.feature_flag.settings.BIOMETRIC_DISCLOSURE_ENABLED",
+        False,
+    )
+
+
+@pytest.fixture(autouse=True)
 def _reset_biometric_rate_limiter():
     """
     Force in-memory rate limit fallback and clear the store before each test.
