@@ -154,14 +154,22 @@ def biometric_generate_embedding_task(
         )
         del embedding   # plaintext protection
 
-        # ── 8. Activate reference (PR-6 approval gate close) ─────────────────
+        # ── 8. Activate reference + set verified status ───────────────────────
         # store_embedding() sets is_active=False; for onboarding_liveness the
         # liveness challenge itself is the approval signal → set is_active=True.
+        # For the fake embedding provider (dev/test), auto-approve immediately:
+        # no real face comparison is performed, so face_match_status → "verified".
+        # For real ONNX provider (PR-5+), verification runs separately via
+        # POST /me/biometric-verify — face_match_status is set there instead.
         from datetime import datetime, timezone as _tz
         row = db.query(UserFaceEmbedding).filter_by(user_id=user_id).first()
         if row is not None and not row.is_active:
             row.is_active   = True
             row.approved_at = datetime.now(_tz.utc)
+            db.flush()
+
+        if settings.BIOMETRIC_EMBEDDING_PROVIDER == "fake":
+            user.face_match_status = "verified"
             db.flush()
 
         # ── 9. Audit log ──────────────────────────────────────────────────────

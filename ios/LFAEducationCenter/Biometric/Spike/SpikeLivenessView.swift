@@ -61,6 +61,13 @@ struct SpikeLivenessView: View {
                     UserDefaults.standard.set(Date().timeIntervalSince1970,
                                              forKey: kDebugSpikeCompletedAtKey)
 #endif
+                    // First reload: picks up reference_pending immediately.
+                    await dashboardVM.reload(using: authManager)
+
+                    // Delayed reload: waits for the Celery embedding task
+                    // (5 s countdown + ~1 s processing) then re-fetches to
+                    // show the verified badge without requiring manual refresh.
+                    try? await Task.sleep(nanoseconds: 8_000_000_000)  // 8 s
                     await dashboardVM.reload(using: authManager)
                 }
             }
