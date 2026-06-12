@@ -1386,6 +1386,55 @@
         ]
       }
     },
+    "/api/v1/users/me/biometric-photo": {
+      "post": {
+        "tags": [
+          "users",
+          "users",
+          "biometric"
+        ],
+        "summary": "Upload biometric liveness reference photo",
+        "description": "Upload the reference photo captured at the end of the liveness challenge.\n\n- MIME must be image/jpeg or image/png (422 otherwise).\n- File must not exceed 5 MB (422 otherwise).\n- Requires active biometric disclosure and consent (403 otherwise).\n- Returns photo_filename (server-generated basename) for use in\n  POST /me/biometric-liveness { photo_filename: \"...\" }.\n- face_match_score is never read, written, or returned here.\n- Image bytes are written to disk only; not stored in DB.",
+        "operationId": "upload_biometric_photo_api_v1_users_me_biometric_photo_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_biometric_photo_api_v1_users_me_biometric_photo_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BiometricPhotoUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/juggling-consent": {
       "get": {
         "tags": [
@@ -48282,6 +48331,20 @@
         "title": "BiometricLivenessSubmitRequest",
         "description": "Body for POST /me/biometric-liveness (PR-3)."
       },
+      "BiometricPhotoUploadResponse": {
+        "properties": {
+          "photo_filename": {
+            "type": "string",
+            "title": "Photo Filename"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photo_filename"
+        ],
+        "title": "BiometricPhotoUploadResponse",
+        "description": "Response for POST /me/biometric-photo."
+      },
       "BiometricVerificationStatusOut": {
         "properties": {
           "face_match_status": {
@@ -50980,6 +51043,21 @@
           "invited_user_id"
         ],
         "title": "Body_team_invite_teams__team_id__invite_post"
+      },
+      "Body_upload_biometric_photo_api_v1_users_me_biometric_photo_post": {
+        "properties": {
+          "photo": {
+            "type": "string",
+            "format": "binary",
+            "title": "Photo",
+            "description": "JPEG or PNG, max 5 MB"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photo"
+        ],
+        "title": "Body_upload_biometric_photo_api_v1_users_me_biometric_photo_post"
       },
       "Body_upload_file_api_v1_users_me_juggling_videos__video_id__upload_post": {
         "properties": {
@@ -67552,6 +67630,28 @@
             ],
             "title": "Public Token"
           },
+          "face_match_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Face Match Status"
+          },
+          "face_reference_photo_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Face Reference Photo Status"
+          },
           "licenses": {
             "items": {
               "$ref": "#/components/schemas/UserLicenseSimple"
@@ -69010,6 +69110,28 @@
               }
             ],
             "title": "Public Token"
+          },
+          "face_match_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Face Match Status"
+          },
+          "face_reference_photo_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Face Reference Photo Status"
           },
           "licenses": {
             "items": {
