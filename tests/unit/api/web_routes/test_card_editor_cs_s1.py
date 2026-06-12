@@ -294,8 +294,8 @@ class TestS109S110RouteAndSnapshot:
         """S1-09 (updated PR-JUG-1): route count is 888 (+5 juggling-intake paths)."""
         from app.main import app
         paths = app.openapi().get("paths", {})
-        assert len(paths) == 888, (
-            f"Expected 888 routes (883 prior + 5 juggling-intake paths), got {len(paths)}"
+        assert len(paths) == 890, (
+            f"Expected 890 routes (883 prior + 5 juggling-intake paths), got {len(paths)}"
         )
 
     def test_s1_10_openapi_snapshot_still_matches(self):

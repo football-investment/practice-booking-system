@@ -430,9 +430,9 @@ class TestCE216WelcomeEditorUnchanged:
 
 class TestCE217RouteCount:
     def test_openapi_snapshot_route_count_unchanged(self):
-        """PR-JUG-1 juggling intake adds 5 new paths (883 prior → 888)."""
+        """PR-JUG-1 juggling intake adds 5 new paths (883 prior → 888); P4 private media adds 2 (888 → 890)."""
         from app.main import app
         paths = app.openapi().get("paths", {})
-        assert len(paths) == 888, (
-            f"Expected 888 routes (883 prior + 5 juggling-intake paths), got {len(paths)}."
+        assert len(paths) == 890, (
+            f"Expected 890 routes (888 prior (now 890 with P4 private media +2) + 2 P4 private-media paths), got {len(paths)}."
         )
