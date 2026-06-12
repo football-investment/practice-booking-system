@@ -50,15 +50,17 @@ final class SpikeLivenessViewModel: ObservableObject {
     // These power the calibration overlay and are never logged in Release.
 #if DEBUG
     struct DebugValues {
-        var yaw:        Float = 0
-        var pitch:      Float = 0
-        var blinkLeft:  Float = 0
-        var blinkRight: Float = 0
-        var smileLeft:  Float = 0
-        var smileRight: Float = 0
-        var squintLeft: Float = 0
-        var squintRight: Float = 0
-        var detected:   Bool  = false
+        var yaw:         Float  = 0
+        var pitch:       Float  = 0
+        var blinkLeft:   Float  = 0
+        var blinkRight:  Float  = 0
+        var smileLeft:   Float  = 0
+        var smileRight:  Float  = 0
+        var squintLeft:  Float  = 0
+        var squintRight: Float  = 0
+        var detected:    Bool   = false
+        // Gesture-specific threshold line: "target yaw > +0.15  yawPassed: YES"
+        var gestureDetail: String = ""
     }
     @Published private(set) var debugValues = DebugValues()
 #endif
@@ -185,18 +187,58 @@ final class SpikeLivenessViewModel: ObservableObject {
 
 #if DEBUG
     private func updateDebugValues(from anchor: FaceAnchorInput, detected: Bool) {
-        let e = anchor.faceEulerAngles
+        let e  = anchor.faceEulerAngles
         let bs = anchor.faceBlendShapes
+        let t  = detector.thresholds
+        let bl = bs[.eyeBlinkLeft]?.floatValue   ?? 0
+        let br = bs[.eyeBlinkRight]?.floatValue  ?? 0
+        let sl = bs[.mouthSmileLeft]?.floatValue  ?? 0
+        let sr = bs[.mouthSmileRight]?.floatValue ?? 0
+        let detail: String
+        switch currentGesture {
+        case .neutral:
+            let yawOK   = abs(e.x) < t.neutralYaw
+            let pitchOK = abs(e.y) < t.neutralPitch
+            detail = String(format: "|yaw|<%.2f:%@  |pitch|<%.2f:%@",
+                            t.neutralYaw,  yawOK   ? "✓" : "✗",
+                            t.neutralPitch, pitchOK ? "✓" : "✗")
+        case .headLeft:
+            let pass = e.x > t.yawLeft
+            detail = String(format: "target yaw > +%.3f  yawPassed: %@", t.yawLeft, pass ? "YES" : "NO")
+        case .headRight:
+            let pass = e.x < -t.yawRight
+            detail = String(format: "target yaw < -%.3f  yawPassed: %@", t.yawRight, pass ? "YES" : "NO")
+        case .chinUp:
+            let pass = e.y < -t.pitchUp
+            detail = String(format: "target pitch < -%.3f  pitchPassed: %@", t.pitchUp, pass ? "YES" : "NO")
+        case .blinkRight:
+            let pass = br > t.blinkMin && bl < t.blinkOtherMax
+            detail = String(format: "blinkR>%.2f:%@  blinkL<%.2f:%@",
+                            t.blinkMin, br > t.blinkMin ? "✓" : "✗",
+                            t.blinkOtherMax, bl < t.blinkOtherMax ? "✓" : "✗")
+        case .blinkLeft:
+            let pass2 = bl > t.blinkMin && br < t.blinkOtherMax
+            detail = String(format: "blinkL>%.2f:%@  blinkR<%.2f:%@",
+                            t.blinkMin, bl > t.blinkMin ? "✓" : "✗",
+                            t.blinkOtherMax, br < t.blinkOtherMax ? "✓" : "✗")
+        case .smile:
+            let avg = (sl + sr) / 2
+            let pass3 = avg > t.smileAvg
+            detail = String(format: "smileAvg>%.2f  avg=%.2f  %@", t.smileAvg, avg, pass3 ? "YES" : "NO")
+        case .none:
+            detail = ""
+        }
         debugValues = DebugValues(
-            yaw:         e.x,
+            yaw:          e.x,
             pitch:        e.y,
-            blinkLeft:   bs[.eyeBlinkLeft]?.floatValue   ?? 0,
-            blinkRight:  bs[.eyeBlinkRight]?.floatValue  ?? 0,
-            smileLeft:   bs[.mouthSmileLeft]?.floatValue  ?? 0,
-            smileRight:  bs[.mouthSmileRight]?.floatValue ?? 0,
-            squintLeft:  bs[.cheekSquintLeft]?.floatValue  ?? 0,
-            squintRight: bs[.cheekSquintRight]?.floatValue ?? 0,
-            detected:    detected
+            blinkLeft:    bl,
+            blinkRight:   br,
+            smileLeft:    sl,
+            smileRight:   sr,
+            squintLeft:   bs[.cheekSquintLeft]?.floatValue  ?? 0,
+            squintRight:  bs[.cheekSquintRight]?.floatValue ?? 0,
+            detected:     detected,
+            gestureDetail: detail
         )
     }
 #endif

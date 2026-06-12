@@ -326,6 +326,7 @@ struct SpikeLivenessView: View {
         let lines: [String] = [
             "\(kSpikeLabel)  TrueDepth:\(truedepth ? "YES" : "NO")  v\(version)(\(build))",
             "step \(vm.currentStepIndex + 1)/\(vm.totalSteps): \(vm.currentGesture?.debugLabel ?? "—")  detected: \(v.detected ? "YES✓" : "no")",
+            v.gestureDetail,
             String(format: "yaw: %+.3f  pitch: %+.3f  hold: \(holdPct)%%", v.yaw, v.pitch),
             String(format: "blinkL: %.2f  blinkR: %.2f", v.blinkLeft, v.blinkRight),
             String(format: "smileL: %.2f  smileR: %.2f  sqntAvg: %.2f",

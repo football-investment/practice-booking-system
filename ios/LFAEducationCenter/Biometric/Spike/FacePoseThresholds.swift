@@ -18,11 +18,18 @@ struct FacePoseThresholds {
     // MARK: — Head pose (radians)
 
     /// Yaw threshold for head-left: eulerAngles.x > yawLeft
-    var yawLeft:  Float = 0.30      // ≈ +17° — provisional, calibrate
+    /// Device calibration: rest yaw ≈ -0.143; visible left turn reached +0.061 (+0.204 delta).
+    /// 0.30 was unreachable; lowered to 0.15 so a clear left turn (≥ ~17° absolute) triggers.
+    var yawLeft:  Float = 0.15      // ≈ +8.6° absolute — empirical spike-v7 calibration
     /// Yaw threshold for head-right: eulerAngles.x < -yawRight
-    var yawRight: Float = 0.30      // ≈ -17° — stored positive, compared as negative
-    /// Pitch threshold for chin-up: eulerAngles.y > pitchUp
-    var pitchUp:  Float = 0.20      // ≈ +11° — provisional, calibrate
+    /// Note: from rest -0.143, threshold -0.15 is only 0.007 rad away — headRight is very easy.
+    /// Will be raised after full calibration session if false positives emerge.
+    var yawRight: Float = 0.15      // ≈ -8.6° absolute — matched to yawLeft for symmetry
+    /// Pitch threshold for chin-up.
+    /// Device data shows pitch is NEGATIVE when chin raises (opposite of initial assumption).
+    /// Fix: detectChinUp checks pitch < -pitchUp (more negative = chin up).
+    /// Set to 0.35 so user needs pitch < -0.35 — below natural rest of -0.18 to -0.33.
+    var pitchUp:  Float = 0.35      // chin-up when pitch < -0.35 (sign handled in detector)
 
     /// Neutral window: |yaw| < neutralYaw AND |pitch| < neutralPitch
     /// Calibrated from device: rest yaw ≈ -0.143, rest pitch ≈ -0.176 → needs ≥ 0.20.

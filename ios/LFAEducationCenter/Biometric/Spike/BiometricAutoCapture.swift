@@ -21,4 +21,4 @@ let kBiometricAutoCaptureSpikeEnabled: Bool = false   // compile-time constant â
 // they are running the expected build without Xcode attached.
 // Format: "spike-v<N>/<nearest-parent-sha>"
 // Updated with each fix commit; does NOT need to equal the post-commit SHA.
-let kSpikeLabel = "spike-v6/neutral-threshold-fix"
+let kSpikeLabel = "spike-v7/yaw-calib+chinup-sign"

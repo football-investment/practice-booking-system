@@ -86,8 +86,11 @@ struct FaceGestureDetector {
         a.faceEulerAngles.x < -thresholds.yawRight
     }
 
+    // Device calibration finding: pitch is NEGATIVE when chin raises (camera held below face).
+    // pitch < -pitchUp means the face's Z-axis Y component is sufficiently negative = chin raised.
+    // Threshold = -0.35; rest pitch ≈ -0.18…-0.33, so user must raise chin clearly beyond rest.
     private func detectChinUp(_ a: FaceAnchorInput) -> Bool {
-        a.faceEulerAngles.y > thresholds.pitchUp
+        a.faceEulerAngles.y < -thresholds.pitchUp
     }
 
     // MARK: — Blink
