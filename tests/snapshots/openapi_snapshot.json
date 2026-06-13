@@ -62479,7 +62479,7 @@
     },
     "/api/v1/users/me/juggling/videos/{video_id}/contacts/batch": {
       "post": {
-        "description": "Submit up to 200 contact events in a single request.\nPer-item status: created (201) / duplicate (200) / conflict (409).\nAlways returns 207 \u2014 inspect per-item status field for outcome.",
+        "description": "Submit up to 200 contact events in a single request.\nPer-item status: created / duplicate / conflict.\n\nHTTP status codes:\n  201 \u2014 all items newly created (no duplicates, no conflicts)\n  200 \u2014 all items were exact duplicates (idempotent re-submit)\n  207 \u2014 mixed outcome or any conflict present",
         "operationId": "create_contacts_batch_api_v1_users_me_juggling_videos__video_id__contacts_batch_post",
         "parameters": [
           {
