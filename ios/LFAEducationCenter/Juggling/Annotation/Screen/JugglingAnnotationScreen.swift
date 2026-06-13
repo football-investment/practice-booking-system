@@ -37,6 +37,9 @@ struct JugglingAnnotationScreen: View {
     @State private var showCloseConfirm   = false
     @State private var showSaveErrorAlert = false
 
+    // AN-3B2A P2 — labeling flow presentation.
+    @State private var showLabeling = false
+
     @Environment(\.presentationMode) private var presentationMode
     #if DEBUG
     @Environment(\.scenePhase) private var scenePhase
@@ -95,6 +98,12 @@ struct JugglingAnnotationScreen: View {
 
                     eventList
 
+                    if vm.unlabeledCount > 0 {
+                        labelingCTA
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
+                    }
+
                     saveAndCloseButton
                         .padding(.horizontal, 12)
                         .padding(.bottom, 8)
@@ -146,6 +155,9 @@ struct JugglingAnnotationScreen: View {
                     message: Text(vm.saveError ?? "A mentés sikertelen."),
                     dismissButton: .default(Text("OK")) { vm.clearSaveError() }
                 )
+            }
+            .sheet(isPresented: $showLabeling) {
+                EventLabelDetailView(vm: vm, onClose: { showLabeling = false })
             }
             .onChange(of: loader.state, perform: { state in
                 if case .ready(let url) = state {
@@ -439,6 +451,27 @@ struct JugglingAnnotationScreen: View {
         case .idle:
             EmptyView()
         }
+    }
+
+    // MARK: — Labeling CTA (AN-3B2A P2)
+
+    private var labelingCTA: some View {
+        Button {
+            vm.enterLabelingMode()
+            if vm.screenMode == .labeling {
+                showLabeling = true
+            }
+        } label: {
+            Text("Tovább a címkézéshez")
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .foregroundColor(.white)
+                .background(Color.accentColor)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .accessibilityLabel("Tovább a címkézéshez")
+        .accessibilityHint("Megnyitja az események egyenkénti címkézését")
     }
 
     // MARK: — Save and close (AN-3B2A P1)

@@ -24,6 +24,16 @@ enum AnnotationSaveStatus: Equatable {
     case failed    // last save threw — saveError is non-nil
 }
 
+// MARK: — AnnotationScreenMode
+//
+// Phase 1 (marking) vs. Phase 2 (per-event labeling). Set explicitly by
+// enterLabelingMode() / exitLabelingMode() — never inferred implicitly, so
+// the Screen can rely on it to drive navigation.
+enum AnnotationScreenMode: Equatable {
+    case marking
+    case labeling
+}
+
 @MainActor
 final class JugglingAnnotationViewModel: ObservableObject {
 
@@ -45,6 +55,9 @@ final class JugglingAnnotationViewModel: ObservableObject {
     #endif
     // deviceEventId of the conflict waiting for user resolution, or nil.
     @Published private(set) var pendingConflictId:  UUID? = nil
+    // AN-3B2A P2 — marking vs. labeling. Set by enterLabelingMode() /
+    // exitLabelingMode(); the Screen reads this to drive navigation.
+    @Published private(set) var screenMode:         AnnotationScreenMode = .marking
 
     let userId:  Int
     let videoId: String
@@ -523,8 +536,9 @@ final class JugglingAnnotationViewModel: ObservableObject {
         activeEvents.filter { $0.syncStatus == .labelPending }.count
     }
 
-    // Transitions all .unlabeled drafts to .labelPending and persists.
-    // Called at the Phase 1 → Phase 2 boundary (AN-3B2B).
+    // Transitions all .unlabeled drafts to .labelPending, persists, and
+    // switches screenMode to .labeling so the Screen can navigate to the
+    // labeling flow.
     func enterLabelingMode() {
         guard var current = session else { return }
         for index in current.drafts.indices {
@@ -532,14 +546,53 @@ final class JugglingAnnotationViewModel: ObservableObject {
                 current.drafts[index].syncStatus = .labelPending
             }
         }
-        do {
-            try localStore.save(session: &current)
-            saveError = nil
-            session = current
-        } catch {
-            // Roll back — events must not appear .labelPending if not persisted.
-            saveError = "A mentés sikertelen: \(error.localizedDescription)"
+        let ok = persistSession(&current, logContext: "enterLabelingMode")
+        session = current
+        if ok {
+            screenMode = .labeling
         }
+    }
+
+    // Returns to marking mode. Called when the labeling screen is closed.
+    // Does not touch session state — labelEvent() already persisted every
+    // change made while labeling.
+    func exitLabelingMode() {
+        screenMode = .marking
+    }
+
+    // AN-3B2A P2 — assigns contact type/side/confidence to a .labelPending
+    // event (Phase 1 → Phase 2 labeling) or re-labels an already-.localOnly
+    // event (back-navigation within the labeling flow). Persists immediately.
+    //
+    // Returns true on success (draft is now .localOnly with the given
+    // fields). Returns false if the draft is not in a labelable state, or if
+    // the save failed — saveError is set in the latter case and the in-memory
+    // session is left unchanged (no rollback needed: `current` is a local copy).
+    @discardableResult
+    func labelEvent(
+        deviceEventId:        UUID,
+        contactType:          String,
+        side:                 String?,
+        annotationConfidence: String,
+        customLabel:          String? = nil,
+        customDescription:    String? = nil
+    ) -> Bool {
+        guard var current = session,
+              let index = current.drafts.firstIndex(where: { $0.deviceEventId == deviceEventId }),
+              current.drafts[index].syncStatus == .labelPending || current.drafts[index].syncStatus == .localOnly
+        else { return false }
+
+        current.drafts[index].contactType          = contactType
+        current.drafts[index].side                 = side
+        current.drafts[index].annotationConfidence = annotationConfidence
+        current.drafts[index].customLabel          = customLabel
+        current.drafts[index].customDescription    = customDescription
+        current.drafts[index].syncStatus           = .localOnly
+
+        let ok = persistSession(&current, logContext: "labelEvent")
+        guard ok else { return false }
+        session = current
+        return true
     }
 
     var finishReadiness: FinishReadiness {
