@@ -470,12 +470,12 @@ def test_cm18_downgrade_no_residual_schema():
 # ── CM-19: route count unchanged ─────────────────────────────────────────────
 
 def test_cm19_production_route_count_unchanged():
-    """CM-19: PR-1 introduces no new API routes."""
+    """CM-19: AN-1 adds 7 new routes; expected route object count = 1017."""
     from app.main import app
     routes = [r for r in app.routes if hasattr(r, "methods")]
-    assert len(routes) == 1010, (
-        f"Route count changed: expected 1010, got {len(routes)}. "
-        "PR-1 must not introduce any new endpoints."
+    assert len(routes) == 1017, (
+        f"Route count changed: expected 1017, got {len(routes)}. "
+        "AN-1 added 7 new juggling contact/taxonomy endpoints."
     )
 
 
