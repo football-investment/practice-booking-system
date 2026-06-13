@@ -329,8 +329,13 @@ final class AuthManager: ObservableObject {
     //
     // On 401 from the refresh endpoint: calls logout() (session unrecoverable).
     // On network error: preserves tokens (offline tolerance), returns false.
+    //
+    // Visibility is internal (not private) so AnnotationVideoLoader can call it
+    // directly after receiving a 401 on a streaming download task that bypasses
+    // the authenticatedFetchData wrapper. The pendingRefresh barrier prevents
+    // double-refresh regardless of how many callers enter concurrently.
     @discardableResult
-    private func performRefresh() async -> Bool {
+    func performRefresh() async -> Bool {
         if let pending = pendingRefresh {
             return await pending.value   // join the in-flight refresh
         }
