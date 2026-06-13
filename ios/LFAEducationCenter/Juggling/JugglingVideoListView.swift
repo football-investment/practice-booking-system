@@ -24,8 +24,7 @@ struct JugglingVideoListView: View {
         }
         .navigationViewStyle(.stack)
         .fullScreenCover(item: $viewModel.showPlayerFor) { video in
-            JugglingPlayerView(video: video)
-                .environmentObject(authManager)
+            JugglingAnnotationScreen(video: video, authManager: authManager)
         }
     }
 
