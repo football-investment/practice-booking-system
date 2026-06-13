@@ -12,6 +12,18 @@ import Foundation
 // instance is created for the next user — this view model never re-targets
 // an existing session to a different userId.
 
+// MARK: — AnnotationSaveStatus
+//
+// Derived, read-only view of the VM's actual save state — never a separate
+// UI-local flag. AnnotationDebugOverlay and JugglingAnnotationScreen both
+// read this from the same source of truth (isSaving / saveError / session).
+enum AnnotationSaveStatus: Equatable {
+    case idle      // no session loaded yet
+    case saving    // a localStore.save() call is in flight
+    case saved     // last save succeeded (or nothing pending)
+    case failed    // last save threw — saveError is non-nil
+}
+
 @MainActor
 final class JugglingAnnotationViewModel: ObservableObject {
 
@@ -24,6 +36,8 @@ final class JugglingAnnotationViewModel: ObservableObject {
     // Set when a local persistence write fails. The UI must not claim the
     // affected change is saved while this is non-nil.
     @Published private(set) var saveError:          String?
+    // True only while a localStore.save() call is actually in flight.
+    @Published private(set) var isSaving:           Bool = false
     #if DEBUG
     // AN-3B2A P0 — read-only diagnostics snapshot for AnnotationDebugOverlay.
     // Never used to make decisions; purely observational.
@@ -129,28 +143,60 @@ final class JugglingAnnotationViewModel: ObservableObject {
         taxonomy = taxonomyStore.document
     }
 
-    // Call when the annotation screen disappears — persists any in-memory changes.
-    func onDisappear() {
+    // Explicit, awaitable save of the current session. This is the single
+    // source of truth for "save" — both the "Mentés és bezárás" CTA and the
+    // SwiftUI .onDisappear lifecycle hook call this same method, so there is
+    // exactly one save path (no separate UI-local save logic, no double-save
+    // race: isSaving makes the in-flight state observable to the UI).
+    //
+    // Returns true if there is nothing to save, or the save succeeded.
+    // Returns false only if a save was attempted and threw — saveError is
+    // set in that case and the caller (Screen) must not dismiss.
+    @discardableResult
+    func saveNow() -> Bool {
+        #if DEBUG
+        AnnotationDiagnosticsLog.log("saveNow — userId=\(userId) videoId=\(videoId) activeEvents=\(activeEvents.count)")
+        #endif
+        guard var current = session else { return true }
+        let ok = persistSession(&current, logContext: "saveNow")
+        session = current
+        return ok
+    }
+
+    // Call when the annotation screen disappears — persists any in-memory
+    // changes via saveNow(). Idempotent: the Screen guards against calling
+    // this more than once per appearance (didCleanUp).
+    @discardableResult
+    func onDisappear() -> Bool {
         #if DEBUG
         AnnotationDiagnosticsLog.log("onDisappear — userId=\(userId) videoId=\(videoId) activeEvents=\(activeEvents.count)")
         #endif
-        guard var current = session else { return }
+        return saveNow()
+    }
+
+    // Shared persistence helper — every save path (markTimestamp, saveNow,
+    // ...) routes through this so isSaving/saveError/diagnostics always
+    // reflect the real outcome of the most recent localStore.save() call.
+    private func persistSession(_ current: inout AnnotationSessionFile, logContext: String) -> Bool {
+        isSaving = true
+        defer { isSaving = false }
         do {
             try localStore.save(session: &current)
             saveError = nil
-            session = current
             #if DEBUG
             diagnostics.lastSaveResult = .success
             diagnostics.lastSaveAt = Date()
-            AnnotationDiagnosticsLog.log("onDisappear — save result: success")
+            AnnotationDiagnosticsLog.log("\(logContext) — save result: success")
             #endif
+            return true
         } catch {
             saveError = "A mentés sikertelen: \(error.localizedDescription)"
             #if DEBUG
             diagnostics.lastSaveResult = .failed(error.localizedDescription)
             diagnostics.lastSaveAt = Date()
-            AnnotationDiagnosticsLog.log("onDisappear — save result: failed: \(error.localizedDescription)")
+            AnnotationDiagnosticsLog.log("\(logContext) — save result: failed: \(error.localizedDescription)")
             #endif
+            return false
         }
     }
 
@@ -212,26 +258,13 @@ final class JugglingAnnotationViewModel: ObservableObject {
         #if DEBUG
         AnnotationDiagnosticsLog.log("markTimestamp — saving before: drafts=\(session?.drafts.count ?? -1) → after-append=\(current.drafts.count) path=\(localStore.sessionFileURL(userId: userId, videoId: videoId).path)")
         #endif
-        do {
-            try localStore.save(session: &current)
-            saveError = nil
-            session = current
-            #if DEBUG
-            diagnostics.lastSaveResult = .success
-            diagnostics.lastSaveAt = Date()
-            AnnotationDiagnosticsLog.log("markTimestamp — save result: success, drafts=\(current.drafts.count)")
-            #endif
-            return draft
-        } catch {
+        let ok = persistSession(&current, logContext: "markTimestamp")
+        guard ok else {
             // Roll back — do not present a memory-only event as persisted.
-            saveError = "A mentés sikertelen: \(error.localizedDescription)"
-            #if DEBUG
-            diagnostics.lastSaveResult = .failed(error.localizedDescription)
-            diagnostics.lastSaveAt = Date()
-            AnnotationDiagnosticsLog.log("markTimestamp — save result: failed: \(error.localizedDescription)")
-            #endif
             return nil
         }
+        session = current
+        return draft
     }
 
     @discardableResult
@@ -467,6 +500,15 @@ final class JugglingAnnotationViewModel: ObservableObject {
             // Roll back — the event must not appear deleted if the change wasn't persisted.
             saveError = "A mentés sikertelen: \(error.localizedDescription)"
         }
+    }
+
+    // Derived from real state only — never set independently of isSaving/
+    // saveError/session, so the UI cannot drift from what actually happened.
+    var saveStatus: AnnotationSaveStatus {
+        if isSaving { return .saving }
+        if saveError != nil { return .failed }
+        if session != nil { return .saved }
+        return .idle
     }
 
     var activeEvents: [ContactEventDraft] {

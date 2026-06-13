@@ -30,8 +30,12 @@ struct JugglingAnnotationScreen: View {
     @StateObject private var playback: PlaybackController
     @StateObject private var vm:      JugglingAnnotationViewModel
 
-    @State private var didCleanUp  = false   // guards double onDisappear calls
+    @State private var didCleanUp  = false   // guards double onDisappear/save calls
     @State private var fabPressed  = false   // brief scale-down on successful mark
+
+    // AN-3B2A P1 — close confirmation (X with active events) and save-error alert.
+    @State private var showCloseConfirm   = false
+    @State private var showSaveErrorAlert = false
 
     @Environment(\.presentationMode) private var presentationMode
     #if DEBUG
@@ -72,6 +76,10 @@ struct JugglingAnnotationScreen: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
 
+                    statusBar
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 4)
+
                     EventTimelineView(
                         events:    vm.activeEvents,
                         duration:  playback.duration,
@@ -86,6 +94,10 @@ struct JugglingAnnotationScreen: View {
                     .padding(.bottom, 4)
 
                     eventList
+
+                    saveAndCloseButton
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
                 }
                 .background(Color(.systemBackground))
             }
@@ -94,8 +106,11 @@ struct JugglingAnnotationScreen: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
-                        onDisappear()
-                        presentationMode.wrappedValue.dismiss()
+                        if vm.activeEvents.isEmpty {
+                            performClose()
+                        } else {
+                            showCloseConfirm = true
+                        }
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .medium))
@@ -115,6 +130,23 @@ struct JugglingAnnotationScreen: View {
             }
             .onAppear { Task { await onAppear() } }
             .onDisappear { onDisappear() }
+            .actionSheet(isPresented: $showCloseConfirm) {
+                ActionSheet(
+                    title: Text("Bezárod a képernyőt?"),
+                    message: Text("Az események automatikusan mentve vannak, és később folytathatók."),
+                    buttons: [
+                        .default(Text("Bezárás")) { performClose() },
+                        .cancel(Text("Mégsem"))
+                    ]
+                )
+            }
+            .alert(isPresented: $showSaveErrorAlert) {
+                Alert(
+                    title: Text("Mentési hiba"),
+                    message: Text(vm.saveError ?? "A mentés sikertelen."),
+                    dismissButton: .default(Text("OK")) { vm.clearSaveError() }
+                )
+            }
             .onChange(of: loader.state, perform: { state in
                 if case .ready(let url) = state {
                     let asset = AVAsset(url: url)
@@ -362,6 +394,74 @@ struct JugglingAnnotationScreen: View {
         .accessibilityHint("Rögzíti a kontakt eseményt a videó jelenlegi időpontján")
     }
 
+    // MARK: — Status bar (AN-3B2A P1)
+
+    private var eventCountLabel: String {
+        let n = vm.activeEvents.count
+        return n == 1 ? "1 esemény jelölve" : "\(n) esemény jelölve"
+    }
+
+    @ViewBuilder
+    private var statusBar: some View {
+        HStack {
+            Text(eventCountLabel)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Spacer()
+            saveStatusLabel
+        }
+    }
+
+    @ViewBuilder
+    private var saveStatusLabel: some View {
+        switch vm.saveStatus {
+        case .saving:
+            HStack(spacing: 4) {
+                ProgressView().scaleEffect(0.7)
+                Text("Mentés folyamatban…")
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+        case .saved:
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
+                Text("Automatikusan mentve")
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+        case .failed:
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.red)
+                Text("Mentési hiba")
+            }
+            .font(.caption)
+            .foregroundColor(.red)
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    // MARK: — Save and close (AN-3B2A P1)
+
+    private var saveAndCloseButton: some View {
+        Button {
+            performClose()
+        } label: {
+            Text("Mentés és bezárás")
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .foregroundColor(vm.isSaving ? .secondary : Color.accentColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(vm.isSaving ? Color.secondary : Color.accentColor, lineWidth: 1)
+                )
+        }
+        .disabled(vm.isSaving)
+        .accessibilityLabel("Mentés és bezárás")
+        .accessibilityHint("Elmenti a jelölt eseményeket és visszatér a videólistára")
+    }
+
     // MARK: — Lifecycle
 
     private func onAppear() async {
@@ -375,6 +475,24 @@ struct JugglingAnnotationScreen: View {
         vm.onDisappear()
         loader.cancel()
         playback.pause()
+    }
+
+    // Explicit save-then-close path for the X button and "Mentés és
+    // bezárás" CTA. Performs vm.saveNow() and only dismisses on success —
+    // a failed save leaves the screen open with showSaveErrorAlert set, so
+    // the user never silently loses data. Shares the didCleanUp guard with
+    // the SwiftUI .onDisappear fallback to avoid a double save.
+    private func performClose() {
+        guard !didCleanUp else { return }
+        let ok = vm.saveNow()
+        guard ok else {
+            showSaveErrorAlert = true
+            return
+        }
+        didCleanUp = true
+        loader.cancel()
+        playback.pause()
+        presentationMode.wrappedValue.dismiss()
     }
 
     // MARK: — Display helpers

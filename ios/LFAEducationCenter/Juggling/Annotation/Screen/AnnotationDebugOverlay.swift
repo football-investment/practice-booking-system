@@ -55,6 +55,8 @@ struct AnnotationDebugOverlay: View {
                 Section(header: Text("Last save")) {
                     row("Result", vm.diagnostics.lastSaveResult.description)
                     row("At", formatted(vm.diagnostics.lastSaveAt))
+                    row("isSaving", String(vm.isSaving))
+                    row("saveStatus", String(describing: vm.saveStatus))
                 }
 
                 Section(header: Text("Errors / warnings")) {
@@ -135,6 +137,8 @@ struct AnnotationDebugOverlay: View {
         lines.append("-- Last save --")
         lines.append("Result: \(vm.diagnostics.lastSaveResult.description)")
         lines.append("At: \(formatted(vm.diagnostics.lastSaveAt))")
+        lines.append("isSaving: \(vm.isSaving)")
+        lines.append("saveStatus: \(vm.saveStatus)")
         lines.append("")
         lines.append("-- Errors / warnings --")
         lines.append("saveError: \(vm.saveError ?? "—")")
