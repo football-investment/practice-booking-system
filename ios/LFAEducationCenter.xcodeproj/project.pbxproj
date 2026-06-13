@@ -110,6 +110,8 @@
 		AA100004000000000000008 /* JugglingAnnotationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100003000000000000008 /* JugglingAnnotationViewModel.swift */; };
 		AA100004000000000000009 /* contact_types_v1.json in Resources */ = {isa = PBXBuildFile; fileRef = AA100003000000000000009 /* contact_types_v1.json */; };
 		AA100004000000000000010 /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100003000000000000010 /* PlaybackController.swift */; };
+		AA100004000000000000011 /* AnnotationDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100003000000000000011 /* AnnotationDiagnostics.swift */; };
+		BB200004000000000000010 /* AnnotationDebugOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB200003000000000000010 /* AnnotationDebugOverlay.swift */; };
 		CC400004000000000000010 /* EditEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000010 /* EditEventTests.swift */; };
 		CC400004000000000000011 /* FlushPendingEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000011 /* FlushPendingEditTests.swift */; };
 		CC400004000000000000012 /* PlaybackControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000012 /* PlaybackControllerTests.swift */; };
@@ -238,6 +240,8 @@
 		AA100003000000000000008 /* JugglingAnnotationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JugglingAnnotationViewModel.swift; sourceTree = "<group>"; };
 		AA100003000000000000009 /* contact_types_v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = contact_types_v1.json; sourceTree = "<group>"; };
 		AA100003000000000000010 /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
+		AA100003000000000000011 /* AnnotationDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationDiagnostics.swift; sourceTree = "<group>"; };
+		BB200003000000000000010 /* AnnotationDebugOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationDebugOverlay.swift; sourceTree = "<group>"; };
 		BB100003000000000000001 /* AVPlayerLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVPlayerLayerView.swift; sourceTree = "<group>"; };
 		BB100003000000000000002 /* AnnotationVideoLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationVideoLoader.swift; sourceTree = "<group>"; };
 		BB100003000000000000003 /* PlaybackControlBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackControlBar.swift; sourceTree = "<group>"; };
@@ -553,6 +557,7 @@
 				AA100003000000000000006 /* AnnotationSyncEngine.swift */,
 				AA100003000000000000007 /* JugglingAnnotationAPIClient.swift */,
 				AA100003000000000000008 /* JugglingAnnotationViewModel.swift */,
+				AA100003000000000000011 /* AnnotationDiagnostics.swift */,
 				BB100003000000000000002 /* AnnotationVideoLoader.swift */,
 				BB200002000000000000001 /* Screen */,
 				AA100002000000000000002 /* Resources */,
@@ -565,6 +570,7 @@
 			children = (
 				BB200003000000000000001 /* JugglingAnnotationScreen.swift */,
 				BB200003000000000000003 /* EventTimelineView.swift */,
+				BB200003000000000000010 /* AnnotationDebugOverlay.swift */,
 			);
 			path = Screen;
 			sourceTree = "<group>";
@@ -823,11 +829,13 @@
 				AA100004000000000000007 /* JugglingAnnotationAPIClient.swift in Sources */,
 				AA100004000000000000008 /* JugglingAnnotationViewModel.swift in Sources */,
 				AA100004000000000000010 /* PlaybackController.swift in Sources */,
+				AA100004000000000000011 /* AnnotationDiagnostics.swift in Sources */,
 				BB100004000000000000001 /* AVPlayerLayerView.swift in Sources */,
 				BB100004000000000000002 /* AnnotationVideoLoader.swift in Sources */,
 				BB100004000000000000003 /* PlaybackControlBar.swift in Sources */,
 				BB200004000000000000001 /* JugglingAnnotationScreen.swift in Sources */,
 				BB200004000000000000003 /* EventTimelineView.swift in Sources */,
+				BB200004000000000000010 /* AnnotationDebugOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

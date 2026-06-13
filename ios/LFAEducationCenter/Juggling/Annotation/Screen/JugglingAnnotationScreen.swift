@@ -34,6 +34,10 @@ struct JugglingAnnotationScreen: View {
     @State private var fabPressed  = false   // brief scale-down on successful mark
 
     @Environment(\.presentationMode) private var presentationMode
+    #if DEBUG
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var showDebugOverlay = false
+    #endif
 
     // Explicit init: @StateObject values must be created before the view appears,
     // and EnvironmentObject is not available at init time.
@@ -52,6 +56,9 @@ struct JugglingAnnotationScreen: View {
             videoId:     video.videoId,
             authManager: authManager
         ))
+        #if DEBUG
+        AnnotationDiagnosticsLog.log("Screen init — userId=\(userId) videoId=\(video.videoId)")
+        #endif
     }
 
     var body: some View {
@@ -95,6 +102,16 @@ struct JugglingAnnotationScreen: View {
                     }
                     .accessibilityLabel("Bezárás")
                 }
+                #if DEBUG
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showDebugOverlay = true
+                    } label: {
+                        Image(systemName: "ladybug")
+                    }
+                    .accessibilityLabel("Diagnosztika (DEBUG)")
+                }
+                #endif
             }
             .onAppear { Task { await onAppear() } }
             .onDisappear { onDisappear() }
@@ -105,6 +122,23 @@ struct JugglingAnnotationScreen: View {
                     if let avp = playback.avPlayer { avp.play() }
                 }
             })
+            #if DEBUG
+            .onChange(of: scenePhase) { newPhase in
+                switch newPhase {
+                case .active:
+                    AnnotationDiagnosticsLog.log("scenePhase → active (foreground) — userId=\(vm.userId) videoId=\(video.videoId)")
+                case .background:
+                    AnnotationDiagnosticsLog.log("scenePhase → background — userId=\(vm.userId) videoId=\(video.videoId)")
+                case .inactive:
+                    AnnotationDiagnosticsLog.log("scenePhase → inactive — userId=\(vm.userId) videoId=\(video.videoId)")
+                @unknown default:
+                    break
+                }
+            }
+            .sheet(isPresented: $showDebugOverlay) {
+                AnnotationDebugOverlay(vm: vm, authManager: authManager, videoId: video.videoId)
+            }
+            #endif
         }
         .navigationViewStyle(.stack)
     }

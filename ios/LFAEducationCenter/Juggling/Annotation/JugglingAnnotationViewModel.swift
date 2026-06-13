@@ -24,6 +24,11 @@ final class JugglingAnnotationViewModel: ObservableObject {
     // Set when a local persistence write fails. The UI must not claim the
     // affected change is saved while this is non-nil.
     @Published private(set) var saveError:          String?
+    #if DEBUG
+    // AN-3B2A P0 — read-only diagnostics snapshot for AnnotationDebugOverlay.
+    // Never used to make decisions; purely observational.
+    @Published private(set) var diagnostics = AnnotationDiagnosticsSnapshot()
+    #endif
     // deviceEventId of the conflict waiting for user resolution, or nil.
     @Published private(set) var pendingConflictId:  UUID? = nil
 
@@ -49,6 +54,9 @@ final class JugglingAnnotationViewModel: ObservableObject {
         self.taxonomyStore = ContactTaxonomyStore(authManager: authManager)
         self.localStore    = LocalAnnotationStore()
         self.syncEngine    = AnnotationSyncEngine(apiClient: api)
+        #if DEBUG
+        AnnotationDiagnosticsLog.log("VM init — userId=\(userId) videoId=\(videoId) authCurrentUserId=\(authManager.currentUserId.map(String.init) ?? "nil") build=\(AnnotationBuildInfo.tag)")
+        #endif
     }
 
     // Test/DI entry point — bypasses AuthManager/JugglingAnnotationAPIClient construction.
@@ -74,10 +82,32 @@ final class JugglingAnnotationViewModel: ObservableObject {
     // synchronously (always available), loads/creates the local session,
     // then attempts a background taxonomy refresh.
     func onAppear() async {
+        #if DEBUG
+        AnnotationDiagnosticsLog.log("onAppear — userId=\(userId) videoId=\(videoId) path=\(localStore.sessionFileURL(userId: userId, videoId: videoId).path) fileExists=\(localStore.sessionFileExists(userId: userId, videoId: videoId))")
+        #endif
+
         taxonomyStore.loadBundled()
         taxonomy = taxonomyStore.document
 
-        switch localStore.load(userId: userId, videoId: videoId) {
+        let loadResult = localStore.load(userId: userId, videoId: videoId)
+
+        #if DEBUG
+        switch loadResult {
+        case .notFound:
+            diagnostics.loadResult = .notFound
+            diagnostics.quarantinePath = nil
+        case .loaded(let loaded):
+            diagnostics.loadResult = .loaded(draftCount: loaded.drafts.count)
+            diagnostics.quarantinePath = nil
+        case .quarantined(let path, let hasLocalOnly):
+            diagnostics.loadResult = .quarantined(path: path, hasLocalOnlyEvents: hasLocalOnly)
+            diagnostics.quarantinePath = path
+        }
+        diagnostics.lastLoadAt = Date()
+        AnnotationDiagnosticsLog.log("onAppear — load result: \(diagnostics.loadResult)")
+        #endif
+
+        switch loadResult {
         case .notFound:
             // No file exists for this (userId, videoId) — safe to create one.
             createAndPersistFreshSession()
@@ -101,13 +131,26 @@ final class JugglingAnnotationViewModel: ObservableObject {
 
     // Call when the annotation screen disappears — persists any in-memory changes.
     func onDisappear() {
+        #if DEBUG
+        AnnotationDiagnosticsLog.log("onDisappear — userId=\(userId) videoId=\(videoId) activeEvents=\(activeEvents.count)")
+        #endif
         guard var current = session else { return }
         do {
             try localStore.save(session: &current)
             saveError = nil
             session = current
+            #if DEBUG
+            diagnostics.lastSaveResult = .success
+            diagnostics.lastSaveAt = Date()
+            AnnotationDiagnosticsLog.log("onDisappear — save result: success")
+            #endif
         } catch {
             saveError = "A mentés sikertelen: \(error.localizedDescription)"
+            #if DEBUG
+            diagnostics.lastSaveResult = .failed(error.localizedDescription)
+            diagnostics.lastSaveAt = Date()
+            AnnotationDiagnosticsLog.log("onDisappear — save result: failed: \(error.localizedDescription)")
+            #endif
         }
     }
 
@@ -166,14 +209,27 @@ final class JugglingAnnotationViewModel: ObservableObject {
 
         let draft = ContactEventDraft.timestamp(ms: ms)
         current.drafts.append(draft)
+        #if DEBUG
+        AnnotationDiagnosticsLog.log("markTimestamp — saving before: drafts=\(session?.drafts.count ?? -1) → after-append=\(current.drafts.count) path=\(localStore.sessionFileURL(userId: userId, videoId: videoId).path)")
+        #endif
         do {
             try localStore.save(session: &current)
             saveError = nil
             session = current
+            #if DEBUG
+            diagnostics.lastSaveResult = .success
+            diagnostics.lastSaveAt = Date()
+            AnnotationDiagnosticsLog.log("markTimestamp — save result: success, drafts=\(current.drafts.count)")
+            #endif
             return draft
         } catch {
             // Roll back — do not present a memory-only event as persisted.
             saveError = "A mentés sikertelen: \(error.localizedDescription)"
+            #if DEBUG
+            diagnostics.lastSaveResult = .failed(error.localizedDescription)
+            diagnostics.lastSaveAt = Date()
+            AnnotationDiagnosticsLog.log("markTimestamp — save result: failed: \(error.localizedDescription)")
+            #endif
             return nil
         }
     }
@@ -521,6 +577,22 @@ final class JugglingAnnotationViewModel: ObservableObject {
             await callFinish(confirmZero: false)
         }
     }
+
+    #if DEBUG
+    // MARK: — Diagnostics accessors (AnnotationDebugOverlay)
+
+    var diagSessionFilePath: URL {
+        localStore.sessionFileURL(userId: userId, videoId: videoId)
+    }
+
+    var diagSessionFileExists: Bool {
+        localStore.sessionFileExists(userId: userId, videoId: videoId)
+    }
+
+    var diagQuarantineDirectory: URL {
+        localStore.quarantineDirectory(userId: userId, videoId: videoId)
+    }
+    #endif
 
     // MARK: — Private
 

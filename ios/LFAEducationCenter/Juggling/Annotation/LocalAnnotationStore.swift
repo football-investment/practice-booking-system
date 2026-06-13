@@ -109,6 +109,26 @@ final class LocalAnnotationStore {
         try? FileManager.default.removeItem(at: url)
     }
 
+    // MARK: — Diagnostics (read-only; no side effects)
+
+    // Exposes the on-disk session path for a (userId, videoId) pair without
+    // touching the filesystem. Used by AnnotationDebugOverlay (DEBUG only).
+    func sessionFileURL(userId: Int, videoId: String) -> URL {
+        fileURL(userId: userId, videoId: videoId)
+    }
+
+    // Read-only existence check — does not create, read, or modify the file.
+    func sessionFileExists(userId: Int, videoId: String) -> Bool {
+        FileManager.default.fileExists(atPath: fileURL(userId: userId, videoId: videoId).path)
+    }
+
+    // The quarantine directory for a (userId, videoId) pair. Does not create it.
+    func quarantineDirectory(userId: Int, videoId: String) -> URL {
+        fileURL(userId: userId, videoId: videoId)
+            .deletingLastPathComponent()
+            .appendingPathComponent("quarantine", isDirectory: true)
+    }
+
     // MARK: — Session factory
 
     func emptySession(userId: Int, videoId: String, taxonomyVersion: String = "v1") -> AnnotationSessionFile {
