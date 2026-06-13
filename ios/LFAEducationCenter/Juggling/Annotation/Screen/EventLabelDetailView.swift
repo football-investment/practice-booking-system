@@ -1,27 +1,61 @@
 import SwiftUI
+import AVFoundation
 
-// MARK: — EventLabelDetailView (AN-3B2A P2)
+// MARK: — StillFrameSession (AN-3B2A P2B-3)
+//
+// Owns one EventStillFrameGenerator whose cache survives for the full
+// labeling sheet session (multiple events), and is cleared on sheet close.
+// Held as @StateObject so it persists across view redraws.
+
+@MainActor
+private final class StillFrameSession: ObservableObject {
+    let generator = EventStillFrameGenerator()
+    var loadTask: Task<Void, Never>?
+
+    func cancelLoad() {
+        loadTask?.cancel()
+        loadTask = nil
+    }
+
+    func clearAll() {
+        cancelLoad()
+        generator.clearCache()
+    }
+}
+
+// MARK: — EventLabelDetailView (AN-3B2A P2B-1/P2B-3)
 //
 // Step-by-step Phase 2 labeling flow, presented after enterLabelingMode()
 // transitions every .unlabeled draft to .labelPending.
 //
+// P2B-3 changes: still frame preview pinned at top (non-scrolling), using
+// EventStillFrameGenerator; taxonomy list remains below. No body-zone picker
+// yet (P2B-4). No second AVPlayer yet (P2B-3 scope only covers still frame).
+//
+// Layout:
+//   [still frame, 180pt, non-scrolling]
+//   [timestamp + status badge row, non-scrolling]
+//   [──────────────────────────────────────────]
+//   [List: taxonomy groups / confidence / custom fields / nav row]  ← scrolls
+//
 // The queue is captured once on appear (deviceEventIds of all .labelPending
-// drafts, sorted by timestamp). Stepping through it:
+// drafts, sorted by timestamp). On each step:
 //   .labelPending → pick contact type / side / confidence → labelEvent()
 //                  → persisted immediately → .localOnly
 // "Vissza" revisits a previous queue entry (now .localOnly) so its current
-// values can be reviewed or changed — labelEvent() accepts both
-// .labelPending and .localOnly as a starting state.
+// values can be reviewed or changed.
 //
-// Closing (X or "Kész") never needs an extra save: every successful step
-// already persisted via labelEvent(). onClose() just returns to the marking
-// screen (exitLabelingMode()).
+// Closing never needs an extra save: every successful step already persisted.
+// clearAll() on close drops all cached still frames.
 //
 // NOT in scope: backend sync, Finish, conflict resolution (AN-3C+).
 
 struct EventLabelDetailView: View {
     @ObservedObject var vm: JugglingAnnotationViewModel
+    var videoURL: URL?
     var onClose: () -> Void
+
+    @StateObject private var frameSession = StillFrameSession()
 
     @State private var queue: [UUID] = []
     @State private var currentIndex: Int = 0
@@ -34,22 +68,22 @@ struct EventLabelDetailView: View {
 
     @State private var showSaveErrorAlert = false
 
+    // P2B-3 — still frame state
+    @State private var stillImage:     UIImage? = nil
+    @State private var isLoadingFrame: Bool     = false
+
+    // MARK: — Body
+
     var body: some View {
         NavigationView {
             Group {
-                if currentDraft != nil {
-                    formView
-                } else {
-                    completionView
-                }
+                if currentDraft != nil { labelingView } else { completionView }
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        close()
-                    } label: {
+                    Button { close() } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .medium))
                     }
@@ -66,6 +100,101 @@ struct EventLabelDetailView: View {
         }
         .navigationViewStyle(.stack)
         .onAppear { setUpQueue() }
+        .onChange(of: currentIndex) { _ in loadFrameForCurrentDraft() }
+    }
+
+    // MARK: — Labeling layout (P2B-3: still frame pinned on top)
+
+    @ViewBuilder
+    private var labelingView: some View {
+        VStack(spacing: 0) {
+            stillFramePreview           // fixed — non-scrolling
+            timestampRow                // fixed — non-scrolling
+            Divider()
+            List {
+                if let doc = vm.taxonomy {
+                    ForEach(doc.groups.sorted { $0.groupSortOrder < $1.groupSortOrder }) { group in
+                        Section(header: groupHeader(group)) {
+                            ForEach(group.contactTypes.sorted { $0.sortOrder < $1.sortOrder }) { type in
+                                typeRow(type)
+                            }
+                        }
+                    }
+                } else {
+                    Section {
+                        Text("Taxonomy betöltése…")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                confidenceSection
+                if needsCustomLabel        { customLabelSection }
+                if needsCustomDescription  { customDescSection }
+                navigationSection
+            }
+            .listStyle(.insetGrouped)
+        }
+    }
+
+    // MARK: — Still frame preview (P2B-3)
+
+    private let stillFrameHeight: CGFloat = 180
+
+    @ViewBuilder
+    private var stillFramePreview: some View {
+        ZStack {
+            Color.black
+
+            if let image = stillImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else if isLoadingFrame {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            } else {
+                // placeholder — generation failed or no videoURL
+                VStack(spacing: 8) {
+                    Image(systemName: "photo.slash")
+                        .font(.system(size: 28))
+                        .foregroundColor(Color(.systemGray3))
+                    Text("Előnézet nem elérhető")
+                        .font(.caption)
+                        .foregroundColor(Color(.systemGray3))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: stillFrameHeight)
+        .clipped()
+        .accessibilityHidden(true)
+    }
+
+    // MARK: — Timestamp row (fixed below preview)
+
+    private var timestampRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "clock")
+                .foregroundColor(.secondary)
+            Text(PlaybackControlBar.formatTimestamp(ms: currentDraft?.timestampMs ?? 0))
+                .font(.headline.monospacedDigit())
+            Spacer()
+            statusBadge
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(.systemBackground))
+    }
+
+    @ViewBuilder
+    private var statusBadge: some View {
+        let status = currentDraft?.syncStatus ?? .labelPending
+        Text(status == .localOnly ? "Címkézve" : "Címkézésre vár")
+            .font(.caption.weight(.semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(status == .localOnly ? Color.green : Color(.systemGray))
+            .clipShape(Capsule())
     }
 
     // MARK: — Queue / current draft
@@ -88,6 +217,7 @@ struct EventLabelDetailView: View {
             .sorted { $0.timestampMs < $1.timestampMs }
             .map { $0.deviceEventId }
         loadFormState()
+        loadFrameForCurrentDraft()
     }
 
     private func loadFormState() {
@@ -102,58 +232,29 @@ struct EventLabelDetailView: View {
         }
     }
 
-    // MARK: — Form
+    // MARK: — Still frame loading (P2B-3)
 
-    @ViewBuilder
-    private var formView: some View {
-        List {
-            timestampSection
-            if let doc = vm.taxonomy {
-                ForEach(doc.groups.sorted { $0.groupSortOrder < $1.groupSortOrder }) { group in
-                    Section(header: groupHeader(group)) {
-                        ForEach(group.contactTypes.sorted { $0.sortOrder < $1.sortOrder }) { type in
-                            typeRow(type)
-                        }
-                    }
-                }
-            } else {
-                Section {
-                    Text("Taxonomy betöltése…")
-                        .foregroundColor(.secondary)
-                }
-            }
-            confidenceSection
-            if needsCustomLabel { customLabelSection }
-            if needsCustomDescription { customDescSection }
-            navigationSection
-        }
-        .listStyle(.insetGrouped)
-    }
+    private func loadFrameForCurrentDraft() {
+        frameSession.cancelLoad()
+        stillImage     = nil    // clear immediately — no flash of previous event's frame
+        isLoadingFrame = false
 
-    private var timestampSection: some View {
-        Section {
-            HStack(spacing: 8) {
-                Image(systemName: "clock")
-                    .foregroundColor(.secondary)
-                Text(PlaybackControlBar.formatTimestamp(ms: currentDraft?.timestampMs ?? 0))
-                    .font(.headline.monospacedDigit())
-                Spacer()
-                statusBadge
-            }
+        guard let videoURL, let draft = currentDraft else { return }
+
+        isLoadingFrame = true
+        let asset   = AVAsset(url: videoURL)
+        let ms      = draft.timestampMs
+        let videoId = vm.videoId
+
+        frameSession.loadTask = Task {
+            let img = await frameSession.generator.image(for: asset, videoId: videoId, timestampMs: ms)
+            guard !Task.isCancelled else { return }
+            stillImage     = img
+            isLoadingFrame = false
         }
     }
 
-    @ViewBuilder
-    private var statusBadge: some View {
-        let status = currentDraft?.syncStatus ?? .labelPending
-        Text(status == .localOnly ? "Címkézve" : "Címkézésre vár")
-            .font(.caption.weight(.semibold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(status == .localOnly ? Color.green : Color(.systemGray))
-            .clipShape(Capsule())
-    }
+    // MARK: — Taxonomy sections
 
     @ViewBuilder
     private func groupHeader(_ group: TaxonomyGroup) -> some View {
@@ -284,7 +385,7 @@ struct EventLabelDetailView: View {
         currentIndex >= queue.count - 1
     }
 
-    // MARK: — Completion
+    // MARK: — Completion view
 
     @ViewBuilder
     private var completionView: some View {
@@ -308,20 +409,15 @@ struct EventLabelDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: — Validation (mirrors taxonomy sidePolicy / requiresCustomLabel)
+    // MARK: — Validation
 
     private var currentType: TaxonomyContactType? {
         guard let key = selectedKey else { return nil }
         return vm.taxonomy?.groups.flatMap { $0.contactTypes }.first { $0.key == key }
     }
 
-    private var needsCustomLabel: Bool {
-        currentType?.requiresCustomLabel == true
-    }
-
-    private var needsCustomDescription: Bool {
-        currentType?.requiresCustomDescription == true
-    }
+    private var needsCustomLabel: Bool { currentType?.requiresCustomLabel == true }
+    private var needsCustomDescription: Bool { currentType?.requiresCustomDescription == true }
 
     private var canSave: Bool {
         guard selectedKey != nil else { return false }
@@ -330,11 +426,10 @@ struct EventLabelDetailView: View {
         return true
     }
 
-    // Returns the auto-applied side for fixed/center policies; nil for explicit_required.
     private static func autoSide(for type: TaxonomyContactType) -> String? {
         switch type.sidePolicy {
         case "fixed", "center": return type.side
-        default:                 return nil
+        default:                return nil
         }
     }
 
@@ -367,12 +462,8 @@ struct EventLabelDetailView: View {
             showSaveErrorAlert = true
             return
         }
-        if isLastInQueue {
-            currentIndex += 1   // out of range → completionView
-        } else {
-            currentIndex += 1
-            loadFormState()
-        }
+        currentIndex += 1
+        if currentIndex < queue.count { loadFormState() }
     }
 
     private func goToPrevious() {
@@ -382,6 +473,7 @@ struct EventLabelDetailView: View {
     }
 
     private func close() {
+        frameSession.clearAll()
         vm.exitLabelingMode()
         onClose()
     }

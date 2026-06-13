@@ -38,7 +38,10 @@ struct JugglingAnnotationScreen: View {
     @State private var showSaveErrorAlert = false
 
     // AN-3B2A P2 — labeling flow presentation.
-    @State private var showLabeling = false
+    @State private var showLabeling    = false
+    // AN-3B2A P2B-3 — local video URL set once loader reaches .ready; passed to
+    // EventLabelDetailView so the still-frame generator can open the same file.
+    @State private var loaderVideoURL: URL? = nil
 
     @Environment(\.presentationMode) private var presentationMode
     #if DEBUG
@@ -157,10 +160,11 @@ struct JugglingAnnotationScreen: View {
                 )
             }
             .sheet(isPresented: $showLabeling) {
-                EventLabelDetailView(vm: vm, onClose: { showLabeling = false })
+                EventLabelDetailView(vm: vm, videoURL: loaderVideoURL, onClose: { showLabeling = false })
             }
             .onChange(of: loader.state, perform: { state in
                 if case .ready(let url) = state {
+                    loaderVideoURL = url                    // AN-3B2A P2B-3
                     let asset = AVAsset(url: url)
                     playback.loadAsset(asset)
                     if let avp = playback.avPlayer { avp.play() }
@@ -457,6 +461,7 @@ struct JugglingAnnotationScreen: View {
 
     private var labelingCTA: some View {
         Button {
+            playback.pause()    // AN-3B2A P2B-3: stop main player before sheet opens
             vm.enterLabelingMode()
             if vm.screenMode == .labeling {
                 showLabeling = true
