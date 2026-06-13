@@ -336,7 +336,7 @@ final class JugglingAnnotationViewModel: ObservableObject {
 
         current.drafts[index].deletedLocally = true
         let s = current.drafts[index].syncStatus
-        if s == .localOnly || s == .unlabeled {
+        if s == .localOnly || s == .unlabeled || s == .labelPending {
             // Never reached the server — nothing to delete remotely.
             current.drafts[index].syncStatus = .deleted
         }
@@ -347,6 +347,27 @@ final class JugglingAnnotationViewModel: ObservableObject {
 
     var activeEvents: [ContactEventDraft] {
         session?.drafts.filter { !$0.deletedLocally && $0.syncStatus != .deleted } ?? []
+    }
+
+    var unlabeledCount: Int {
+        activeEvents.filter { $0.syncStatus == .unlabeled }.count
+    }
+
+    var labelPendingCount: Int {
+        activeEvents.filter { $0.syncStatus == .labelPending }.count
+    }
+
+    // Transitions all .unlabeled drafts to .labelPending and persists.
+    // Called at the Phase 1 → Phase 2 boundary (AN-3B2B).
+    func enterLabelingMode() {
+        guard var current = session else { return }
+        for index in current.drafts.indices {
+            if current.drafts[index].syncStatus == .unlabeled {
+                current.drafts[index].syncStatus = .labelPending
+            }
+        }
+        try? localStore.save(session: &current)
+        session = current
     }
 
     var finishReadiness: FinishReadiness {
