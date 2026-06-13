@@ -65,7 +65,7 @@ struct EventTimelineView: View {
             .frame(width: 3, height: 22)
             .shadow(color: .black.opacity(0.3), radius: 1)
             .offset(x: xPosition(ms: currentMs, trackWidth: width) - 1.5)
-            .animation(.linear(duration: 0.1), value: currentMs)
+            .animation(.linear(duration: 0.1))  // iOS 14: value: param is iOS 15+
             .accessibilityHidden(true)
     }
 

@@ -14,7 +14,7 @@ struct EventDetailView: View {
     var onEdit:   (String, String?, String, String?, String?) -> Void
     var onDelete: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
     @State private var showEditPicker     = false
     @State private var showDeleteConfirm  = false
 
@@ -30,22 +30,22 @@ struct EventDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Kész") { dismiss() }
+                    Button("Kész") { presentationMode.wrappedValue.dismiss() }
                 }
             }
             .sheet(isPresented: $showEditPicker) { editPickerSheet }
-            .confirmationDialog(
-                "Esemény törlése?",
-                isPresented:    $showDeleteConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("Törlés", role: .destructive) {
-                    onDelete()
-                    dismiss()
-                }
-                Button("Mégsem", role: .cancel) {}
-            } message: {
-                Text("Az esemény eltávolításra kerül a szerverről is a következő szinkronizáció során.")
+            .actionSheet(isPresented: $showDeleteConfirm) {
+                ActionSheet(
+                    title: Text("Esemény törlése?"),
+                    message: Text("Az esemény eltávolításra kerül a szerverről is a következő szinkronizáció során."),
+                    buttons: [
+                        .destructive(Text("Törlés")) {
+                            onDelete()
+                            presentationMode.wrappedValue.dismiss()
+                        },
+                        .cancel(Text("Mégsem"))
+                    ]
+                )
             }
         }
     }
@@ -54,23 +54,23 @@ struct EventDetailView: View {
 
     private var eventFieldsSection: some View {
         Section {
-            LabeledContent("Idő", value: PlaybackControlBar.formatTimestamp(ms: draft.timestampMs))
-            LabeledContent("Típus", value: typeLabel(for: draft.contactType))
+            labeledRow("Idő",        PlaybackControlBar.formatTimestamp(ms: draft.timestampMs))
+            labeledRow("Típus",      typeLabel(for: draft.contactType))
             if let side = draft.side {
-                LabeledContent("Oldal", value: sideLabel(side))
+                labeledRow("Oldal",  sideLabel(side))
             }
-            LabeledContent("Bizonyosság", value: confidenceLabel(draft.annotationConfidence))
+            labeledRow("Bizonyosság", confidenceLabel(draft.annotationConfidence))
             if let label = draft.customLabel {
-                LabeledContent("Label", value: label)
+                labeledRow("Label",  label)
             }
             if let desc = draft.customDescription {
-                LabeledContent("Leírás", value: desc)
+                labeledRow("Leírás", desc)
             }
         }
     }
 
     private var syncStatusSection: some View {
-        Section("Szinkron") {
+        Section(header: Text("Szinkron")) {
             HStack(spacing: 8) {
                 Circle()
                     .fill(EventTimelineView.pinColor(for: draft.syncStatus))
@@ -91,9 +91,10 @@ struct EventDetailView: View {
             .disabled(!canEdit)
             .accessibilityLabel(canEdit ? "Szerkesztés" : "Szerkesztés nem elérhető jelenleg")
 
-            Button("Törlés", role: .destructive) {
+            Button("Törlés") {
                 showDeleteConfirm = true
             }
+            .foregroundColor(canDelete ? .red : .secondary)
             .disabled(!canDelete)
             .accessibilityLabel(canDelete ? "Törlés" : "Törlés nem elérhető jelenleg")
         }
@@ -113,10 +114,21 @@ struct EventDetailView: View {
             onSave: { type, side, confidence, label, desc in
                 onEdit(type, side, confidence, label, desc)
                 showEditPicker = false
-                dismiss()
+                presentationMode.wrappedValue.dismiss()
             },
             onCancel: { showEditPicker = false }
         )
+    }
+
+    // MARK: — iOS 14-compatible two-column row (replaces LabeledContent)
+
+    private func labeledRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+        }
     }
 
     // MARK: — State guards

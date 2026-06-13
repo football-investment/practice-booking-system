@@ -33,7 +33,6 @@ struct ContactPickerView: View {
     @State private var confidence:          String   = "certain"
     @State private var customLabel:         String   = ""
     @State private var customDescription:   String   = ""
-    @FocusState private var labelFocused:   Bool
 
     var body: some View {
         NavigationView {
@@ -71,7 +70,7 @@ struct ContactPickerView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Mentés") { submit() }
                         .disabled(!canSave)
-                        .fontWeight(.semibold)
+                        .font(.body.weight(.semibold))
                         .accessibilityLabel(canSave ? "Mentés" : "Mentés — hiányzó mezők")
                 }
             }
@@ -161,7 +160,7 @@ struct ContactPickerView: View {
     }
 
     private var confidenceSection: some View {
-        Section("Bizonyosság") {
+        Section(header: Text("Bizonyosság")) {
             Picker("Bizonyosság", selection: $confidence) {
                 Text("Biztos").tag("certain")
                 Text("Valószínű").tag("probable")
@@ -174,15 +173,14 @@ struct ContactPickerView: View {
     }
 
     private var customLabelSection: some View {
-        Section("Egyedi label (kötelező)") {
+        Section(header: Text("Egyedi label (kötelező)")) {
             TextField("pl. belső csüd", text: $customLabel)
-                .focused($labelFocused)
                 .accessibilityLabel("Egyedi label szöveges mező")
         }
     }
 
     private var customDescSection: some View {
-        Section("Leírás") {
+        Section(header: Text("Leírás")) {
             TextField("Rövid leírás (opcionális)", text: $customDescription)
                 .accessibilityLabel("Leírás szöveges mező")
         }
@@ -220,9 +218,8 @@ struct ContactPickerView: View {
             selectedKey  = nil
             selectedSide = nil
         } else {
-            selectedKey = type.key
+            selectedKey  = type.key
             selectedSide = ContactPickerValidation.autoSide(for: type)
-            if type.requiresCustomLabel == true { labelFocused = true }
         }
     }
 

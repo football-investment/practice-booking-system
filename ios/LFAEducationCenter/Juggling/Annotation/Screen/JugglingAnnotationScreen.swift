@@ -36,7 +36,7 @@ struct JugglingAnnotationScreen: View {
     @State private var editingEventId:   UUID? = nil
     @State private var didCleanUp        = false   // guards double onDisappear calls
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
 
     // Explicit init: @StateObject values must be created before the view appears,
     // and EnvironmentObject is not available at init time.
@@ -82,7 +82,7 @@ struct JugglingAnnotationScreen: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         onDisappear()
-                        dismiss()
+                        presentationMode.wrappedValue.dismiss()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .medium))
@@ -90,10 +90,15 @@ struct JugglingAnnotationScreen: View {
                     .accessibilityLabel("Bezárás")
                 }
             }
-            .overlay(alignment: .bottom) { conflictOverlay }
+            .overlay(conflictOverlay, alignment: .bottom)
             .sheet(isPresented: $showPicker) { pickerSheet }
-            .sheet(item: $editingEventId) { id in detailSheet(for: id) }
-            .task { await onAppear() }
+            .sheet(isPresented: Binding(
+                get: { editingEventId != nil },
+                set: { if !$0 { editingEventId = nil } }
+            )) {
+                if let id = editingEventId { detailSheet(for: id) }
+            }
+            .onAppear { Task { await onAppear() } }
             .onDisappear { onDisappear() }
             .onChange(of: loader.state, perform: { state in
                 if case .ready(let url) = state {
@@ -145,13 +150,13 @@ struct JugglingAnnotationScreen: View {
         VStack(spacing: 12) {
             switch loader.state {
             case .idle:
-                ProgressView().tint(.white)
+                ProgressView().accentColor(.white)
             case .downloading(let progress):
                 if progress >= 0 {
                     VStack(spacing: 6) {
                         ProgressView(value: progress)
                             .progressViewStyle(.linear)
-                            .tint(.white)
+                            .accentColor(.white)
                             .frame(width: 180)
                         Text("\(Int(progress * 100))%")
                             .foregroundColor(.white.opacity(0.7))
@@ -159,7 +164,7 @@ struct JugglingAnnotationScreen: View {
                     }
                 } else {
                     VStack(spacing: 6) {
-                        ProgressView().tint(.white)
+                        ProgressView().accentColor(.white)
                         Text("Letöltés…")
                             .foregroundColor(.white.opacity(0.7))
                             .font(.caption)
@@ -195,6 +200,10 @@ struct JugglingAnnotationScreen: View {
 
     // MARK: — Event list
 
+    private var sortedEvents: [ContactEventDraft] {
+        vm.activeEvents.sorted { $0.timestampMs < $1.timestampMs }
+    }
+
     @ViewBuilder
     private var eventList: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -202,16 +211,14 @@ struct JugglingAnnotationScreen: View {
                 emptyState
             } else {
                 List {
-                    ForEach(
-                        vm.activeEvents.sorted { $0.timestampMs < $1.timestampMs }
-                    ) { draft in
+                    ForEach(sortedEvents) { draft in
                         eventRow(draft)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button("Törlés", role: .destructive) {
-                                    vm.markDeleted(deviceEventId: draft.deviceEventId)
-                                }
-                                .accessibilityLabel("Esemény törlése")
-                            }
+                    }
+                    .onDelete { indexSet in
+                        let events = sortedEvents
+                        for i in indexSet {
+                            vm.markDeleted(deviceEventId: events[i].deviceEventId)
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -320,7 +327,7 @@ struct JugglingAnnotationScreen: View {
            let draft = vm.activeEvents.first(where: { $0.deviceEventId == conflictId }) {
             Color.black.opacity(0.45)
                 .ignoresSafeArea()
-                .overlay(alignment: .bottom) {
+                .overlay(
                     ConflictResolutionView(
                         draft:    draft,
                         taxonomy: vm.taxonomy,
@@ -333,8 +340,9 @@ struct JugglingAnnotationScreen: View {
                         }
                     )
                     .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
-                }
+                    .padding(.bottom, 8),
+                    alignment: .bottom
+                )
                 .accessibilityElement(children: .contain)
                 .transition(.opacity)
         }
