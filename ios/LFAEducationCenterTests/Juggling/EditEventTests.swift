@@ -11,19 +11,20 @@ final class EditEventTests: XCTestCase {
 
     // MARK: — Helpers
 
-    private func makeVM(draft: ContactEventDraft) -> (JugglingAnnotationViewModel, MockAnnotationAPIClient) {
+    private func makeVM(draft: ContactEventDraft) async -> (JugglingAnnotationViewModel, MockAnnotationAPIClient) {
         let api   = MockAnnotationAPIClient()
         let store = LocalAnnotationStore(baseDirectory: FileManager.default.temporaryDirectory
             .appendingPathComponent("EditEventTests-\(UUID().uuidString)"))
-        let taxonomy = ContactTaxonomyStore(authManager: MockAuthManager())
+        let taxonomy = ContactTaxonomyStore(authManager: AuthManager())
         let vm = JugglingAnnotationViewModel(
             userId: 1, videoId: "vid-edit",
             apiClient: api, taxonomyStore: taxonomy, localStore: store
         )
+        // Save the desired draft, then let onAppear() load it (session is private(set)).
         var session = store.emptySession(userId: 1, videoId: "vid-edit", taxonomyVersion: "v1")
         session.drafts = [draft]
         try? store.save(session: &session)
-        vm.session = session
+        await vm.onAppear()
         return (vm, api)
     }
 
@@ -42,9 +43,9 @@ final class EditEventTests: XCTestCase {
     // MARK: — editEvent transitions
 
     // AN3-T01
-    func test_AN3_T01_editLocalOnlyStaysLocalOnly() {
+    func test_AN3_T01_editLocalOnlyStaysLocalOnly() async {
         let draft = baseDraft(status: .localOnly)
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId:        draft.deviceEventId,
@@ -65,11 +66,11 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T02
-    func test_AN3_T02_editSyncedBecomesUpdating_deviceEventIdAndVersionUnchanged() {
+    func test_AN3_T02_editSyncedBecomesUpdating_deviceEventIdAndVersionUnchanged() async {
         let sid = UUID()
         var draft = baseDraft(status: .synced, serverEventId: sid)
         draft.version = 3
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId:        draft.deviceEventId,
@@ -88,11 +89,11 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T03
-    func test_AN3_T03_editRetryPendingBecomesLocalOnlyWithRetryReset() {
+    func test_AN3_T03_editRetryPendingBecomesLocalOnlyWithRetryReset() async {
         var draft = baseDraft(status: .retryPending)
         draft.retryCount    = 2
         draft.failureReason = "network_error"
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId:        draft.deviceEventId,
@@ -110,10 +111,10 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T04
-    func test_AN3_T04_editFailedPermanentNoServerIdBecomesLocalOnly() {
+    func test_AN3_T04_editFailedPermanentNoServerIdBecomesLocalOnly() async {
         var draft = baseDraft(status: .failedPermanent, serverEventId: nil)
         draft.failureReason = "422 validation error"
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId:        draft.deviceEventId,
@@ -130,12 +131,12 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T05
-    func test_AN3_T05_editFailedPermanentWithServerIdBecomesUpdating() {
+    func test_AN3_T05_editFailedPermanentWithServerIdBecomesUpdating() async {
         let sid = UUID()
         var draft = baseDraft(status: .failedPermanent, serverEventId: sid)
         draft.version       = 2
         draft.failureReason = "422 validation error"
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId:        draft.deviceEventId,
@@ -154,11 +155,11 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T06: idempotency_conflict failedPermanent is not fixable by editing
-    func test_AN3_T06_editFailedPermanentIdempotencyConflictBlocked() {
+    func test_AN3_T06_editFailedPermanentIdempotencyConflictBlocked() async {
         var draft = baseDraft(status: .failedPermanent, serverEventId: nil)
         draft.failureReason = "idempotency_conflict: detail"
         let originalType = draft.contactType
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId:        draft.deviceEventId,
@@ -174,9 +175,9 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T07: conflicted blocked
-    func test_AN3_T07_editConflictedBlocked() {
+    func test_AN3_T07_editConflictedBlocked() async {
         let draft = baseDraft(status: .conflicted, serverEventId: UUID())
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId: draft.deviceEventId, contactType: "toe_right",
@@ -188,9 +189,9 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T08: needsReconciliation blocked
-    func test_AN3_T08_editNeedsReconciliationBlocked() {
+    func test_AN3_T08_editNeedsReconciliationBlocked() async {
         let draft = baseDraft(status: .needsReconciliation, serverEventId: UUID())
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId: draft.deviceEventId, contactType: "toe_right",
@@ -202,9 +203,9 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T09: syncing (in-flight POST) blocked
-    func test_AN3_T09_editSyncingBlocked() {
+    func test_AN3_T09_editSyncingBlocked() async {
         let draft = baseDraft(status: .syncing)
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId: draft.deviceEventId, contactType: "toe_right",
@@ -216,9 +217,9 @@ final class EditEventTests: XCTestCase {
     }
 
     // AN3-T10: updating (in-flight PATCH) blocked
-    func test_AN3_T10_editUpdatingBlocked() {
+    func test_AN3_T10_editUpdatingBlocked() async {
         let draft = baseDraft(status: .updating, serverEventId: UUID())
-        let (vm, _) = makeVM(draft: draft)
+        let (vm, _) = await makeVM(draft: draft)
 
         let result = vm.editEvent(
             deviceEventId: draft.deviceEventId, contactType: "toe_right",
@@ -236,7 +237,7 @@ final class EditEventTests: XCTestCase {
         let serverEventId = UUID()
         var draft = baseDraft(status: .conflicted, serverEventId: serverEventId)
         draft.version = 1
-        let (vm, api) = makeVM(draft: draft)
+        let (vm, api) = await makeVM(draft: draft)
 
         let serverEvent = makeServerEvent(
             deviceEventId: draft.deviceEventId,
@@ -260,7 +261,7 @@ final class EditEventTests: XCTestCase {
     // AN3-T12: resolveConflict — draft absent from server → .deleted
     func test_AN3_T12_resolveConflictAbsentOnServerBecomesDeleted() async throws {
         let draft = baseDraft(status: .conflicted, serverEventId: UUID())
-        let (vm, api) = makeVM(draft: draft)
+        let (vm, api) = await makeVM(draft: draft)
 
         api.listContactsResult = .success(ContactEventListOut(
             videoId: "vid-edit", annotationStatus: "in_progress", events: []
@@ -274,7 +275,7 @@ final class EditEventTests: XCTestCase {
     // AN3-T13: resolveConflict — network error → stays conflicted
     func test_AN3_T13_resolveConflictNetworkErrorStaysConflicted() async {
         let draft = baseDraft(status: .conflicted, serverEventId: UUID())
-        let (vm, api) = makeVM(draft: draft)
+        let (vm, api) = await makeVM(draft: draft)
 
         api.listContactsResult = .failure(AnnotationAPIError.retryable(code: nil))
 

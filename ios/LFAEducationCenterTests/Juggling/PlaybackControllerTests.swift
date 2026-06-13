@@ -11,7 +11,8 @@ import AVFoundation
 // MARK: — MockPlayer
 
 final class MockPlayer: PlayerSeekable {
-    var currentTime: CMTime = .zero
+    var _currentTime: CMTime = .zero  // backing store; set directly in tests
+    func currentTime() -> CMTime { _currentTime }
     var rate:        Float  = 0
     var seekCalled        = false
     var lastSeekTarget:  CMTime?
@@ -25,7 +26,7 @@ final class MockPlayer: PlayerSeekable {
         lastSeekTarget        = time
         lastToleranceBefore   = toleranceBefore
         lastToleranceAfter    = toleranceAfter
-        currentTime           = time  // simulate instantaneous seek for tests
+        _currentTime          = time  // simulate instantaneous seek for tests
     }
 
     func play()  { playCalled  = true; rate = 1.0 }
@@ -39,7 +40,7 @@ final class PlaybackControllerTests: XCTestCase {
 
     private func makeController(currentTime: CMTime = .zero, duration: CMTime = .zero) -> (PlaybackController, MockPlayer) {
         let player = MockPlayer()
-        player.currentTime = currentTime
+        player._currentTime = currentTime
         let controller = PlaybackController(player: player)
         if duration > .zero {
             controller.duration = duration

@@ -22,7 +22,7 @@ enum PlaybackRate: Float, CaseIterable, Identifiable {
 // MARK: — PlayerSeekable (testability seam; AVPlayer conforms via extension below)
 
 protocol PlayerSeekable: AnyObject {
-    var currentTime: CMTime { get }
+    func currentTime() -> CMTime  // matches AVPlayer's existing method signature
     var rate: Float { get set }
     func seek(to time: CMTime, toleranceBefore: CMTime, toleranceAfter: CMTime)
     func play()
@@ -77,13 +77,14 @@ final class PlaybackController: ObservableObject {
 
     // Call once the authenticated temp-file URL is ready (after download).
     // Reads nominalFrameRate / minFrameDuration from the asset before playback starts.
-    func loadAsset(_ asset: AVAsset) async {
-        frameDuration = await Self.effectiveFrameDuration(for: asset)
+    func loadAsset(_ asset: AVAsset) {
+        frameDuration = Self.effectiveFrameDuration(for: asset)
         if let avp = player as? AVPlayer {
             let item = AVPlayerItem(asset: asset)
             avp.replaceCurrentItem(with: item)
         }
-        if let dur = try? await asset.load(.duration) {
+        let dur = asset.duration
+        if dur.isValid && dur > .zero {
             duration = dur
         }
     }
@@ -91,13 +92,14 @@ final class PlaybackController: ObservableObject {
     // MARK: — Transport controls
 
     func play() {
+        player.play()
         player.rate = selectedRate.rawValue
         isPlaying   = true
     }
 
     func pause() {
-        player.rate = 0
-        isPlaying   = false
+        player.pause()
+        isPlaying = false
     }
 
     func togglePlayPause() {
@@ -114,7 +116,7 @@ final class PlaybackController: ObservableObject {
     // Frame-accurate step — always pauses first. Clamps to [0, duration].
     func stepForward() {
         pause()
-        let stepped = player.currentTime + frameDuration
+        let stepped = player.currentTime() + frameDuration
         let clamped = duration > .zero ? min(stepped, duration) : stepped
         player.seek(to: clamped, toleranceBefore: .zero, toleranceAfter: .zero)
         currentTimestampMs = clamped.asMilliseconds
@@ -122,7 +124,7 @@ final class PlaybackController: ObservableObject {
 
     func stepBackward() {
         pause()
-        let stepped = player.currentTime - frameDuration
+        let stepped = player.currentTime() - frameDuration
         let clamped = max(.zero, stepped)
         player.seek(to: clamped, toleranceBefore: .zero, toleranceAfter: .zero)
         currentTimestampMs = clamped.asMilliseconds
@@ -155,14 +157,14 @@ final class PlaybackController: ObservableObject {
         return CMTime(value: 1, timescale: 30)
     }
 
-    // Async version used for production asset loading.
-    static func effectiveFrameDuration(for asset: AVAsset) async -> CMTime {
-        guard let track = try? await asset.loadTracks(withMediaType: .video).first else {
+    // Synchronous version used for production asset loading (iOS 14 compatible).
+    static func effectiveFrameDuration(for asset: AVAsset) -> CMTime {
+        guard let track = asset.tracks(withMediaType: .video).first else {
             return CMTime(value: 1, timescale: 30)
         }
-        let fps    = (try? await track.load(.nominalFrameRate)) ?? 0
-        let minDur = try? await track.load(.minFrameDuration)
-        return frameDuration(nominalFPS: fps, minFrameDuration: minDur)
+        let fps    = track.nominalFrameRate
+        let minDur = track.minFrameDuration
+        return frameDuration(nominalFPS: fps, minFrameDuration: minDur.isValid && minDur > .zero ? minDur : nil)
     }
 
     // MARK: — Private
