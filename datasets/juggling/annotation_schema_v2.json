@@ -1,0 +1,367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "juggling_annotation_v2",
+  "title": "Juggling Video Annotation Schema v2.0",
+  "description": "Ground-truth annotation for a single juggling video clip. Extends v1 with the 18-type contact taxonomy (contact_types_v1.json), source tracking, review lifecycle, and custom_other extensibility. Backward-compatible with v1 skeleton JSONs — all new contact_events fields default to null. The v1 'body_part' field is deprecated; 'contact_type' replaces it. thigh→hip auto-migration is FORBIDDEN.",
+
+  "_policy": {
+    "no_paid_model": true,
+    "no_agpl_production_dependency": true,
+    "thigh_to_hip_auto_migration": "FORBIDDEN",
+    "custom_other_training_inclusion": "FORBIDDEN in any review_status except after promotion to a stable key",
+    "unclassified_custom_training_class": "DOES NOT EXIST — removed by design to prevent noisy heterogeneous training labels"
+  },
+
+  "type": "object",
+
+  "required": [
+    "annotation_schema_version",
+    "video_id",
+    "filename",
+    "upload_source",
+    "capture_device",
+    "duration_seconds",
+    "original_resolution",
+    "fps",
+    "original_rotation_metadata",
+    "display_orientation",
+    "checksum_sha256",
+    "annotation_status",
+    "annotation_version",
+    "privacy_review_status"
+  ],
+
+  "properties": {
+
+    "annotation_schema_version": {
+      "type": "string",
+      "const": "2.0",
+      "description": "Schema version — must be '2.0' for this schema."
+    },
+
+    "video_id": {
+      "type": "string",
+      "description": "Stable dataset identifier. Format: jug_b<batch>_<NNN>. Must match dataset_manifest.json."
+    },
+
+    "filename": {
+      "type": "string",
+      "description": "Original video filename without path. Must match the file whose checksum_sha256 was computed."
+    },
+
+    "upload_source": {
+      "type": "string",
+      "enum": ["app_gallery_upload","app_camera_capture","app_file_upload","external_direct","unknown"]
+    },
+
+    "capture_device": {
+      "type": ["string","null"]
+    },
+
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 1
+    },
+
+    "original_resolution": {
+      "type": "string",
+      "pattern": "^[0-9]+x[0-9]+$"
+    },
+
+    "processed_resolution": {
+      "type": ["string","null"],
+      "pattern": "^[0-9]+x[0-9]+$|^null$"
+    },
+
+    "fps": {
+      "type": "number",
+      "minimum": 1
+    },
+
+    "original_rotation_metadata": {
+      "type": "integer"
+    },
+
+    "display_orientation": {
+      "type": "string",
+      "enum": ["landscape","portrait","square"]
+    },
+
+    "checksum_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+
+    "annotation_status": {
+      "type": "string",
+      "enum": ["metadata_ready","human_review_pending","annotated","reviewed","rejected"]
+    },
+
+    "annotation_version": {
+      "type": "string",
+      "const": "v2.0",
+      "description": "Annotation workflow version."
+    },
+
+    "privacy_review_status": {
+      "type": "string",
+      "enum": ["pending","approved","rejected"]
+    },
+
+    "ownership_confirmed":                {"type": ["boolean","null"]},
+    "consent_confirmed":                  {"type": ["boolean","null"]},
+    "recognizable_third_party_present":   {"type": ["boolean","null"]},
+    "minor_present":                      {"type": ["boolean","null"]},
+    "external_source":                    {"type": ["boolean","null"]},
+
+    "difficulty": {
+      "type": ["string","null"],
+      "enum": ["easy","medium","hard",null]
+    },
+
+    "total_juggling_count": {
+      "type": ["integer","null"],
+      "minimum": 0,
+      "description": "Total valid juggling touches. Rejected contact_events (review_status=rejected) must NOT be included in this count."
+    },
+
+    "count_confidence": {
+      "type": ["string","null"],
+      "enum": ["high","medium","low",null]
+    },
+
+    "dominant_body_part": {
+      "type": ["string","null"],
+      "enum": ["foot","knee","hip","chest","shoulder","head","back","mixed",null],
+      "description": "Body region responsible for the majority of touches. v2 replaces 'thigh' with 'hip'. Auto-migration from thigh→hip is FORBIDDEN.",
+      "_v1_deprecated_value": "thigh — if found in a v1 annotation, set to null and flag for manual review"
+    },
+
+    "body_parts_used": {
+      "type": ["object","null"],
+      "description": "Which body regions are used at least once. v2 adds 'hip' (replaces 'thigh') and 'back'. thigh→hip auto-migration FORBIDDEN.",
+      "properties": {
+        "foot":     {"type": ["boolean","null"]},
+        "knee":     {"type": ["boolean","null"]},
+        "hip":      {"type": ["boolean","null"], "_note": "v2 replaces thigh with hip. Anatomically distinct. No auto-migration from thigh."},
+        "chest":    {"type": ["boolean","null"]},
+        "shoulder": {"type": ["boolean","null"]},
+        "head":     {"type": ["boolean","null"]},
+        "back":     {"type": ["boolean","null"], "_note": "New in v2. Null in migrated v1 annotations."}
+      },
+      "_deprecated_v1_field": {
+        "thigh": "Deprecated in v2. thigh and hip are anatomically distinct. Do not auto-rename. If thigh=true found in v1 annotation, set manual_review_required=true."
+      }
+    },
+
+    "ball_visible_quality": {
+      "type": ["string","null"],
+      "enum": ["excellent","good","partial","poor",null]
+    },
+
+    "lighting_quality": {
+      "type": ["string","null"],
+      "enum": ["excellent","good","variable","poor",null]
+    },
+
+    "camera_stability": {
+      "type": ["string","null"],
+      "enum": ["tripod","handheld_stable","handheld_moving","tracking",null]
+    },
+
+    "multi_person_present":   {"type": ["boolean","null"]},
+    "multiple_balls_present": {"type": ["boolean","null"]},
+
+    "expected_validity": {
+      "type": ["string","null"],
+      "enum": ["valid","borderline","invalid",null]
+    },
+
+    "invalidity_reason":         {"type": ["string","null"]},
+    "notes":                     {"type": ["string","null"]},
+    "annotator":                 {"type": ["string","null"]},
+    "second_annotator":          {"type": ["string","null"]},
+    "second_annotator_count":    {"type": ["integer","null"], "minimum": 0},
+    "inter_annotator_agreement": {"type": ["boolean","null"]},
+
+    "annotation_date": {
+      "type": ["string","null"],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+
+    "contact_events": {
+      "type": ["array","null"],
+      "description": "Frame-level contact events using the v2 18-type taxonomy from contact_types_v1.json. Optional in v2.0; required from Phase D onward.",
+      "items": {
+        "type": "object",
+        "required": ["event_id","timestamp_ms","contact_type","annotation_confidence","annotation_source","review_status","taxonomy_version"],
+
+        "properties": {
+
+          "event_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+
+          "timestamp_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+
+          "contact_type": {
+            "type": "string",
+            "enum": [
+              "right_instep","left_instep",
+              "right_inside_foot","left_inside_foot",
+              "right_outside_foot","left_outside_foot",
+              "right_heel","left_heel",
+              "right_knee","left_knee",
+              "right_hip","left_hip",
+              "chest","right_shoulder","left_shoulder",
+              "head","back",
+              "custom_other"
+            ],
+            "description": "Contact type from the v1 taxonomy (contact_types_v1.json). right_* keys fix side=right; left_* keys fix side=left; chest/head/back fix side=center; custom_other requires explicit side."
+          },
+
+          "side": {
+            "type": ["string","null"],
+            "enum": ["left","right","center","unknown",null],
+            "description": "Derived from contact_type for stable keys — validators must enforce consistency. Only custom_other allows user-supplied side. right_*→right; left_*→left; chest/head/back→center. Must not be null for custom_other.",
+            "_side_consistency_rules": {
+              "right_prefix_keys_must_have": "right",
+              "left_prefix_keys_must_have": "left",
+              "center_keys_must_have": "center",
+              "custom_other_must_not_be": "null"
+            }
+          },
+
+          "annotation_confidence": {
+            "type": "string",
+            "enum": ["certain","probable","uncertain"]
+          },
+
+          "annotation_source": {
+            "type": "string",
+            "enum": ["manual_annotator","manual_user","model_prediction","user_corrected"],
+            "description": "manual_annotator: browser helper / CLI. manual_user: iOS athlete input. model_prediction: Phase D+ auto-detection. user_corrected: model prediction changed by user/reviewer."
+          },
+
+          "annotator": {
+            "type": ["string","null"],
+            "description": "Initials of the person who created this event. Null for model_prediction."
+          },
+
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "corrected",
+              "rejected",
+              "pending_taxonomy_review",
+              "reclassified",
+              "promotion_candidate",
+              "promoted",
+              "approved_unclassified"
+            ],
+            "description": "Unified lifecycle status. Stable contact types use: pending/confirmed/corrected/rejected. custom_other uses: pending_taxonomy_review/reclassified/promotion_candidate/promoted/approved_unclassified. rejected events are excluded from total_juggling_count.",
+            "_excluded_from_training": ["pending","rejected","pending_taxonomy_review","promotion_candidate","approved_unclassified"],
+            "_custom_other_note": "custom_other is excluded from training in ALL states. The only path to training inclusion is promotion to a new stable key."
+          },
+
+          "excluded_from_training": {
+            "type": "boolean",
+            "description": "True when this event must not be used as a training label. Always true for custom_other. Also true when review_status is pending, rejected, pending_taxonomy_review, promotion_candidate, or approved_unclassified."
+          },
+
+          "excluded_from_count": {
+            "type": "boolean",
+            "description": "True when this event must not be included in total_juggling_count. Always true when review_status=rejected."
+          },
+
+          "promotion_candidate": {
+            "type": "boolean",
+            "description": "True when this custom_other event has been flagged for potential taxonomy promotion. Set by taxonomy reviewer only."
+          },
+
+          "custom_label": {
+            "type": ["string","null"],
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9_]{0,38}[a-z0-9]$|^null$",
+            "description": "Required when contact_type=custom_other. Must be null for all stable contact types. Pattern: lowercase letters, digits, underscores only. Must not duplicate an existing stable key."
+          },
+
+          "custom_description": {
+            "type": ["string","null"],
+            "maxLength": 200,
+            "description": "Required when contact_type=custom_other. Must be null for stable contact types. Human-readable description of the observed technique."
+          },
+
+          "taxonomy_version": {
+            "type": "string",
+            "description": "The version of contact_types_vN.json used when this event was annotated. Allows future migrations to identify events that predate taxonomy updates.",
+            "examples": ["v1"]
+          },
+
+          "ball_height_approx_px": {
+            "type": ["integer","null"],
+            "minimum": 0
+          },
+
+          "note": {
+            "type": ["string","null"]
+          },
+
+          "_deprecated_body_part": {
+            "type": ["string","null"],
+            "description": "DEPRECATED. Present only in v1-originated records for backward-compatibility tracing. Do not populate in new annotations. Use contact_type instead.",
+            "enum": ["foot","knee","thigh","shoulder","head","chest",null],
+            "_thigh_warning": "body_part=thigh MUST NOT be auto-migrated to right_hip or left_hip. Flag for manual_review_required."
+          }
+
+        },
+
+        "if": {"properties": {"contact_type": {"const": "custom_other"}}},
+        "then": {
+          "required": ["custom_label","custom_description","side"],
+          "properties": {
+            "custom_label":        {"not": {"type": "null"}},
+            "custom_description":  {"not": {"type": "null"}},
+            "side":                {"not": {"type": "null"}},
+            "excluded_from_training": {"const": true},
+            "review_status": {
+              "enum": ["pending_taxonomy_review","reclassified","promotion_candidate","promoted","approved_unclassified"]
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "custom_label":       {"type": "null"},
+            "custom_description": {"type": "null"},
+            "review_status": {
+              "enum": ["pending","confirmed","corrected","rejected"]
+            }
+          }
+        }
+
+      }
+    }
+
+  },
+
+  "additionalProperties": false,
+
+  "_migration_notes": {
+    "from_v1": {
+      "annotation_version": "Change from 'v1.0' to 'v2.0'",
+      "annotation_schema_version": "Change from '1.0' to '2.0'",
+      "contact_events_body_part": "Rename to contact_type. Do not auto-migrate 'thigh' to any hip key.",
+      "body_parts_used_thigh": "Rename field to 'hip' ONLY if human reviewer confirms it was a hip contact. Otherwise null + manual_review_required.",
+      "dominant_body_part_thigh": "Same as above — do not auto-rename.",
+      "body_parts_used_back": "New field, defaults to null in migrated annotations.",
+      "side_center_value": "Add 'center' as valid side value for chest/head/back contact types.",
+      "four_batch1_skeletons": "contact_events=null in all 4 skeletons — no contact_event migration needed. Only schema header fields need updating when v2 is formally adopted."
+    }
+  }
+}

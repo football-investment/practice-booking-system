@@ -1,50 +1,104 @@
 {
   "manifest_version": "1.0",
-  "schema_version": "annotation_schema_v1.json",
+  "schema_version": "annotation_schema_v2.json",
   "created_at": "2026-06-12",
   "last_updated": "2026-06-12",
-
   "summary": {
-    "total_videos": 0,
+    "total_videos": 4,
+    "metadata_ready": 4,
     "annotated_videos": 0,
+    "reviewed_videos": 0,
+    "privacy_approved_videos": 0,
     "by_difficulty": {
       "easy": 0,
       "medium": 0,
-      "hard": 0
+      "hard": 0,
+      "pending": 4
     },
-    "total_annotated_count": 0,
     "phase_a_acceptance": {
       "required_total": 20,
       "required_easy": 5,
       "required_medium": 10,
       "required_hard": 5,
+      "current_total": 4,
       "status": "IN_PROGRESS"
     }
   },
-
   "videos": [
-
     {
-      "_comment": "TEMPLATE — copy and fill for each real video. Delete this entry.",
-      "video_id": "TEMPLATE_DELETE_ME",
-      "filename": "example.mp4",
-      "difficulty": "easy",
-      "annotation_file": "annotations/TEMPLATE.json",
-      "checksum_sha256": "FILL_IN_SHA256_OF_ORIGINAL_VIDEO",
-      "video_storage": "local_only",
-      "video_path_local": "datasets/juggling/videos/example.mp4",
-      "video_available": false,
-      "notes": "Template entry — replace with real video data"
+      "video_id": "jug_b1_001",
+      "filename": "d9ffe19a-f143-4458-a816-0a408c211e39.mp4",
+      "annotation_file": "annotations/jug_b1_001.json",
+      "checksum_sha256": "631a7febf22f780f4725c34bd001c213a003cccbdd705d329b177ffdf1f13c93",
+      "annotation_status": "metadata_ready",
+      "privacy_review_status": "pending",
+      "difficulty": "pending",
+      "dataset_eligibility": "pending_human_review",
+      "upload_source": "app_gallery_upload",
+      "duration_seconds": 11.19,
+      "original_resolution": "888x1920",
+      "processed_resolution": "1556x720",
+      "display_orientation": "landscape"
+    },
+    {
+      "video_id": "jug_b1_002",
+      "filename": "d5ff5f63-79d6-4276-99ee-a7615337bc0d.mp4",
+      "annotation_file": "annotations/jug_b1_002.json",
+      "checksum_sha256": "b70b0682095bc486f96a741cf62371573dee339d46556632a9a5d550dd3aea95",
+      "annotation_status": "metadata_ready",
+      "privacy_review_status": "pending",
+      "difficulty": "pending",
+      "dataset_eligibility": "pending_human_review",
+      "upload_source": "app_gallery_upload",
+      "duration_seconds": 17.7,
+      "original_resolution": "1280x720",
+      "processed_resolution": "720x1280",
+      "display_orientation": "portrait"
+    },
+    {
+      "video_id": "jug_b1_003",
+      "filename": "4dcdf492-6f9c-4dec-bf6a-797e2a282279.mp4",
+      "annotation_file": "annotations/jug_b1_003.json",
+      "checksum_sha256": "8f18c63e6009c67bbb7d9634f57c782b55e0a638cc32aa70e3c49ed47c2c20c4",
+      "annotation_status": "metadata_ready",
+      "privacy_review_status": "pending",
+      "difficulty": "pending",
+      "dataset_eligibility": "pending_human_review",
+      "upload_source": "app_gallery_upload",
+      "duration_seconds": 19.43,
+      "original_resolution": "540x960",
+      "processed_resolution": "406x720",
+      "display_orientation": "portrait"
+    },
+    {
+      "video_id": "jug_b1_004",
+      "filename": "52349e85-5b9a-4c5a-88f8-793e10c72cb8.mp4",
+      "annotation_file": "annotations/jug_b1_004.json",
+      "checksum_sha256": "1505807097bff756cbc75059030da48c0cd8864ff28e3ab127f3afd76edcb065",
+      "annotation_status": "metadata_ready",
+      "privacy_review_status": "pending",
+      "difficulty": "pending",
+      "dataset_eligibility": "pending_human_review",
+      "upload_source": "app_gallery_upload",
+      "duration_seconds": 10.6,
+      "original_resolution": "1080x1920",
+      "processed_resolution": "406x720",
+      "display_orientation": "portrait"
     }
-
   ],
-
   "storage_policy": {
-    "video_files": "NOT committed to git. Stored locally at datasets/juggling/videos/ and mirrored on Seafile.",
+    "video_files": "NOT committed to git. Stored locally at app/uploads/juggling/ (dev) and mirrored on Seafile.",
     "annotation_files": "Committed to git at datasets/juggling/annotations/",
     "large_file_threshold_mb": 5,
-    "gitignore_rule": "datasets/juggling/videos/"
+    "gitignore_rules": [
+      "datasets/juggling/videos/",
+      "app/uploads/juggling/*.mp4",
+      "app/uploads/juggling/*.mov",
+      "app/uploads/juggling/*_proc.mp4",
+      "app/uploads/juggling/*_thumb.jpg"
+    ]
   },
-
-  "checksum_note": "checksum_sha256 is computed on the ORIGINAL video file (before any processing). If the file changes, recompute: sha256sum <filename>"
+  "checksum_note": "checksum_sha256 is computed on the ORIGINAL video file using: shasum -a 256 <filename>",
+  "taxonomy_version": "v1",
+  "contact_taxonomy_source": "contact_types_v1.json"
 }
