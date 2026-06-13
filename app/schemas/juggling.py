@@ -252,6 +252,21 @@ class ContactEventBatchResult(BaseModel):
     conflict:          int
     results:           List[ContactEventBatchItemResult]
 
+    @property
+    def http_status(self) -> int:
+        """
+        Derive the appropriate HTTP status code from batch outcome.
+
+        all created, no duplicates, no conflicts → 201
+        all exact duplicates, no created, no conflicts → 200
+        mixed or any conflict present → 207
+        """
+        if self.created > 0 and self.duplicate_skipped == 0 and self.conflict == 0:
+            return 201
+        if self.duplicate_skipped > 0 and self.created == 0 and self.conflict == 0:
+            return 200
+        return 207
+
 
 # ── Patch ─────────────────────────────────────────────────────────────────────
 

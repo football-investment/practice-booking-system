@@ -20,7 +20,7 @@ Service invariants enforced by contact_service (never by endpoints):
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -95,7 +95,6 @@ def create_contact(
     """
     result = contact_service.create_contact(video_id, body, current_user, db)
     if result.http_status == 409:
-        from fastapi import HTTPException
         raise HTTPException(status_code=409, detail=result.conflict_detail)
     response.status_code = result.http_status
     return ContactEventOut.model_validate(result.event)
@@ -114,15 +113,22 @@ def create_contact(
 def create_contacts_batch(
     video_id: str,
     body: ContactEventBatchRequest,
+    response: Response,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ContactEventBatchResult:
     """
     Submit up to 200 contact events in a single request.
-    Per-item status: created (201) / duplicate (200) / conflict (409).
-    Always returns 207 — inspect per-item status field for outcome.
+    Per-item status: created / duplicate / conflict.
+
+    HTTP status codes:
+      201 — all items newly created (no duplicates, no conflicts)
+      200 — all items were exact duplicates (idempotent re-submit)
+      207 — mixed outcome or any conflict present
     """
-    return contact_service.create_contacts_batch(video_id, body, current_user, db)
+    result = contact_service.create_contacts_batch(video_id, body, current_user, db)
+    response.status_code = result.http_status
+    return result
 
 
 # ── PATCH /contacts/{event_id} ────────────────────────────────────────────────

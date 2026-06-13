@@ -90,14 +90,38 @@ def _guard_post_finish(video: JugglingVideo) -> None:
         )
 
 
-def _build_consent_snapshot(user_id: int, db: Session) -> dict:
+def _build_consent_snapshot(user_id: int, db: Session, video: Optional["JugglingVideo"] = None) -> dict:
+    """
+    Immutable point-in-time consent record stored alongside each contact event.
+
+    Fields from JugglingConsent model: service_consent, training_consent,
+    admin_review_consent, consented_at.
+    Fields not yet in POC model (is_minor, parental_consent): stored as None.
+    snapshot_taken_at: current UTC timestamp.
+    source_type: from the video record (annotation provenance).
+    """
+    now = datetime.now(timezone.utc).isoformat()
     consent = db.query(JugglingConsent).filter(JugglingConsent.user_id == user_id).first()
     if consent is None:
-        return {"service_consent": False, "training_consent": False, "admin_review_consent": False}
+        return {
+            "service_consent": False,
+            "training_consent": False,
+            "admin_review_consent": False,
+            "consented_at": None,
+            "source_type": video.source_type if video else None,
+            "is_minor": None,
+            "parental_consent": None,
+            "snapshot_taken_at": now,
+        }
     return {
         "service_consent":      consent.service_consent,
         "training_consent":     consent.training_consent,
         "admin_review_consent": consent.admin_review_consent,
+        "consented_at":         consent.consented_at.isoformat() if consent.consented_at else None,
+        "source_type":          video.source_type if video else None,
+        "is_minor":             None,
+        "parental_consent":     None,
+        "snapshot_taken_at":    now,
     }
 
 
@@ -215,7 +239,7 @@ def create_contact(
         )
 
     contact_type, side, review_status, taxonomy_status = _validate_and_derive(req)
-    consent_snapshot = _build_consent_snapshot(current_user.id, db)
+    consent_snapshot = _build_consent_snapshot(current_user.id, db, video)
 
     event = JugglingContactEvent(
         video_id              = video.id,
@@ -294,7 +318,7 @@ def create_contacts_batch(
             conflict += 1
             continue
 
-        consent_snapshot = _build_consent_snapshot(current_user.id, db)
+        consent_snapshot = _build_consent_snapshot(current_user.id, db, video)
         event = JugglingContactEvent(
             video_id                  = video.id,
             created_by_user_id        = current_user.id,

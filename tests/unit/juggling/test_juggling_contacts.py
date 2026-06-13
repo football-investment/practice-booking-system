@@ -459,29 +459,41 @@ class TestCA35_Batch:
     def _batch_url(self, video_id) -> str:
         return f"{_contacts_url(video_id)}/batch"
 
-    def test_ca35_batch_creates_multiple_201(self, client, token, video):
-        """CA-35: batch with 3 new events → 207, created=3."""
+    def test_ca35_batch_all_new_returns_201(self, client, token, video):
+        """CA-35: batch with 3 new events, no duplicates, no conflicts → 201."""
         body = {"events": [_base_event(timestamp_ms=i * 1000) for i in range(1, 4)]}
         r = client.post(self._batch_url(video.id), json=body, headers=_auth(token))
-        assert r.status_code == 207
+        assert r.status_code == 201, f"Expected 201 for all-new batch, got {r.status_code}"
         d = r.json()
         assert d["created"] == 3
         assert d["duplicate_skipped"] == 0
         assert d["conflict"] == 0
 
-    def test_ca36_batch_exact_duplicate_skipped(self, client, token, video):
-        """CA-36: batch with 1 new + 1 exact duplicate → 207, created=1, duplicate=1."""
+    def test_ca35b_batch_all_duplicates_returns_200(self, client, token, video):
+        """CA-35b: batch where all items are exact duplicates → 200 (idempotent re-submit)."""
+        single = _base_event(timestamp_ms=5000)
+        client.post(_contacts_url(video.id), json=single, headers=_auth(token))
+        body = {"events": [single]}
+        r = client.post(self._batch_url(video.id), json=body, headers=_auth(token))
+        assert r.status_code == 200, f"Expected 200 for all-duplicate batch, got {r.status_code}"
+        d = r.json()
+        assert d["created"] == 0
+        assert d["duplicate_skipped"] == 1
+        assert d["conflict"] == 0
+
+    def test_ca36_batch_mixed_returns_207(self, client, token, video):
+        """CA-36: batch with 1 new + 1 exact duplicate → 207 (mixed)."""
         single = _base_event(timestamp_ms=1000)
         client.post(_contacts_url(video.id), json=single, headers=_auth(token))
         body = {"events": [single, _base_event(timestamp_ms=2000)]}
         r = client.post(self._batch_url(video.id), json=body, headers=_auth(token))
-        assert r.status_code == 207
+        assert r.status_code == 207, f"Expected 207 for mixed batch, got {r.status_code}"
         d = r.json()
         assert d["created"] == 1
         assert d["duplicate_skipped"] == 1
 
     def test_ca37_batch_conflict_captured(self, client, token, video):
-        """CA-37: batch item with same device_event_id but different payload → conflict item."""
+        """CA-37: batch item with same device_event_id but different payload → 207 + conflict."""
         dev_id = str(uuid.uuid4())
         client.post(_contacts_url(video.id), json={**_base_event(device_event_id=dev_id), "timestamp_ms": 1000}, headers=_auth(token))
         conflict_body = {"events": [{**_base_event(device_event_id=dev_id), "timestamp_ms": 9999}]}
@@ -491,7 +503,7 @@ class TestCA35_Batch:
         assert d["conflict"] == 1
 
     def test_ca38_batch_invalid_type_counts_as_conflict(self, client, token, video):
-        """CA-38: batch with invalid contact_type → per-item conflict."""
+        """CA-38: batch with invalid contact_type → 207 + per-item conflict."""
         body = {"events": [_base_event("right_thigh")]}
         r = client.post(self._batch_url(video.id), json=body, headers=_auth(token))
         assert r.status_code == 207
