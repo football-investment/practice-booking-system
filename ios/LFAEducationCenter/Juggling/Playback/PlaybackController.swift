@@ -59,6 +59,10 @@ final class PlaybackController: ObservableObject {
     private let player: PlayerSeekable
     private var timeObserver: Any?
 
+    /// Safe read-only access to the underlying AVPlayer for layer-based rendering.
+    /// Returns nil when the controller is initialised with a non-AVPlayer mock (tests).
+    var avPlayer: AVPlayer? { player as? AVPlayer }
+
     // Production init: uses a real AVPlayer.
     init(player: PlayerSeekable = AVPlayer()) {
         self.player = player
