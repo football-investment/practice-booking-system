@@ -28,6 +28,10 @@ protocol JugglingAnnotationAPIClientProtocol: AnyObject {
     func finishAnnotation(videoId: String, confirmZero: Bool) async throws -> FinishAnnotationOut
     // B-2: storage release — 204 or 410 are both success; throws VideoDeleteError on failure
     func deleteVideo(videoId: String) async throws
+    // B-3: three-step video upload pipeline (init → upload → complete)
+    func uploadInit(sourceType: String, uploadSource: String) async throws -> JugglingUploadInitResponse
+    func uploadVideoFile(videoId: String, fileURL: URL, mimeType: String) async throws -> JugglingUploadFileResponse
+    func completeUpload(videoId: String) async throws -> JugglingCompleteResponse
 }
 
 @MainActor
@@ -161,6 +165,58 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
         }
     }
 
+    // MARK: — Video upload pipeline (B-3)
+    //
+    // Step 1 — uploadInit: POST /upload-init → {video_id, status, upload_url}
+    //   201 → JugglingUploadInitResponse
+    //   403 → JugglingUploadError.noConsent (service consent not given)
+    //   401 → JugglingUploadError.unauthorized (session expired)
+    //   network → JugglingUploadError.networkError
+    //
+    // Step 2 — uploadVideoFile: POST /videos/{id}/upload (multipart, field="file")
+    //   200 → JugglingUploadFileResponse
+    //   409 → JugglingUploadError.invalidState (video not in pending_upload)
+    //   413 → JugglingUploadError.fileTooLarge (>100 MB)
+    //   415 → JugglingUploadError.unsupportedFormat (not mp4/mov/m4v)
+    //   401 → JugglingUploadError.unauthorized
+    //   network → JugglingUploadError.networkError
+    //
+    // Step 3 — completeUpload: POST /videos/{id}/complete
+    //   200 → JugglingCompleteResponse (analysis queued)
+    //   409 → JugglingUploadError.invalidState (not in 'uploaded' status)
+    //   401 → JugglingUploadError.unauthorized
+    //   network → JugglingUploadError.networkError
+
+    func uploadInit(sourceType: String, uploadSource: String) async throws -> JugglingUploadInitResponse {
+        let path = "/api/v1/users/me/juggling/videos/upload-init"
+        let body = JugglingUploadInitBody(sourceType: sourceType, uploadSource: uploadSource)
+        do {
+            return try await authManager.authenticatedPost(path: path, body: body)
+        } catch let err as APIError {
+            throw JugglingAnnotationAPIClient.mapUploadInitError(err)
+        }
+    }
+
+    func uploadVideoFile(videoId: String, fileURL: URL, mimeType: String) async throws -> JugglingUploadFileResponse {
+        let path = "/api/v1/users/me/juggling/videos/\(videoId)/upload"
+        do {
+            return try await authManager.authenticatedMultipartUploadFile(
+                path: path, fileURL: fileURL, mimeType: mimeType, fieldName: "file"
+            )
+        } catch let err as APIError {
+            throw JugglingAnnotationAPIClient.mapUploadFileError(err)
+        }
+    }
+
+    func completeUpload(videoId: String) async throws -> JugglingCompleteResponse {
+        let path = "/api/v1/users/me/juggling/videos/\(videoId)/complete"
+        do {
+            return try await authManager.authenticatedPost(path: path, body: EmptyBody())
+        } catch let err as APIError {
+            throw JugglingAnnotationAPIClient.mapCompleteError(err)
+        }
+    }
+
     // MARK: — Video media delete (B-2)
     //
     // DELETE /api/v1/users/me/juggling/videos/{videoId}
@@ -200,6 +256,38 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
             return try isoDecoder.decode(ContactEventOut.self, from: data)
         } catch {
             throw AnnotationAPIError.decodeFailed(error)
+        }
+    }
+
+    // MARK: — Upload error mapping (internal static for unit testing)
+
+    internal static func mapUploadInitError(_ error: APIError) -> JugglingUploadError {
+        switch error {
+        case .httpError(401, _), .unauthorized:    return .unauthorized
+        case .httpError(403, _):                   return .noConsent
+        case .networkError(let e):                 return .networkError(e)
+        default:                                   return .networkError(URLError(.badServerResponse))
+        }
+    }
+
+    internal static func mapUploadFileError(_ error: APIError) -> JugglingUploadError {
+        switch error {
+        case .httpError(401, _), .unauthorized:    return .unauthorized
+        case .httpError(403, _):                   return .noConsent
+        case .httpError(409, let d):               return .invalidState(d)
+        case .httpError(413, _):                   return .fileTooLarge
+        case .httpError(415, _):                   return .unsupportedFormat
+        case .networkError(let e):                 return .networkError(e)
+        default:                                   return .networkError(URLError(.badServerResponse))
+        }
+    }
+
+    internal static func mapCompleteError(_ error: APIError) -> JugglingUploadError {
+        switch error {
+        case .httpError(401, _), .unauthorized:    return .unauthorized
+        case .httpError(409, let d):               return .invalidState(d)
+        case .networkError(let e):                 return .networkError(e)
+        default:                                   return .networkError(URLError(.badServerResponse))
         }
     }
 
@@ -266,6 +354,88 @@ enum AnnotationAPIError: Error, LocalizedError {
     var isRetryable: Bool {
         if case .retryable = self { return true }
         return false
+    }
+}
+
+// MARK: — Upload request / response types (B-3)
+
+private struct EmptyBody: Encodable {}
+
+struct JugglingUploadInitBody: Encodable {
+    let sourceType:   String
+    let uploadSource: String
+    enum CodingKeys: String, CodingKey {
+        case sourceType   = "source_type"
+        case uploadSource = "upload_source"
+    }
+}
+
+struct JugglingUploadInitResponse: Decodable {
+    let videoId:   String
+    let status:    String
+    let uploadUrl: String
+    enum CodingKeys: String, CodingKey {
+        case videoId   = "video_id"
+        case status
+        case uploadUrl = "upload_url"
+    }
+}
+
+struct JugglingUploadFileResponse: Decodable {
+    let videoId:        String
+    let status:         String
+    let fileSizeBytes:  Int
+    let checksumSha256: String
+    enum CodingKeys: String, CodingKey {
+        case videoId        = "video_id"
+        case status
+        case fileSizeBytes  = "file_size_bytes"
+        case checksumSha256 = "checksum_sha256"
+    }
+}
+
+struct JugglingCompleteResponse: Decodable {
+    let videoId: String
+    let status:  String
+    let message: String
+    enum CodingKeys: String, CodingKey {
+        case videoId = "video_id"
+        case status
+        case message
+    }
+}
+
+// MARK: — JugglingUploadError
+
+enum JugglingUploadError: Error, LocalizedError, Equatable {
+    case noConsent                    // 403 — service consent not given
+    case invalidState(String?)        // 409 — video not in expected status
+    case fileTooLarge                 // 413 — exceeds 100 MB server limit
+    case unsupportedFormat            // 415 — MIME not in {mp4, quicktime, m4v}
+    case unauthorized                 // 401 / session expired beyond recovery
+    case networkError(Error)          // URLError or transport failure
+
+    var errorDescription: String? {
+        switch self {
+        case .noConsent:              return "Juggling service consent required."
+        case .invalidState(let d):   return "Cannot upload: video in wrong state. \(d ?? "")".trimmingCharacters(in: .whitespaces)
+        case .fileTooLarge:          return "File too large. Maximum 100 MB."
+        case .unsupportedFormat:     return "Unsupported video format. Use MP4 or MOV."
+        case .unauthorized:          return "Session expired. Please log in again."
+        case .networkError:          return "Network error. Please try again."
+        }
+    }
+
+    static func == (lhs: JugglingUploadError, rhs: JugglingUploadError) -> Bool {
+        switch (lhs, rhs) {
+        case (.noConsent,       .noConsent):       return true
+        case (.fileTooLarge,    .fileTooLarge):    return true
+        case (.unsupportedFormat, .unsupportedFormat): return true
+        case (.unauthorized,    .unauthorized):    return true
+        case (.invalidState(let a), .invalidState(let b)): return a == b
+        case (.networkError,    .networkError):    return true
+        default:                                   return false
+        }
     }
 }
 

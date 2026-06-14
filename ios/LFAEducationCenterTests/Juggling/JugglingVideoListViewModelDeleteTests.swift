@@ -311,4 +311,16 @@ private final class CountingMockDeleteClient: JugglingAnnotationAPIClientProtoco
     func finishAnnotation(videoId: String, confirmZero: Bool) async throws -> FinishAnnotationOut {
         throw AnnotationAPIError.unauthorized
     }
+
+    func uploadInit(sourceType: String, uploadSource: String) async throws -> JugglingUploadInitResponse {
+        throw JugglingUploadError.unauthorized
+    }
+
+    func uploadVideoFile(videoId: String, fileURL: URL, mimeType: String) async throws -> JugglingUploadFileResponse {
+        throw JugglingUploadError.unauthorized
+    }
+
+    func completeUpload(videoId: String) async throws -> JugglingCompleteResponse {
+        throw JugglingUploadError.unauthorized
+    }
 }

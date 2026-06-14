@@ -278,6 +278,32 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    // File upload with multipart/form-data — Bearer inject, single 401 refresh + retry.
+    // Streams the video file from fileURL without loading it fully into memory.
+    // Uses APIClient.multipartUploadFromFile which writes the multipart envelope
+    // to a temp file and streams it via URLSession.uploadTask(with:fromFile:).
+    func authenticatedMultipartUploadFile<T: Decodable>(
+        path:      String,
+        fileURL:   URL,
+        mimeType:  String,
+        fieldName: String = "file"
+    ) async throws -> T {
+        guard let token = accessToken else { logout(); throw APIError.unauthorized }
+        do {
+            return try await APIClient.multipartUploadFromFile(
+                path: path, fileURL: fileURL,
+                mimeType: mimeType, fieldName: fieldName, token: token
+            )
+        } catch APIError.httpError(401, _) {
+            let refreshed = await performRefresh()
+            guard refreshed, let newToken = accessToken else { throw APIError.unauthorized }
+            return try await APIClient.multipartUploadFromFile(
+                path: path, fileURL: fileURL,
+                mimeType: mimeType, fieldName: fieldName, token: newToken
+            )
+        }
+    }
+
     // DELETE with no response body (204) — Bearer inject, single 401 refresh + retry.
     func authenticatedDeleteNoContent(path: String) async throws {
         guard let token = accessToken else { logout(); throw APIError.unauthorized }

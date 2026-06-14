@@ -16,6 +16,10 @@ final class MockAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
     var finishAnnotationResult: Result<FinishAnnotationOut, Error> = .failure(AnnotationAPIError.unauthorized)
     // B-2 I-1: video-level storage-release delete
     var deleteVideoResult:     Result<Void, Error> = .failure(VideoDeleteError.unauthorized)
+    // B-3: upload pipeline
+    var uploadInitResult:       Result<JugglingUploadInitResponse, Error> = .failure(JugglingUploadError.unauthorized)
+    var uploadVideoFileResult:  Result<JugglingUploadFileResponse, Error> = .failure(JugglingUploadError.unauthorized)
+    var completeUploadResult:   Result<JugglingCompleteResponse, Error>   = .failure(JugglingUploadError.unauthorized)
 
     func listContacts(videoId: String) async throws -> ContactEventListOut {
         try listContactsResult.get()
@@ -39,6 +43,18 @@ final class MockAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
 
     func deleteVideo(videoId: String) async throws {
         try deleteVideoResult.get()
+    }
+
+    func uploadInit(sourceType: String, uploadSource: String) async throws -> JugglingUploadInitResponse {
+        try uploadInitResult.get()
+    }
+
+    func uploadVideoFile(videoId: String, fileURL: URL, mimeType: String) async throws -> JugglingUploadFileResponse {
+        try uploadVideoFileResult.get()
+    }
+
+    func completeUpload(videoId: String) async throws -> JugglingCompleteResponse {
+        try completeUploadResult.get()
     }
 }
 
