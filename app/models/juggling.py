@@ -7,10 +7,11 @@ Tables:
   juggling_contact_events — per-event annotation records (PR-1)
 
 State machine for juggling_videos.status:
-  pending_upload → uploaded → processing → analyzed
-                                        → rejected    (quality/codec/duration gate)
-                                        → failed      (ffprobe crash / timeout / corrupt)
-                                        → gdpr_deleted (P3: terminal; all data nulled)
+  pending_upload → uploaded → processing → analyzed ─┐
+                                        → rejected   ├──→ media_deleted (user: media files deleted,
+                                        → failed     ┘              analysis/annotation data preserved)
+                           → gdpr_deleted (P3: terminal; all data nulled — account/GDPR deletion only)
+  media_deleted            → gdpr_deleted (during account deletion after media already removed)
 
 Training eligibility dual-gate (JugglingContactEvent):
   Training use requires BOTH simultaneously:
@@ -53,7 +54,8 @@ class JugglingVideoStatus(str, enum.Enum):
     analyzed       = "analyzed"
     rejected       = "rejected"
     failed         = "failed"
-    gdpr_deleted   = "gdpr_deleted"   # P3: terminal — all personal data nulled
+    media_deleted  = "media_deleted"  # user request: media files gone, analysis/annotation data preserved
+    gdpr_deleted   = "gdpr_deleted"   # P3: terminal — all personal data nulled (account/GDPR deletion)
 
 
 class JugglingVideoQualityStatus(str, enum.Enum):
@@ -454,8 +456,8 @@ class JugglingFileDeletionLog(Base):
                             comment="HMAC_SHA256(secret, str(user_id)) — never raw user_id")
     event_type     = Column(String(50), nullable=False,
                             comment=(
-                                "gdpr_delete | retention_expire | orphan_cleanup | "
-                                "missing_file_audit | temp_cleanup | "
+                                "gdpr_delete | user_media_delete | retention_expire | "
+                                "orphan_cleanup | missing_file_audit | temp_cleanup | "
                                 "dry_run_would_delete | scan_started | scan_completed"
                             ))
     file_type      = Column(String(30), nullable=True,
