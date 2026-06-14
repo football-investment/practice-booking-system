@@ -53,10 +53,11 @@ struct EventLabelDetailView: View {
     @State private var selectedBodyZone:     BodyZone? = nil
     @State private var showTaxonomyFallback: Bool      = false
 
-    // P2C-FLOW-1 — labeling mode + double-save guard
-    private enum LabelingDetailMode {
+    // P2C-FLOW-1/3 — labeling mode + double-save guard.
+    // Internal (not private) so unit tests can inspect mode detection via detectMode().
+    enum LabelingDetailMode {
         case sequential   // .labelPending events only, auto-advance through queue
-        case singleEdit   // P2C-FLOW-3: single targeted event, save → navigateBack()
+        case singleEdit   // .localOnly/.synced/.retryPending/.failedPermanent — single event, save → back
     }
     @State private var mode:     LabelingDetailMode = .sequential
     @State private var isSaving: Bool               = false
@@ -70,7 +71,12 @@ struct EventLabelDetailView: View {
                     missingEventView
                 } else if currentDraft != nil {
                     labelingView
+                } else if mode == .singleEdit {
+                    // Event was deleted or became unavailable during a single-edit session.
+                    // Normal save path calls navigateBack() before this branch is reached.
+                    missingEventView
                 } else {
+                    // Sequential: all .labelPending events have been labeled.
                     completionView
                 }
             }
@@ -331,8 +337,13 @@ struct EventLabelDetailView: View {
     // MARK: — Queue / current draft
 
     private var navigationTitle: String {
-        guard !queue.isEmpty, currentIndex < queue.count else { return "Cimkézés kész" }
-        return "Cimkézés (\(currentIndex + 1)/\(queue.count))"
+        switch mode {
+        case .singleEdit:
+            return "Szerkesztés"
+        case .sequential:
+            guard !queue.isEmpty, currentIndex < queue.count else { return "Cimkézés kész" }
+            return "Cimkézés (\(currentIndex + 1)/\(queue.count))"
+        }
     }
 
     private var currentDraft: ContactEventDraft? {
@@ -341,42 +352,41 @@ struct EventLabelDetailView: View {
         return vm.activeEvents.first { $0.deviceEventId == id }
     }
 
-    // P2B-5C: Queue filter depends on whether we were opened from the overview.
-    //   startingEventId == nil → first-session: .labelPending + .localOnly only
-    //   startingEventId != nil → overview access: all editable states
-    // After building the queue, position to startingEventId (fallback: index 0).
+    // P2C-FLOW-3: mode detection based on the target event's syncStatus.
+    //   nil startingEventId            → .sequential (first-session)
+    //   .labelPending target           → .sequential (pending event, part of auto-flow)
+    //   .localOnly/.synced/etc. target → .singleEdit (targeted overview edit)
+    //   blocked/unknown target         → .sequential (safety: targetEventMissing will fire)
     private func setUpQueue() {
         guard queue.isEmpty else { return }
 
-        let isEditRevisit = startingEventId != nil
-        mode = .sequential   // P2C-FLOW-3 will set .singleEdit for targeted .localOnly/.synced edits
-        queue = vm.activeEvents
-            .filter { d in
-                if isEditRevisit {
-                    switch d.syncStatus {
-                    case .labelPending, .localOnly, .synced, .retryPending, .failedPermanent:
-                        return true
-                    default:
-                        return false
-                    }
-                } else {
-                    // P2C-FLOW-1: sequential mode includes only unfiled events
-                    return d.syncStatus == .labelPending
-                }
-            }
-            .sorted { $0.timestampMs < $1.timestampMs }
-            .map { $0.deviceEventId }
-
-        // P2B-5D: When opened for a specific event, that event MUST be in the queue.
-        // If it is not (deleted, blocked state, or never transitioned from .unlabeled),
-        // show the missing-event safety screen instead of silently jumping elsewhere.
         if let startId = startingEventId {
-            guard let idx = queue.firstIndex(of: startId) else {
+            guard let draft = vm.activeEvents.first(where: { $0.deviceEventId == startId }) else {
                 targetEventMissing = true
                 return
             }
-            currentIndex = idx
+            mode = Self.detectMode(for: startId, syncStatus: draft.syncStatus)
+
+            switch mode {
+            case .sequential:
+                // .labelPending target: include all pending events, position at startId.
+                queue = Self.sequentialQueueIds(from: vm.activeEvents)
+                guard let idx = queue.firstIndex(of: startId) else {
+                    // Target not in sequential queue (blocked/unlabeled): show safety view.
+                    targetEventMissing = true
+                    return
+                }
+                currentIndex = idx
+
+            case .singleEdit:
+                // .localOnly/.synced/.retryPending/.failedPermanent: exactly one event.
+                queue = [startId]
+                currentIndex = 0
+            }
         } else {
+            // No startingEventId → first-session sequential mode.
+            mode = .sequential
+            queue = Self.sequentialQueueIds(from: vm.activeEvents)
             currentIndex = 0
         }
 
@@ -414,6 +424,28 @@ struct EventLabelDetailView: View {
             .filter { $0.syncStatus == .labelPending }
             .sorted { $0.timestampMs < $1.timestampMs }
             .map { $0.deviceEventId }
+    }
+
+    // P2C-FLOW-3: internal for unit tests — pure mode detection from target syncStatus.
+    // nil startingEventId always returns .sequential (first-session path).
+    // syncStatus nil (event missing) returns .sequential (targetEventMissing safety will fire).
+    static func detectMode(for startingEventId: UUID?,
+                           syncStatus: ContactEventSyncStatus?) -> LabelingDetailMode {
+        guard startingEventId != nil else { return .sequential }
+        switch syncStatus {
+        case .localOnly, .synced, .retryPending, .failedPermanent:
+            return .singleEdit
+        default:
+            return .sequential
+        }
+    }
+
+    // P2C-FLOW-3: mode-aware save button label.
+    private var saveButtonLabel: String {
+        switch mode {
+        case .singleEdit:  return "Mentés"
+        case .sequential:  return isLastInQueue ? "Mentés és befejezés" : "Mentés és következő"
+        }
     }
 
     // Reverse-lookup: which body zone owns the current selectedKey?
@@ -571,7 +603,7 @@ struct EventLabelDetailView: View {
         Section {
             HStack(spacing: 12) {
                 backButton
-                Button(isLastInQueue ? "Mentés és befejezés" : "Mentés és tovább") {
+                Button(saveButtonLabel) {
                     saveAndAdvance()
                 }
                 .frame(maxWidth: .infinity)
@@ -580,7 +612,7 @@ struct EventLabelDetailView: View {
                 .background(canSave ? Color.accentColor : Color(.systemGray5))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .disabled(!canSave)
-                .accessibilityLabel(isLastInQueue ? "Mentés és befejezés" : "Mentés és a következő esemény")
+                .accessibilityLabel(saveButtonLabel)
             }
             .listRowInsets(EdgeInsets())
             .padding(.horizontal, 16)
@@ -731,8 +763,9 @@ struct EventLabelDetailView: View {
         }
     }
 
-    // P2B-5C: Use relabelEvent() instead of labelEvent() so that already-synced
-    // events (accessed from the overview) are correctly routed through editEvent().
+    // P2B-5C / P2C-FLOW-3: relabelEvent() routes .labelPending/.localOnly → labelEvent(),
+    // .synced/.retryPending/.failedPermanent → editEvent(). After a successful save,
+    // sequential mode advances the queue; singleEdit mode returns to the overview.
     private func saveAndAdvance() {
         guard canSave else { return }   // includes !isSaving; prevents double-advance
         isSaving = true
@@ -753,13 +786,21 @@ struct EventLabelDetailView: View {
             customDescription:    desc.isEmpty  ? nil : desc
         )
         guard ok else {
-            isSaving = false            // reset so user can retry
+            isSaving = false            // reset so user can retry (in either mode)
             showSaveErrorAlert = true
-            return                      // currentIndex unchanged
+            return                      // currentIndex unchanged; no navigateBack on error
         }
-        currentIndex += 1
-        if currentIndex < queue.count { loadFormState() }
-        isSaving = false
+
+        switch mode {
+        case .sequential:
+            currentIndex += 1
+            if currentIndex < queue.count { loadFormState() }
+            isSaving = false
+        case .singleEdit:
+            // Immediate return to overview — do NOT increment currentIndex.
+            isSaving = false
+            navigateBack()
+        }
     }
 
     private func goToPrevious() {
