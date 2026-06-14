@@ -44,15 +44,21 @@ struct JugglingVideoUploadView: View {
     }
 
     // Bridges viewModel.state == .selecting to the fullScreenCover presentation.
-    // If the picker is dismissed without a selection (e.g. swipe-to-cancel),
-    // setting this to false routes back through pickerCancelled().
+    // Dismissal is driven exclusively by viewModel.state: pickerDidSelect/
+    // pickerCancelled (called from JugglingVideoPHPicker's onPick/onCancel)
+    // move state away from .selecting, which flips `get` to false and lets
+    // SwiftUI dismiss the cover. The setter is intentionally a no-op — it only
+    // exists because Binding requires one, and must NOT call pickerCancelled()
+    // here: SwiftUI invokes it as part of its own reconciliation, which can
+    // fire before the picker's async loadFileRepresentation completion
+    // delivers the real selection (see B3-DIAG investigation).
     private var pickerBinding: Binding<Bool> {
         Binding(
             get: { viewModel.state == .selecting },
             set: { newValue in
-                if !newValue, viewModel.state == .selecting {
-                    viewModel.pickerCancelled()
-                }
+                #if DEBUG
+                print("[B3-DIAG][View] pickerBinding.set(\(newValue)) — currentState=\(viewModel.state) (no-op)")
+                #endif
             }
         )
     }

@@ -376,6 +376,81 @@ final class JugglingVideoUploadViewModelTests: XCTestCase {
         XCTAssertEqual(err, .invalidState("not in uploaded state"),
                        "State must not remain .completing after completeUpload error")
     }
+
+    // MARK: — BV-19: a late pickerDidSelect (state already moved on, e.g. via
+    // pickerCancelled) is a no-op AND deletes the temp file it was handed —
+    // no orphan files survive a late/spurious selection callback.
+
+    func test_BV19_latePickerDidSelectIsNoOpAndDeletesTempFile() throws {
+        let vm = makeVM(mock: MockUploadClient())
+        let url = try makeTempVideoFile()
+
+        vm.startPicker()
+        XCTAssertEqual(vm.state, .selecting)
+
+        vm.pickerCancelled()
+        XCTAssertEqual(vm.state, .idle)
+
+        // A late selection callback now arrives, after state moved on.
+        vm.pickerDidSelect(tempURL: url, mimeType: "video/mp4")
+
+        XCTAssertEqual(vm.state, .idle, "pickerDidSelect must be a no-op once state left .selecting")
+        XCTAssertNil(vm.uploadTask, "No upload task must be created")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path),
+                        "A late pickerDidSelect must delete the temp file it was handed — no orphans")
+    }
+
+    // MARK: — BV-20: pickerCancelled() is a no-op once an upload has
+    // progressed past .selecting — defense-in-depth against any late/spurious
+    // cancel signal reaching the ViewModel after pickerDidSelect already ran.
+
+    func test_BV20_pickerCancelledIgnoredOnceUploadStarted() async throws {
+        let vm = makeVM(mock: makeSuccessMock())
+        let url = try makeTempVideoFile()
+
+        await runUpload(vm: vm, tempURL: url)
+        XCTAssertEqual(vm.state, .success)
+
+        vm.pickerCancelled()
+
+        XCTAssertEqual(vm.state, .success, "A late pickerCancelled() must not disturb a completed upload")
+    }
+
+    // MARK: — BV-21: normal selection transitions to .preparing, not .idle
+    // (the headline regression for the fixed bug — startPicker() →
+    // pickerDidSelect() must NOT pass through an intermediate
+    // pickerCancelled()-driven .idle).
+
+    func test_BV21_normalSelectionGoesToPreparingNotIdle() throws {
+        let vm = makeVM(mock: MockUploadClient())
+        let url = try makeTempVideoFile()
+        var states: [JugglingVideoUploadViewModel.UploadState] = []
+        let cancellable = vm.$state.sink { states.append($0) }
+
+        vm.startPicker()
+        vm.pickerDidSelect(tempURL: url, mimeType: "video/mp4")
+
+        XCTAssertEqual(vm.state, .preparing)
+        XCTAssertEqual(states, [.idle, .selecting, .preparing],
+                       "No intermediate .idle must appear between .selecting and .preparing")
+
+        vm.cancel()
+        cancellable.cancel()
+    }
+
+    // MARK: — BV-22: picker cancel (no selection) still resets to .idle —
+    // the legitimate cancel path must keep working after the fix.
+
+    func test_BV22_pickerCancelStillResetsToIdle() {
+        let vm = makeVM(mock: MockUploadClient())
+        vm.startPicker()
+        XCTAssertEqual(vm.state, .selecting)
+
+        vm.pickerCancelled()
+
+        XCTAssertEqual(vm.state, .idle)
+        XCTAssertNil(vm.uploadTask)
+    }
 }
 
 // MARK: — MockUploadClient

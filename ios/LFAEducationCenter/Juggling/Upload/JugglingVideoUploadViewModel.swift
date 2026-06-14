@@ -41,7 +41,13 @@ final class JugglingVideoUploadViewModel: ObservableObject {
 
     // MARK: — Published
 
-    @Published private(set) var state: UploadState = .idle
+    @Published private(set) var state: UploadState = .idle {
+        didSet {
+            #if DEBUG
+            log("state: \(oldValue) -> \(state)")
+            #endif
+        }
+    }
 
     // MARK: — Callback (fired exactly once, on the main actor, after completeUpload succeeds)
 
@@ -94,7 +100,15 @@ final class JugglingVideoUploadViewModel: ObservableObject {
     }
 
     func pickerCancelled() {
-        guard case .selecting = state else { return }
+        #if DEBUG
+        log("pickerCancelled() called — currentState=\(state)")
+        #endif
+        guard case .selecting = state else {
+            #if DEBUG
+            log("pickerCancelled() IGNORED — state is not .selecting")
+            #endif
+            return
+        }
         state = .idle
     }
 
@@ -102,7 +116,19 @@ final class JugglingVideoUploadViewModel: ObservableObject {
     // controlled temp URL and determining the MIME type. Ownership of tempURL transfers
     // here; this ViewModel is responsible for deleting it in all terminal paths.
     func pickerDidSelect(tempURL: URL, mimeType: String) {
-        guard case .selecting = state else { return }
+        #if DEBUG
+        log("pickerDidSelect(tempFile=\(tempURL.lastPathComponent), mime=\(mimeType)) — currentState=\(state)")
+        #endif
+        guard case .selecting = state else {
+            // A late/spurious callback (state moved on before this arrived) must
+            // not leave the picker's temp file behind — this ViewModel is its
+            // only owner once pickerDidSelect is called.
+            try? FileManager.default.removeItem(at: tempURL)
+            #if DEBUG
+            log("pickerDidSelect IGNORED — state is not .selecting; deleted orphaned tempFile=\(tempURL.lastPathComponent)")
+            #endif
+            return
+        }
         state = .preparing
         uploadTask = Task { [self] in
             await prepareAndUpload(tempURL: tempURL, mimeType: mimeType)
@@ -112,9 +138,12 @@ final class JugglingVideoUploadViewModel: ObservableObject {
     // MARK: — Upload control
 
     func cancel() {
+        #if DEBUG
+        log("cancel() called — currentState=\(state)")
+        #endif
         uploadTask?.cancel()
         uploadTask = nil
-        cleanupTempFile()
+        cleanupTempFile(reason: "cancel()")
         currentVideoId = nil
         state = .idle
     }
@@ -122,8 +151,11 @@ final class JugglingVideoUploadViewModel: ObservableObject {
     // Resets to idle so the caller can invoke startPicker() for a fresh attempt.
     // Each retry must supply a new temp file via a new picker session.
     func retry() {
+        #if DEBUG
+        log("retry() called — currentState=\(state)")
+        #endif
         guard case .failure = state else { return }
-        cleanupTempFile()
+        cleanupTempFile(reason: "retry()")
         currentVideoId = nil
         uploadTask = nil
         state = .idle
@@ -132,6 +164,10 @@ final class JugglingVideoUploadViewModel: ObservableObject {
     // MARK: — Pipeline
 
     private func prepareAndUpload(tempURL: URL, mimeType: String) async {
+        #if DEBUG
+        log("prepareAndUpload started — tempFile=\(tempURL.lastPathComponent), mime=\(mimeType), fileExists=\(FileManager.default.fileExists(atPath: tempURL.path))")
+        #endif
+
         guard !Task.isCancelled else {
             try? FileManager.default.removeItem(at: tempURL)
             return
@@ -147,7 +183,13 @@ final class JugglingVideoUploadViewModel: ObservableObject {
         do {
             let attrs = try FileManager.default.attributesOfItem(atPath: tempURL.path)
             size = (attrs[.size] as? Int64) ?? 0
+            #if DEBUG
+            log("prepareAndUpload — tempFile size=\(size) bytes")
+            #endif
         } catch {
+            #if DEBUG
+            log("prepareAndUpload — attributesOfItem FAILED: \(error.localizedDescription)")
+            #endif
             try? FileManager.default.removeItem(at: tempURL)
             state = .failure(.networkError(error))
             return
@@ -173,12 +215,18 @@ final class JugglingVideoUploadViewModel: ObservableObject {
 
         do {
             // Step 1 — upload-init
-            guard !Task.isCancelled else { cleanupTempFile(); return }
+            guard !Task.isCancelled else { cleanupTempFile(reason: "cancelled before uploadInit"); return }
+            #if DEBUG
+            log("uploadInit starting — sourceType=uploaded_video, uploadSource=gallery")
+            #endif
             let initResp = try await apiClient.uploadInit(
                 sourceType: "uploaded_video", uploadSource: "gallery"
             )
+            #if DEBUG
+            log("uploadInit succeeded — status=\(initResp.status)")
+            #endif
 
-            guard !Task.isCancelled else { cleanupTempFile(); return }
+            guard !Task.isCancelled else { cleanupTempFile(reason: "cancelled after uploadInit"); return }
             currentVideoId = initResp.videoId
             state = .uploading(progress: 0)
 
@@ -188,31 +236,49 @@ final class JugglingVideoUploadViewModel: ObservableObject {
             )
 
             // Step 3 — complete (triggers server-side analysis queue)
-            guard !Task.isCancelled else { cleanupTempFile(); return }
+            guard !Task.isCancelled else { cleanupTempFile(reason: "cancelled before completeUpload"); return }
             state = .completing
 
             _ = try await apiClient.completeUpload(videoId: initResp.videoId)
 
-            guard !Task.isCancelled else { cleanupTempFile(); return }
-            cleanupTempFile()
+            guard !Task.isCancelled else { cleanupTempFile(reason: "cancelled after completeUpload"); return }
+            cleanupTempFile(reason: "upload pipeline success")
             currentVideoId = nil
             state = .success
             onSuccess?()
 
         } catch is CancellationError {
-            cleanupTempFile()
+            #if DEBUG
+            log("uploadInit/pipeline threw CancellationError")
+            #endif
+            cleanupTempFile(reason: "CancellationError")
         } catch let err as JugglingUploadError {
-            cleanupTempFile()
+            #if DEBUG
+            log("upload pipeline failed — JugglingUploadError: \(err)")
+            #endif
+            cleanupTempFile(reason: "JugglingUploadError")
             state = .failure(err)
         } catch {
-            cleanupTempFile()
+            #if DEBUG
+            log("upload pipeline failed — error: \(error.localizedDescription)")
+            #endif
+            cleanupTempFile(reason: "unexpected error")
             state = .failure(.networkError(error))
         }
     }
 
-    private func cleanupTempFile() {
+    private func cleanupTempFile(reason: String) {
+        #if DEBUG
+        log("cleanupTempFile — reason=\(reason), hadTempFile=\(tempVideoURL != nil)")
+        #endif
         guard let url = tempVideoURL else { return }
         try? FileManager.default.removeItem(at: url)
         tempVideoURL = nil
     }
+
+    #if DEBUG
+    private func log(_ message: String) {
+        print("[B3-DIAG][ViewModel] \(message)")
+    }
+    #endif
 }
