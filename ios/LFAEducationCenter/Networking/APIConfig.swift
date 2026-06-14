@@ -28,7 +28,11 @@ enum APIConfig {
     static let baseURL: String = {
         let raw = Bundle.main.object(forInfoDictionaryKey: "APIBaseURL") as? String
         do {
-            return try resolve(rawURL: raw)
+            let resolved = try resolve(rawURL: raw)
+            #if DEBUG
+            print("[APIConfig] ▶ baseURL=\(resolved)")
+            #endif
+            return resolved
         } catch let e as ConfigError {
             fatalError(e.description)
         } catch {

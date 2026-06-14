@@ -126,7 +126,11 @@ final class AuthManager: ObservableObject {
             errorMessage = (code == 401 || code == 422)
                 ? "Invalid email or password."
                 : "Server error (\(code)). Please try again."
-        } catch APIError.networkError {
+        } catch APIError.networkError(let underlyingError) {
+            #if DEBUG
+            let urlErr = underlyingError as? URLError
+            print("[AuthManager] ✖ login networkError type=\(type(of: underlyingError)) urlCode=\(urlErr?.code.rawValue ?? -99999)")
+            #endif
             errorMessage = "Network error. Check your connection and try again."
         } catch {
             errorMessage = "Something went wrong. Please try again."

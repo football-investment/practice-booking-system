@@ -247,13 +247,28 @@ enum APIClient {
     // URLSession.data(for:) async is iOS 15+.
     // This continuation wrapper is iOS 13+ compatible.
     private static func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        try await withCheckedThrowingContinuation { continuation in
+        #if DEBUG
+        print("[APIClient] ▶ \(request.httpMethod ?? "?") \(request.url?.absoluteString ?? "nil")")
+        #endif
+        return try await withCheckedThrowingContinuation { continuation in
             URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
+                    #if DEBUG
+                    let urlErr = error as? URLError
+                    print("[APIClient] ✖ code=\(urlErr?.code.rawValue ?? -99999) type=\(type(of: error)) msg=\(error.localizedDescription)")
+                    #endif
                     continuation.resume(throwing: APIError.networkError(error))
                 } else if let data = data, let response = response {
+                    #if DEBUG
+                    if let http = response as? HTTPURLResponse {
+                        print("[APIClient] ✔ status=\(http.statusCode)")
+                    }
+                    #endif
                     continuation.resume(returning: (data, response))
                 } else {
+                    #if DEBUG
+                    print("[APIClient] ✖ no-data-no-error (unknown state)")
+                    #endif
                     continuation.resume(throwing: APIError.networkError(URLError(.unknown)))
                 }
             }.resume()
