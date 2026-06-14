@@ -17,6 +17,11 @@ struct BodyZonePickerView: View {
 
     @Binding var selectedZone: BodyZone?
     let taxonomy: TaxonomyDocument?
+    // Fires synchronously in the same button-action transaction as selectedZone.
+    // Use this instead of .onChange(of: selectedZone) to set dependent state
+    // (e.g. selectedKey) in a single SwiftUI transaction, avoiding the 1-frame
+    // window where selectedZone is set but selectedKey is still nil.
+    var onZoneSelected: ((BodyZone) -> Void)? = nil
 
     // MARK: — Canvas geometry (logical units)
 
@@ -79,6 +84,7 @@ struct BodyZonePickerView: View {
 
         Button {
             selectedZone = zone
+            onZoneSelected?(zone)
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 6)

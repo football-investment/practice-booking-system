@@ -89,10 +89,6 @@ struct EventLabelDetailView: View {
         .onAppear { setUpQueue() }
         .onDisappear { previewSession.stop() }
         .onChange(of: currentIndex) { _ in loadPreviewForCurrentDraft() }
-        .onChange(of: selectedBodyZone) { zone in
-            guard let zone = zone else { return }
-            handleZoneSelection(zone)
-        }
     }
 
     // MARK: — Top-level labeling layout
@@ -117,7 +113,9 @@ struct EventLabelDetailView: View {
 
     private var bodyPickerView: some View {
         VStack(spacing: 0) {
-            BodyZonePickerView(selectedZone: $selectedBodyZone, taxonomy: vm.taxonomy)
+            BodyZonePickerView(selectedZone: $selectedBodyZone,
+                               taxonomy: vm.taxonomy,
+                               onZoneSelected: { zone in handleZoneSelection(zone) })
                 .frame(maxWidth: .infinity)
                 .frame(height: 220)
                 .padding(.horizontal, 8)
@@ -378,6 +376,16 @@ struct EventLabelDetailView: View {
 
     private func loadFormState() {
         guard let draft = currentDraft else { return }
+        // Explicit reset before loading — prevents stale state from a previous draft
+        // bleeding into the current one when navigating between events.
+        selectedKey          = nil
+        selectedSide         = nil
+        selectedBodyZone     = nil
+        showTaxonomyFallback = false
+        customLabel          = ""
+        customDescription    = ""
+        confidence           = "certain"
+        // Load from draft
         selectedKey       = draft.contactType
         selectedSide      = draft.side
         confidence        = draft.annotationConfidence
