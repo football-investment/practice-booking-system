@@ -116,6 +116,7 @@
 		BB200004000000000000012 /* BodyZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB200003000000000000012 /* BodyZone.swift */; };
 		BB200004000000000000013 /* BodyZonePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB200003000000000000013 /* BodyZonePickerView.swift */; };
 		BB200004000000000000014 /* LabelingOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB200003000000000000014 /* LabelingOverviewView.swift */; };
+		BB200004000000000000015 /* EventPreviewSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB200003000000000000015 /* EventPreviewSession.swift */; };
 		AA100004000000000000012 /* EventStillFrameGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100003000000000000012 /* EventStillFrameGenerator.swift */; };
 		CC400004000000000000010 /* EditEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000010 /* EditEventTests.swift */; };
 		CC400004000000000000011 /* FlushPendingEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000011 /* FlushPendingEditTests.swift */; };
@@ -125,6 +126,7 @@
 		CC400004000000000000015 /* BodyZoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000015 /* BodyZoneTests.swift */; };
 		CC400004000000000000016 /* EventStillFrameGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000016 /* EventStillFrameGeneratorTests.swift */; };
 		CC400004000000000000017 /* LabelingCTAVMTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000017 /* LabelingCTAVMTests.swift */; };
+		CC400004000000000000018 /* EventPreviewSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000018 /* EventPreviewSessionTests.swift */; };
 		CC400004000000000000001 /* JugglingVideoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000001 /* JugglingVideoTests.swift */; };
 		CC400004000000000000005 /* ContactTaxonomyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000005 /* ContactTaxonomyTests.swift */; };
 		CC400004000000000000006 /* LocalAnnotationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC300003000000000000006 /* LocalAnnotationStoreTests.swift */; };
@@ -256,6 +258,7 @@
 		BB200003000000000000012 /* BodyZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyZone.swift; sourceTree = "<group>"; };
 		BB200003000000000000013 /* BodyZonePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyZonePickerView.swift; sourceTree = "<group>"; };
 		BB200003000000000000014 /* LabelingOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelingOverviewView.swift; sourceTree = "<group>"; };
+		BB200003000000000000015 /* EventPreviewSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventPreviewSession.swift; sourceTree = "<group>"; };
 		BB100003000000000000001 /* AVPlayerLayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVPlayerLayerView.swift; sourceTree = "<group>"; };
 		BB100003000000000000002 /* AnnotationVideoLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationVideoLoader.swift; sourceTree = "<group>"; };
 		BB100003000000000000003 /* PlaybackControlBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackControlBar.swift; sourceTree = "<group>"; };
@@ -274,6 +277,7 @@
 		CC300003000000000000015 /* BodyZoneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyZoneTests.swift; sourceTree = "<group>"; };
 		CC300003000000000000016 /* EventStillFrameGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventStillFrameGeneratorTests.swift; sourceTree = "<group>"; };
 		CC300003000000000000017 /* LabelingCTAVMTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelingCTAVMTests.swift; sourceTree = "<group>"; };
+		CC300003000000000000018 /* EventPreviewSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventPreviewSessionTests.swift; sourceTree = "<group>"; };
 		CC300003000000000000001 /* JugglingVideoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JugglingVideoTests.swift; sourceTree = "<group>"; };
 		CC300003000000000000005 /* ContactTaxonomyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactTaxonomyTests.swift; sourceTree = "<group>"; };
 		CC300003000000000000006 /* LocalAnnotationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalAnnotationStoreTests.swift; sourceTree = "<group>"; };
@@ -594,6 +598,7 @@
 				BB200003000000000000012 /* BodyZone.swift */,
 				BB200003000000000000013 /* BodyZonePickerView.swift */,
 				BB200003000000000000014 /* LabelingOverviewView.swift */,
+				BB200003000000000000015 /* EventPreviewSession.swift */,
 			);
 			path = Screen;
 			sourceTree = "<group>";
@@ -631,6 +636,7 @@
 				CC300003000000000000015 /* BodyZoneTests.swift */,
 				CC300003000000000000016 /* EventStillFrameGeneratorTests.swift */,
 				CC300003000000000000017 /* LabelingCTAVMTests.swift */,
+				CC300003000000000000018 /* EventPreviewSessionTests.swift */,
 				BB100003000000000000004 /* AnnotationVideoLoaderTests.swift */,
 				BB100003000000000000005 /* PlaybackBarTests.swift */,
 				BB100003000000000000006 /* AVPlayerLayerViewTests.swift */,
@@ -868,6 +874,7 @@
 				BB200004000000000000012 /* BodyZone.swift in Sources */,
 				BB200004000000000000013 /* BodyZonePickerView.swift in Sources */,
 				BB200004000000000000014 /* LabelingOverviewView.swift in Sources */,
+				BB200004000000000000015 /* EventPreviewSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -889,6 +896,7 @@
 				CC400004000000000000015 /* BodyZoneTests.swift in Sources */,
 				CC400004000000000000016 /* EventStillFrameGeneratorTests.swift in Sources */,
 				CC400004000000000000017 /* LabelingCTAVMTests.swift in Sources */,
+				CC400004000000000000018 /* EventPreviewSessionTests.swift in Sources */,
 				BB100004000000000000004 /* AnnotationVideoLoaderTests.swift in Sources */,
 				BB100004000000000000005 /* PlaybackBarTests.swift in Sources */,
 				BB100004000000000000006 /* AVPlayerLayerViewTests.swift in Sources */,

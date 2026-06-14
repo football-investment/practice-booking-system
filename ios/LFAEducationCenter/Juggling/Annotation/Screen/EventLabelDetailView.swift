@@ -1,29 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-// MARK: — StillFrameSession (AN-3B2A P2B-3)
-//
-// Owns one EventStillFrameGenerator whose cache survives for the full
-// labeling sheet session (multiple events), and is cleared on sheet close.
-// Held as @StateObject so it persists across view redraws.
-
-@MainActor
-private final class StillFrameSession: ObservableObject {
-    let generator = EventStillFrameGenerator()
-    var loadTask: Task<Void, Never>?
-
-    func cancelLoad() {
-        loadTask?.cancel()
-        loadTask = nil
-    }
-
-    func clearAll() {
-        cancelLoad()
-        generator.clearCache()
-    }
-}
-
-// MARK: — EventLabelDetailView (AN-3B2A P2B-1/P2B-3/P2B-4/P2B-5C)
+// MARK: — EventLabelDetailView (AN-3B2A P2B-1/P2B-3/P2B-4/P2B-5C/P2C-1)
 //
 // Step-by-step labeling / re-labeling flow.
 //
@@ -54,7 +32,7 @@ struct EventLabelDetailView: View {
     var onBack:  (() -> Void)? = nil   // P2B-5C: back to overview (no exitLabelingMode)
     var onClose: () -> Void            // closes entire labeling flow
 
-    @StateObject private var frameSession = StillFrameSession()
+    @StateObject private var previewSession = EventPreviewSession()
 
     @State private var queue: [UUID] = []
     @State private var currentIndex: Int = 0
@@ -70,10 +48,6 @@ struct EventLabelDetailView: View {
     // (e.g. event was deleted or in a permanently blocked state). Shows a safe
     // error view instead of silently jumping to another event.
     @State private var targetEventMissing   = false
-
-    // P2B-3 — still frame state
-    @State private var stillImage:     UIImage? = nil
-    @State private var isLoadingFrame: Bool     = false
 
     // P2B-4 — body zone picker state
     @State private var selectedBodyZone:     BodyZone? = nil
@@ -113,7 +87,8 @@ struct EventLabelDetailView: View {
         }
         .navigationViewStyle(.stack)
         .onAppear { setUpQueue() }
-        .onChange(of: currentIndex) { _ in loadFrameForCurrentDraft() }
+        .onDisappear { previewSession.stop() }
+        .onChange(of: currentIndex) { _ in loadPreviewForCurrentDraft() }
         .onChange(of: selectedBodyZone) { zone in
             guard let zone = zone else { return }
             handleZoneSelection(zone)
@@ -125,7 +100,7 @@ struct EventLabelDetailView: View {
     @ViewBuilder
     private var labelingView: some View {
         VStack(spacing: 0) {
-            stillFramePreview        // fixed — non-scrolling
+            loopPreview              // fixed — non-scrolling
             timestampRow             // fixed — non-scrolling
             Divider()
             if showTaxonomyFallback {
@@ -241,23 +216,21 @@ struct EventLabelDetailView: View {
         .listStyle(.insetGrouped)
     }
 
-    // MARK: — Still frame preview (P2B-3)
+    // MARK: — Loop preview (P2C-1)
 
     private let stillFrameHeight: CGFloat = 180
 
     @ViewBuilder
-    private var stillFramePreview: some View {
+    private var loopPreview: some View {
         ZStack {
             Color.black
+            AVPlayerLayerView(player: previewSession.player)
+                .disabled(true)
 
-            if let image = stillImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-            } else if isLoadingFrame {
+            if previewSession.isLoading {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
-            } else {
+            } else if previewSession.hasError {
                 VStack(spacing: 8) {
                     Image(systemName: "photo.slash")
                         .font(.system(size: 28))
@@ -265,6 +238,34 @@ struct EventLabelDetailView: View {
                     Text("Előnézet nem elérhető")
                         .font(.caption)
                         .foregroundColor(Color(.systemGray3))
+                }
+            }
+
+            if !previewSession.isLoading, !previewSession.hasError {
+                HStack(spacing: 20) {
+                    Button {
+                        previewSession.togglePlayPause()
+                    } label: {
+                        Image(systemName: previewSession.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
+                    }
+                    .accessibilityLabel(previewSession.isPlaying ? "Szünet" : "Lejátszás")
+
+                    Button {
+                        previewSession.replay()
+                    } label: {
+                        Image(systemName: "backward.end.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
+                    }
+                    .accessibilityLabel("Újrajátszás")
                 }
             }
         }
@@ -372,7 +373,7 @@ struct EventLabelDetailView: View {
         }
 
         loadFormState()
-        loadFrameForCurrentDraft()
+        loadPreviewForCurrentDraft()
     }
 
     private func loadFormState() {
@@ -429,26 +430,14 @@ struct EventLabelDetailView: View {
         }
     }
 
-    // MARK: — Still frame loading (P2B-3)
+    // MARK: — Loop preview loading (P2C-1)
 
-    private func loadFrameForCurrentDraft() {
-        frameSession.cancelLoad()
-        stillImage     = nil
-        isLoadingFrame = false
-
-        guard let videoURL, let draft = currentDraft else { return }
-
-        isLoadingFrame = true
-        let asset   = AVAsset(url: videoURL)
-        let ms      = draft.timestampMs
-        let videoId = vm.videoId
-
-        frameSession.loadTask = Task {
-            let img = await frameSession.generator.image(for: asset, videoId: videoId, timestampMs: ms)
-            guard !Task.isCancelled else { return }
-            stillImage     = img
-            isLoadingFrame = false
+    private func loadPreviewForCurrentDraft() {
+        guard let videoURL, let draft = currentDraft else {
+            previewSession.stop()
+            return
         }
+        previewSession.restart(url: videoURL, timestampMs: draft.timestampMs)
     }
 
     // MARK: — Taxonomy row helpers
@@ -746,7 +735,7 @@ struct EventLabelDetailView: View {
     // P2B-5C: navigateBack — returns to overview without exitLabelingMode.
     // Falls back to closeAll() when onBack is nil (first-session mode).
     private func navigateBack() {
-        frameSession.cancelLoad()
+        previewSession.stop()
         if let onBack = onBack {
             onBack()
         } else {
@@ -754,9 +743,9 @@ struct EventLabelDetailView: View {
         }
     }
 
-    // Closes the entire labeling flow: clears cache, exits labeling mode, calls onClose.
+    // Closes the entire labeling flow: stops preview, exits labeling mode, calls onClose.
     private func closeAll() {
-        frameSession.clearAll()
+        previewSession.stop()
         vm.exitLabelingMode()
         onClose()
     }
