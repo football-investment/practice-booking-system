@@ -23,10 +23,14 @@ private final class StillFrameSession: ObservableObject {
     }
 }
 
-// MARK: — EventLabelDetailView (AN-3B2A P2B-1/P2B-3/P2B-4)
+// MARK: — EventLabelDetailView (AN-3B2A P2B-1/P2B-3/P2B-4/P2B-5C)
 //
-// Step-by-step labeling flow presented after enterLabelingMode() transitions
-// all .unlabeled drafts to .labelPending.
+// Step-by-step labeling / re-labeling flow.
+//
+// Opening modes:
+//   startingEventId == nil  → first-session flow; queue = .labelPending + .localOnly
+//   startingEventId != nil  → overview-initiated; queue = all editable states;
+//                             initial position = startingEventId (fallback: index 0)
 //
 // P2B-4 default flow:
 //   still frame → body-zone picker → filtered contact type chips
@@ -34,18 +38,21 @@ private final class StillFrameSession: ObservableObject {
 // "Egyéb / Lista nézet" falls through to the full taxonomy list.
 // "Vissza az ábrához" from either detail view returns to the body picker.
 //
-// Layout (non-scrolling header):
-//   [still frame, 180pt]
-//   [timestamp + status badge row]
-//   [───────────────────────────────]
-//   IF no zone selected AND !fallback → BodyZonePickerView + "Egyéb" button
-//   IF zone selected               → filtered typeRow list
-//   IF fallback                    → full taxonomy list
+// Callbacks (P2B-5C):
+//   onBack  — returns to the overview; does NOT call exitLabelingMode()
+//   onClose — closes the entire labeling flow; calls exitLabelingMode()
+//
+// Write path: vm.relabelEvent() routes .labelPending/.localOnly → labelEvent(),
+//             .synced/.retryPending/.failedPermanent → editEvent().
+// Blocked states (.syncing/.updating/.deleting/.conflicted/etc.) keep canSave=false.
+// No backend sync or Finish flow is triggered here.
 
 struct EventLabelDetailView: View {
     @ObservedObject var vm: JugglingAnnotationViewModel
-    var videoURL: URL?
-    var onClose: () -> Void
+    var videoURL:       URL?
+    var startingEventId: UUID? = nil   // P2B-5C: nil = first session, non-nil = overview
+    var onBack:  (() -> Void)? = nil   // P2B-5C: back to overview (no exitLabelingMode)
+    var onClose: () -> Void            // closes entire labeling flow
 
     @StateObject private var frameSession = StillFrameSession()
 
@@ -65,7 +72,7 @@ struct EventLabelDetailView: View {
     @State private var isLoadingFrame: Bool     = false
 
     // P2B-4 — body zone picker state
-    @State private var selectedBodyZone:    BodyZone? = nil
+    @State private var selectedBodyZone:     BodyZone? = nil
     @State private var showTaxonomyFallback: Bool      = false
 
     // MARK: — Body
@@ -79,7 +86,7 @@ struct EventLabelDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button { close() } label: {
+                    Button { closeAll() } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .medium))
                     }
@@ -273,23 +280,42 @@ struct EventLabelDetailView: View {
         .background(Color(.systemBackground))
     }
 
+    // P2B-5C: Expanded status badge for all reachable sync states.
     @ViewBuilder
     private var statusBadge: some View {
         let status = currentDraft?.syncStatus ?? .labelPending
-        Text(status == .localOnly ? "Címkézve" : "Címkézésre vár")
+        let (label, color) = statusBadgeStyle(for: status)
+        Text(label)
             .font(.caption.weight(.semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(status == .localOnly ? Color.green : Color(.systemGray))
+            .background(color)
             .clipShape(Capsule())
+    }
+
+    private func statusBadgeStyle(for status: ContactEventSyncStatus) -> (String, Color) {
+        switch status {
+        case .unlabeled:           return ("Jelölésre vár",  Color(.systemGray))
+        case .labelPending:        return ("Cimkézésre vár", Color(.systemGray))
+        case .localOnly:           return ("Cimkézve",       Color.green)
+        case .syncing:             return ("Szinkronizálás…", Color.orange)
+        case .synced:              return ("Szinkronizálva", Color.blue)
+        case .updating:            return ("Frissítés…",     Color.orange)
+        case .deleting:            return ("Törlés…",        Color.orange)
+        case .deleted:             return ("Törölve",        Color(.systemGray))
+        case .failedPermanent:     return ("Hiba",           Color.red)
+        case .retryPending:        return ("Újrapróbálás",   Color.orange)
+        case .conflicted:          return ("Konfliktus",     Color.red)
+        case .needsReconciliation: return ("Ellenőrzés",     Color.orange)
+        }
     }
 
     // MARK: — Queue / current draft
 
     private var navigationTitle: String {
-        guard !queue.isEmpty, currentIndex < queue.count else { return "Címkézés kész" }
-        return "Címkézés (\(currentIndex + 1)/\(queue.count))"
+        guard !queue.isEmpty, currentIndex < queue.count else { return "Cimkézés kész" }
+        return "Cimkézés (\(currentIndex + 1)/\(queue.count))"
     }
 
     private var currentDraft: ContactEventDraft? {
@@ -298,12 +324,37 @@ struct EventLabelDetailView: View {
         return vm.activeEvents.first { $0.deviceEventId == id }
     }
 
+    // P2B-5C: Queue filter depends on whether we were opened from the overview.
+    //   startingEventId == nil → first-session: .labelPending + .localOnly only
+    //   startingEventId != nil → overview access: all editable states
+    // After building the queue, position to startingEventId (fallback: index 0).
     private func setUpQueue() {
         guard queue.isEmpty else { return }
+
+        let isEditRevisit = startingEventId != nil
         queue = vm.activeEvents
-            .filter { $0.syncStatus == .labelPending || $0.syncStatus == .localOnly }
+            .filter { d in
+                if isEditRevisit {
+                    switch d.syncStatus {
+                    case .labelPending, .localOnly, .synced, .retryPending, .failedPermanent:
+                        return true
+                    default:
+                        return false
+                    }
+                } else {
+                    return d.syncStatus == .labelPending || d.syncStatus == .localOnly
+                }
+            }
             .sorted { $0.timestampMs < $1.timestampMs }
             .map { $0.deviceEventId }
+
+        // Position to the requested event; fall back to first if not found.
+        if let startId = startingEventId, let idx = queue.firstIndex(of: startId) {
+            currentIndex = idx
+        } else {
+            currentIndex = 0
+        }
+
         loadFormState()
         loadFrameForCurrentDraft()
     }
@@ -481,19 +532,13 @@ struct EventLabelDetailView: View {
 
     // MARK: — Navigation row (Vissza event / Mentés és tovább)
 
+    // P2B-5C: "Vissza" at index 0 calls onBack (overview) when available,
+    // otherwise remains disabled (first-session behaviour unchanged).
     @ViewBuilder
     private var navigationSection: some View {
         Section {
             HStack(spacing: 12) {
-                Button("Vissza") {
-                    goToPrevious()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .foregroundColor(currentIndex > 0 ? Color.accentColor : .secondary)
-                .disabled(currentIndex == 0)
-                .accessibilityLabel("Előző esemény")
-
+                backButton
                 Button(isLastInQueue ? "Mentés és befejezés" : "Mentés és tovább") {
                     saveAndAdvance()
                 }
@@ -511,6 +556,36 @@ struct EventLabelDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var backButton: some View {
+        if currentIndex > 0 {
+            Button("Vissza") {
+                goToPrevious()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .foregroundColor(.accentColor)
+            .accessibilityLabel("Előző esemény")
+        } else if onBack != nil {
+            // At first position and opened from overview: go back to the list.
+            Button("← Áttekintő") {
+                navigateBack()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .foregroundColor(.accentColor)
+            .accessibilityLabel("Vissza az áttekintőhöz")
+        } else {
+            // First-session: no back navigation available.
+            Button("Vissza") { }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .foregroundColor(.secondary)
+                .disabled(true)
+                .accessibilityLabel("Előző esemény")
+        }
+    }
+
     private var isLastInQueue: Bool {
         currentIndex >= queue.count - 1
     }
@@ -523,10 +598,11 @@ struct EventLabelDetailView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
                 .foregroundColor(.green)
-            Text(queue.isEmpty ? "Nincs címkézendő esemény" : "Minden esemény megcímkézve")
+            Text(queue.isEmpty ? "Nincs cimkézendő esemény" : "Minden esemény megcimkézve")
                 .font(.headline)
-            Button("Vissza a videóhoz") {
-                close()
+            // P2B-5C: if opened from overview, return to it; otherwise close.
+            Button(onBack != nil ? "Vissza az áttekintőhöz" : "Vissza a videóhoz") {
+                navigateBack()
             }
             .font(.body.weight(.semibold))
             .foregroundColor(.white)
@@ -534,7 +610,7 @@ struct EventLabelDetailView: View {
             .padding(.vertical, 10)
             .background(Color.accentColor)
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            .accessibilityLabel("Vissza a videóhoz")
+            .accessibilityLabel(onBack != nil ? "Vissza az áttekintőhöz" : "Vissza a videóhoz")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -549,7 +625,23 @@ struct EventLabelDetailView: View {
     private var needsCustomLabel:       Bool { currentType?.requiresCustomLabel        == true }
     private var needsCustomDescription: Bool { currentType?.requiresCustomDescription   == true }
 
+    // P2B-5C: Block save for in-flight / unresolvable sync states.
+    // relabelEvent() would also return false for these, but blocking at canSave
+    // keeps the button clearly disabled so the user is not confused.
+    private var isBlocked: Bool {
+        guard let status = currentDraft?.syncStatus else { return false }
+        switch status {
+        case .syncing, .updating, .deleting,
+             .conflicted, .needsReconciliation,
+             .deleted, .unlabeled:
+            return true
+        default:
+            return false
+        }
+    }
+
     private var canSave: Bool {
+        guard !isBlocked else { return false }
         guard selectedKey != nil else { return false }
         if currentType?.sidePolicy == "explicit_required" && selectedSide == nil { return false }
         if needsCustomLabel && customLabel.trimmingCharacters(in: .whitespaces).isEmpty { return false }
@@ -575,12 +667,14 @@ struct EventLabelDetailView: View {
         }
     }
 
+    // P2B-5C: Use relabelEvent() instead of labelEvent() so that already-synced
+    // events (accessed from the overview) are correctly routed through editEvent().
     private func saveAndAdvance() {
         guard let draft = currentDraft, let key = selectedKey else { return }
         let label = customLabel.trimmingCharacters(in: .whitespaces)
         let desc  = customDescription.trimmingCharacters(in: .whitespaces)
 
-        let ok = vm.labelEvent(
+        let ok = vm.relabelEvent(
             deviceEventId:        draft.deviceEventId,
             contactType:          key,
             side:                 selectedSide,
@@ -602,7 +696,19 @@ struct EventLabelDetailView: View {
         loadFormState()
     }
 
-    private func close() {
+    // P2B-5C: navigateBack — returns to overview without exitLabelingMode.
+    // Falls back to closeAll() when onBack is nil (first-session mode).
+    private func navigateBack() {
+        frameSession.cancelLoad()
+        if let onBack = onBack {
+            onBack()
+        } else {
+            closeAll()
+        }
+    }
+
+    // Closes the entire labeling flow: clears cache, exits labeling mode, calls onClose.
+    private func closeAll() {
         frameSession.clearAll()
         vm.exitLabelingMode()
         onClose()
