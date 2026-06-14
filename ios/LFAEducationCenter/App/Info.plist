@@ -28,6 +28,8 @@
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera is used for pose tracking in training sessions and for capturing mood expression photos on your player card.</string>
