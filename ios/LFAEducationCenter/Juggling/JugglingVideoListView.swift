@@ -14,12 +14,16 @@ struct JugglingVideoListView: View {
     @State private var showDeleteError        = false
     @State private var deleteErrorMessage:    String  = ""
 
+    // Upload sheet coordinator (B3). Shared by the toolbar "+" button and
+    // the empty-state CTA — both call openUploadSheet().
+    @StateObject private var uploadCoordinator = JugglingVideoUploadCoordinator()
+
     var body: some View {
         NavigationView {
             listContent
                 .navigationTitle("My Videos")
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
                         if case .loaded = viewModel.listState {
                             Button {
                                 Task { await viewModel.reload(using: authManager) }
@@ -27,10 +31,19 @@ struct JugglingVideoListView: View {
                                 Image(systemName: "arrow.clockwise")
                             }
                         }
+                        Button(action: openUploadSheet) {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Videó feltöltése")
                     }
                 }
         }
         .navigationViewStyle(.stack)
+        .sheet(isPresented: $uploadCoordinator.showSheet, onDismiss: uploadCoordinator.handleDismiss) {
+            if let uploadViewModel = uploadCoordinator.uploadViewModel {
+                JugglingVideoUploadView(viewModel: uploadViewModel, isPresented: $uploadCoordinator.showSheet)
+            }
+        }
         .fullScreenCover(item: $viewModel.showPlayerFor) { video in
             if let userId = authManager.currentUserId, userId > 0 {
                 JugglingAnnotationScreen(video: video, authManager: authManager, userId: userId)
@@ -142,6 +155,16 @@ struct JugglingVideoListView: View {
                     .foregroundColor(Theme.Color.muted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Theme.Spacing.xl)
+                Button(action: openUploadSheet) {
+                    Text("Videó feltöltése")
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, Theme.Spacing.lg)
+                        .padding(.vertical, Theme.Spacing.sm)
+                        .background(Theme.Color.primary)
+                        .cornerRadius(Theme.Radius.md)
+                }
+                .padding(.top, Theme.Spacing.sm)
             }
 
         case .error(let msg):
@@ -173,6 +196,19 @@ struct JugglingVideoListView: View {
             deleteErrorMessage = msg
             showDeleteError = true
         }
+    }
+
+    // MARK: — Upload sheet (B3)
+
+    // Entry point for both the toolbar "+" button and the empty-state CTA.
+    // Configures the coordinator with the current AuthManager (unavailable
+    // at coordinator init) and delegates the open/guard logic to it.
+    private func openUploadSheet() {
+        uploadCoordinator.makeClient = { JugglingAnnotationAPIClient(authManager: authManager) }
+        uploadCoordinator.onReload = {
+            Task { await viewModel.reload(using: authManager) }
+        }
+        uploadCoordinator.open()
     }
 }
 
