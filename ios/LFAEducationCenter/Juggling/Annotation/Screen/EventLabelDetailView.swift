@@ -53,6 +53,14 @@ struct EventLabelDetailView: View {
     @State private var selectedBodyZone:     BodyZone? = nil
     @State private var showTaxonomyFallback: Bool      = false
 
+    // P2C-FLOW-1 — labeling mode + double-save guard
+    private enum LabelingDetailMode {
+        case sequential   // .labelPending events only, auto-advance through queue
+        case singleEdit   // P2C-FLOW-3: single targeted event, save → navigateBack()
+    }
+    @State private var mode:     LabelingDetailMode = .sequential
+    @State private var isSaving: Bool               = false
+
     // MARK: — Body
 
     var body: some View {
@@ -341,6 +349,7 @@ struct EventLabelDetailView: View {
         guard queue.isEmpty else { return }
 
         let isEditRevisit = startingEventId != nil
+        mode = .sequential   // P2C-FLOW-3 will set .singleEdit for targeted .localOnly/.synced edits
         queue = vm.activeEvents
             .filter { d in
                 if isEditRevisit {
@@ -351,7 +360,8 @@ struct EventLabelDetailView: View {
                         return false
                     }
                 } else {
-                    return d.syncStatus == .labelPending || d.syncStatus == .localOnly
+                    // P2C-FLOW-1: sequential mode includes only unfiled events
+                    return d.syncStatus == .labelPending
                 }
             }
             .sorted { $0.timestampMs < $1.timestampMs }
@@ -395,6 +405,15 @@ struct EventLabelDetailView: View {
             selectedSide = Self.autoSide(for: type)
         }
         restoreBodyZone()
+    }
+
+    // P2C-FLOW-1: internal for unit tests — mirrors the first-session filter in setUpQueue().
+    // Returns UUIDs of .labelPending events sorted by timestamp (sequential queue order).
+    static func sequentialQueueIds(from events: [ContactEventDraft]) -> [UUID] {
+        events
+            .filter { $0.syncStatus == .labelPending }
+            .sorted { $0.timestampMs < $1.timestampMs }
+            .map { $0.deviceEventId }
     }
 
     // Reverse-lookup: which body zone owns the current selectedKey?
@@ -685,6 +704,7 @@ struct EventLabelDetailView: View {
     }
 
     private var canSave: Bool {
+        guard !isSaving else { return false }   // P2C-FLOW-1: double-save guard
         guard !isBlocked else { return false }
         guard selectedKey != nil else { return false }
         if currentType?.sidePolicy == "explicit_required" && selectedSide == nil { return false }
@@ -714,7 +734,13 @@ struct EventLabelDetailView: View {
     // P2B-5C: Use relabelEvent() instead of labelEvent() so that already-synced
     // events (accessed from the overview) are correctly routed through editEvent().
     private func saveAndAdvance() {
-        guard let draft = currentDraft, let key = selectedKey else { return }
+        guard canSave else { return }   // includes !isSaving; prevents double-advance
+        isSaving = true
+
+        guard let draft = currentDraft, let key = selectedKey else {
+            isSaving = false
+            return
+        }
         let label = customLabel.trimmingCharacters(in: .whitespaces)
         let desc  = customDescription.trimmingCharacters(in: .whitespaces)
 
@@ -727,11 +753,13 @@ struct EventLabelDetailView: View {
             customDescription:    desc.isEmpty  ? nil : desc
         )
         guard ok else {
+            isSaving = false            // reset so user can retry
             showSaveErrorAlert = true
-            return
+            return                      // currentIndex unchanged
         }
         currentIndex += 1
         if currentIndex < queue.count { loadFormState() }
+        isSaving = false
     }
 
     private func goToPrevious() {
