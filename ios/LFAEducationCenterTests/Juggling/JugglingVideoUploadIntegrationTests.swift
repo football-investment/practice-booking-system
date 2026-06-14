@@ -30,6 +30,7 @@ final class JugglingVideoUploadIntegrationTests: XCTestCase {
         let coordinator = JugglingVideoUploadCoordinator()
         let counter = ReloadCounter()
         coordinator.makeClient = { mock }
+        coordinator.makeExportService = { B3MockExportService() }
         coordinator.onReload = { counter.count += 1 }
         return (coordinator, counter)
     }
@@ -164,16 +165,13 @@ final class JugglingVideoUploadIntegrationTests: XCTestCase {
         guard case .failure = vm.state else { return XCTFail("Expected .failure") }
         XCTAssertTrue(coordinator.showSheet)
 
-        // Fix the backend response, then retry — a fresh picker session
-        // supplies a new temp file.
+        // Export already succeeded; only the upload init failed.
+        // retry() reuses the existing exported output — no new picker needed.
         mock.uploadInitResult = .success(
             JugglingUploadInitResponse(videoId: "v1", status: "pending_upload", uploadUrl: "/upload")
         )
         vm.retry()
-        XCTAssertEqual(vm.state, .idle)
-
-        let url2 = try makeTempVideoFile()
-        await runUpload(vm: vm, tempURL: url2)
+        await vm.uploadTask?.value
 
         XCTAssertEqual(vm.state, .success)
         XCTAssertFalse(coordinator.showSheet)
@@ -344,6 +342,26 @@ private final class B3MockUploadClient: JugglingAnnotationAPIClientProtocol {
     func deleteVideo(videoId: String) async throws {
         throw VideoDeleteError.unauthorized
     }
+}
+
+private final class B3MockExportService: JugglingVideoExportServiceProtocol {
+    func export(
+        sourceURL: URL,
+        progressHandler: @escaping (Double) -> Void
+    ) async -> Result<JugglingVideoExportResult, JugglingVideoExportError> {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("b3_mock_export_\(UUID().uuidString).mp4")
+        try? Data([0xAB]).write(to: url)
+        return .success(JugglingVideoExportResult(
+            outputURL: url,
+            fileSizeBytes: 1,
+            width: 640, height: 360,
+            codec: "avc1",
+            fileType: "mp4",
+            mimeType: "video/mp4"
+        ))
+    }
+    func cancelExport() {}
 }
 
 private final class B3MockDeleteClient: JugglingAnnotationAPIClientProtocol {

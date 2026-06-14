@@ -95,7 +95,7 @@ struct JugglingVideoUploadView: View {
                     .foregroundColor(Theme.Color.muted)
             }
 
-        case .preparing, .uploading:
+        case .preparing, .exporting, .uploading:
             VStack(spacing: Theme.Spacing.md) {
                 ProgressView()
                 Text("Feltöltés…")

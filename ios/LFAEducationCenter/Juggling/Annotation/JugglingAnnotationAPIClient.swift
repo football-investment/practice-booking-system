@@ -410,10 +410,17 @@ struct JugglingCompleteResponse: Decodable {
 enum JugglingUploadError: Error, LocalizedError, Equatable {
     case noConsent                    // 403 — service consent not given
     case invalidState(String?)        // 409 — video not in expected status
-    case fileTooLarge                 // 413 — exceeds 100 MB server limit
+    case fileTooLarge                 // 413 — exceeds 100 MB server limit (applies to exported output)
     case unsupportedFormat            // 415 — MIME not in {mp4, quicktime, m4v}
     case unauthorized                 // 401 / session expired beyond recovery
     case networkError(Error)          // URLError or transport failure
+
+    // Client-side 360p export (Commit 2) — see JugglingVideoExportService.
+    case exportUnsupported            // source has no compatible re-encoding preset
+    case exportFailed(String)         // AVAssetExportSession finished with status == .failed
+    case exportCancelled              // export cancelled by the user
+    case invalidExportOutput          // exported file failed post-export validation
+    case insufficientStorage          // export failed due to lack of free disk space
 
     var errorDescription: String? {
         switch self {
@@ -423,6 +430,11 @@ enum JugglingUploadError: Error, LocalizedError, Equatable {
         case .unsupportedFormat:     return "Unsupported video format. Use MP4 or MOV."
         case .unauthorized:          return "Session expired. Please log in again."
         case .networkError:          return "Network error. Please try again."
+        case .exportUnsupported:     return "A videó formátuma nem támogatja a tömörítést. Válassz másik videót."
+        case .exportFailed:          return "A videó tömörítése sikertelen. Próbáld újra."
+        case .exportCancelled:       return "A feldolgozás megszakítva."
+        case .invalidExportOutput:   return "A tömörített videó érvénytelen. Próbálj másik videót."
+        case .insufficientStorage:   return "Nincs elég szabad tárhely a videó feldolgozásához."
         }
     }
 
@@ -434,6 +446,11 @@ enum JugglingUploadError: Error, LocalizedError, Equatable {
         case (.unauthorized,    .unauthorized):    return true
         case (.invalidState(let a), .invalidState(let b)): return a == b
         case (.networkError,    .networkError):    return true
+        case (.exportUnsupported, .exportUnsupported): return true
+        case (.exportFailed,    .exportFailed):    return true
+        case (.exportCancelled, .exportCancelled): return true
+        case (.invalidExportOutput, .invalidExportOutput): return true
+        case (.insufficientStorage, .insufficientStorage): return true
         default:                                   return false
         }
     }

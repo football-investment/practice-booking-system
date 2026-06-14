@@ -21,6 +21,9 @@ final class JugglingVideoUploadCoordinator: ObservableObject {
     // view once AuthManager is available (unavailable at coordinator init).
     var makeClient: (() -> JugglingAnnotationAPIClientProtocol)?
 
+    // Override the export service for testing. nil → JugglingVideoExportService().
+    var makeExportService: (() -> JugglingVideoExportServiceProtocol)?
+
     // Called exactly once, after a full successful upload (sheet already closed).
     var onReload: (() -> Void)?
 
@@ -39,7 +42,11 @@ final class JugglingVideoUploadCoordinator: ObservableObject {
 
         if uploadViewModel == nil {
             guard let makeClient = makeClient else { return }
-            uploadViewModel = JugglingVideoUploadViewModel(apiClient: makeClient())
+            let exportService = makeExportService?() ?? JugglingVideoExportService()
+            uploadViewModel = JugglingVideoUploadViewModel(
+                apiClient: makeClient(),
+                exportService: exportService
+            )
         }
 
         // Re-opening after a prior success/failure starts from a clean .idle
