@@ -37,6 +37,13 @@ struct JugglingVideoListView: View {
                         .accessibilityLabel("Videó feltöltése")
                     }
                 }
+                // Alert is anchored to listContent (inside NavigationView) to avoid
+                // competing with confirmationDialog which is on the outer NavigationView.
+                .alert("Törlés sikertelen", isPresented: $showDeleteError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(deleteErrorMessage)
+                }
         }
         .navigationViewStyle(.stack)
         .sheet(isPresented: $uploadCoordinator.showSheet, onDismiss: uploadCoordinator.handleDismiss) {
@@ -51,32 +58,26 @@ struct JugglingVideoListView: View {
                 AnnotationUserUnavailableView()
             }
         }
-        // iOS 14-compatible ActionSheet (confirmationDialog is iOS 15+).
-        .actionSheet(isPresented: $showDeleteConfirmation) {
-            ActionSheet(
-                title: Text("Videófelvétel törlése"),
-                message: Text(
-                    "A videófájl és az előnézeti kép véglegesen törlődik, " +
-                    "így tárhely szabadul fel. Az elemzési eredmények, " +
-                    "címkék és statisztikák megmaradnak a profilodban."
-                ),
-                buttons: [
-                    .destructive(Text("Felvételek törlése")) {
-                        guard let videoId = deleteCandidate else { return }
-                        deleteCandidate = nil
-                        Task { await performDelete(videoId: videoId) }
-                    },
-                    .cancel(Text("Mégse")) {
-                        deleteCandidate = nil
-                    }
-                ]
-            )
-        }
-        .alert(isPresented: $showDeleteError) {
-            Alert(
-                title: Text("Törlés sikertelen"),
-                message: Text(deleteErrorMessage),
-                dismissButton: .default(Text("OK"))
+        // iOS 15+: confirmationDialog replaces deprecated actionSheet.
+        // Anchored on the outer NavigationView — separate view from .alert above.
+        .confirmationDialog(
+            "Videófelvétel törlése",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Felvételek törlése", role: .destructive) {
+                guard let videoId = deleteCandidate else { return }
+                deleteCandidate = nil
+                Task { await performDelete(videoId: videoId) }
+            }
+            Button("Mégse", role: .cancel) {
+                deleteCandidate = nil
+            }
+        } message: {
+            Text(
+                "A videófájl és az előnézeti kép véglegesen törlődik, " +
+                "így tárhely szabadul fel. Az elemzési eredmények, " +
+                "címkék és statisztikák megmaradnak a profilodban."
             )
         }
     }
@@ -97,9 +98,8 @@ struct JugglingVideoListView: View {
             }
 
         case .loaded(let videos):
-            // Switch to List so ForEach .onDelete gives us swipe-to-delete gestures.
-            // iOS 14: separators and UITableView background are hidden via UIAppearance
-            // in .onAppear / .onDisappear below.
+            // iOS 15+: swipeActions replaces onDelete for per-row destructive gestures.
+            // UITableView appearance hides separators and clears the background.
             List {
                 ForEach(videos) { video in
                     JugglingVideoRow(
@@ -108,7 +108,24 @@ struct JugglingVideoListView: View {
                         isDeleting: viewModel.deletingVideoIds.contains(video.videoId),
                         onPlay: { viewModel.playVideo(video) }
                     )
-                    .deleteDisabled(video.status == "media_deleted")
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            print("[JugglingDelete] contextMenu: delete tapped for videoId=\(video.videoId) status=\(video.status)")
+                            deleteCandidate = video.videoId
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Videó törlése", systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            print("[JugglingDelete] swipeActions: tapped for videoId=\(video.videoId) status=\(video.status)")
+                            deleteCandidate = video.videoId
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Törlés", systemImage: "trash")
+                        }
+                    }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(
                         top: Theme.Spacing.xs,
@@ -119,15 +136,6 @@ struct JugglingVideoListView: View {
                     .onAppear {
                         viewModel.fetchThumbnailIfNeeded(for: video, using: authManager)
                     }
-                }
-                .onDelete { indexSet in
-                    // resolveDeleteCandidate extracts and validates the videoId NOW,
-                    // before any async call or list reorder can happen.
-                    guard let videoId = viewModel.resolveDeleteCandidate(
-                        at: indexSet, in: videos
-                    ) else { return }   // media_deleted or in-flight — no-op
-                    deleteCandidate = videoId
-                    showDeleteConfirmation = true
                 }
             }
             .listStyle(PlainListStyle())
@@ -191,10 +199,14 @@ struct JugglingVideoListView: View {
     // Calls the ViewModel delete, then shows an error alert if it failed.
     // videoId was captured at swipe time — never re-derived from a list index here.
     private func performDelete(videoId: String) async {
+        print("[JugglingDelete] performDelete: start videoId=\(videoId)")
         await viewModel.deleteVideo(videoId: videoId)
         if let msg = viewModel.errorMessage {
+            print("[JugglingDelete] performDelete: error=\(msg)")
             deleteErrorMessage = msg
             showDeleteError = true
+        } else {
+            print("[JugglingDelete] performDelete: completed without error")
         }
     }
 

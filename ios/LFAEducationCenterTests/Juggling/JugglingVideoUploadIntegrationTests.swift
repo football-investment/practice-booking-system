@@ -234,6 +234,9 @@ final class JugglingVideoUploadIntegrationTests: XCTestCase {
     }
 
     // MARK: — B3-10: delete and refresh toolbar are unaffected
+    //
+    // Deleting the only item transitions listState to .empty (item is removed,
+    // not mutated to media_deleted — see applyDeleteSuccess in ViewModel).
 
     func test_B3_10_deleteAndRefreshUnaffectedByUploadCoordinator() async {
         let item = makeVideoItem(videoId: "vid-1", status: "analyzed")
@@ -244,10 +247,9 @@ final class JugglingVideoUploadIntegrationTests: XCTestCase {
 
         await listVM.deleteVideo(videoId: "vid-1")
 
-        guard case .loaded(let items) = listVM.listState else {
-            return XCTFail("Expected .loaded")
+        guard case .empty = listVM.listState else {
+            return XCTFail("Expected .empty after deleting the only item")
         }
-        XCTAssertEqual(items.first?.status, "media_deleted")
         XCTAssertNil(listVM.errorMessage)
     }
 

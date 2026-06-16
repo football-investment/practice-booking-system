@@ -261,24 +261,31 @@ final class JugglingVideoItemArchiveTests: XCTestCase {
                        "media_deleted badge must be the Hungarian 📦 Archivált label")
     }
 
-    // ARC-02: withMediaDeleted() után a badge azonnal "📦 Archivált"
-    func test_ARC02_withMediaDeleted_badge_label_is_archivalt() {
-        let item = makeItem(status: "analyzed")
-        let archived = item.withMediaDeleted()
-        XCTAssertEqual(archived.statusBadgeLabel, "📦 Archivált",
-                       "withMediaDeleted() must produce a badge of 📦 Archivált without an API round-trip")
-    }
-
-    // ARC-03: media_deleted sor nem játszható le (Play gomb nem aktív)
-    func test_ARC03_media_deleted_not_playable() {
-        let item = makeItem(status: "media_deleted")
-        // media_deleted items always have hasMedia=false (set by withMediaDeleted / backend schema)
-        // isPlayable = hasMedia, so media_deleted is never playable
-        let archived = item.withMediaDeleted()
-        XCTAssertFalse(archived.isPlayable,
-                       "Archived video must not be playable — hasMedia is false")
-        XCTAssertFalse(archived.hasThumbnail,
-                       "Archived video must have no thumbnail")
+    // ARC-02: media_deleted item is not playable.
+    // Backend always returns has_media=false for media_deleted rows (media files are gone).
+    // The fixture explicitly passes has_media=false to match the real payload shape.
+    func test_ARC02_media_deleted_item_not_playable() {
+        let json = """
+        {
+          "video_id": "\(UUID().uuidString)",
+          "status": "media_deleted",
+          "transcode_status": "done",
+          "quality_status": "pass",
+          "quality_score": 88.0,
+          "created_at": "2026-06-14T10:00:00Z",
+          "updated_at": "2026-06-14T10:00:00Z",
+          "duration_seconds": 12.0,
+          "processed_resolution": "1920x1080",
+          "processed_fps": 30.0,
+          "processed_file_size_bytes": 9000000,
+          "has_thumbnail": false,
+          "has_media": false,
+          "upload_source": "gallery",
+          "source_type": "uploaded_video"
+        }
+        """.data(using: .utf8)!
+        let item = try! JSONDecoder().decode(JugglingVideoItem.self, from: json)
+        XCTAssertFalse(item.isPlayable, "media_deleted item must not be playable")
     }
 }
 
