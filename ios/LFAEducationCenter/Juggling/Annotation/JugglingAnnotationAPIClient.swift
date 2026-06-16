@@ -276,6 +276,7 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
             let (_, statusCode) = try await authManager.authenticatedPostRaw(path: path, body: request)
             guard statusCode == 200 || statusCode == 201 else {
                 print("[PoseSnapshot] upload unexpected status \(statusCode)")
+                return
             }
         } catch APIError.httpError(503, _) {
             // POSE_SNAPSHOT_ENABLED=false — expected in most deployments, silent

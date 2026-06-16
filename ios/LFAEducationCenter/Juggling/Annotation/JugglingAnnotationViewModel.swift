@@ -237,6 +237,14 @@ final class JugglingAnnotationViewModel: ObservableObject {
         saveError = nil
     }
 
+    // Phase 2A: upload a pose snapshot for a synced event.
+    // Casts the internal apiClient to the concrete type; returns immediately
+    // if the client is a test mock (cast returns nil → no upload, no error).
+    func uploadPendingPoseSnapshot(serverEventId: UUID, request: PoseSnapshotUploadRequest) async {
+        guard let client = apiClient as? JugglingAnnotationAPIClient else { return }
+        await client.uploadPoseSnapshot(videoId: videoId, eventId: serverEventId, request: request)
+    }
+
     // Creates an empty session and persists it immediately. Used by onAppear()
     // for .notFound and .quarantined results. session is set in-memory even if
     // the save fails (there is nothing to roll back to), but saveError is set

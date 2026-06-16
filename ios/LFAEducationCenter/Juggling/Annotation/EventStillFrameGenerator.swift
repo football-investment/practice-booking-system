@@ -100,7 +100,7 @@ final class EventStillFrameGenerator {
     // timestamp clamps to 0; a timestamp past the end clamps to duration.
     // If duration is invalid/zero (e.g. asset not yet loaded), only the
     // lower bound is applied.
-    static func clampedTime(forMs timestampMs: Int, duration: CMTime) -> CMTime {
+    nonisolated static func clampedTime(forMs timestampMs: Int, duration: CMTime) -> CMTime {
         let requested = CMTime(value: CMTimeValue(max(0, timestampMs)), timescale: 1000)
         guard duration.isValid, duration > .zero else { return requested }
         return min(requested, duration)

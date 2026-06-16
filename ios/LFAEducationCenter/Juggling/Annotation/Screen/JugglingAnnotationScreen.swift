@@ -43,6 +43,18 @@ struct JugglingAnnotationScreen: View {
     // EventLabelDetailView so the still-frame generator can open the same file.
     @State private var loaderVideoURL: URL? = nil
 
+    // Phase 2A: pose snapshot — keyed by deviceEventId.
+    // Keypoints are captured immediately at FAB tap (correct video frame).
+    // Upload is deferred until the event is synced and has a serverEventId.
+    private struct CapturedPose {
+        let keypoints:           PoseKeypointsDTO
+        let capturedAtMs:        Int
+        let imageWidthPx:        Int?
+        let imageHeightPx:       Int?
+        let inferenceConfidence: Double?
+    }
+    @State private var pendingPoseSnapshots: [UUID: CapturedPose] = [:]
+
     @Environment(\.presentationMode) private var presentationMode
     #if DEBUG
     @Environment(\.scenePhase) private var scenePhase
@@ -179,6 +191,31 @@ struct JugglingAnnotationScreen: View {
                     if let avp = playback.avPlayer { avp.play() }
                 }
             })
+            .onChange(of: vm.activeEvents) { events in
+                // Remove pending pose entries for events that were deleted.
+                let activeIds = Set(events.map { $0.deviceEventId })
+                for id in pendingPoseSnapshots.keys where !activeIds.contains(id) {
+                    pendingPoseSnapshots.removeValue(forKey: id)
+                }
+                // Upload pending pose when an event reaches .synced and has a serverEventId.
+                for draft in events {
+                    guard draft.syncStatus == .synced,
+                          let serverEventId = draft.serverEventId,
+                          let captured = pendingPoseSnapshots[draft.deviceEventId] else { continue }
+                    pendingPoseSnapshots.removeValue(forKey: draft.deviceEventId)
+                    let eid = serverEventId
+                    let req = PoseSnapshotUploadRequest(
+                        keypoints:           captured.keypoints,
+                        modelVersion:        "apple_vision_v1",
+                        captureSource:       "ios_realtime",
+                        capturedAtMs:        captured.capturedAtMs,
+                        imageWidthPx:        captured.imageWidthPx,
+                        imageHeightPx:       captured.imageHeightPx,
+                        inferenceConfidence: captured.inferenceConfidence
+                    )
+                    Task { await vm.uploadPendingPoseSnapshot(serverEventId: eid, request: req) }
+                }
+            }
             #if DEBUG
             .onChange(of: scenePhase) { newPhase in
                 switch newPhase {
@@ -408,11 +445,16 @@ struct JugglingAnnotationScreen: View {
     private var fabButton: some View {
         Button {
             guard loaderReady else { return }
-            if vm.markTimestamp(ms: playback.currentTimestampMs) != nil {
+            let currentMs = playback.currentTimestampMs
+            if let draft = vm.markTimestamp(ms: currentMs) {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) { fabPressed = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
                     withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) { fabPressed = false }
+                }
+                if let videoURL = loaderVideoURL {
+                    let deviceId = draft.deviceEventId
+                    Task { await capturePose(at: currentMs, deviceEventId: deviceId, videoURL: videoURL) }
                 }
             }
         } label: {
@@ -532,6 +574,28 @@ struct JugglingAnnotationScreen: View {
     }
 
     // MARK: — Lifecycle
+
+    // Phase 2A: captures a Vision body pose for the given video timestamp and
+    // stores it in pendingPoseSnapshots. Called from the FAB tap; runs async so
+    // it never delays the contact event creation feedback.
+    private func capturePose(at timestampMs: Int, deviceEventId: UUID, videoURL: URL) async {
+        let asset = AVAsset(url: videoURL)
+        guard let (cgImage, imageSize) = await PoseSnapshotService.extractFrame(
+            from: asset, atMs: timestampMs
+        ) else { return }
+
+        let (keypoints, confidence) = await Task.detached(priority: .utility) {
+            PoseSnapshotService.runPoseDetection(on: cgImage)
+        }.value
+
+        pendingPoseSnapshots[deviceEventId] = CapturedPose(
+            keypoints:           keypoints,
+            capturedAtMs:        timestampMs,
+            imageWidthPx:        Int(imageSize.width),
+            imageHeightPx:       Int(imageSize.height),
+            inferenceConfidence: confidence.map { Double($0) }
+        )
+    }
 
     private func onAppear() async {
         await vm.onAppear()
