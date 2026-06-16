@@ -60,6 +60,24 @@ final class PoseSnapshotServiceTests: XCTestCase {
         XCTAssertEqual(view.keypoints.body.first?.name, "root")
     }
 
+    // MARK: — PSI-06: PoseSnapshotUploadRequest with captureSource "ios_retroactive" encodes correctly
+
+    func test_PSI_06_upload_request_retroactive_source_encodes_snake_case() throws {
+        let req = PoseSnapshotUploadRequest(
+            keypoints:           PoseKeypointsDTO.empty(),
+            modelVersion:        "apple_vision_v1",
+            captureSource:       "ios_retroactive",
+            capturedAtMs:        3500,
+            imageWidthPx:        nil,
+            imageHeightPx:       nil,
+            inferenceConfidence: nil
+        )
+        let data = try JSONEncoder().encode(req)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        XCTAssertEqual(json["capture_source"] as? String, "ios_retroactive")
+        XCTAssertEqual(json["captured_at_ms"] as? Int, 3500)
+    }
+
     // MARK: — Helpers
 
     private func makeSolidCGImage(width: Int, height: Int, gray: CGFloat) -> CGImage {

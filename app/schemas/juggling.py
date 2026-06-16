@@ -324,7 +324,8 @@ class PoseSnapshotCreateRequest(BaseModel):
     iOS uploads this after capturing VNHumanBodyPoseObservation on the video frame.
 
     keypoints must contain a "body" key (list; may be empty if no person detected).
-    capture_source must be "ios_realtime" for iOS uploads.
+    capture_source must be "ios_realtime" (new FAB tap) or "ios_retroactive"
+    (retroactive generation for pre-existing events) for iOS uploads.
     captured_at_ms should match the contact event's timestamp_ms (echo for audit).
     """
     model_config = {"protected_namespaces": ()}
@@ -332,7 +333,7 @@ class PoseSnapshotCreateRequest(BaseModel):
     keypoints:            Dict[str, Any]
     model_version:        str = Field(..., min_length=1, max_length=40,
                                       description="e.g. 'apple_vision_v1'")
-    capture_source:       Literal["ios_realtime", "backend_task"]
+    capture_source:       Literal["ios_realtime", "ios_retroactive", "backend_task"]
     captured_at_ms:       int  = Field(..., ge=0)
     image_width_px:       Optional[int]   = Field(None, gt=0)
     image_height_px:      Optional[int]   = Field(None, gt=0)

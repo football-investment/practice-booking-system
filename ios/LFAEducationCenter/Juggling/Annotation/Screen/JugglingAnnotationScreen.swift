@@ -57,6 +57,17 @@ struct JugglingAnnotationScreen: View {
     @State private var poseSnapshots:        [PoseSnapshotOut]    = []
     @State private var showSkeletonOverlay   = false
 
+    // Phase 2A patch: retroactive pose generation for pre-existing events.
+    // isGeneratingPoses gates the banner spinner; poseGenProgress drives the
+    // "N / total kész" label; poseGenCompleted + poseGenResultFailed drive the
+    // retry-hint text after a partial-failure run.
+    @State private var isGeneratingPoses     = false
+    @State private var poseGenProgressDone   = 0
+    @State private var poseGenProgressTotal  = 0
+    @State private var poseGenResultOk       = 0
+    @State private var poseGenResultFailed   = 0
+    @State private var poseGenCompleted      = false
+
     @Environment(\.presentationMode) private var presentationMode
     #if DEBUG
     @Environment(\.scenePhase) private var scenePhase
@@ -99,6 +110,10 @@ struct JugglingAnnotationScreen: View {
                     statusBar
                         .padding(.horizontal, 12)
                         .padding(.bottom, 4)
+
+                    if !syncedEventsNeedingPose.isEmpty || isGeneratingPoses {
+                        generatePosesBanner
+                    }
 
                     EventTimelineView(
                         events:    vm.activeEvents,
@@ -670,6 +685,113 @@ struct JugglingAnnotationScreen: View {
         loader.cancel()
         playback.pause()
         presentationMode.wrappedValue.dismiss()
+    }
+
+    // MARK: — Retroactive pose generation (Phase 2A patch)
+
+    // Events that are synced with the server but have no pose snapshot yet.
+    // Recomputed whenever poseSnapshots or activeEvents changes.
+    private var syncedEventsNeedingPose: [ContactEventDraft] {
+        let coveredIds = Set(poseSnapshots.map(\.contactEventId))
+        return vm.activeEvents.filter {
+            $0.syncStatus == .synced &&
+            $0.serverEventId != nil &&
+            !coveredIds.contains($0.serverEventId!)
+        }
+    }
+
+    @ViewBuilder
+    private var generatePosesBanner: some View {
+        HStack(spacing: 8) {
+            if isGeneratingPoses {
+                ProgressView().scaleEffect(0.75)
+                Text("\(poseGenProgressDone) / \(poseGenProgressTotal) pose snapshot kész…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            } else {
+                Image(systemName: "figure.walk.circle")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                if poseGenCompleted && poseGenResultFailed > 0 {
+                    Text("\(poseGenResultFailed) sikertelen · Próbáld újra")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                } else {
+                    Text("\(syncedEventsNeedingPose.count) eseményhez hiányzik pose snapshot")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button("Generál") {
+                    Task { await generateAllPoses() }
+                }
+                .font(.caption.weight(.semibold))
+                .disabled(!loaderReady || isGeneratingPoses)
+                .accessibilityLabel("Pose snapshot generálása az összes eseményhez")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(.secondarySystemBackground))
+    }
+
+    // Iterates every synced event without a pose snapshot, extracts the video
+    // frame at each event's timestamp, runs Apple Vision body pose detection,
+    // and uploads via the existing POST /pose-snapshot endpoint.
+    // Uses captureSource "ios_retroactive" to distinguish from real-time FAB taps.
+    // Non-throwing: frame-extraction or upload failures increment the failed counter
+    // but do not abort the remaining events.
+    private func generateAllPoses() async {
+        guard loaderReady, let videoURL = loaderVideoURL else { return }
+        let targets = syncedEventsNeedingPose
+        guard !targets.isEmpty else { return }
+
+        isGeneratingPoses    = true
+        poseGenProgressDone  = 0
+        poseGenProgressTotal = targets.count
+        poseGenResultOk      = 0
+        poseGenResultFailed  = 0
+        poseGenCompleted     = false
+
+        let asset = AVAsset(url: videoURL)
+        var ok     = 0
+        var failed = 0
+
+        for (idx, draft) in targets.enumerated() {
+            defer { poseGenProgressDone = idx + 1 }
+
+            guard let serverEventId = draft.serverEventId else {
+                failed += 1
+                continue
+            }
+            guard let (cgImage, imageSize) = await PoseSnapshotService.extractFrame(
+                from: asset, atMs: draft.timestampMs
+            ) else {
+                failed += 1
+                continue
+            }
+            let (keypoints, confidence) = await Task.detached(priority: .utility) {
+                PoseSnapshotService.runPoseDetection(on: cgImage)
+            }.value
+            let req = PoseSnapshotUploadRequest(
+                keypoints:           keypoints,
+                modelVersion:        "apple_vision_v1",
+                captureSource:       "ios_retroactive",
+                capturedAtMs:        draft.timestampMs,
+                imageWidthPx:        Int(imageSize.width),
+                imageHeightPx:       Int(imageSize.height),
+                inferenceConfidence: confidence.map { Double($0) }
+            )
+            await vm.uploadPendingPoseSnapshot(serverEventId: serverEventId, request: req)
+            ok += 1
+        }
+
+        poseSnapshots       = await vm.fetchPoseSnapshots()
+        poseGenResultOk     = ok
+        poseGenResultFailed = failed
+        poseGenCompleted    = true
+        isGeneratingPoses   = false
     }
 
     // MARK: — Display helpers

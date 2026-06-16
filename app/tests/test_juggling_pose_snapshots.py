@@ -300,3 +300,26 @@ def test_ps11_get_pose_snapshots_wrong_user_404(client, student_token2, _jugglin
         headers=_auth(student_token2),
     )
     assert r.status_code == 404, r.text
+
+
+def test_ps12_retroactive_capture_source_accepted(client, student_token, _juggling_video):
+    """PS-12: POST with capture_source='ios_retroactive' → 201 (Phase 2A patch: retroactive generation)."""
+    video, event = _juggling_video
+    r = client.post(
+        f"/api/v1/users/me/juggling/videos/{video.id}/contacts/{event.id}/pose-snapshot",
+        json=_valid_payload(capture_source="ios_retroactive"),
+        headers=_auth(student_token),
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["capture_source"] == "ios_retroactive"
+
+
+def test_ps13_invalid_capture_source_rejected(client, student_token, _juggling_video):
+    """PS-13: POST with unknown capture_source → 422 (Literal validation enforced)."""
+    video, event = _juggling_video
+    r = client.post(
+        f"/api/v1/users/me/juggling/videos/{video.id}/contacts/{event.id}/pose-snapshot",
+        json=_valid_payload(capture_source="unknown_source"),
+        headers=_auth(student_token),
+    )
+    assert r.status_code == 422, r.text

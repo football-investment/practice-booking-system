@@ -480,7 +480,7 @@ class JugglingPoseSnapshot(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "capture_source IN ('ios_realtime', 'backend_task')",
+            "capture_source IN ('ios_realtime', 'ios_retroactive', 'backend_task')",
             name="ck_juggling_pose_snapshots_capture_source",
         ),
         CheckConstraint(
