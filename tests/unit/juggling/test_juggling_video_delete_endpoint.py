@@ -358,35 +358,37 @@ class TestAnalysisEndpointsAfterDelete:
 # ── VDE-15..17: List endpoint archive behaviour ───────────────────────────────
 
 class TestListAfterDelete:
-    def test_vde15_list_includes_media_deleted_archive(self, client, student_token, student_user, db_session):
-        """VDE-15: List endpoint returns media_deleted video as archive entry."""
+    def test_vde15_list_excludes_media_deleted(self, client, student_token, student_user, db_session):
+        """VDE-15: List endpoint does NOT return media_deleted video (user-facing delete = gone)."""
         video = _make_video(db_session, student_user.id)
         client.delete(_delete_url(str(video.id)), headers=_auth(student_token))
 
         r = client.get("/api/v1/users/me/juggling/videos", headers=_auth(student_token))
         assert r.status_code == 200, r.text
         ids = [v["video_id"] for v in r.json()["videos"]]
-        assert str(video.id) in ids
+        assert str(video.id) not in ids
 
-    def test_vde16_list_has_media_false_for_media_deleted(self, client, student_token, student_user, db_session):
-        """VDE-16: media_deleted video in list has has_media=false."""
+    def test_vde16_list_total_decrements_after_delete(self, client, student_token, student_user, db_session):
+        """VDE-16: total count decreases by 1 after DELETE (media_deleted excluded from count)."""
+        v1 = _make_video(db_session, student_user.id)
+        v2 = _make_video(db_session, student_user.id)
+        r_before = client.get("/api/v1/users/me/juggling/videos", headers=_auth(student_token))
+        total_before = r_before.json()["total"]
+
+        client.delete(_delete_url(str(v1.id)), headers=_auth(student_token))
+
+        r_after = client.get("/api/v1/users/me/juggling/videos", headers=_auth(student_token))
+        assert r_after.json()["total"] == total_before - 1
+
+    def test_vde17_list_empty_after_deleting_only_video(self, client, student_token, student_user, db_session):
+        """VDE-17: After deleting the only video, list returns videos=[] and total=0."""
         video = _make_video(db_session, student_user.id)
         client.delete(_delete_url(str(video.id)), headers=_auth(student_token))
 
         r = client.get("/api/v1/users/me/juggling/videos", headers=_auth(student_token))
-        videos = r.json()["videos"]
-        entry = next(v for v in videos if v["video_id"] == str(video.id))
-        assert entry["has_media"] is False
-
-    def test_vde17_list_has_thumbnail_false_for_media_deleted(self, client, student_token, student_user, db_session):
-        """VDE-17: media_deleted video in list has has_thumbnail=false."""
-        video = _make_video(db_session, student_user.id)
-        client.delete(_delete_url(str(video.id)), headers=_auth(student_token))
-
-        r = client.get("/api/v1/users/me/juggling/videos", headers=_auth(student_token))
-        videos = r.json()["videos"]
-        entry = next(v for v in videos if v["video_id"] == str(video.id))
-        assert entry["has_thumbnail"] is False
+        data = r.json()
+        assert data["videos"] == []
+        assert data["total"] == 0
 
 
 # ── VDE-18..19: Data preservation ────────────────────────────────────────────

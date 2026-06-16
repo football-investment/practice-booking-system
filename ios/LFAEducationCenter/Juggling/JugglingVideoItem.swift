@@ -92,30 +92,6 @@ struct JugglingVideoItem: Codable, Identifiable {
 
     var isPlayable: Bool { hasMedia }
 
-    // Returns a copy of this item with status=media_deleted and media flags cleared.
-    // Used by JugglingVideoListViewModel after a successful storage-release DELETE.
-    // All analysis/annotation fields (qualityScore, qualityStatus, annotationStatus,
-    // durationSeconds, processedResolution, processedFps) are intentionally preserved.
-    func withMediaDeleted() -> JugglingVideoItem {
-        JugglingVideoItem(
-            videoId: videoId,
-            status: "media_deleted",
-            transcodeStatus: transcodeStatus,
-            qualityStatus: qualityStatus,
-            qualityScore: qualityScore,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            durationSeconds: durationSeconds,
-            processedResolution: processedResolution,
-            processedFps: processedFps,
-            processedFileSizeBytes: processedFileSizeBytes,
-            hasThumbnail: false,
-            hasMedia: false,
-            uploadSource: uploadSource,
-            sourceType: sourceType,
-            annotationStatus: annotationStatus
-        )
-    }
 }
 
 // MARK: — List response envelope

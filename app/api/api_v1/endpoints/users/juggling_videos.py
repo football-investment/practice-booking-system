@@ -140,6 +140,7 @@ def list_videos(
         .filter(
             JugglingVideo.user_id == current_user.id,
             JugglingVideo.status != JugglingVideoStatus.gdpr_deleted.value,
+            JugglingVideo.status != JugglingVideoStatus.media_deleted.value,
         )
     )
     total = base_q.count()

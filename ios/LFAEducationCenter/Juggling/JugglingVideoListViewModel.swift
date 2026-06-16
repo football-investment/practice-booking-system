@@ -176,10 +176,7 @@ final class JugglingVideoListViewModel: ObservableObject {
         thumbnails[videoId] = nil   // evict thumbnail cache
 
         guard case .loaded(let items) = listState else { return }
-        let updated = items.map { item -> JugglingVideoItem in
-            guard item.videoId == videoId else { return item }
-            return item.withMediaDeleted()
-        }
-        listState = .loaded(updated)
+        let remaining = items.filter { $0.videoId != videoId }
+        listState = remaining.isEmpty ? .empty : .loaded(remaining)
     }
 }

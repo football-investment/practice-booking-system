@@ -58,9 +58,9 @@ final class JugglingVideoListViewModelDeleteTests: XCTestCase {
         return vm
     }
 
-    // MARK: — JMD-01: 204 success → status = media_deleted, hasMedia/hasThumbnail false
+    // MARK: — JMD-01: 204 success → item removed from list; single item → .empty state
 
-    func test_JMD01_204_success_updates_item_to_media_deleted() async {
+    func test_JMD01_204_success_removes_item_from_list() async {
         let id = UUID().uuidString
         let item = makeItem(videoId: id, status: "analyzed", hasThumbnail: true, hasMedia: true)
         let mock = MockAnnotationAPIClient()
@@ -69,20 +69,15 @@ final class JugglingVideoListViewModelDeleteTests: XCTestCase {
 
         await vm.deleteVideo(videoId: id)
 
-        guard case .loaded(let items) = vm.listState else {
-            return XCTFail("Expected .loaded after delete")
+        guard case .empty = vm.listState else {
+            return XCTFail("Expected .empty after deleting the only item, got \(vm.listState)")
         }
-        let updated = items.first { $0.videoId == id }
-        XCTAssertNotNil(updated)
-        XCTAssertEqual(updated?.status, "media_deleted")
-        XCTAssertFalse(updated?.hasMedia ?? true)
-        XCTAssertFalse(updated?.hasThumbnail ?? true)
         XCTAssertNil(vm.errorMessage)
     }
 
-    // MARK: — JMD-02: 410 (already deleted) → same archive state, no error
+    // MARK: — JMD-02: 410 (already deleted) → item removed, no error
 
-    func test_JMD02_410_idempotent_success_archives_item() async {
+    func test_JMD02_410_idempotent_success_removes_item() async {
         let id = UUID().uuidString
         let item = makeItem(videoId: id, status: "analyzed")
         let mock = MockAnnotationAPIClient()
@@ -93,11 +88,9 @@ final class JugglingVideoListViewModelDeleteTests: XCTestCase {
 
         await vm.deleteVideo(videoId: id)
 
-        guard case .loaded(let items) = vm.listState else {
-            return XCTFail("Expected .loaded")
+        guard case .empty = vm.listState else {
+            return XCTFail("Expected .empty after 410 idempotent delete, got \(vm.listState)")
         }
-        let updated = items.first { $0.videoId == id }
-        XCTAssertEqual(updated?.status, "media_deleted")
         XCTAssertNil(vm.errorMessage)
     }
 
@@ -183,9 +176,9 @@ final class JugglingVideoListViewModelDeleteTests: XCTestCase {
         XCTAssertEqual(callCount, 0, "Second DELETE for same videoId must be blocked")
     }
 
-    // MARK: — JMD-07: deleting video A does not affect video B
+    // MARK: — JMD-07: deleting video A removes A; video B untouched
 
-    func test_JMD07_delete_does_not_affect_other_videos() async {
+    func test_JMD07_delete_removes_target_does_not_affect_sibling() async {
         let idA = UUID().uuidString
         let idB = UUID().uuidString
         let itemA = makeItem(videoId: idA, status: "analyzed")
@@ -197,20 +190,23 @@ final class JugglingVideoListViewModelDeleteTests: XCTestCase {
         await vm.deleteVideo(videoId: idA)
 
         guard case .loaded(let items) = vm.listState else {
-            return XCTFail("Expected .loaded")
+            return XCTFail("Expected .loaded with 1 remaining item")
         }
+        XCTAssertNil(items.first { $0.videoId == idA }, "Deleted video A must be removed from list")
         let b = items.first { $0.videoId == idB }
-        XCTAssertEqual(b?.status, "analyzed", "Video B must be unaffected")
+        XCTAssertEqual(b?.status, "analyzed", "Video B status must be unchanged")
         XCTAssertTrue(b?.hasMedia ?? false, "Video B hasMedia must be unchanged")
         XCTAssertTrue(b?.hasThumbnail ?? false, "Video B hasThumbnail must be unchanged")
     }
 
-    // MARK: — JMD-08: quality/analysis fields preserved after delete
+    // MARK: — JMD-08: deleting A does not alter sibling B's quality/analysis fields
 
-    func test_JMD08_quality_and_analysis_fields_preserved() async {
-        let id = UUID().uuidString
-        let item = makeItem(
-            videoId: id,
+    func test_JMD08_sibling_quality_fields_preserved_after_delete() async {
+        let idA = UUID().uuidString
+        let idB = UUID().uuidString
+        let itemA = makeItem(videoId: idA, status: "analyzed")
+        let itemB = makeItem(
+            videoId: idB,
             qualityScore: 91.5,
             qualityStatus: "pass",
             annotationStatus: "human_review_pending",
@@ -219,19 +215,19 @@ final class JugglingVideoListViewModelDeleteTests: XCTestCase {
         )
         let mock = MockAnnotationAPIClient()
         mock.deleteVideoResult = .success(())
-        let vm = makeVM(items: [item], mock: mock)
+        let vm = makeVM(items: [itemA, itemB], mock: mock)
 
-        await vm.deleteVideo(videoId: id)
+        await vm.deleteVideo(videoId: idA)
 
         guard case .loaded(let items) = vm.listState else {
-            return XCTFail("Expected .loaded")
+            return XCTFail("Expected .loaded with 1 remaining item")
         }
-        let updated = items.first { $0.videoId == id }
-        XCTAssertEqual(updated?.qualityScore, 91.5, "qualityScore must be preserved")
-        XCTAssertEqual(updated?.qualityStatus, "pass", "qualityStatus must be preserved")
-        XCTAssertEqual(updated?.annotationStatus, "human_review_pending", "annotationStatus must be preserved")
-        XCTAssertEqual(updated?.durationSeconds, 22.3, "durationSeconds must be preserved")
-        XCTAssertEqual(updated?.processedResolution, "1280x720", "processedResolution must be preserved")
+        let b = items.first { $0.videoId == idB }
+        XCTAssertEqual(b?.qualityScore, 91.5, "Sibling qualityScore must be unchanged")
+        XCTAssertEqual(b?.qualityStatus, "pass", "Sibling qualityStatus must be unchanged")
+        XCTAssertEqual(b?.annotationStatus, "human_review_pending", "Sibling annotationStatus must be unchanged")
+        XCTAssertEqual(b?.durationSeconds, 22.3, "Sibling durationSeconds must be unchanged")
+        XCTAssertEqual(b?.processedResolution, "1280x720", "Sibling processedResolution must be unchanged")
     }
 
     // MARK: — JMD-09: thumbnail cache evicted on success
@@ -274,6 +270,45 @@ final class JugglingVideoListViewModelDeleteTests: XCTestCase {
         await vm.deleteVideo(videoId: id)
 
         XCTAssertFalse(vm.deletingVideoIds.contains(id), "deletingVideoIds must be cleared on failure")
+    }
+
+    // MARK: — JMD-11: successful delete removes item from list (multi-item, item still absent after)
+
+    func test_JMD11_deleteVideo_removesItemFromList() async {
+        let idA = UUID().uuidString
+        let idB = UUID().uuidString
+        let itemA = makeItem(videoId: idA, status: "analyzed")
+        let itemB = makeItem(videoId: idB, status: "analyzed")
+        let mock = MockAnnotationAPIClient()
+        mock.deleteVideoResult = .success(())
+        let vm = makeVM(items: [itemA, itemB], mock: mock)
+
+        await vm.deleteVideo(videoId: idA)
+
+        guard case .loaded(let items) = vm.listState else {
+            return XCTFail("Expected .loaded with 1 item remaining")
+        }
+        XCTAssertEqual(items.count, 1, "List must contain exactly 1 item after delete")
+        XCTAssertNil(items.first { $0.videoId == idA }, "Deleted video must not appear in list")
+        XCTAssertNotNil(items.first { $0.videoId == idB }, "Non-deleted video must remain in list")
+    }
+
+    // MARK: — JMD-12: deleting last item transitions list to .empty
+
+    func test_JMD12_deletingLastItem_transitionsToEmptyState() async {
+        let id = UUID().uuidString
+        let item = makeItem(videoId: id, status: "analyzed")
+        let mock = MockAnnotationAPIClient()
+        mock.deleteVideoResult = .success(())
+        let vm = makeVM(items: [item], mock: mock)
+
+        await vm.deleteVideo(videoId: id)
+
+        guard case .empty = vm.listState else {
+            return XCTFail("Expected .empty after deleting last item, got \(vm.listState)")
+        }
+        XCTAssertNil(vm.thumbnails[id], "Thumbnail cache must be evicted for last deleted item")
+        XCTAssertNil(vm.errorMessage, "No error message expected on success")
     }
 }
 

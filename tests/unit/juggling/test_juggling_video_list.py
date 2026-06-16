@@ -503,7 +503,7 @@ def test_jvl27_p4_media_endpoint_unchanged(client, student_token):
 # ── JVL-28: rejected status in list ──────────────────────────────────────────
 
 def test_jvl28_rejected_in_list(client, student_token, student_user, db_session):
-    """JVL-28: rejected video IS included in list (only gdpr_deleted is excluded)."""
+    """JVL-28: rejected video IS included in list (gdpr_deleted and media_deleted are excluded)."""
     v = _make_video(
         db_session, student_user.id,
         status=JugglingVideoStatus.rejected.value,
@@ -536,3 +536,36 @@ def test_jvl30_default_limit_50(client, student_token):
     r = client.get(_LIST_URL, headers=_auth(student_token))
     assert r.status_code == 200
     assert r.json()["limit"] == 50
+
+
+# ── JVL-31: media_deleted excluded from list ──────────────────────────────────
+
+def test_jvl31_media_deleted_excluded(client, student_token, student_user, db_session):
+    """JVL-31: media_deleted video does not appear in list (user-facing delete visibility fix)."""
+    visible = _make_video(db_session, student_user.id)
+    deleted = _make_video(
+        db_session, student_user.id,
+        status=JugglingVideoStatus.media_deleted.value,
+        transcode_status=None, thumbnail_path=None, processed_path=None,
+    )
+    r = client.get(_LIST_URL, headers=_auth(student_token))
+    assert r.status_code == 200
+    ids = [v["video_id"] for v in r.json()["videos"]]
+    assert str(visible.id) in ids
+    assert str(deleted.id) not in ids
+
+
+# ── JVL-32: media_deleted absent even after reload (no cache re-appearance) ───
+
+def test_jvl32_media_deleted_absent_on_second_request(client, student_token, student_user, db_session):
+    """JVL-32: media_deleted video stays absent across two consecutive list requests."""
+    deleted = _make_video(
+        db_session, student_user.id,
+        status=JugglingVideoStatus.media_deleted.value,
+        transcode_status=None, thumbnail_path=None, processed_path=None,
+    )
+    for _ in range(2):
+        r = client.get(_LIST_URL, headers=_auth(student_token))
+        assert r.status_code == 200
+        ids = [v["video_id"] for v in r.json()["videos"]]
+        assert str(deleted.id) not in ids, "media_deleted video must not appear on repeated list requests"
