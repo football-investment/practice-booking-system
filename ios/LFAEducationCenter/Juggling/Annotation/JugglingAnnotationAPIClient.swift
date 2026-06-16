@@ -229,12 +229,16 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
 
     func deleteVideo(videoId: String) async throws {
         let path = "/api/v1/users/me/juggling/videos/\(videoId)"
+        print("[JugglingDelete] API: → DELETE \(path)")
         do {
             try await authManager.authenticatedDeleteNoContent(path: path)
+            print("[JugglingDelete] API: ← DELETE success (2xx)")
         } catch let err as APIError {
+            print("[JugglingDelete] API: ← DELETE APIError=\(err)")
             switch err {
             case .httpError(statusCode: 410, _):
-                return   // already media_deleted — idempotent success
+                print("[JugglingDelete] API: 410 idempotent — treating as success")
+                return
             case .httpError(statusCode: 404, _):
                 throw VideoDeleteError.notFound
             case .httpError(statusCode: 401, _), .unauthorized:
@@ -246,6 +250,50 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
             default:
                 throw VideoDeleteError.networkError(URLError(.badServerResponse))
             }
+        }
+    }
+
+    // MARK: — Phase 2A: Pose Snapshot (non-throwing — upload failure must not block annotation)
+    //
+    // uploadPoseSnapshot: POST /contacts/{event_id}/pose-snapshot
+    //   201 → new snapshot (isNew = true)
+    //   200 → updated snapshot (isNew = false, idempotent retry)
+    //   503 → POSE_SNAPSHOT_ENABLED=false on server; silently ignored
+    //   Any other error → logged, not re-thrown
+    //
+    // fetchPoseSnapshots: GET /pose-snapshots
+    //   200 → [PoseSnapshotOut] ordered by timestamp_ms
+    //   503 → feature flag off; returns []
+    //   network failure → returns []
+
+    func uploadPoseSnapshot(
+        videoId:  String,
+        eventId:  UUID,
+        request:  PoseSnapshotUploadRequest
+    ) async {
+        let path = "/api/v1/users/me/juggling/videos/\(videoId)/contacts/\(eventId.uuidString.lowercased())/pose-snapshot"
+        do {
+            let (_, statusCode) = try await authManager.authenticatedPostRaw(path: path, body: request)
+            guard statusCode == 200 || statusCode == 201 else {
+                print("[PoseSnapshot] upload unexpected status \(statusCode)")
+            }
+        } catch APIError.httpError(503, _) {
+            // POSE_SNAPSHOT_ENABLED=false — expected in most deployments, silent
+        } catch {
+            print("[PoseSnapshot] upload failed (non-blocking): \(error)")
+        }
+    }
+
+    func fetchPoseSnapshots(videoId: String) async -> [PoseSnapshotOut] {
+        let path = "/api/v1/users/me/juggling/videos/\(videoId)/pose-snapshots"
+        do {
+            let snapshots: [PoseSnapshotOut] = try await authManager.authenticatedGet(path: path)
+            return snapshots
+        } catch APIError.httpError(503, _) {
+            return []   // feature flag off
+        } catch {
+            print("[PoseSnapshot] fetchPoseSnapshots failed: \(error)")
+            return []
         }
     }
 
