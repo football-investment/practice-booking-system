@@ -633,3 +633,310 @@ def test_bdt_od03_detect_below_threshold(monkeypatch):
     frame = np.zeros((300, 300, 3), dtype=np.uint8)
     result = detector.detect(frame, target_class_id=37, confidence_threshold=0.3)
     assert result is None
+
+
+# ── BDT-OD-04: ONNX model file missing → FileNotFoundError ───────────────────
+
+def test_bdt_od04_model_file_missing():
+    from app.services.juggling.onnx_ball_detector import OnnxBallDetector
+    with pytest.raises(FileNotFoundError, match="ONNX model not found"):
+        OnnxBallDetector("/nonexistent/path/model.onnx")
+
+
+# ── BDT-OD-05: get_detector cache ────────────────────────────────────────────
+
+def test_bdt_od05_get_detector_cache(monkeypatch):
+    import numpy as np
+    from app.services.juggling import onnx_ball_detector as od_module
+
+    class MockSession:
+        def run(self, _, inputs): return [np.array([0.0]), np.array([[[]]]), np.array([[]]), np.array([[]])]
+
+    monkeypatch.setattr(od_module.ort, "InferenceSession", lambda *a, **kw: MockSession())
+    monkeypatch.setattr(od_module.Path, "is_file", lambda _: True)
+    od_module._detector_cache.clear()
+
+    d1 = od_module.get_detector("/fake/cached.onnx")
+    d2 = od_module.get_detector("/fake/cached.onnx")
+    assert d1 is d2
+    od_module._detector_cache.clear()
+
+
+# ── BDT-OD-06: zero detections (num_det=0) ───────────────────────────────────
+
+def test_bdt_od06_zero_detections(monkeypatch):
+    import numpy as np
+    from app.services.juggling.onnx_ball_detector import OnnxBallDetector
+
+    mock_outputs = [
+        np.array([0.0]),
+        np.array([[[]]]).reshape(1, 0, 4),
+        np.array([[]]).reshape(1, 0),
+        np.array([[]]).reshape(1, 0),
+    ]
+
+    class MockSession:
+        def run(self, _, inputs): return mock_outputs
+
+    monkeypatch.setattr("app.services.juggling.onnx_ball_detector.ort.InferenceSession", lambda *a, **kw: MockSession())
+    monkeypatch.setattr("app.services.juggling.onnx_ball_detector.Path.is_file", lambda _: True)
+
+    detector = OnnxBallDetector("/fake/model.onnx")
+    frame = np.zeros((300, 300, 3), dtype=np.uint8)
+    result = detector.detect(frame)
+    assert result is None
+
+
+# ── BDT-CORE-01..09: run_ball_detection_core direct tests ────────────────────
+
+def test_bdt_core01_disabled_flag(db_session, monkeypatch):
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", False)
+    result = run_ball_detection_core(str(uuid.uuid4()), str(uuid.uuid4()), "juggling", db_session)
+    assert result["status"] == "skipped"
+    assert "BALL_DETECTION_ENABLED" in result["reason"]
+
+
+def test_bdt_core02_model_missing(db_session, monkeypatch):
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", "/nonexistent/model.onnx")
+    result = run_ball_detection_core(str(uuid.uuid4()), str(uuid.uuid4()), "juggling", db_session)
+    assert result["status"] == "failed"
+    assert "model file missing" in result["reason"]
+
+
+def test_bdt_core03_video_not_found(db_session, monkeypatch):
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+    result = run_ball_detection_core(str(uuid.uuid4()), str(uuid.uuid4()), "juggling", db_session)
+    assert result["status"] == "failed"
+    assert result["reason"] == "video not found"
+
+
+def test_bdt_core04_event_not_found(db_session, _juggling_video, monkeypatch):
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+    video, _ = _juggling_video
+    result = run_ball_detection_core(str(video.id), str(uuid.uuid4()), "juggling", db_session)
+    assert result["status"] == "failed"
+    assert result["reason"] == "event not found"
+
+
+def test_bdt_core05_detection_already_exists(db_session, _juggling_video, monkeypatch):
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+    video, event = _juggling_video
+    existing = JugglingBallDetection(
+        contact_event_id=event.id, video_id=video.id,
+        detection_source="manual", ball_x=0.5, ball_y=0.5,
+        no_ball_detected=False, excluded_from_training=True,
+    )
+    db_session.add(existing)
+    db_session.flush()
+    result = run_ball_detection_core(str(video.id), str(event.id), "juggling", db_session)
+    assert result["status"] == "skipped"
+    assert "already exists" in result["reason"]
+
+
+def test_bdt_core06_no_video_file(db_session, _juggling_video, monkeypatch):
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+    video, event = _juggling_video
+    result = run_ball_detection_core(str(video.id), str(event.id), "juggling", db_session)
+    assert result["status"] == "failed"
+    assert "video file not found" in result["reason"]
+
+
+def test_bdt_core07_ball_detected(db_session, _juggling_video, monkeypatch, tmp_path):
+    import numpy as np
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+
+    video, event = _juggling_video
+    fake_video = tmp_path / "fake.mp4"
+    fake_video.write_bytes(b"fake")
+    video.processed_path = str(fake_video)
+    db_session.flush()
+
+    mock_frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    class MockDetector:
+        def detect(self, frame, target_class_id=37, confidence_threshold=0.3):
+            return (0.45, 0.67, 0.91)
+
+    result = run_ball_detection_core(
+        str(video.id), str(event.id), "juggling", db_session,
+        _extract_frame=lambda path, ms: (mock_frame, 320, 240),
+        _get_detector=lambda path: MockDetector(),
+    )
+    assert result["status"] == "detected"
+    assert result["ball_x"] == 0.45
+    assert result["ball_y"] == 0.67
+    assert result["confidence"] == 0.91
+
+
+def test_bdt_core08_no_ball_detected(db_session, _juggling_video, monkeypatch, tmp_path):
+    import numpy as np
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+
+    video, event = _juggling_video
+    fake_video = tmp_path / "fake.mp4"
+    fake_video.write_bytes(b"fake")
+    video.processed_path = str(fake_video)
+    db_session.flush()
+
+    mock_frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    class MockDetector:
+        def detect(self, frame, target_class_id=37, confidence_threshold=0.3):
+            return None
+
+    result = run_ball_detection_core(
+        str(video.id), str(event.id), "juggling", db_session,
+        _extract_frame=lambda path, ms: (mock_frame, 320, 240),
+        _get_detector=lambda path: MockDetector(),
+    )
+    assert result["status"] == "not_detected"
+    assert result["ball_x"] is None
+
+
+def test_bdt_core09_type_aware_footvolley(db_session, _footvolley_video, monkeypatch, tmp_path):
+    import numpy as np
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+
+    video, event = _footvolley_video
+    fake_video = tmp_path / "fake.mp4"
+    fake_video.write_bytes(b"fake")
+    video.processed_path = str(fake_video)
+    db_session.flush()
+
+    mock_frame = np.zeros((240, 320, 3), dtype=np.uint8)
+
+    class MockDetector:
+        def detect(self, frame, target_class_id=37, confidence_threshold=0.3):
+            return (0.3, 0.4, 0.8)
+
+    result = run_ball_detection_core(
+        str(video.id), str(event.id), "gan_footvolley", db_session,
+        _extract_frame=lambda path, ms: (mock_frame, 320, 240),
+        _get_detector=lambda path: MockDetector(),
+    )
+    assert result["status"] == "detected"
+
+
+# ── BDT-SVC-01..02: ball_detection_service edge cases ────────────────────────
+
+def test_bdt_svc01_invalid_video_uuid(client, student_token):
+    r = client.post(
+        "/api/v1/users/me/juggling/videos/not-a-uuid/contacts/not-a-uuid/ball-detection",
+        headers=_auth(student_token),
+        json={"ball_x": 0.5, "ball_y": 0.5},
+    )
+    assert r.status_code == 404
+
+
+def test_bdt_svc02_invalid_event_uuid(client, student_token, _juggling_video):
+    video, _ = _juggling_video
+    r = client.post(
+        f"/api/v1/users/me/juggling/videos/{video.id}/contacts/not-a-uuid/ball-detection",
+        headers=_auth(student_token),
+        json={"ball_x": 0.5, "ball_y": 0.5},
+    )
+    assert r.status_code == 404
+
+
+# ── BDT-ADM-06: admin trigger with invalid UUID ──────────────────────────────
+
+def test_bdt_adm06_admin_trigger_invalid_uuid(client, admin_token):
+    r = client.post(
+        "/api/v1/admin/juggling/videos/not-a-uuid/trigger-ball-detection",
+        headers=_auth(admin_token),
+    )
+    assert r.status_code == 404
+
+
+# ── BDT-VP-01: _video_path helper ────────────────────────────────────────────
+
+def test_bdt_vp01_video_path_fallback(tmp_path):
+    from app.tasks.juggling_analysis_task import _video_path
+    from unittest.mock import MagicMock
+    video = MagicMock()
+    video.processed_path = "/nonexistent/processed.mp4"
+    fallback = tmp_path / "original.mp4"
+    fallback.write_bytes(b"data")
+    video.storage_path = str(fallback)
+    assert _video_path(video) == str(fallback)
+
+
+def test_bdt_vp02_video_path_none():
+    from app.tasks.juggling_analysis_task import _video_path
+    from unittest.mock import MagicMock
+    video = MagicMock()
+    video.processed_path = None
+    video.storage_path = None
+    assert _video_path(video) is None
+
+
+def test_bdt_core10_deferred_import_paths(db_session, _juggling_video, monkeypatch, tmp_path):
+    """Cover the _extract_frame=None / _get_detector=None deferred import branches."""
+    import numpy as np
+    from app.tasks.juggling_analysis_task import run_ball_detection_core
+    import app.tasks.juggling_analysis_task as task_mod
+    import app.services.juggling.frame_extractor as fe_mod
+    import app.services.juggling.onnx_ball_detector as od_mod
+
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_ENABLED", True)
+    monkeypatch.setattr(task_mod.settings, "BALL_DETECTION_MODEL_PATH", __file__)
+
+    video, event = _juggling_video
+    fake_video = tmp_path / "fake.mp4"
+    fake_video.write_bytes(b"fake")
+    video.processed_path = str(fake_video)
+    db_session.flush()
+
+    mock_frame = np.zeros((240, 320, 3), dtype=np.uint8)
+    monkeypatch.setattr(fe_mod, "extract_frame_at_ms", lambda path, ms: (mock_frame, 320, 240))
+
+    class MockDetector:
+        def detect(self, frame, target_class_id=37, confidence_threshold=0.3):
+            return (0.5, 0.5, 0.7)
+
+    monkeypatch.setattr(od_mod, "get_detector", lambda path: MockDetector())
+
+    result = run_ball_detection_core(
+        str(video.id), str(event.id), "juggling", db_session,
+    )
+    assert result["status"] == "detected"
+
+
+def test_bdt_vp03_video_path_prefers_processed(tmp_path):
+    from app.tasks.juggling_analysis_task import _video_path
+    from unittest.mock import MagicMock
+    processed = tmp_path / "processed.mp4"
+    processed.write_bytes(b"data")
+    video = MagicMock()
+    video.processed_path = str(processed)
+    video.storage_path = "/other/path.mp4"
+    assert _video_path(video) == str(processed)
