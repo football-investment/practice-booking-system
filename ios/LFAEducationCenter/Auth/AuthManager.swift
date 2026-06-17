@@ -382,8 +382,12 @@ final class AuthManager: ObservableObject {
 
     // MARK: — Token accessors
 
+    // Test-only override: set before test, clear in tearDown.
+    // nil in production — Keychain is always used when this is nil.
+    var _testAccessToken: String? = nil
+
     var accessToken: String? {
-        KeychainService.load(account: KeychainService.accessTokenKey)
+        _testAccessToken ?? KeychainService.load(account: KeychainService.accessTokenKey)
     }
 
     var refreshToken: String? {

@@ -60,9 +60,10 @@ final class JugglingUploadAPIClientTests: XCTestCase {
     private let fakeToken = "test-bearer-BU"
 
     override func setUp() async throws {
-        // Seed fake access token so AuthManager.accessToken returns a non-nil value.
-        _ = KeychainService.save(fakeToken, account: KeychainService.accessTokenKey)
         authManager = AuthManager()
+        // Inject token directly — avoids Keychain accessibility issues in CI simulators
+        // where kSecAttrAccessibleAfterFirstUnlock can return nil before first unlock.
+        authManager._testAccessToken = fakeToken
         client = JugglingAnnotationAPIClient(authManager: authManager)
 
         // Wire MockURLProtocol into APIClient.
@@ -74,7 +75,7 @@ final class JugglingUploadAPIClientTests: XCTestCase {
     override func tearDown() async throws {
         MockURLProtocol.requestHandler = nil
         APIClient._testURLSession = nil
-        KeychainService.delete(account: KeychainService.accessTokenKey)
+        authManager._testAccessToken = nil
         client = nil
         authManager = nil
     }
