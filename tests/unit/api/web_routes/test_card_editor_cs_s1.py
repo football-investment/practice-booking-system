@@ -291,11 +291,11 @@ class TestS1bCTAAndNaming:
 class TestS109S110RouteAndSnapshot:
 
     def test_s1_09_route_count_846(self):
-        """S1-09 (updated B-2): route count is 898 (+1 B-2 media delete endpoint)."""
+        """S1-09 (updated Phase 2A): route count is 901 (+3 Phase 2A pose/rotation endpoints)."""
         from app.main import app
         paths = app.openapi().get("paths", {})
-        assert len(paths) == 898, (
-            f"Expected 898 routes (897 prior + 1 B-2 media delete endpoint), got {len(paths)}"
+        assert len(paths) == 901, (
+            f"Expected 901 routes (898 prior + 3 Phase 2A pose/rotation endpoints), got {len(paths)}"
         )
 
     def test_s1_10_openapi_snapshot_still_matches(self):
