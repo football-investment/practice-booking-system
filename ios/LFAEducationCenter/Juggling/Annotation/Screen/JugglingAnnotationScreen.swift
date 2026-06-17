@@ -185,7 +185,14 @@ struct JugglingAnnotationScreen: View {
                 }
                 #endif
             }
-            .onAppear { Task { await onAppear() } }
+            .onAppear {
+                Task { await onAppear() }
+                // Fetch pose snapshots concurrently with the video load so the
+                // banner and figure.walk icons reflect server state immediately,
+                // even if the loader.state → .ready Task is cancelled mid-download.
+                // The onChange(of: loader.state) fetch below is kept as defense-in-depth.
+                Task { poseSnapshots = await vm.fetchPoseSnapshots() }
+            }
             .onDisappear { onDisappear() }
             .actionSheet(isPresented: $showCloseConfirm) {
                 ActionSheet(
@@ -207,8 +214,11 @@ struct JugglingAnnotationScreen: View {
             // P2B-5E: labeling flow now opens via the overview, not directly into detail.
             // onDismiss ensures exitLabelingMode() runs however the sheet is dismissed
             // (X button, drag-to-dismiss, or programmatic showLabeling = false).
+            // flushPending() uploads all .localOnly events that were just labeled;
+            // fires in a detached Task so it does not block the dismiss animation.
             .sheet(isPresented: $showLabeling, onDismiss: {
                 vm.exitLabelingMode()
+                Task { await vm.flushPending() }
             }) {
                 LabelingOverviewView(
                     vm:       vm,
@@ -694,6 +704,10 @@ struct JugglingAnnotationScreen: View {
     // a failed save leaves the screen open with showSaveErrorAlert set, so
     // the user never silently loses data. Shares the didCleanUp guard with
     // the SwiftUI .onDisappear fallback to avoid a double save.
+    //
+    // flushPending() runs before dismiss so any .localOnly events reach the
+    // backend before the screen disappears. dismiss() is called inside the
+    // Task so it runs only after the flush completes.
     private func performClose() {
         guard !didCleanUp else { return }
         let ok = vm.saveNow()
@@ -704,7 +718,10 @@ struct JugglingAnnotationScreen: View {
         didCleanUp = true
         loader.cancel()
         playback.pause()
-        presentationMode.wrappedValue.dismiss()
+        Task {
+            await vm.flushPending()
+            presentationMode.wrappedValue.dismiss()
+        }
     }
 
     // MARK: — Retroactive pose generation (Phase 2A patch)

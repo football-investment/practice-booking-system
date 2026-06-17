@@ -20,4 +20,4 @@
 // unexpanded or unreachable — that is intentional.
 
 SLASH = /
-API_BASE_URL = http:$(SLASH)$(SLASH)CHANGEME:8000
+API_BASE_URL = http:$(SLASH)$(SLASH)192.168.1.129:8000

@@ -13,7 +13,16 @@
 .PHONY: help web worker-mood worker-juggling worker-all \
         recover-mood recover-mood-execute \
         recover-juggling recover-juggling-execute \
-        migrate test-unit test-cc docker-up docker-down
+        migrate test-unit test-cc docker-up docker-down \
+        ios-build ios-install ios-launch ios-run
+
+# ── iOS config ────────────────────────────────────────────────────────────────
+IOS_DEVICE_UDID  := 339B8F67-79A2-5099-A110-ABAF9E9902F5
+IOS_BUNDLE_ID    := com.lovas-zoltan.lfa-education-center
+IOS_PROJECT      := ios/LFAEducationCenter.xcodeproj
+IOS_SCHEME       := LFAEducationCenter
+IOS_DERIVED_DATA := /tmp/lfa_ios_build
+IOS_APP          := $(IOS_DERIVED_DATA)/Build/Products/Debug-iphoneos/LFAEducationCenter.app
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 help:
@@ -42,6 +51,12 @@ help:
 	@echo "  Docker:"
 	@echo "    make docker-up        Start full dev stack (web + worker + redis + db)"
 	@echo "    make docker-down      Stop and remove docker-compose dev containers"
+	@echo ""
+	@echo "  iOS (no-debugger workflow):"
+	@echo "    make ios-run          Build + install + launch on iPhone without LLDB"
+	@echo "    make ios-build        xcodebuild Debug build only"
+	@echo "    make ios-install      Install last build to connected iPhone"
+	@echo "    make ios-launch       Launch installed app without debugger"
 	@echo ""
 
 # ── Dev servers ───────────────────────────────────────────────────────────────
@@ -89,6 +104,31 @@ recover-juggling:
 recover-juggling-execute:
 	@echo "[EXECUTE] Resetting stuck processing juggling videos..."
 	python scripts/recover_stuck_juggling.py --execute
+
+# ── iOS — build + install + launch (no debugger attach) ──────────────────────
+ios-build:
+	xcodebuild build \
+		-scheme $(IOS_SCHEME) \
+		-project $(IOS_PROJECT) \
+		-destination "id=$(IOS_DEVICE_UDID)" \
+		-configuration Debug \
+		-derivedDataPath $(IOS_DERIVED_DATA) \
+		CODE_SIGN_STYLE=Automatic \
+		DEVELOPMENT_TEAM=4D7V9ZWVHY
+
+ios-install:
+	@echo "[ios-install] Installing $(IOS_APP) → $(IOS_DEVICE_UDID)"
+	xcrun devicectl device install app \
+		--device $(IOS_DEVICE_UDID) \
+		"$(IOS_APP)"
+
+ios-launch:
+	@echo "[ios-launch] Launching $(IOS_BUNDLE_ID) without debugger"
+	xcrun devicectl device process launch \
+		--device $(IOS_DEVICE_UDID) \
+		$(IOS_BUNDLE_ID)
+
+ios-run: ios-build ios-install ios-launch
 
 # ── Database ─────────────────────────────────────────────────────────────────
 migrate:
