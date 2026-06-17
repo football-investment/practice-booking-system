@@ -548,11 +548,14 @@ class JugglingBallDetection(Base):
                                   server_default="false")
     excluded_from_training = Column(Boolean, nullable=False, default=True,
                                     server_default="true")
-    # AN-3B2C-1 Opció A: original automatic coordinates frozen on first manual override.
+    # AN-3B2C-1 Opció A: original automatic state frozen on first manual override.
     # Populated only when detection_source transitions automatic→manual for the first time.
     # NULL for manual-first events (auto pipeline never ran) and for pure automatic records.
+    # auto_confidence is set by the before_insert ORM listener below (no task code change needed).
     auto_ball_x          = Column(Float, nullable=True)
     auto_ball_y          = Column(Float, nullable=True)
+    auto_confidence      = Column(Float, nullable=True,
+                                  comment="Model confidence at auto detection; frozen, never overwritten by manual override")
     created_at           = Column(DateTime(timezone=True), nullable=False,
                                   default=lambda: datetime.now(timezone.utc))
     updated_at           = Column(DateTime(timezone=True), nullable=False,
@@ -613,3 +616,18 @@ class JugglingFileDeletionLog(Base):
                             comment="Celery task ID for correlation")
     created_at     = Column(DateTime(timezone=True), nullable=False,
                             default=lambda: datetime.now(timezone.utc))
+
+
+# ── ORM listener: auto_confidence (AN-3B2C-1 follow-up) ──────────────────────
+# Set auto_confidence = confidence for new automatic detection rows at INSERT
+# time. This avoids modifying juggling_analysis_task.py (restricted pipeline).
+# Manual overrides update detection_source → "manual" via UPDATE, never INSERT,
+# so this listener only fires for the initial auto row creation.
+
+from sqlalchemy import event as _sa_event  # noqa: E402
+
+
+@_sa_event.listens_for(JugglingBallDetection, "before_insert")
+def _freeze_auto_confidence_on_insert(mapper, connection, target):  # noqa: ANN001
+    if target.detection_source != "manual" and target.auto_confidence is None:
+        target.auto_confidence = target.confidence

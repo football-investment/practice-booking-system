@@ -427,10 +427,12 @@ class BallDetectionOut(BaseModel):
     image_height_px:        Optional[int]
     no_ball_detected:       bool
     excluded_from_training: bool
-    # AN-3B2C-1 (Opció A): original automatic coordinates preserved on first manual override.
+    # AN-3B2C-1 (Opció A): original automatic state preserved on first manual override.
     # None when detection was manual-first (auto pipeline never ran for this event).
     auto_ball_x:            Optional[float]
     auto_ball_y:            Optional[float]
+    # AN-3B2C-1 follow-up: model confidence at auto detection time; None for pre-migration rows.
+    auto_confidence:        Optional[float]
     created_at:             datetime
     updated_at:             datetime
 
