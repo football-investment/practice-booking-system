@@ -21,7 +21,7 @@ struct BodyLandmarkDTO: Codable, Equatable {
 // MARK: — PoseKeypointsDTO
 // Wrapper matching the JSONB format stored in juggling_pose_snapshots.keypoints.
 
-struct PoseKeypointsDTO: Codable {
+struct PoseKeypointsDTO: Codable, Equatable {
     let schemaVersion: String
     let body:          [BodyLandmarkDTO]
     let leftHand:      [BodyLandmarkDTO]
@@ -66,7 +66,7 @@ struct PoseSnapshotUploadRequest: Encodable {
 // Response from GET /pose-snapshots and POST /pose-snapshot.
 // keypoints is decoded as PoseKeypointsDTO for type-safe overlay rendering.
 
-struct PoseSnapshotOut: Codable, Identifiable {
+struct PoseSnapshotOut: Codable, Identifiable, Equatable {
     let id:                  UUID
     let contactEventId:      UUID
     let videoId:             UUID
