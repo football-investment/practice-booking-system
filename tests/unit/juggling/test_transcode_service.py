@@ -244,21 +244,18 @@ class TestThumbnailCommand:
         assert "-q:v" in cmd
         assert cmd[cmd.index("-q:v") + 1] == "2"
 
-    def test_rotation_90_adds_vf(self):
+    def test_rotation_90_no_vf(self):
+        # Thumbnail rotation handled by ffmpeg autorotate — no -vf transpose.
         cmd = build_thumbnail_command(Path("in.mp4"), Path("thumb.jpg"), rotation=90)
-        assert "-vf" in cmd
-        assert "transpose=1" in cmd[cmd.index("-vf") + 1]
+        assert "-vf" not in cmd
 
-    def test_rotation_270_transpose_2(self):
+    def test_rotation_270_no_vf(self):
         cmd = build_thumbnail_command(Path("in.mp4"), Path("thumb.jpg"), rotation=270)
-        assert "-vf" in cmd
-        assert "transpose=2" in cmd[cmd.index("-vf") + 1]
+        assert "-vf" not in cmd
 
-    def test_rotation_180_double_transpose(self):
+    def test_rotation_180_no_vf(self):
         cmd = build_thumbnail_command(Path("in.mp4"), Path("thumb.jpg"), rotation=180)
-        assert "-vf" in cmd
-        vf = cmd[cmd.index("-vf") + 1]
-        assert vf.count("transpose=1") >= 2
+        assert "-vf" not in cmd
 
     def test_rotation_0_no_vf(self):
         cmd = build_thumbnail_command(Path("in.mp4"), Path("thumb.jpg"), rotation=0)
