@@ -35,6 +35,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    SmallInteger,
     String,
     UniqueConstraint,
 )
@@ -264,6 +265,14 @@ class JugglingVideo(Base):
             "Computed count of non-excluded contact events after finish. "
             "NULL until annotation is finished."
         ),
+    )
+
+    # ── User rotation override ───────────────────────────────────────────────
+    # Display rotation chosen by the user via the rotate button.
+    # Not a transcode parameter — the processed file is never re-encoded.
+    user_rotation_degrees = Column(
+        SmallInteger, nullable=False, default=0, server_default="0",
+        comment="User display rotation override (0/90/180/270). Not a transcode parameter.",
     )
 
     # ── Timestamps ───────────────────────────────────────────────────────────

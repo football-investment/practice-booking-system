@@ -152,6 +152,7 @@ class JugglingVideoItemOut(BaseModel):
     upload_source:              str
     source_type:                str
     annotation_status:          Optional[str] = None
+    user_rotation_degrees:      int = 0
 
 
 class JugglingVideoListOut(BaseModel):
@@ -159,6 +160,18 @@ class JugglingVideoListOut(BaseModel):
     total:  int
     limit:  int
     offset: int
+
+
+# ── User rotation persistence (PATCH /videos/{id}/rotation) ──────────────────
+
+class JugglingRotationPatchRequest(BaseModel):
+    rotation_degrees: Literal[0, 90, 180, 270]
+
+
+class JugglingRotationPatchOut(BaseModel):
+    video_id:             str
+    user_rotation_degrees: int
+    model_config = {"from_attributes": True}
 
 
 # ── AN-1: Contact event schemas ───────────────────────────────────────────────

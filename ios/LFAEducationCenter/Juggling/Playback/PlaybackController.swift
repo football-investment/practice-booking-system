@@ -61,7 +61,7 @@ final class PlaybackController: ObservableObject {
     @Published private(set) var currentTimestampMs: Int          = 0
     @Published private(set) var selectedRate:       PlaybackRate = .normal
     @Published private(set) var videoNaturalSize:   CGSize?      = nil
-    @Published private(set) var userRotation:       Int          = 0   // 0/90/180/270 — session-local
+    @Published private(set) var userRotation:       Int          = 0   // 0/90/180/270
     @Published var duration: CMTime = .zero
 
     // Set once when the asset loads; var (not private(set)) so tests can inject
@@ -76,8 +76,10 @@ final class PlaybackController: ObservableObject {
     var avPlayer: AVPlayer? { player as? AVPlayer }
 
     // Production init: uses a real AVPlayer.
-    init(player: PlayerSeekable = AVPlayer()) {
+    // initialRotation is restored from the server-persisted value; ignored if not in {0,90,180,270}.
+    init(player: PlayerSeekable = AVPlayer(), initialRotation: Int = 0) {
         self.player = player
+        self.userRotation = [0, 90, 180, 270].contains(initialRotation) ? initialRotation : 0
         if let avp = player as? AVPlayer {
             setupPeriodicObserver(avp)
         }
@@ -152,7 +154,7 @@ final class PlaybackController: ObservableObject {
     }
 
     // Cycles userRotation clockwise: 0 → 90 → 180 → 270 → 0.
-    // Session-local; not persisted to the server.
+    // Caller is responsible for persisting the new value via PATCH /rotation.
     func rotateClockwise() {
         userRotation = (userRotation + 90) % 360
     }

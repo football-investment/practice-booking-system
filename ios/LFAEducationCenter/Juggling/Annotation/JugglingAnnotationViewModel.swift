@@ -253,6 +253,13 @@ final class JugglingAnnotationViewModel: ObservableObject {
         return await client.fetchPoseSnapshots(videoId: videoId)
     }
 
+    // Persist user display rotation to the server (non-throwing).
+    // Returns immediately for test mocks; errors are logged in the API client.
+    func patchRotation(degrees: Int) async {
+        guard let client = apiClient as? JugglingAnnotationAPIClient else { return }
+        await client.patchRotation(videoId: videoId, degrees: degrees)
+    }
+
     // Creates an empty session and persists it immediately. Used by onAppear()
     // for .notFound and .quarantined results. session is set in-memory even if
     // the save fails (there is nothing to roll back to), but saveError is set

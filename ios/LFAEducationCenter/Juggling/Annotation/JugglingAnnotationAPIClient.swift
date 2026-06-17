@@ -285,6 +285,32 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
         }
     }
 
+    // MARK: — User rotation persistence (non-throwing — display preference, never blocks annotation)
+    //
+    // patchRotation: PATCH /videos/{video_id}/rotation
+    //   200 → success
+    //   422 → invalid degrees value (impossible if caller validates)
+    //   Any error → logged, not re-thrown
+
+    func patchRotation(videoId: String, degrees: Int) async {
+        struct RotationBody: Encodable {
+            let rotationDegrees: Int
+            enum CodingKeys: String, CodingKey { case rotationDegrees = "rotation_degrees" }
+        }
+        let path = "/api/v1/users/me/juggling/videos/\(videoId)/rotation"
+        do {
+            let (_, statusCode) = try await authManager.authenticatedPatchRaw(
+                path: path, body: RotationBody(rotationDegrees: degrees)
+            )
+            guard statusCode == 200 else {
+                print("[Rotation] patchRotation unexpected status \(statusCode) for videoId=\(videoId)")
+                return
+            }
+        } catch {
+            print("[Rotation] patchRotation failed (non-blocking): \(error)")
+        }
+    }
+
     func fetchPoseSnapshots(videoId: String) async -> [PoseSnapshotOut] {
         let path = "/api/v1/users/me/juggling/videos/\(videoId)/pose-snapshots"
         do {

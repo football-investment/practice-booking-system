@@ -81,11 +81,27 @@ struct JugglingAnnotationScreen: View {
     // JugglingVideoListView) must guard on authManager.currentUserId before
     // presenting this screen. JugglingAnnotationViewModel's init enforces this
     // with a precondition; there is no `?? 0` fallback here by design.
+    // UserDefaults key for per-video rotation — survives list-cache staleness between open/close.
+    private static func rotationKey(_ videoId: String) -> String { "juggling_rotation_\(videoId)" }
+
+    static func cachedRotation(for video: JugglingVideoItem) -> Int {
+        let local = UserDefaults.standard.integer(forKey: rotationKey(video.videoId))
+        // integer(forKey:) returns 0 for missing keys, and 0 is a valid rotation —
+        // use object(forKey:) to distinguish "not set" from "set to 0".
+        if UserDefaults.standard.object(forKey: rotationKey(video.videoId)) != nil,
+           [0, 90, 180, 270].contains(local) {
+            return local
+        }
+        return video.userRotationDegrees ?? 0
+    }
+
     init(video: JugglingVideoItem, authManager: AuthManager, userId: Int) {
         self.video       = video
         self.authManager = authManager
         _loader  = StateObject(wrappedValue: AnnotationVideoLoader(authManager: authManager))
-        _playback = StateObject(wrappedValue: PlaybackController())
+        _playback = StateObject(wrappedValue: PlaybackController(
+            initialRotation: JugglingAnnotationScreen.cachedRotation(for: video)
+        ))
         _vm      = StateObject(wrappedValue: JugglingAnnotationViewModel(
             userId:      userId,
             videoId:     video.videoId,
@@ -256,6 +272,10 @@ struct JugglingAnnotationScreen: View {
             #endif
         }
         .navigationViewStyle(.stack)
+        .onChange(of: playback.userRotation) { degrees in
+            UserDefaults.standard.set(degrees, forKey: JugglingAnnotationScreen.rotationKey(video.videoId))
+            Task { await vm.patchRotation(degrees: degrees) }
+        }
     }
 
     // MARK: — Video area
