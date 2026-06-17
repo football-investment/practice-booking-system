@@ -581,9 +581,11 @@ struct BallDetectionOut: Decodable, Equatable {
     let modelVersion:         String?
     let noBallDetected:       Bool
     let excludedFromTraining: Bool
-    // Opció A: original auto coordinates frozen on first manual override; nil when manual-first
+    // Opció A: original auto state frozen on first manual override; nil when manual-first
     let autoBallX:            Double?
     let autoBallY:            Double?
+    // AN-3B2C-1 follow-up: model confidence at auto detection time; nil for pre-migration rows
+    let autoBallConfidence:   Double?
     let createdAt:            Date
     let updatedAt:            Date
 
@@ -601,6 +603,7 @@ struct BallDetectionOut: Decodable, Equatable {
         case excludedFromTraining = "excluded_from_training"
         case autoBallX            = "auto_ball_x"
         case autoBallY            = "auto_ball_y"
+        case autoBallConfidence   = "auto_confidence"
         case createdAt            = "created_at"
         case updatedAt            = "updated_at"
     }

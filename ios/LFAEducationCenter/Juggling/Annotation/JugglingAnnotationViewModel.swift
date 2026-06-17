@@ -951,6 +951,7 @@ final class JugglingAnnotationViewModel: ObservableObject {
             excludedFromTraining: true,
             autoBallX:            existing?.autoBallX ?? existing?.ballX,
             autoBallY:            existing?.autoBallY ?? existing?.ballY,
+            autoBallConfidence:   existing?.autoBallConfidence,
             createdAt:            existing?.createdAt ?? Date(),
             updatedAt:            Date()
         )
@@ -993,6 +994,7 @@ final class JugglingAnnotationViewModel: ObservableObject {
             excludedFromTraining: true,
             autoBallX:            existing?.autoBallX ?? existing?.ballX,
             autoBallY:            existing?.autoBallY ?? existing?.ballY,
+            autoBallConfidence:   existing?.autoBallConfidence,
             createdAt:            existing?.createdAt ?? Date(),
             updatedAt:            Date()
         )
