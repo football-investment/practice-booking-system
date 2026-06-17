@@ -35,7 +35,7 @@ _MODELS: dict[str, dict] = {
             "resolve/main/ssd_mobilenet_v1_12.onnx"
         ),
         "env_url_key": "BALL_DETECTION_MODEL_URL",
-        "sha256": None,  # populated on first verified download
+        "sha256": "b8fba5e404077d4048d27fcd1667e85e27e192eb9bf51e696c46a3acd7d21058",
         "size_mb_approx": 29.5,
         "licence": "Apache-2.0 (TensorFlow Model Zoo / ONNX Model Zoo)",
         "description": "SSD MobileNet v1 COCO — sports_ball class 37",
