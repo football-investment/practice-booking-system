@@ -122,7 +122,7 @@ final class JugglingVideoListViewModel: ObservableObject {
         deletingVideoIds.insert(videoId)
         defer { deletingVideoIds.remove(videoId) }
 
-        errorMessage = nil   // clear stale error before each attempt
+        errorMessage = nil
 
         let client: JugglingAnnotationAPIClientProtocol
         if let injected = injectableDeleteClient {
@@ -173,7 +173,7 @@ final class JugglingVideoListViewModel: ObservableObject {
     // MARK: — Private helpers
 
     private func applyDeleteSuccess(videoId: String) {
-        thumbnails[videoId] = nil   // evict thumbnail cache
+        thumbnails[videoId] = nil
 
         guard case .loaded(let items) = listState else { return }
         let remaining = items.filter { $0.videoId != videoId }

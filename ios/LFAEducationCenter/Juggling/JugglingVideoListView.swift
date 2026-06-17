@@ -110,7 +110,6 @@ struct JugglingVideoListView: View {
                     )
                     .contextMenu {
                         Button(role: .destructive) {
-                            print("[JugglingDelete] contextMenu: delete tapped for videoId=\(video.videoId) status=\(video.status)")
                             deleteCandidate = video.videoId
                             showDeleteConfirmation = true
                         } label: {
@@ -119,7 +118,6 @@ struct JugglingVideoListView: View {
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
-                            print("[JugglingDelete] swipeActions: tapped for videoId=\(video.videoId) status=\(video.status)")
                             deleteCandidate = video.videoId
                             showDeleteConfirmation = true
                         } label: {
@@ -199,14 +197,10 @@ struct JugglingVideoListView: View {
     // Calls the ViewModel delete, then shows an error alert if it failed.
     // videoId was captured at swipe time — never re-derived from a list index here.
     private func performDelete(videoId: String) async {
-        print("[JugglingDelete] performDelete: start videoId=\(videoId)")
         await viewModel.deleteVideo(videoId: videoId)
         if let msg = viewModel.errorMessage {
-            print("[JugglingDelete] performDelete: error=\(msg)")
             deleteErrorMessage = msg
             showDeleteError = true
-        } else {
-            print("[JugglingDelete] performDelete: completed without error")
         }
     }
 

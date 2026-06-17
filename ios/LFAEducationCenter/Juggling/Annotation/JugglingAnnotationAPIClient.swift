@@ -229,15 +229,11 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
 
     func deleteVideo(videoId: String) async throws {
         let path = "/api/v1/users/me/juggling/videos/\(videoId)"
-        print("[JugglingDelete] API: → DELETE \(path)")
         do {
             try await authManager.authenticatedDeleteNoContent(path: path)
-            print("[JugglingDelete] API: ← DELETE success (2xx)")
         } catch let err as APIError {
-            print("[JugglingDelete] API: ← DELETE APIError=\(err)")
             switch err {
             case .httpError(statusCode: 410, _):
-                print("[JugglingDelete] API: 410 idempotent — treating as success")
                 return
             case .httpError(statusCode: 404, _):
                 throw VideoDeleteError.notFound
