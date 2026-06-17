@@ -558,7 +558,7 @@ class JugglingBallDetection(Base):
         UniqueConstraint("contact_event_id",
                          name="ux_juggling_ball_detections_event"),
         CheckConstraint(
-            "detection_source IN ('mobilenet_ssd_v2', 'manual')",
+            "detection_source IN ('mobilenet_ssd_v1', 'manual')",
             name="ck_juggling_ball_detections_source",
         ),
         CheckConstraint(

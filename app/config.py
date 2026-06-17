@@ -416,7 +416,7 @@ class Settings(BaseSettings):
     #   OFF by default. When OFF, ball detection endpoints return HTTP 503.
     #   Turn ON per-deployment in .env: BALL_DETECTION_ENABLED=true
     BALL_DETECTION_ENABLED: bool = False
-    BALL_DETECTION_MODEL_PATH: str = "app/ml_models/mobilenet_ssd_v2_sports_ball.onnx"
+    BALL_DETECTION_MODEL_PATH: str = "app/ml_models/ssd_mobilenet_v1_12.onnx"
 
     # ── Slow-query monitoring ──────────────────────────────────────────────────
     # Queries slower than SLOW_QUERY_THRESHOLD_MS are logged to app.slow_query

@@ -3,7 +3,7 @@ Analysis Model Registry — type-aware model config dispatcher.
 
 Maps training_video_type → AnalysisModelConfig so the ball detection
 task uses the correct model, class ID, and confidence threshold per
-video type. First version: all types share MobileNet SSD v2.
+video type. First version: all types share SSD MobileNet v1 (Apache-2.0).
 
 To add a new sport type or model:
   1. Add an entry to ANALYSIS_MODEL_REGISTRY
@@ -28,8 +28,8 @@ class AnalysisModelConfig:
 
 _SHARED_MOBILENET = AnalysisModelConfig(
     model_path_key="BALL_DETECTION_MODEL_PATH",
-    detection_source="mobilenet_ssd_v2",
-    model_version="mobilenet_ssd_v2_coco_2018_03_29_onnx",
+    detection_source="mobilenet_ssd_v1",
+    model_version="ssd_mobilenet_v1_12_onnx",
     target_class_id=37,
     target_class_name="sports_ball",
     input_size=300,

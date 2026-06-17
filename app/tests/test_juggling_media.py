@@ -524,7 +524,7 @@ def test_pm33_no_db_migration():
     cfg = Config(alembic_ini)
     script = ScriptDirectory.from_config(cfg)
     heads = script.get_heads()
-    assert heads == ["2026_06_18_1100"], f"Unexpected alembic heads: {heads}"
+    assert heads == ["2026_06_18_1200"], f"Unexpected alembic heads: {heads}"
 
 
 # ── PM-34: P1/P2/P3 regression ───────────────────────────────────────────────

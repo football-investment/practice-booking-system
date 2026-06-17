@@ -366,23 +366,23 @@ def test_tvt06_video_list_has_training_type(client, student_token, _juggling_vid
 
 def test_bdt_d01_registry_juggling():
     cfg = get_model_config("juggling")
-    assert cfg.detection_source == "mobilenet_ssd_v2"
+    assert cfg.detection_source == "mobilenet_ssd_v1"
     assert cfg.target_class_name == "sports_ball"
 
 
 def test_bdt_d02_registry_footvolley():
     cfg = get_model_config("gan_footvolley")
-    assert cfg.detection_source == "mobilenet_ssd_v2"
+    assert cfg.detection_source == "mobilenet_ssd_v1"
 
 
 def test_bdt_d03_registry_foottennis():
     cfg = get_model_config("gan_foottennis")
-    assert cfg.detection_source == "mobilenet_ssd_v2"
+    assert cfg.detection_source == "mobilenet_ssd_v1"
 
 
 def test_bdt_d04_registry_unknown_fallback():
     cfg = get_model_config("unknown_future_sport")
-    assert cfg.detection_source == "mobilenet_ssd_v2"
+    assert cfg.detection_source == "mobilenet_ssd_v1"
     assert cfg == get_model_config("juggling")
 
 
