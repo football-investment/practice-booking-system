@@ -51,10 +51,15 @@ class JugglingConsentOut(BaseModel):
 
 # ── Upload-init schemas ──────────────────────────────────────────────────────
 
+_VALID_TRAINING_VIDEO_TYPES = frozenset({"juggling", "gan_footvolley", "gan_foottennis"})
+
+
 class JugglingUploadInitRequest(BaseModel):
-    source_type:   str = Field(..., description="in_app_capture | uploaded_video")
-    upload_source: str = Field(default="unknown",
-                               description="camera | gallery | file | unknown")
+    source_type:          str = Field(..., description="in_app_capture | uploaded_video")
+    upload_source:        str = Field(default="unknown",
+                                      description="camera | gallery | file | unknown")
+    training_video_type:  str = Field(default="juggling",
+                                      description="juggling | gan_footvolley | gan_foottennis")
     client_reported_metadata: Optional[Dict[str, Any]] = None
 
     @model_validator(mode="after")
@@ -70,6 +75,11 @@ class JugglingUploadInitRequest(BaseModel):
             raise ValueError(
                 f"upload_source must be one of {sorted(valid_upload_sources)}, "
                 f"got {self.upload_source!r}"
+            )
+        if self.training_video_type not in _VALID_TRAINING_VIDEO_TYPES:
+            raise ValueError(
+                f"training_video_type must be one of {sorted(_VALID_TRAINING_VIDEO_TYPES)}, "
+                f"got {self.training_video_type!r}"
             )
         if self.client_reported_metadata is not None:
             # Strip unknown keys silently — do not raise
@@ -153,6 +163,7 @@ class JugglingVideoItemOut(BaseModel):
     source_type:                str
     annotation_status:          Optional[str] = None
     user_rotation_degrees:      int = 0
+    training_video_type:        str = "juggling"
 
 
 class JugglingVideoListOut(BaseModel):
