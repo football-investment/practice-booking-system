@@ -931,6 +931,131 @@ def test_bdt_core10_deferred_import_paths(db_session, _juggling_video, monkeypat
     assert result["status"] == "detected"
 
 
+def test_bdt_adm07_admin_trigger_skips_existing_detection(
+    client, admin_token, _confirmed_video, db_session, monkeypatch,
+):
+    """Cover admin_ball_detection.py:89-90 — skip existing detection."""
+    video, event = _confirmed_video
+    existing = JugglingBallDetection(
+        contact_event_id=event.id, video_id=video.id,
+        detection_source="manual", ball_x=0.5, ball_y=0.5,
+        no_ball_detected=False, excluded_from_training=True,
+    )
+    db_session.add(existing)
+    db_session.commit()
+    dispatched = []
+    monkeypatch.setattr(
+        "app.tasks.juggling_analysis_task.detect_ball_for_event",
+        type("MockTask", (), {"delay": lambda *a, **kw: dispatched.append(1)})(),
+    )
+    r = client.post(
+        f"/api/v1/admin/juggling/videos/{video.id}/trigger-ball-detection",
+        headers=_auth(admin_token),
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["events_queued"] == 0
+    assert any("already exists" in s for s in data["skipped_reasons"])
+
+
+def test_bdt_adm08_admin_trigger_mixed_confirmed_pending(
+    client, admin_token, db_session, student_user, monkeypatch,
+):
+    """Cover admin_ball_detection.py:98-106 — not_confirmed count in response."""
+    video = JugglingVideo(
+        id=uuid.uuid4(), user_id=student_user.id,
+        source_type="uploaded_video", upload_source="gallery",
+        training_video_type="juggling", status="analyzed",
+    )
+    db_session.add(video)
+    db_session.flush()
+    confirmed = JugglingContactEvent(
+        id=uuid.uuid4(), video_id=video.id,
+        created_by_user_id=student_user.id, device_event_id=uuid.uuid4(),
+        timestamp_ms=1000, contact_type="right_instep",
+        annotation_confidence="certain",
+        annotation_review_status="confirmed",
+        annotation_source="manual_user",
+        excluded_from_training=True, taxonomy_version="v1",
+    )
+    pending = JugglingContactEvent(
+        id=uuid.uuid4(), video_id=video.id,
+        created_by_user_id=student_user.id, device_event_id=uuid.uuid4(),
+        timestamp_ms=2000, contact_type="head",
+        annotation_confidence="probable",
+        annotation_review_status="pending",
+        annotation_source="manual_user",
+        excluded_from_training=True, taxonomy_version="v1",
+    )
+    db_session.add_all([confirmed, pending])
+    db_session.commit()
+    dispatched = []
+    monkeypatch.setattr(
+        "app.tasks.juggling_analysis_task.detect_ball_for_event",
+        type("MockTask", (), {"delay": lambda *a, **kw: dispatched.append(1)})(),
+    )
+    r = client.post(
+        f"/api/v1/admin/juggling/videos/{video.id}/trigger-ball-detection",
+        headers=_auth(admin_token),
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["events_queued"] == 1
+    assert data["events_skipped"] >= 1
+    assert any("not in 'confirmed' status" in s for s in data["skipped_reasons"])
+
+
+def test_bdt_svc03_get_event_invalid_uuid(client, student_token, _juggling_video):
+    """Cover ball_detection_service.py:39-40 — event UUID parse error in GET."""
+    video, _ = _juggling_video
+    r = client.get(
+        f"/api/v1/users/me/juggling/videos/{video.id}/contacts/not-a-uuid/ball-detection",
+        headers=_auth(student_token),
+    )
+    assert r.status_code == 404
+
+
+def test_bdt_svc04_get_event_not_found(client, student_token, _juggling_video):
+    """Cover ball_detection_service.py:51 — event exists but belongs to different video."""
+    video, _ = _juggling_video
+    r = client.get(
+        f"/api/v1/users/me/juggling/videos/{video.id}/contacts/{uuid.uuid4()}/ball-detection",
+        headers=_auth(student_token),
+    )
+    assert r.status_code == 404
+
+
+def test_bdt_fr03_frame_bgr_none(monkeypatch):
+    """Cover frame_extractor.py:34 — cv2 read returns None frame."""
+    import app.services.juggling.frame_extractor as fe_mod
+
+    class MockCap:
+        def isOpened(self): return True
+        def set(self, prop, val): pass
+        def read(self): return True, None
+        def release(self): pass
+
+    monkeypatch.setattr(fe_mod.cv2, "VideoCapture", lambda _: MockCap())
+    with pytest.raises(ValueError, match="Frame extraction failed"):
+        fe_mod.extract_frame_at_ms("/fake/path.mp4", 5000)
+
+
+def test_bdt_fr04_read_returns_false(monkeypatch):
+    """Cover frame_extractor.py:34 — cv2 read returns ret=False."""
+    import numpy as np
+    import app.services.juggling.frame_extractor as fe_mod
+
+    class MockCap:
+        def isOpened(self): return True
+        def set(self, prop, val): pass
+        def read(self): return False, np.zeros((1, 1, 3), dtype=np.uint8)
+        def release(self): pass
+
+    monkeypatch.setattr(fe_mod.cv2, "VideoCapture", lambda _: MockCap())
+    with pytest.raises(ValueError, match="Frame extraction failed"):
+        fe_mod.extract_frame_at_ms("/fake/path.mp4", 5000)
+
+
 def test_bdt_vp03_video_path_prefers_processed(tmp_path):
     from app.tasks.juggling_analysis_task import _video_path
     from unittest.mock import MagicMock
