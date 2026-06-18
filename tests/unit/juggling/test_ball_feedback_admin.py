@@ -251,6 +251,7 @@ def test_BFA_05_patch_approve(client, admin_token, db_session, admin_user):
     assert resp.status_code == 200
     data = resp.json()
     assert data["approval_state"] == "approved"
+    assert data["reviewed_at"] is not None, "PATCH response must include reviewed_at (BallFeedbackAdminItem)"
 
     db_session.refresh(fb)
     assert fb.reviewed_at is not None
@@ -270,7 +271,9 @@ def test_BFA_06_patch_reject(client, admin_token, db_session, admin_user):
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200
-    assert resp.json()["approval_state"] == "rejected"
+    data = resp.json()
+    assert data["approval_state"] == "rejected"
+    assert data["reviewed_at"] is not None, "PATCH response must include reviewed_at (BallFeedbackAdminItem)"
     db_session.refresh(fb)
     assert fb.reviewed_at is not None
 

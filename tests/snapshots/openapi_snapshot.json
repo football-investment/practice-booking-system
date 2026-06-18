@@ -29338,7 +29338,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BallFeedbackOut"
+                  "$ref": "#/components/schemas/BallFeedbackAdminItem"
                 }
               }
             }
