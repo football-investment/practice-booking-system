@@ -35,6 +35,9 @@ protocol JugglingAnnotationAPIClientProtocol: AnyObject {
     // AN-3B2C-1: ball detection
     func fetchBallDetection(videoId: String, eventId: UUID) async throws -> BallDetectionOut
     func postBallDetection(videoId: String, eventId: UUID, request: BallDetectionManualRequest) async throws -> BallDetectionOut
+    // AN-3B2B1: ball feedback
+    func fetchFeedbackQueue(videoId: String, limit: Int) async -> BallFeedbackQueueResponse?
+    func submitBallFeedback(videoId: String, request: BallFeedbackRequest) async throws -> BallFeedbackOut
 }
 
 @MainActor
@@ -395,6 +398,50 @@ final class JugglingAnnotationAPIClient: JugglingAnnotationAPIClientProtocol {
         } catch {
             print("[BallTrajectory] postManualBallSeed failed: \(error)")
             return false
+        }
+    }
+
+    // MARK: — AN-3B2B1: Ball Feedback
+    //
+    // fetchFeedbackQueue: GET /ball-feedback/queue?limit=N
+    //   200 → BallFeedbackQueueResponse (may have 0 queue_items)
+    //   503 → nil (BALL_FEEDBACK_ENABLED=false)
+    //   network → nil
+    //
+    // submitBallFeedback: POST /ball-feedback
+    //   201 → BallFeedbackOut
+    //   409 → throws BallFeedbackAPIError.duplicate
+    //   503 → throws BallFeedbackAPIError.unavailable
+    //   network/other → throws BallFeedbackAPIError.network
+
+    func fetchFeedbackQueue(videoId: String, limit: Int) async -> BallFeedbackQueueResponse? {
+        let path = "/api/v1/users/me/juggling/videos/\(videoId)/ball-feedback/queue?limit=\(limit)"
+        do {
+            return try await authManager.authenticatedGet(path: path)
+        } catch APIError.httpError(503, _) {
+            return nil
+        } catch {
+            print("[BallFeedback] fetchFeedbackQueue failed: \(error)")
+            return nil
+        }
+    }
+
+    func submitBallFeedback(videoId: String, request: BallFeedbackRequest) async throws -> BallFeedbackOut {
+        let path = "/api/v1/users/me/juggling/videos/\(videoId)/ball-feedback"
+        do {
+            let (data, statusCode) = try await authManager.authenticatedPostRaw(path: path, body: request)
+            guard statusCode == 201 || statusCode == 200 else {
+                throw BallFeedbackAPIError.network
+            }
+            return try isoDecoder.decode(BallFeedbackOut.self, from: data)
+        } catch APIError.httpError(409, _) {
+            throw BallFeedbackAPIError.duplicate
+        } catch APIError.httpError(503, _) {
+            throw BallFeedbackAPIError.unavailable
+        } catch let fbErr as BallFeedbackAPIError {
+            throw fbErr
+        } catch {
+            throw BallFeedbackAPIError.network
         }
     }
 
