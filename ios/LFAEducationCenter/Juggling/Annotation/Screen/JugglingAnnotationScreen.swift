@@ -56,6 +56,8 @@ struct JugglingAnnotationScreen: View {
     @State private var pendingPoseSnapshots: [UUID: CapturedPose] = [:]
     @State private var poseSnapshots:        [PoseSnapshotOut]    = []
     @State private var showSkeletonOverlay   = false
+    // AN-3B2D-2: continuous skeleton extraction (separate ViewModel)
+    @StateObject private var denseSkeletonVM: DenseSkeletonViewModel
 
     // Phase 2A patch: retroactive pose generation for pre-existing events.
     // isGeneratingPoses gates the banner spinner; poseGenProgress drives the
@@ -107,6 +109,7 @@ struct JugglingAnnotationScreen: View {
             videoId:     video.videoId,
             authManager: authManager
         ))
+        _denseSkeletonVM = StateObject(wrappedValue: DenseSkeletonViewModel(videoId: video.videoId))
         #if DEBUG
         AnnotationDiagnosticsLog.log("Screen init — userId=\(userId) videoId=\(video.videoId)")
         #endif
@@ -234,6 +237,8 @@ struct JugglingAnnotationScreen: View {
                     playback.loadAsset(asset)
                     if let avp = playback.avPlayer { avp.play() }
                     Task { poseSnapshots = await vm.fetchPoseSnapshots() }
+                    // AN-3B2D-2: start continuous skeleton extraction
+                    denseSkeletonVM.startExtraction(asset: asset)
                 }
             })
             .onChange(of: vm.activeEvents) { events in
@@ -327,14 +332,44 @@ struct JugglingAnnotationScreen: View {
                     .rotationEffect(.degrees(Double(playback.userRotation)))
                     .animation(.easeInOut(duration: 0.25), value: playback.userRotation)
 
-                if showSkeletonOverlay,
-                   let snap = closestSnapshot(toMs: playback.currentTimestampMs) {
-                    PoseSnapshotOverlayView(keypoints: snap.keypoints)
+                // AN-3B2D-2: continuous > event-snapshot > nothing
+                if showSkeletonOverlay {
+                    if denseSkeletonVM.status == .complete || denseSkeletonVM.frameCount > 0 {
+                        ContinuousSkeletonOverlayView(
+                            frame: denseSkeletonVM.interpolatedFrame(atMs: playback.currentTimestampMs),
+                            showSyntheticFeet: true
+                        )
                         .frame(width: renderSize.width, height: renderSize.height)
-                        .allowsHitTesting(false)
+                    } else if let snap = closestSnapshot(toMs: playback.currentTimestampMs) {
+                        PoseSnapshotOverlayView(keypoints: snap.keypoints)
+                            .frame(width: renderSize.width, height: renderSize.height)
+                            .allowsHitTesting(false)
+                    }
                 }
 
-                if !poseSnapshots.isEmpty {
+                // Dense skeleton progress banner
+                if denseSkeletonVM.progress > 0, denseSkeletonVM.progress < 1.0 {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .tint(.white)
+                            Text("Skeleton: \(Int(denseSkeletonVM.progress * 100))%")
+                                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                                .foregroundColor(.white.opacity(0.85))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.black.opacity(0.55))
+                        .cornerRadius(6)
+                        .padding(.bottom, 8)
+                    }
+                    .frame(width: renderSize.width, height: renderSize.height)
+                    .allowsHitTesting(false)
+                }
+
+                if !poseSnapshots.isEmpty || denseSkeletonVM.frameCount > 0 {
                     VStack {
                         HStack {
                             Spacer()
@@ -698,6 +733,7 @@ struct JugglingAnnotationScreen: View {
         vm.onDisappear()
         loader.cancel()
         playback.pause()
+        denseSkeletonVM.cancel()
     }
 
     // Explicit save-then-close path for the X button and "Mentés és
