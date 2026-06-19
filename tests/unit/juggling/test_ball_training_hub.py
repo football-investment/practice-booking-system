@@ -1,37 +1,47 @@
 """
-Global Ball Training Hub tests — BTH-01..BTH-15.
+Global Ball Training Hub tests — BTH-01..BTH-18 + BTH-12B + BTH-CC-1 + BTH-CC-2.
 
 Coverage:
-  BTH-01  Queue returns assignment_id only — no video_id, frame_ms, storage_path
-  BTH-02  assignment_id is a valid UUID
-  BTH-03  Cross-user assignment access → 404 (no info-leak)
-  BTH-04  Expired assignment submit → 410
-  BTH-05  Consumed assignment (second submit) → 409
-  BTH-06  Non-existent assignment UUID → 404
-  BTH-07  Valid confirm submit → 201, feedback row created, assignment consumed
-  BTH-08  Valid no_ball submit → 201, correct decision persisted
-  BTH-09  corrected decision → 422 (deferred to PR-1B)
-  BTH-10  Queue excludes frames without training_consent (consent gate)
-  BTH-11  Queue excludes user's own video frames
-  BTH-12  Idempotent queue — two requests return same assignment for same frame
-  BTH-13  Frame capacity: 4 sequential submits, 4 different users → 3 succeed, 1 gets 409
-  BTH-14  Consent revoke after assignment issued → submit returns 403
-  BTH-15  Consensus task skipped when training_consent revoked (BTH-CC-01)
+  BTH-01   Queue returns assignment_id only — no video_id, frame_ms, storage_path
+  BTH-02   assignment_id is a valid UUID
+  BTH-03   Cross-user assignment access → 404 (no info-leak)
+  BTH-04   Expired assignment submit → 410
+  BTH-05   Consumed assignment (second submit) → 409
+  BTH-06   Non-existent assignment UUID → 404
+  BTH-07   Valid confirm submit → 201, feedback row created, assignment consumed
+  BTH-08   Valid no_ball submit → 201, correct decision persisted
+  BTH-09   corrected decision → 422 (deferred to PR-1B)
+  BTH-10   Queue excludes frames without training_consent (consent gate)
+  BTH-11   Queue excludes user's own video frames
+  BTH-12   Idempotent assignment creation — service-level advisory lock
+  BTH-12B  Endpoint-level queue idempotency — GET × 2 returns same assignment_ids
+  BTH-13   Frame capacity: 4 sequential submits, 4 different users → 3 succeed, 1 gets 409
+  BTH-14   Consent revoke after assignment issued → submit returns 403
+  BTH-15   Consensus task skipped when training_consent revoked
+  BTH-16   Feature flag off → 503
+  BTH-17   Non-allowlisted student → 403
+  BTH-18   Allowlisted student → 200
+  BTH-CC-1 Real concurrent frame-capacity: 4 sessions × same frame → 3×201 + 1×409
+  BTH-CC-2 Real concurrent same-assignment: 2 sessions × same BTA → 1×201 + 1×409
 
-FastAPI TestClient + PostgreSQL savepoint for full DB isolation.
+BTH-01..BTH-18 + BTH-12B: FastAPI TestClient + PostgreSQL savepoint (full DB isolation).
+BTH-CC-1, BTH-CC-2: real PostgreSQL concurrency via ThreadPoolExecutor + SessionLocal.
 """
 from __future__ import annotations
 
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import event as sa_event, select
+from sqlalchemy import delete as sa_delete, event as sa_event, select
 from sqlalchemy.orm import sessionmaker
 
 from app.core.auth import create_access_token
-from app.database import engine, get_db
+from app.database import SessionLocal, engine, get_db
 from app.main import app
 from app.models.juggling import (
     BallTrainingAssignment,
@@ -41,6 +51,7 @@ from app.models.juggling import (
     JugglingFrameGroundTruth,
     JugglingVideo,
     JugglingVideoStatus,
+    UserAnnotationReliability,
 )
 from app.models.user import User, UserRole
 from app.services.juggling import feature_flag as ff_module
@@ -493,6 +504,67 @@ def test_bth_12_idempotent_assignment_creation(db):
     assert len(active) == 1, f"Expected 1 active assignment, found {len(active)}"
 
 
+# ── BTH-12B: Endpoint-level queue idempotency ─────────────────────────────────
+
+def test_bth_12b_endpoint_queue_idempotent(db, client, monkeypatch):
+    """GET /me/ball-training/queue called twice by the same user returns the
+    same set of assignment_ids. The second call must not create duplicate
+    BallTrainingAssignment rows in the DB.
+
+    Idempotency is verified by:
+      1. Both calls return identical assignment_id sets.
+      2. The total number of active BTAs for the reviewer equals the number of
+         tasks returned (no extra rows created by the second call).
+      3. All returned assignments are active (consumed_at IS NULL).
+
+    reviewer_id is stored before the HTTP calls to avoid lazy-loading expired
+    ORM objects after the service's db.commit() calls.
+    """
+    _flags_on(monkeypatch)
+    reviewer = _make_user(db, "rev12b", UserRole.ADMIN)
+    owner = _make_user(db, "ow12b")
+    video = _make_video(db, owner)
+    _make_consent(db, owner, training=True)
+    _make_trajectory(db, video, frame_ms=12100, confidence=0.0)
+
+    # Cache PK before HTTP calls expire ORM objects via db.commit()
+    reviewer_id: int = reviewer.id
+
+    resp1 = client.get("/api/v1/users/me/ball-training/queue", headers=_auth(reviewer))
+    assert resp1.status_code == 200, resp1.text
+    ids1 = {t["assignment_id"] for t in resp1.json()["tasks"]}
+    assert ids1, "First queue call returned no tasks"
+
+    resp2 = client.get("/api/v1/users/me/ball-training/queue", headers=_auth(reviewer))
+    assert resp2.status_code == 200, resp2.text
+    ids2 = {t["assignment_id"] for t in resp2.json()["tasks"]}
+
+    # Invariant 1: same assignment_ids on both calls.
+    assert ids1 == ids2, (
+        f"Endpoint idempotency violated: call 1={ids1}, call 2={ids2}"
+    )
+
+    # Invariant 2: each returned assignment_id maps to exactly one active BTA row.
+    # (If call 2 created duplicates, the count would exceed len(ids1).)
+    all_active = db.execute(
+        select(BallTrainingAssignment).where(
+            BallTrainingAssignment.user_id == reviewer_id,
+            BallTrainingAssignment.consumed_at.is_(None),
+        )
+    ).scalars().all()
+    assert len(all_active) == len(ids1), (
+        f"Duplicate BTAs detected: {len(all_active)} active rows for "
+        f"{len(ids1)} returned tasks (reviewer_id={reviewer_id})"
+    )
+
+    # Invariant 3: the returned IDs match the active rows exactly.
+    db_ids = {str(row.id) for row in all_active}
+    assert db_ids == ids1, (
+        f"Returned assignment_ids do not match active DB rows: "
+        f"response={ids1}, db={db_ids}"
+    )
+
+
 # ── BTH-13: Frame capacity — 4 sequential submits, 4 users → 3 succeed ───────
 
 def test_bth_13_frame_capacity_three_max(db, client, monkeypatch):
@@ -634,3 +706,220 @@ def test_bth_18_allowlisted_student_200(db, client, monkeypatch):
 
     resp = client.get("/api/v1/users/me/ball-training/queue", headers=_auth(student))
     assert resp.status_code == 200
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Real-concurrency tests (BTH-CC-*)
+#
+# These tests bypass the savepoint fixture and use real PostgreSQL transactions
+# with separate SessionLocal() connections so that advisory locks and FOR UPDATE
+# row locks operate as they would in production. Data committed during these
+# tests is explicitly cleaned up in a finally block.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _cc_cleanup(video_id: uuid.UUID, all_user_ids: list[int]) -> None:
+    """Delete all CC test data from the real DB in FK-safe order."""
+    db = SessionLocal()
+    try:
+        db.execute(sa_delete(JugglingBallFeedback).where(
+            JugglingBallFeedback.video_id == video_id
+        ))
+        db.execute(sa_delete(BallTrainingAssignment).where(
+            BallTrainingAssignment.video_id == video_id
+        ))
+        db.execute(sa_delete(JugglingBallTrajectory).where(
+            JugglingBallTrajectory.video_id == video_id
+        ))
+        db.execute(sa_delete(JugglingConsent).where(
+            JugglingConsent.user_id.in_(all_user_ids)
+        ))
+        db.execute(sa_delete(UserAnnotationReliability).where(
+            UserAnnotationReliability.user_id.in_(all_user_ids)
+        ))
+        db.execute(sa_delete(JugglingVideo).where(JugglingVideo.id == video_id))
+        db.execute(sa_delete(User).where(User.id.in_(all_user_ids)))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+# ── BTH-CC-1: Real concurrent frame-capacity ─────────────────────────────────
+
+def test_bth_cc1_concurrent_frame_capacity():
+    """Real PostgreSQL concurrency test: 4 users submit feedback for the same
+    frame simultaneously via separate DB sessions.
+
+    Locking invariant under test: JugglingBallTrajectory FOR UPDATE serialises
+    the fb_count recount so that exactly 3 succeed and 1 is rejected (409).
+    Expected: exactly 3 × 201, exactly 1 × 409.
+    DB post-condition: exactly 3 non-spam JugglingBallFeedback rows.
+    """
+    from app.schemas.juggling import BallTrainingFeedbackRequest
+    from app.services.juggling.ball_training_service import submit_training_feedback
+
+    _CC1_FRAME = 99001
+
+    setup_db = SessionLocal()
+    try:
+        owner = _make_user(setup_db, "cc1o")
+        video = _make_video(setup_db, owner)
+        _make_consent(setup_db, owner, training=True)
+        _make_trajectory(setup_db, video, frame_ms=_CC1_FRAME, confidence=0.5)
+        reviewers = [_make_user(setup_db, f"cc1u{i}", UserRole.ADMIN) for i in range(4)]
+        assignments = [
+            _make_assignment(setup_db, u, video, frame_ms=_CC1_FRAME)
+            for u in reviewers
+        ]
+        video_id = video.id
+        reviewer_ids = [u.id for u in reviewers]
+        assignment_ids = [a.id for a in assignments]
+        all_user_ids = [owner.id] + reviewer_ids
+    finally:
+        setup_db.close()
+
+    results: list[int] = []
+    barrier = threading.Barrier(4)
+
+    def _submit(uid: int, aid: uuid.UUID) -> int:
+        db = SessionLocal()
+        try:
+            barrier.wait(timeout=15)
+            req = BallTrainingFeedbackRequest(assignment_id=aid, decision="confirm")
+            submit_training_feedback(db, uid, req)
+            return 201
+        except HTTPException as exc:
+            return exc.status_code
+        except threading.BrokenBarrierError:
+            return 500
+        except Exception:
+            return 500
+        finally:
+            db.close()
+
+    try:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(_submit, reviewer_ids, assignment_ids))
+
+        ok = results.count(201)
+        conflict = results.count(409)
+        assert ok == 3, (
+            f"Expected 3 × 201 (frame capacity), got {results}"
+        )
+        assert conflict == 1, (
+            f"Expected 1 × 409 (capacity exceeded), got {results}"
+        )
+
+        verify_db = SessionLocal()
+        try:
+            fb_rows = verify_db.execute(
+                select(JugglingBallFeedback).where(
+                    JugglingBallFeedback.video_id == video_id,
+                    JugglingBallFeedback.frame_ms == _CC1_FRAME,
+                    JugglingBallFeedback.approval_state != "spam",
+                )
+            ).scalars().all()
+            assert len(fb_rows) == 3, (
+                f"Expected 3 non-spam feedback rows in DB, found {len(fb_rows)}"
+            )
+        finally:
+            verify_db.close()
+
+    finally:
+        _cc_cleanup(video_id, all_user_ids)
+
+
+# ── BTH-CC-2: Real concurrent same-assignment submit ─────────────────────────
+
+def test_bth_cc2_concurrent_same_assignment_submit():
+    """Real PostgreSQL concurrency test: the same user submits the same
+    assignment from two separate DB sessions simultaneously.
+
+    Locking invariant under test: BallTrainingAssignment FOR UPDATE serialises
+    the consumed_at check so that exactly one submit succeeds (201) and the
+    other is rejected (409, 'Assignment already submitted').
+    DB post-condition: exactly 1 JugglingBallFeedback row, consumed_at set once.
+    """
+    from app.schemas.juggling import BallTrainingFeedbackRequest
+    from app.services.juggling.ball_training_service import submit_training_feedback
+
+    _CC2_FRAME = 99002
+
+    setup_db = SessionLocal()
+    try:
+        owner = _make_user(setup_db, "cc2o")
+        video = _make_video(setup_db, owner)
+        _make_consent(setup_db, owner, training=True)
+        _make_trajectory(setup_db, video, frame_ms=_CC2_FRAME, confidence=0.5)
+        reviewer = _make_user(setup_db, "cc2r", UserRole.ADMIN)
+        assignment = _make_assignment(setup_db, reviewer, video, frame_ms=_CC2_FRAME)
+        video_id = video.id
+        assignment_id = assignment.id
+        reviewer_id = reviewer.id
+        all_user_ids = [owner.id, reviewer.id]
+    finally:
+        setup_db.close()
+
+    results: list[int] = []
+    barrier = threading.Barrier(2)
+
+    def _submit() -> int:
+        db = SessionLocal()
+        try:
+            barrier.wait(timeout=15)
+            req = BallTrainingFeedbackRequest(
+                assignment_id=assignment_id, decision="confirm"
+            )
+            submit_training_feedback(db, reviewer_id, req)
+            return 201
+        except HTTPException as exc:
+            return exc.status_code
+        except threading.BrokenBarrierError:
+            return 500
+        except Exception:
+            return 500
+        finally:
+            db.close()
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(_submit) for _ in range(2)]
+            results = [f.result() for f in futures]
+
+        ok = results.count(201)
+        conflict = results.count(409)
+        assert ok == 1, (
+            f"Expected 1 × 201 (one successful submit), got {results}"
+        )
+        assert conflict == 1, (
+            f"Expected 1 × 409 (duplicate assignment submit), got {results}"
+        )
+
+        verify_db = SessionLocal()
+        try:
+            fb_rows = verify_db.execute(
+                select(JugglingBallFeedback).where(
+                    JugglingBallFeedback.video_id == video_id,
+                    JugglingBallFeedback.frame_ms == _CC2_FRAME,
+                    JugglingBallFeedback.user_id == reviewer_id,
+                )
+            ).scalars().all()
+            assert len(fb_rows) == 1, (
+                f"Expected exactly 1 feedback row, found {len(fb_rows)}"
+            )
+
+            bta = verify_db.execute(
+                select(BallTrainingAssignment).where(
+                    BallTrainingAssignment.id == assignment_id
+                )
+            ).scalar_one()
+            assert bta.consumed_at is not None, (
+                "BallTrainingAssignment.consumed_at must be set after successful submit"
+            )
+        finally:
+            verify_db.close()
+
+    finally:
+        _cc_cleanup(video_id, all_user_ids)
