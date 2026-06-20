@@ -152,6 +152,10 @@ docs/design/
 
 # Monitoring scripts runtime artifacts
 scripts/monitoring/distractor_changes.jsonl
+
+# Smart Snap POC-1 — extracted video frames and benchmark results (large/derived artifacts)
+scripts/smart_snap_poc1/dataset/
+scripts/smart_snap_poc1/benchmark_results.json
 scripts/monitoring/snapshots/
 
 # Moved Assets (cleaned up to docs/)
