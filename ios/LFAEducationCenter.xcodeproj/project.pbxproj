@@ -14,6 +14,10 @@
 		BT000004000000000000005 /* BallTrainingFrameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT000003000000000000005 /* BallTrainingFrameView.swift */; };
 		BT000004000000000000006 /* RewardBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT000003000000000000006 /* RewardBadgeView.swift */; };
 		BT000004000000000000007 /* DailyProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT000003000000000000007 /* DailyProgressView.swift */; };
+		SK000004000000000000001 /* CanonicalJoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = SK000003000000000000001 /* CanonicalJoint.swift */; };
+		SK000004000000000000002 /* Skeleton3DModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = SK000003000000000000002 /* Skeleton3DModels.swift */; };
+		SK000004000000000000003 /* JointMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = SK000003000000000000003 /* JointMapper.swift */; };
+		SK000004000000000000004 /* LegacySkeletonAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = SK000003000000000000004 /* LegacySkeletonAdapter.swift */; };
 		BT500004000000000000001 /* BallTrainingHubVMTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BT500003000000000000001 /* BallTrainingHubVMTests.swift */; };
 		36CB92D674607508AC4335E1 /* JugglingVideoListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20CD58654D76D5278A5E5B62 /* JugglingVideoListViewModel.swift */; };
 		3A252E40BD69018C7269AAF2 /* JugglingVideoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2FD7851919C9B8A9FC46733 /* JugglingVideoItem.swift */; };
@@ -213,6 +217,10 @@
 		BT000003000000000000005 /* BallTrainingFrameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallTrainingFrameView.swift; sourceTree = "<group>"; };
 		BT000003000000000000006 /* RewardBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardBadgeView.swift; sourceTree = "<group>"; };
 		BT000003000000000000007 /* DailyProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyProgressView.swift; sourceTree = "<group>"; };
+		SK000003000000000000001 /* CanonicalJoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanonicalJoint.swift; sourceTree = "<group>"; };
+		SK000003000000000000002 /* Skeleton3DModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton3DModels.swift; sourceTree = "<group>"; };
+		SK000003000000000000003 /* JointMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JointMapper.swift; sourceTree = "<group>"; };
+		SK000003000000000000004 /* LegacySkeletonAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacySkeletonAdapter.swift; sourceTree = "<group>"; };
 		BT500003000000000000001 /* BallTrainingHubVMTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BallTrainingHubVMTests.swift; sourceTree = "<group>"; };
 		20CD58654D76D5278A5E5B62 /* JugglingVideoListViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = JugglingVideoListViewModel.swift; sourceTree = "<group>"; };
 		89E393EC38D4612DE04DD285 /* JugglingVideoListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = JugglingVideoListView.swift; sourceTree = "<group>"; };
@@ -467,6 +475,7 @@
 				BB000002000000000000010 /* Dashboard */,
 				BB000002000000000000011 /* Education */,
 				BB000002000000000000012 /* Training */,
+				SK000002000000000000001 /* Skeleton3D */,
 				BB000002000000000000013 /* Networking */,
 				BB000002000000000000014 /* Credits */,
 				BB000002000000000000015 /* Profile */,
@@ -601,6 +610,17 @@
 				BB000003000000000000017 /* APIClient.swift */,
 			);
 			path = Networking;
+			sourceTree = "<group>";
+		};
+		SK000002000000000000001 /* Skeleton3D */ = {
+			isa = PBXGroup;
+			children = (
+				SK000003000000000000001 /* CanonicalJoint.swift */,
+				SK000003000000000000002 /* Skeleton3DModels.swift */,
+				SK000003000000000000003 /* JointMapper.swift */,
+				SK000003000000000000004 /* LegacySkeletonAdapter.swift */,
+			);
+			path = Skeleton3D;
 			sourceTree = "<group>";
 		};
 		BB000002000000000000014 /* Credits */ = {
@@ -1113,6 +1133,10 @@
 				BT000004000000000000005 /* BallTrainingFrameView.swift in Sources */,
 				BT000004000000000000006 /* RewardBadgeView.swift in Sources */,
 				BT000004000000000000007 /* DailyProgressView.swift in Sources */,
+				SK000004000000000000001 /* CanonicalJoint.swift in Sources */,
+				SK000004000000000000002 /* Skeleton3DModels.swift in Sources */,
+				SK000004000000000000003 /* JointMapper.swift in Sources */,
+				SK000004000000000000004 /* LegacySkeletonAdapter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
