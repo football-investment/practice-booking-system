@@ -50123,52 +50123,72 @@
         "description": "Submit a training feedback decision via assignment_id.\n\nconfirm   \u2014 model prediction is correct.\nno_ball   \u2014 no ball is present in the frame.\ncorrected \u2014 user tapped the true ball position; tap_x and tap_y (both\n            normalised to [0, 1] relative to the displayed image) are\n            required.  The server back-calculates full-frame coordinates\n            from the crop metadata stored on the assignment."
       },
       "BallTrainingFeedbackResponse": {
-        "properties": {
-          "assignment_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Assignment Id"
-          },
-          "decision": {
-            "type": "string",
-            "title": "Decision"
-          },
-          "submitted_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Submitted At"
-          },
-          "corrected_x": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Corrected X"
-          },
-          "corrected_y": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Corrected Y"
-          }
-        },
-        "type": "object",
-        "required": [
-          "assignment_id",
-          "decision",
-          "submitted_at"
-        ],
-        "title": "BallTrainingFeedbackResponse"
+    "properties": {
+      "assignment_id": {
+        "type": "string",
+        "format": "uuid",
+        "title": "Assignment Id"
       },
+      "decision": {
+        "type": "string",
+        "title": "Decision"
+      },
+      "submitted_at": {
+        "type": "string",
+        "format": "date-time",
+        "title": "Submitted At"
+      },
+      "corrected_x": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Corrected X"
+      },
+      "corrected_y": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Corrected Y"
+      },
+      "xp_awarded": {
+        "type": "integer",
+        "title": "Xp Awarded",
+        "default": 0
+      },
+      "credit_awarded": {
+        "type": "integer",
+        "title": "Credit Awarded",
+        "default": 0
+      },
+      "daily_xp_total": {
+        "type": "integer",
+        "title": "Daily Xp Total",
+        "default": 0
+      },
+      "daily_tasks_done": {
+        "type": "integer",
+        "title": "Daily Tasks Done",
+        "default": 0
+      }
+    },
+    "type": "object",
+    "required": [
+      "assignment_id",
+      "decision",
+      "submitted_at"
+    ],
+    "title": "BallTrainingFeedbackResponse"
+  },
       "BallTrajectoryManualSeedOut": {
         "properties": {
           "frame_ms": {
