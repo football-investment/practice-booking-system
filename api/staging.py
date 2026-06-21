@@ -20,9 +20,6 @@ from app.api.api_v1.endpoints.auth import (
     refresh_token,
     read_users_me,
 )
-from app.api.api_v1.endpoints.users.profile import (
-    get_current_user_profile,
-)
 from app.schemas.auth import Token
 from app.schemas.user import User as UserSchema
 
@@ -42,7 +39,7 @@ auth_router.add_api_route("/me", read_users_me, methods=["GET"], response_model=
 app.include_router(auth_router)
 
 users_router = APIRouter(prefix="/api/v1/users", tags=["users"])
-users_router.add_api_route("/me", get_current_user_profile, methods=["GET"], response_model=UserSchema)
+users_router.add_api_route("/me", read_users_me, methods=["GET"], response_model=UserSchema)
 app.include_router(users_router)
 
 
