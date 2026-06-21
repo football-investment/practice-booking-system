@@ -1,8 +1,9 @@
+# Minimal staging dependencies — this file is ONLY for the deploy/vercel-staging branch.
+# The main branch retains the full requirements.txt. Do NOT merge this back to main.
 fastapi==0.129.0
 uvicorn[standard]==0.35.0
 sqlalchemy==2.0.36
-psycopg2-binary==2.9.9
-alembic==1.12.1
+psycopg2-binary>=2.9.9
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
@@ -10,28 +11,4 @@ pydantic==2.9.2
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 email-validator==2.1.2
-pytest==7.4.3
-httpx==0.25.2
-pytest-asyncio==0.21.1
-jinja2==3.1.2
-plotly==6.5.2
-# Phone number validation
 phonenumbers==9.0.24
-# Task queue (large tournament session generation)
-celery[redis]==5.3.6
-redis==5.0.1
-# Background task scheduler
-apscheduler==3.10.4
-# Image processing (LFA player card photo upload)
-Pillow>=10.0.0
-# rembg/onnxruntime only needed in Celery worker; web process uses deferred import.
-# onnxruntime 1.19.x does not exist (versions jump 1.18.x → 1.20.0); pinned to
-# 1.26.0 — the tested+installed version compatible with rembg==2.0.75.
-rembg==2.0.75
-onnxruntime==1.26.0
-# Ball detection frame extraction (Phase 2B). Headless variant avoids GUI deps.
-# Licence: Apache-2.0 (OpenCV) + MIT (wrapper). See LICENSE-THIRD-PARTY.md.
-opencv-python-headless>=4.8.0
-# Timezone derivation from GPS coordinates (Phase 2 — lat_lng_derived source)
-# Offline only — no network calls at runtime. numpy already required by onnxruntime.
-timezonefinder==6.5.9
