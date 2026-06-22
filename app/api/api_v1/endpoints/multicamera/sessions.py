@@ -18,7 +18,7 @@ from .....models.user import User
 from .....models.multicamera_session import SessionParticipant
 from .....schemas.multicamera_session import (
     CaptureStreamDTO, DeviceRole, DeviceStatus, DeviceType,
-    MultiCameraSessionDTO, ParticipantRole, SessionDeviceDTO,
+    MultiCameraSessionDTO, ParticipantRole, SessionDeviceDTO, UpdateCaptureStreamRequest,
     SessionParticipantDTO, SessionStatus, StreamType,
 )
 from .....services.multicamera.session_service import SessionService
@@ -312,6 +312,36 @@ def create_capture_stream(
             raise HTTPException(status_code=422, detail="Cannot create stream on removed device")
         ss = SessionService(db)
         return ss.create_capture_stream(session_device_id, body.stream_type.value, body.preset_json)
+    except HTTPException:
+        raise
+    except Exception as e:
+        _handle_service_error(e)
+
+
+@router.patch("/sessions/{session_uuid}/devices/{session_device_id}/streams/{stream_id}", response_model=CaptureStreamDTO)
+def update_capture_stream(
+    session_uuid: uuid.UUID,
+    session_device_id: int,
+    stream_id: int,
+    body: UpdateCaptureStreamRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    try:
+        _, sd = _require_device_access(db, session_uuid, session_device_id, current_user)
+        from .....repositories.multicamera_session_repo import MultiCameraSessionRepo
+        repo = MultiCameraSessionRepo(db)
+        cs = repo.get_capture_stream_by_id(stream_id)
+        if not cs or cs.session_device_id != sd.id:
+            raise HTTPException(status_code=404, detail="Stream not found")
+        ss = SessionService(db)
+        return ss.update_capture_stream(
+            stream_id,
+            started_at=body.started_at,
+            stopped_at=body.stopped_at,
+            capture_result=body.capture_result,
+            stream_revision=body.stream_revision,
+        )
     except HTTPException:
         raise
     except Exception as e:
