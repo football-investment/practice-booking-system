@@ -203,6 +203,7 @@ def transition_session(
         _require_instructor(db, session_uuid, current_user)
         ss = SessionService(db)
         ss.transition_session(session_uuid, body.target_status.value, body.revision)
+        db.expire_all()
         return ss.get_session(session_uuid)
     except HTTPException:
         raise

@@ -157,6 +157,8 @@ class SessionService:
         if target not in SESSION_TRANSITIONS.get(current, set()):
             raise InvalidTransitionError("session", s.status, target_status)
 
+        s.status = target_status
+        s.revision += 1
         now = datetime.now(timezone.utc)
 
         if target == SessionStatus.RECORDING_PENDING:
