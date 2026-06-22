@@ -143,8 +143,37 @@ final class SessionCaptureManagerTests: XCTestCase {
         // The storage check is in startCapture() guard
     }
 
-    // SC-08: stopCapture → completed (validated via mock)
-    // Tested indirectly via delegate — can't invoke real delegate in simulator
+    // SC-08: Positive lifecycle — delegate didFinishRecording → completed with valid file
+    func test_SC_08_delegate_finish_valid() async {
+        let (mgr, _, fs) = makeManager()
+        fs.validationResult = .valid(
+            duration: 10.0, resolution: CGSize(width: 1920, height: 1080),
+            displayOrientation: "portrait", hasAudio: true,
+            transform: "a=0.0 b=1.0 c=-1.0 d=0.0 tx=1080.0 ty=0.0"
+        )
+        let testURL = fs.outputURL(sessionUUID: "test", deviceId: 0)
+        // Simulate delegate callback directly
+        mgr.fileOutput(
+            AVCaptureMovieFileOutput(),
+            didFinishRecordingTo: testURL,
+            from: [],
+            error: nil
+        )
+        // Wait for async validation
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        if case .completed(let url) = mgr.state {
+            XCTAssertEqual(url, testURL)
+            XCTAssertNotNil(mgr.lastValidation)
+            if case .valid(let dur, let res, let orient, let audio, _) = mgr.lastValidation {
+                XCTAssertEqual(dur, 10.0)
+                XCTAssertEqual(res, CGSize(width: 1920, height: 1080))
+                XCTAssertEqual(orient, "portrait")
+                XCTAssertTrue(audio)
+            }
+        } else {
+            XCTFail("Expected .completed, got \(mgr.state)")
+        }
+    }
 
     // SC-09: Duration < 1s → failed
     func test_SC_09_short_duration() async {
