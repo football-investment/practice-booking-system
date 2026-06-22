@@ -8452,6 +8452,23 @@
         "title": "CreateAssessmentResponse",
         "type": "object"
       },
+      "CreateCaptureStreamRequest": {
+        "properties": {
+          "preset_json": {
+            "title": "Preset Json",
+            "type": "object"
+          },
+          "stream_type": {
+            "$ref": "#/components/schemas/StreamType"
+          }
+        },
+        "required": [
+          "stream_type",
+          "preset_json"
+        ],
+        "title": "CreateCaptureStreamRequest",
+        "type": "object"
+      },
       "CreateSessionRequest": {
         "properties": {
           "max_devices": {
@@ -8569,6 +8586,23 @@
         ],
         "title": "DeviceStatus",
         "type": "string"
+      },
+      "DeviceStatusUpdateRequest": {
+        "properties": {
+          "device_revision": {
+            "title": "Device Revision",
+            "type": "integer"
+          },
+          "target_status": {
+            "$ref": "#/components/schemas/DeviceStatus"
+          }
+        },
+        "required": [
+          "target_status",
+          "device_revision"
+        ],
+        "title": "DeviceStatusUpdateRequest",
+        "type": "object"
       },
       "DeviceType": {
         "enum": [
@@ -51320,6 +51354,140 @@
           }
         ],
         "summary": "Heartbeat",
+        "tags": [
+          "multicamera"
+        ]
+      }
+    },
+    "/api/v1/multicamera/sessions/{session_uuid}/devices/{session_device_id}/status": {
+      "patch": {
+        "operationId": "update_device_status_api_v1_multicamera_sessions__session_uuid__devices__session_device_id__status_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_device_id",
+            "required": true,
+            "schema": {
+              "title": "Session Device Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceStatusUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDeviceDTO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Device Status",
+        "tags": [
+          "multicamera"
+        ]
+      }
+    },
+    "/api/v1/multicamera/sessions/{session_uuid}/devices/{session_device_id}/streams": {
+      "post": {
+        "operationId": "create_capture_stream_api_v1_multicamera_sessions__session_uuid__devices__session_device_id__streams_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_device_id",
+            "required": true,
+            "schema": {
+              "title": "Session Device Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCaptureStreamRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStreamDTO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Capture Stream",
         "tags": [
           "multicamera"
         ]

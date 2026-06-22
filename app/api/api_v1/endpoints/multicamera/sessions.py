@@ -1,6 +1,6 @@
-"""Multicamera session API — AN-3B PR-4B3A.
+"""Multicamera session API — AN-3B PR-4B3A + PR-4B3B-0.
 
-6 endpoints. No UI, no shutter, no recording, no media.
+8 endpoints. No UI, no shutter, no recording, no media.
 """
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from .....database import get_db
@@ -17,8 +17,9 @@ from .....dependencies import get_current_active_user
 from .....models.user import User
 from .....models.multicamera_session import SessionParticipant
 from .....schemas.multicamera_session import (
-    DeviceRole, DeviceType, MultiCameraSessionDTO, ParticipantRole,
-    SessionDeviceDTO, SessionParticipantDTO, SessionStatus,
+    CaptureStreamDTO, DeviceRole, DeviceStatus, DeviceType,
+    MultiCameraSessionDTO, ParticipantRole, SessionDeviceDTO,
+    SessionParticipantDTO, SessionStatus, StreamType,
 )
 from .....services.multicamera.session_service import SessionService
 from .....services.multicamera.device_service import DeviceService
@@ -62,6 +63,25 @@ class HeartbeatResponse(BaseModel):
     last_heartbeat: datetime
 
 
+class DeviceStatusUpdateRequest(BaseModel):
+    target_status: DeviceStatus
+    device_revision: int
+
+
+class CreateCaptureStreamRequest(BaseModel):
+    stream_type: StreamType
+    preset_json: dict
+
+    @field_validator("preset_json")
+    @classmethod
+    def validate_preset(cls, v):
+        import json
+        raw = json.dumps(v)
+        if len(raw) > 4096:
+            raise ValueError("preset_json exceeds 4KB limit")
+        return v
+
+
 # ── Guards ───────────────────────────────────────────────────────────────────
 
 def _require_participant(db: Session, session_uuid: uuid.UUID, user: User) -> tuple:
@@ -82,6 +102,29 @@ def _require_instructor(db: Session, session_uuid: uuid.UUID, user: User) -> tup
     if participant.role != "instructor":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only instructor can transition session")
     return session, participant
+
+
+def _require_device_access(db: Session, session_uuid: uuid.UUID, session_device_id: int, user: User):
+    from .....repositories.multicamera_session_repo import MultiCameraSessionRepo
+    session, _ = _require_participant(db, session_uuid, user)
+    repo = MultiCameraSessionRepo(db)
+    sd = repo.get_session_device_by_id(session_device_id)
+    if not sd or sd.session_id != session.id:
+        raise HTTPException(status_code=404, detail="Session device not found")
+    authorized = False
+    if sd.participant_id:
+        p = db.query(SessionParticipant).filter(SessionParticipant.id == sd.participant_id).first()
+        if p and p.user_id == user.id:
+            authorized = True
+    if not authorized and sd.managed_by_device_id:
+        manager = repo.get_session_device_by_id(sd.managed_by_device_id)
+        if manager and manager.participant_id:
+            mp = db.query(SessionParticipant).filter(SessionParticipant.id == manager.participant_id).first()
+            if mp and mp.user_id == user.id:
+                authorized = True
+    if not authorized:
+        raise HTTPException(status_code=403, detail="Not authorized for this device")
+    return session, sd
 
 
 def _handle_service_error(e: Exception):
@@ -227,31 +270,48 @@ def heartbeat(
     current_user: User = Depends(get_current_active_user),
 ):
     try:
-        session, _ = _require_participant(db, session_uuid, current_user)
-
-        from .....repositories.multicamera_session_repo import MultiCameraSessionRepo
-        repo = MultiCameraSessionRepo(db)
-        sd = repo.get_session_device_by_id(session_device_id)
-        if not sd or sd.session_id != session.id:
-            raise HTTPException(status_code=404, detail="Session device not found")
-
-        authorized = False
-        if sd.participant_id:
-            p = db.query(SessionParticipant).filter(SessionParticipant.id == sd.participant_id).first()
-            if p and p.user_id == current_user.id:
-                authorized = True
-        if not authorized and sd.managed_by_device_id:
-            manager = repo.get_session_device_by_id(sd.managed_by_device_id)
-            if manager and manager.participant_id:
-                mp = db.query(SessionParticipant).filter(SessionParticipant.id == manager.participant_id).first()
-                if mp and mp.user_id == current_user.id:
-                    authorized = True
-        if not authorized:
-            raise HTTPException(status_code=403, detail="Not authorized for this device")
-
+        _require_device_access(db, session_uuid, session_device_id, current_user)
         ss = SessionService(db)
         ts = ss.heartbeat(session_device_id)
         return HeartbeatResponse(session_device_id=session_device_id, last_heartbeat=ts)
+    except HTTPException:
+        raise
+    except Exception as e:
+        _handle_service_error(e)
+
+
+@router.patch("/sessions/{session_uuid}/devices/{session_device_id}/status", response_model=SessionDeviceDTO)
+def update_device_status(
+    session_uuid: uuid.UUID,
+    session_device_id: int,
+    body: DeviceStatusUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    try:
+        _require_device_access(db, session_uuid, session_device_id, current_user)
+        ss = SessionService(db)
+        return ss.update_device_status(session_device_id, body.target_status.value, body.device_revision)
+    except HTTPException:
+        raise
+    except Exception as e:
+        _handle_service_error(e)
+
+
+@router.post("/sessions/{session_uuid}/devices/{session_device_id}/streams", status_code=status.HTTP_201_CREATED, response_model=CaptureStreamDTO)
+def create_capture_stream(
+    session_uuid: uuid.UUID,
+    session_device_id: int,
+    body: CreateCaptureStreamRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    try:
+        _, sd = _require_device_access(db, session_uuid, session_device_id, current_user)
+        if sd.removed_at is not None:
+            raise HTTPException(status_code=422, detail="Cannot create stream on removed device")
+        ss = SessionService(db)
+        return ss.create_capture_stream(session_device_id, body.stream_type.value, body.preset_json)
     except HTTPException:
         raise
     except Exception as e:
