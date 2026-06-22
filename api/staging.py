@@ -1,11 +1,10 @@
-"""Minimal staging backend for GoPro connection smoke tests.
+"""Minimal staging backend for GoPro + Session Lobby smoke tests.
 
-Exposes exactly 5 endpoints:
-  POST /api/v1/auth/login
-  POST /api/v1/auth/refresh
-  GET  /api/v1/auth/me
-  GET  /api/v1/users/me
-  GET  /api/v1/health
+Exposes:
+  Auth:        POST login, POST refresh, GET /auth/me, GET /users/me
+  Health:      GET /health
+  Multicamera: POST sessions, GET sessions/{uuid}, POST join, PATCH status,
+               POST devices, POST heartbeat
 
 No Celery, Redis, APScheduler, WebSocket, ML, static files, or media.
 No CORS middleware — the only client is the native iOS app.
@@ -20,13 +19,14 @@ from app.api.api_v1.endpoints.auth import (
     refresh_token,
     read_users_me,
 )
+from app.api.api_v1.endpoints.multicamera.sessions import router as multicamera_router
 from app.schemas.auth import Token
 from app.schemas.user import User as UserSchema
 
 app = FastAPI(
     title="LFA Staging API",
-    description="Minimal staging backend — login only, no workers or media.",
-    version="0.1.0-staging",
+    description="Minimal staging backend — auth + multicamera session lobby.",
+    version="0.2.0-staging",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -41,6 +41,8 @@ app.include_router(auth_router)
 users_router = APIRouter(prefix="/api/v1/users", tags=["users"])
 users_router.add_api_route("/me", read_users_me, methods=["GET"], response_model=UserSchema)
 app.include_router(users_router)
+
+app.include_router(multicamera_router, prefix="/api/v1/multicamera", tags=["multicamera"])
 
 
 @app.get("/api/v1/health", tags=["health"])
