@@ -333,4 +333,162 @@ class TestLifecycleAndSnapshot:
     def test_api_26_route_count(self):
         from app.main import app as _app
         paths = len(_app.openapi().get("paths", {}))
-        assert paths == 920, f"Expected 920, got {paths}"
+        assert paths == 922, f"Expected 922, got {paths}"
+
+
+# ── API-27..40 Device Status + Capture Stream (PR-4B3B-0) ───────────────────
+
+class TestDeviceStatusAPI:
+
+    def _setup(self, db):
+        u = _create_user(db)
+        ds = DeviceService(db)
+        md = ds.register_managed_device(u.id, "ipad", "iPad")
+        r = _create_session(_auth(u))
+        d = r.json()
+        uid = d["session_uuid"]
+        pid = d["participants"][0]["id"]
+        rd = client.post(f"/api/v1/multicamera/sessions/{uid}/devices",
+                         json={"device_uuid": str(md.device_uuid), "device_role": "instructor_primary", "participant_id": pid},
+                         headers=_auth(u))
+        return u, uid, rd.json()["id"], rd.json()["revision"]
+
+    def test_api_27_device_status_valid(self, db):
+        u, uid, sd_id, rev = self._setup(db)
+        r = client.patch(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/status",
+                         json={"target_status": "ready", "device_revision": rev}, headers=_auth(u))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ready"
+        assert r.json()["revision"] == rev + 1
+
+    def test_api_28_device_status_invalid_transition(self, db):
+        u, uid, sd_id, rev = self._setup(db)
+        r = client.patch(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/status",
+                         json={"target_status": "stopped", "device_revision": rev}, headers=_auth(u))
+        assert r.status_code == 422
+
+    def test_api_29_device_status_revision_conflict(self, db):
+        u, uid, sd_id, rev = self._setup(db)
+        r = client.patch(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/status",
+                         json={"target_status": "ready", "device_revision": rev + 99}, headers=_auth(u))
+        assert r.status_code == 409
+
+    def test_api_30_device_status_wrong_owner(self, db):
+        u, uid, sd_id, rev = self._setup(db)
+        u2 = _create_user(db, UserRole.STUDENT)
+        from app.services.multicamera.session_service import SessionService
+        ss = SessionService(db)
+        ss.join_session(_uuid.UUID(uid), u2.id, "player")
+        r = client.patch(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/status",
+                         json={"target_status": "ready", "device_revision": rev}, headers=_auth(u2))
+        assert r.status_code == 403
+
+    def test_api_31_device_status_cross_session(self, db):
+        u, uid1, sd_id, rev = self._setup(db)
+        r2 = _create_session(_auth(u))
+        uid2 = r2.json()["session_uuid"]
+        r = client.patch(f"/api/v1/multicamera/sessions/{uid2}/devices/{sd_id}/status",
+                         json={"target_status": "ready", "device_revision": rev}, headers=_auth(u))
+        assert r.status_code == 404
+
+    def test_api_32_device_status_removed(self, db):
+        u, uid, sd_id, rev = self._setup(db)
+        from app.services.multicamera.session_service import SessionService
+        ss = SessionService(db)
+        session = ss.get_session(_uuid.UUID(uid))
+        ss.remove_device(sd_id, session.revision)
+        r = client.patch(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/status",
+                         json={"target_status": "ready", "device_revision": rev}, headers=_auth(u))
+        assert r.status_code in (404, 422)
+
+    def test_api_33_device_status_no_auth(self):
+        r = client.patch(f"/api/v1/multicamera/sessions/{_uuid.uuid4()}/devices/1/status",
+                         json={"target_status": "ready", "device_revision": 1})
+        assert r.status_code == 401
+
+
+class TestCaptureStreamAPI:
+
+    def _setup(self, db):
+        u = _create_user(db)
+        ds = DeviceService(db)
+        md = ds.register_managed_device(u.id, "ipad", "iPad")
+        r = _create_session(_auth(u))
+        d = r.json()
+        uid = d["session_uuid"]
+        pid = d["participants"][0]["id"]
+        rd = client.post(f"/api/v1/multicamera/sessions/{uid}/devices",
+                         json={"device_uuid": str(md.device_uuid), "device_role": "instructor_primary", "participant_id": pid},
+                         headers=_auth(u))
+        return u, uid, rd.json()["id"]
+
+    def test_api_34_create_stream(self, db):
+        u, uid, sd_id = self._setup(db)
+        r = client.post(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/streams",
+                        json={"stream_type": "video", "preset_json": {"resolution": "1920x1080", "fps": 30}},
+                        headers=_auth(u))
+        assert r.status_code == 201
+        assert r.json()["stream_type"] == "video"
+
+    def test_api_35_create_stream_duplicate_idempotent(self, db):
+        u, uid, sd_id = self._setup(db)
+        body = {"stream_type": "video", "preset_json": {"resolution": "1920x1080", "fps": 30}}
+        r1 = client.post(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/streams", json=body, headers=_auth(u))
+        r2 = client.post(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/streams", json=body, headers=_auth(u))
+        assert r1.json()["id"] == r2.json()["id"]
+
+    def test_api_36_create_stream_wrong_owner(self, db):
+        u, uid, sd_id = self._setup(db)
+        u2 = _create_user(db, UserRole.STUDENT)
+        from app.services.multicamera.session_service import SessionService
+        ss = SessionService(db)
+        ss.join_session(_uuid.UUID(uid), u2.id, "player")
+        r = client.post(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/streams",
+                        json={"stream_type": "video", "preset_json": {"fps": 30}}, headers=_auth(u2))
+        assert r.status_code == 403
+
+    def test_api_37_create_stream_cross_session(self, db):
+        u, uid1, sd_id = self._setup(db)
+        r2 = _create_session(_auth(u))
+        uid2 = r2.json()["session_uuid"]
+        r = client.post(f"/api/v1/multicamera/sessions/{uid2}/devices/{sd_id}/streams",
+                        json={"stream_type": "video", "preset_json": {"fps": 30}}, headers=_auth(u))
+        assert r.status_code == 404
+
+    def test_api_38_create_stream_removed_device(self, db):
+        u, uid, sd_id = self._setup(db)
+        from app.services.multicamera.session_service import SessionService
+        ss = SessionService(db)
+        session = ss.get_session(_uuid.UUID(uid))
+        ss.remove_device(sd_id, session.revision)
+        r = client.post(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/streams",
+                        json={"stream_type": "video", "preset_json": {"fps": 30}}, headers=_auth(u))
+        assert r.status_code == 422
+
+    def test_api_39_create_stream_oversized_preset(self, db):
+        u, uid, sd_id = self._setup(db)
+        big = {"key": "x" * 5000}
+        r = client.post(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/streams",
+                        json={"stream_type": "video", "preset_json": big}, headers=_auth(u))
+        assert r.status_code == 422
+
+    def test_api_40_create_stream_no_auth(self):
+        r = client.post(f"/api/v1/multicamera/sessions/{_uuid.uuid4()}/devices/1/streams",
+                        json={"stream_type": "video", "preset_json": {"fps": 30}})
+        assert r.status_code == 401
+
+    def test_api_41_heartbeat_regression(self, db):
+        """Heartbeat still works after _require_device_access refactor."""
+        u = _create_user(db)
+        ds = DeviceService(db)
+        md = ds.register_managed_device(u.id, "ipad", "iPad")
+        r = _create_session(_auth(u))
+        d = r.json()
+        uid = d["session_uuid"]
+        pid = d["participants"][0]["id"]
+        rd = client.post(f"/api/v1/multicamera/sessions/{uid}/devices",
+                         json={"device_uuid": str(md.device_uuid), "device_role": "instructor_primary", "participant_id": pid},
+                         headers=_auth(u))
+        sd_id = rd.json()["id"]
+        r = client.post(f"/api/v1/multicamera/sessions/{uid}/devices/{sd_id}/heartbeat", headers=_auth(u))
+        assert r.status_code == 200
