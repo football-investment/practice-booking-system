@@ -39,8 +39,8 @@ def db():
 def users(db):
     import uuid as _uuid
     tag = _uuid.uuid4().hex[:8]
-    u1 = User(name="Instructor", email=f"mcs-inst-{tag}@test.local", password_hash="x", role=UserRole.INSTRUCTOR, is_active=True)
-    u2 = User(name="Player", email=f"mcs-play-{tag}@test.local", password_hash="x", role=UserRole.STUDENT, is_active=True)
+    u1 = User(name="Instructor", email=f"mcs-inst-{tag}@mcs-test.com", password_hash="x", role=UserRole.INSTRUCTOR, is_active=True)
+    u2 = User(name="Player", email=f"mcs-play-{tag}@mcs-test.com", password_hash="x", role=UserRole.STUDENT, is_active=True)
     db.add_all([u1, u2])
     db.flush()
     return u1, u2
