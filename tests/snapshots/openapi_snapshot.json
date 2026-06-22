@@ -6997,12 +6997,33 @@
         "type": "object"
       },
       "CaptureStreamDTO": {
-        "description": "Contract placeholder. Multiple streams per device+type\n(recording attempts, restarts) handled in PR-4B3B.",
         "properties": {
+          "capture_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Result"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
           },
           "id": {
             "title": "Id",
@@ -14182,6 +14203,18 @@
             "title": "Revision",
             "type": "integer"
           },
+          "scheduled_start_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled Start At"
+          },
           "session_uuid": {
             "format": "uuid",
             "title": "Session Uuid",
@@ -20625,6 +20658,7 @@
         "enum": [
           "lobby",
           "devices_ready",
+          "recording_pending",
           "recording",
           "stopped",
           "finalizing",
@@ -23654,6 +23688,54 @@
           "revision"
         ],
         "title": "TransitionRequest",
+        "type": "object"
+      },
+      "UpdateCaptureStreamRequest": {
+        "properties": {
+          "capture_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "stopped_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped At"
+          },
+          "stream_revision": {
+            "title": "Stream Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "stream_revision"
+        ],
+        "title": "UpdateCaptureStreamRequest",
         "type": "object"
       },
       "UpdateHoursRequest": {
@@ -51488,6 +51570,82 @@
           }
         ],
         "summary": "Create Capture Stream",
+        "tags": [
+          "multicamera"
+        ]
+      }
+    },
+    "/api/v1/multicamera/sessions/{session_uuid}/devices/{session_device_id}/streams/{stream_id}": {
+      "patch": {
+        "operationId": "update_capture_stream_api_v1_multicamera_sessions__session_uuid__devices__session_device_id__streams__stream_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_uuid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_device_id",
+            "required": true,
+            "schema": {
+              "title": "Session Device Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "stream_id",
+            "required": true,
+            "schema": {
+              "title": "Stream Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCaptureStreamRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStreamDTO"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Capture Stream",
         "tags": [
           "multicamera"
         ]

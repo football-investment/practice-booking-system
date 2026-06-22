@@ -112,6 +112,7 @@ class TestSessionLifecycle:
         ss = SessionService(db)
         s = ss.create_session(users[0].id)
         s = ss.transition_session(s.session_uuid, "devices_ready", s.revision)
+        s = ss.transition_session(s.session_uuid, "recording_pending", s.revision)
         s = ss.transition_session(s.session_uuid, "recording", s.revision)
         assert s.status == "recording"
         assert s.started_at is not None
@@ -126,6 +127,7 @@ class TestSessionLifecycle:
         ss = SessionService(db)
         s = ss.create_session(users[0].id)
         s = ss.transition_session(s.session_uuid, "devices_ready", s.revision)
+        s = ss.transition_session(s.session_uuid, "recording_pending", s.revision)
         s = ss.transition_session(s.session_uuid, "recording", s.revision)
         s = ss.transition_session(s.session_uuid, "stopped", s.revision)
         assert s.status == "stopped"
@@ -135,6 +137,7 @@ class TestSessionLifecycle:
         ss = SessionService(db)
         s = ss.create_session(users[0].id)
         s = ss.transition_session(s.session_uuid, "devices_ready", s.revision)
+        s = ss.transition_session(s.session_uuid, "recording_pending", s.revision)
         s = ss.transition_session(s.session_uuid, "recording", s.revision)
         s = ss.transition_session(s.session_uuid, "stopped", s.revision)
         s = ss.transition_session(s.session_uuid, "finalizing", s.revision)
@@ -159,6 +162,7 @@ class TestSessionLifecycle:
         ss = SessionService(db)
         s = ss.create_session(users[0].id)
         s = ss.transition_session(s.session_uuid, "devices_ready", s.revision)
+        s = ss.transition_session(s.session_uuid, "recording_pending", s.revision)
         s = ss.transition_session(s.session_uuid, "recording", s.revision)
         s = ss.transition_session(s.session_uuid, "stopped", s.revision)
         s = ss.transition_session(s.session_uuid, "finalizing", s.revision)
