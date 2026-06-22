@@ -1,0 +1,200 @@
+import Foundation
+
+enum OrchestrationState: Equatable {
+    case idle
+    case arming
+    case armed
+    case scheduled(fireAt: Date)
+    case starting
+    case capturing
+    case stopping
+    case completed(fileURL: URL)
+    case failed(String)
+
+    static func == (lhs: OrchestrationState, rhs: OrchestrationState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.arming, .arming), (.armed, .armed),
+             (.starting, .starting), (.capturing, .capturing), (.stopping, .stopping):
+            return true
+        case (.scheduled(let a), .scheduled(let b)): return a == b
+        case (.completed(let a), .completed(let b)): return a == b
+        case (.failed(let a), .failed(let b)): return a == b
+        default: return false
+        }
+    }
+}
+
+@MainActor
+final class SessionCaptureOrchestrator: ObservableObject {
+
+    @Published private(set) var orchestrationState: OrchestrationState = .idle
+    @Published private(set) var clockQuality: ClockSyncQuality = .degradedMissingServerDate
+    @Published private(set) var streamId: Int?
+    @Published private(set) var lastDriftMs: Int?
+
+    private var captureManager: SessionCaptureManager?
+    private var scheduledTimer: Cancellable?
+    private var sessionUUID: String = ""
+    private var deviceId: Int = 0
+    private var streamCreateInFlight = false
+    private var isTornDown = false
+    private let timerProvider: OrchestrationTimerProvider
+    private let clock: ScheduledCaptureClockManager
+
+    init(timerProvider: OrchestrationTimerProvider = SystemOrchestrationTimer(),
+         clock: ScheduledCaptureClockManager = ScheduledCaptureClockManager()) {
+        self.timerProvider = timerProvider
+        self.clock = clock
+    }
+
+    // MARK: — Arm
+
+    func armCapture(sessionUUID: String, deviceId: Int) async {
+        guard orchestrationState == .idle, !isTornDown else { return }
+        self.sessionUUID = sessionUUID
+        self.deviceId = deviceId
+        orchestrationState = .arming
+
+        let mgr = SessionCaptureManager()
+        self.captureManager = mgr
+        await mgr.requestPermissions()
+        guard mgr.state == .configuring else {
+            orchestrationState = .failed("Permission denied")
+            return
+        }
+        mgr.prepare(sessionUUID: sessionUUID, deviceId: deviceId)
+
+        for _ in 0..<30 {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if mgr.state == .ready { break }
+            if case .failed = mgr.state { break }
+        }
+
+        if mgr.state == .ready {
+            orchestrationState = .armed
+        } else {
+            orchestrationState = .failed("Capture prepare failed: \(mgr.state)")
+        }
+    }
+
+    // MARK: — Schedule
+
+    func scheduleStart(serverScheduledAt: Date) {
+        guard orchestrationState == .armed, !isTornDown else {
+            if orchestrationState != .armed {
+                orchestrationState = .failed("Nem armed állapotban érkezett schedule")
+            }
+            return
+        }
+        let localFire = clock.localFireDate(for: serverScheduledAt)
+        let delay = localFire.timeIntervalSinceNow
+        if delay < -2.0 {
+            orchestrationState = .failed("Schedule lejárt (\(Int(-delay))s késés)")
+            return
+        }
+        orchestrationState = .scheduled(fireAt: localFire)
+        clockQuality = clock.currentOffset.quality
+        scheduledTimer = timerProvider.scheduleTimer(fireAt: localFire) { [weak self] in
+            Task { @MainActor in
+                self?.fireScheduledCapture()
+            }
+        }
+    }
+
+    func cancelSchedule() {
+        scheduledTimer?.cancel()
+        scheduledTimer = nil
+        if case .scheduled = orchestrationState { orchestrationState = .armed }
+    }
+
+    // MARK: — Capture
+
+    private func fireScheduledCapture() {
+        guard case .scheduled = orchestrationState, !isTornDown else { return }
+        guard let mgr = captureManager, mgr.state == .ready else {
+            orchestrationState = .failed("Capture manager not ready at fire time")
+            return
+        }
+        orchestrationState = .starting
+        mgr.startCapture()
+
+        Task {
+            for _ in 0..<20 {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                if mgr.state == .capturing {
+                    orchestrationState = .capturing
+                    lastDriftMs = nil
+                    return
+                }
+                if case .failed = mgr.state {
+                    orchestrationState = .failed("Capture start failed")
+                    return
+                }
+            }
+            if orchestrationState == .starting {
+                orchestrationState = .failed("Capture start timeout")
+            }
+        }
+    }
+
+    func stopCapture() {
+        guard orchestrationState == .capturing || orchestrationState == .starting, !isTornDown else { return }
+        orchestrationState = .stopping
+        captureManager?.stopCapture()
+
+        Task {
+            for _ in 0..<100 {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                if let mgr = captureManager {
+                    if case .completed(let url) = mgr.state {
+                        orchestrationState = .completed(fileURL: url)
+                        return
+                    }
+                    if case .failed = mgr.state {
+                        orchestrationState = .failed("Capture stop failed")
+                        return
+                    }
+                }
+            }
+            if orchestrationState == .stopping {
+                orchestrationState = .failed("Capture stop timeout")
+            }
+        }
+    }
+
+    // MARK: — Stream create (deduplicated)
+
+    func ensureStreamCreated(token: String, uuid: String, sdId: Int, preset: [String: AnyCodable]) async {
+        guard streamId == nil, !streamCreateInFlight else { return }
+        streamCreateInFlight = true
+        do {
+            let stream = try await MultiCameraAPIClient.createCaptureStream(
+                token: token, uuid: uuid, sessionDeviceId: sdId,
+                streamType: .video, presetJson: preset
+            )
+            streamId = stream.id
+        } catch { }
+        streamCreateInFlight = false
+    }
+
+    // MARK: — Teardown
+
+    func teardown() {
+        guard !isTornDown else { return }
+        isTornDown = true
+        scheduledTimer?.cancel()
+        captureManager?.teardown()
+        captureManager = nil
+    }
+
+    // MARK: — Retry
+
+    func resetForRetry() {
+        scheduledTimer?.cancel()
+        captureManager?.teardown()
+        captureManager = nil
+        streamId = nil
+        streamCreateInFlight = false
+        orchestrationState = .idle
+    }
+}
