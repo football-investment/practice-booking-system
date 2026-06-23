@@ -224,3 +224,4 @@ xcuserdata/
 # LFAEducationCenter.build, XCBuildData (all build artefacts)
 ios/ios/
 local_models/juggling/*.pth
+.vercel
