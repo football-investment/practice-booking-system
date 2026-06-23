@@ -26,7 +26,9 @@ if not DATABASE_URL or not PASSWORD:
 EMAIL = "staging-smoke@lfa-test.local"
 NAME = "Staging Smoke User"
 
-# Import after env check so missing config is reported cleanly
+# Add project root to path so `app` is importable when run as a script
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app.models.user import User, UserRole  # noqa: E402
 
 engine = create_engine(DATABASE_URL)
