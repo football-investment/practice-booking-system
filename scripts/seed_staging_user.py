@@ -3,7 +3,7 @@
 Usage:
   DATABASE_URL=postgresql://... STAGING_USER_PASSWORD=... python scripts/seed_staging_user.py
 
-Creates (or updates) staging-smoke@lfa-test.local via SQLAlchemy ORM so that
+Creates (or updates) staging-smoke@lfa-staging.io via SQLAlchemy ORM so that
 all model-level defaults (payment_verified, credit_balance, xp_balance, etc.)
 are applied automatically without enumerating every NOT NULL column.
 The password is read from STAGING_USER_PASSWORD — never hardcoded.
@@ -23,7 +23,7 @@ if not DATABASE_URL or not PASSWORD:
     print("ERROR: Set DATABASE_URL and STAGING_USER_PASSWORD environment variables.")
     sys.exit(1)
 
-EMAIL = "staging-smoke@lfa-test.local"
+EMAIL = "staging-smoke@lfa-staging.io"
 NAME = "Staging Smoke User"
 
 # Add project root to path so `app` is importable when run as a script
