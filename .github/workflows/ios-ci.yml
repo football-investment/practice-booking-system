@@ -173,6 +173,22 @@ jobs:
           path: /tmp/TestResults.xcresult
           retention-days: 14
 
+      # ── 9b. Upload xcodebuild log + JUnit XML for test hang diagnosis ──────────
+      #
+      # xcodebuild-test.log contains every "Test Case '...' started/passed/failed"
+      # line — critical for identifying which test last ran before a hang.
+      # Uploaded with if: always() so it is available even on timeout failure.
+      - name: Upload test logs (xcodebuild stdout + JUnit XML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-logs-${{ github.sha }}
+          path: |
+            /tmp/xcodebuild-test.log
+            /tmp/test-results.xml
+          retention-days: 14
+          if-no-files-found: warn
+
       # ── 10. Test summary in job output ────────────────────────────────────────
       - name: Add test summary
         if: always()

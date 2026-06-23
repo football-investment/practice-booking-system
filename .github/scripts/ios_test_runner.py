@@ -71,6 +71,7 @@ def main():
             "-destination", f"platform=iOS Simulator,id={sim_udid}",
             "-derivedDataPath", "/tmp/DerivedData",
             "-resultBundlePath", XCRESULT_PATH,
+            "-maximum-test-execution-time-allowance", "60",
             "CODE_SIGNING_ALLOWED=NO",
             "COMPILER_INDEX_STORE_ENABLE=NO",
         ],
