@@ -33,6 +33,11 @@ final class SessionCaptureManager: NSObject, ObservableObject {
 
     var isCapturing: Bool { state == .capturing }
 
+    var captureSessionForPreview: AVCaptureSession? {
+        guard state != .idle && state != .tornDown else { return nil }
+        return captureSession
+    }
+
     var capturedFileDuration: TimeInterval? {
         guard case .completed = state, let url = outputFileURL else { return nil }
         return AVURLAsset(url: url).duration.seconds

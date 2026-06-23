@@ -32,6 +32,10 @@ final class SessionCaptureOrchestrator: ObservableObject {
     @Published private(set) var streamId: Int?
     @Published private(set) var lastDriftMs: Int?
 
+    var captureSessionForPreview: AVCaptureSession? {
+        captureManager?.captureSessionForPreview
+    }
+
     private var captureManager: SessionCaptureManager?
     private var scheduledTimer: Cancellable?
     private var sessionUUID: String = ""

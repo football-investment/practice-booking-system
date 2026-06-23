@@ -392,4 +392,38 @@ final class SessionCaptureManagerTests: XCTestCase {
         XCTAssertTrue(validEndStates.contains(true),
             "State must be ready or failed, got \(mgr.state)")
     }
+
+    // SC-32: captureSessionForPreview is nil in idle state
+    func test_SC_32_preview_nil_in_idle() {
+        let (mgr, _, _) = makeManager()
+        XCTAssertEqual(mgr.state, .idle)
+        XCTAssertNil(mgr.captureSessionForPreview)
+    }
+
+    // SC-33: captureSessionForPreview is non-nil after requestPermissions (configuring state)
+    func test_SC_33_preview_non_nil_in_configuring() async {
+        let (mgr, _, _) = makeManager()
+        await mgr.requestPermissions()
+        XCTAssertEqual(mgr.state, .configuring)
+        XCTAssertNotNil(mgr.captureSessionForPreview)
+    }
+
+    // SC-34: captureSessionForPreview is nil after teardown
+    func test_SC_34_preview_nil_after_teardown() async {
+        let (mgr, _, _) = makeManager()
+        await mgr.requestPermissions()
+        XCTAssertNotNil(mgr.captureSessionForPreview)
+        mgr.teardown()
+        XCTAssertEqual(mgr.state, .tornDown)
+        XCTAssertNil(mgr.captureSessionForPreview)
+    }
+
+    // SC-35: captureSessionForPreview returns same session instance (no duplicate AVCaptureSession)
+    func test_SC_35_preview_same_instance() async {
+        let (mgr, _, _) = makeManager()
+        await mgr.requestPermissions()
+        let first = mgr.captureSessionForPreview
+        let second = mgr.captureSessionForPreview
+        XCTAssertTrue(first === second, "Must return same AVCaptureSession instance")
+    }
 }

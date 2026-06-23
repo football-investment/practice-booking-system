@@ -509,5 +509,22 @@ final class RevisionRetryTests: XCTestCase {
         XCTAssertEqual(mock.transitionRevisions[0], 5, "1st PATCH with original revision")
         XCTAssertEqual(mock.transitionRevisions[1], 6, "2nd PATCH with refreshed revision")
     }
+
+    // SO-17: captureSessionForPreview is nil before armCapture
+    func test_SO_17_preview_nil_before_arm() {
+        let orch = SessionCaptureOrchestrator()
+        XCTAssertEqual(orch.orchestrationState, .idle)
+        XCTAssertNil(orch.captureSessionForPreview)
+    }
+
+    // SO-18: captureSessionForPreview nil after teardown
+    func test_SO_18_preview_nil_after_teardown() async {
+        let orch = SessionCaptureOrchestrator(captureManagerFactory: {
+            SessionCaptureManager(permissionProvider: MockPermissionProvider())
+        })
+        await orch.armCapture(sessionUUID: "preview-test", deviceId: 0)
+        orch.teardown()
+        XCTAssertNil(orch.captureSessionForPreview)
+    }
 }
 
