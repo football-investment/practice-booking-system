@@ -238,11 +238,16 @@ final class MultiCameraSessionViewModel: ObservableObject {
         #else
         let deviceType: MCDeviceType = UIDevice.current.userInterfaceIdiom == .pad ? .ipad : .iphone
         #endif
+        // _require_device_access needs participant_id to authorise device updates
+        var myParticipantId: Int?
+        if case .inLobby(let session) = state, let uid = Self.cachedUserId {
+            myParticipantId = session.participants.first(where: { $0.userId == uid })?.id
+        }
         let request = RegisterDeviceRequest(
             deviceUuid: nil, deviceType: deviceType,
             deviceName: UIDevice.current.name, bleIdentifier: nil,
             deviceRole: deviceType == .ipad ? .instructorPrimary : .playerPrimary,
-            participantId: nil, managedByDeviceId: nil
+            participantId: myParticipantId, managedByDeviceId: nil
         )
         do {
             let sd = try await MultiCameraAPIClient.registerDevice(token: token, uuid: sessionUuid, request: request)
