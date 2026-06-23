@@ -3,9 +3,9 @@
 Deterministic xcodebuild test wrapper for GHA macOS runners.
 
 Starts xcodebuild as a child process in its own process group,
-monitors for test completion via raw log markers, validates the
-xcresult bundle, and handles the known post-test hang where
-xcodebuild stays alive after tests finish.
+monitors for test completion via raw log markers and file activity,
+validates the xcresult bundle, and handles the known post-test hang
+where xcodebuild stays alive after tests finish.
 
 Exit 0 only when:
   - xcresult exists, is readable, tests > 0, failures == 0
@@ -15,6 +15,23 @@ Exit 1 for:
   - real test failures
   - pre-test timeout (tests never started or never finished)
   - incomplete or missing xcresult
+
+Timeout logic:
+  - MAX_WAIT (720s / 12 min): primary deadline without a test completion marker
+  - ACTIVITY_GRACE (120s / 2 min): extension if log is still actively growing at MAX_WAIT
+  - Step-level GHA timeout is 15 min, leaving ~3 min for cleanup after the extension
+
+Post-test hang detection (all conditions required):
+  - Test completion marker found (** TEST SUCCEEDED/FAILED **)
+  - GRACE_SECONDS (30s) elapsed since marker
+  - Log file idle for at least ACTIVITY_STALE_SECS (30s)
+
+Signal handling:
+  - SIGTERM sent to process group as best-effort; OSError is tolerated
+  - SIGKILL sent only to the xcodebuild PID (not the group) to avoid hitting
+    CoreSimulator / launchd daemons the runner does not own
+  - All OSError variants (PermissionError, ProcessLookupError) are caught
+    everywhere; the wrapper never crashes on signal errors
 """
 import json
 import os
@@ -29,7 +46,9 @@ XCRESULT_PATH = "/tmp/TestResults.xcresult"
 JUNIT_PATH = "/tmp/test-results.xml"
 POLL_INTERVAL = 5
 GRACE_SECONDS = 30
-MAX_WAIT = 600
+ACTIVITY_STALE_SECS = 30
+MAX_WAIT = 720
+ACTIVITY_GRACE = 120
 
 
 def main():
@@ -59,11 +78,14 @@ def main():
         stderr=subprocess.STDOUT,
         preexec_fn=os.setsid,
     )
-    pgid = os.getpgid(proc.pid)
+    try:
+        pgid = os.getpgid(proc.pid)
+    except OSError:
+        pgid = proc.pid
     print(f"xcodebuild PID={proc.pid} PGID={pgid}")
 
     marker = poll_for_completion(proc)
-    exit_code = reap(proc, pgid, marker)
+    exit_code = reap(proc)
 
     print(f"xcodebuild exit code: {exit_code}")
 
@@ -76,33 +98,65 @@ def main():
     decide(exit_code, marker, verdict)
 
 
+def get_file_size(path):
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
+
+
 def poll_for_completion(proc):
     waited = 0
     marker_time = None
     marker_type = None
+    last_log_size = get_file_size(LOG_PATH)
+    last_active_time = time.time()
 
     while proc.poll() is None:
         time.sleep(POLL_INTERVAL)
         waited += POLL_INTERVAL
+        now = time.time()
+
+        current_size = get_file_size(LOG_PATH)
+        if current_size > last_log_size:
+            last_log_size = current_size
+            last_active_time = now
 
         if marker_type is None:
             marker_type = check_log_marker()
             if marker_type:
-                marker_time = time.time()
+                marker_time = now
                 print(f"Test marker: ** TEST {marker_type} ** (at {waited}s)")
 
         if marker_type and marker_time:
-            elapsed = time.time() - marker_time
-            if elapsed >= GRACE_SECONDS:
-                print(f"Post-test hang: xcodebuild alive {GRACE_SECONDS}s after completion")
-                log_diagnostics(proc.pid, pgid=os.getpgid(proc.pid))
-                terminate_group(os.getpgid(proc.pid))
-                return marker_type
+            elapsed_since_marker = now - marker_time
+            if elapsed_since_marker >= GRACE_SECONDS:
+                idle_secs = now - last_active_time
+                if idle_secs >= ACTIVITY_STALE_SECS:
+                    print(
+                        f"Post-test hang confirmed: marker at {waited - int(elapsed_since_marker)}s, "
+                        f"log idle {idle_secs:.0f}s"
+                    )
+                    log_diagnostics(proc)
+                    terminate_group_safe(proc)
+                    return marker_type
+                print(
+                    f"xcodebuild alive {elapsed_since_marker:.0f}s after marker "
+                    f"but log still active (idle {idle_secs:.0f}s) — waiting"
+                )
 
         if waited >= MAX_WAIT and marker_type is None:
-            print(f"No test marker after {MAX_WAIT}s — tests did not complete")
-            log_diagnostics(proc.pid, pgid=os.getpgid(proc.pid))
-            terminate_group(os.getpgid(proc.pid))
+            idle_secs = now - last_active_time
+            if idle_secs < ACTIVITY_STALE_SECS and waited < MAX_WAIT + ACTIVITY_GRACE:
+                print(
+                    f"[{waited}s] No marker yet but log active (idle {idle_secs:.0f}s) — extending"
+                )
+                continue
+            print(
+                f"Timeout at {waited}s: no test marker, log idle {idle_secs:.0f}s"
+            )
+            log_diagnostics(proc)
+            terminate_group_safe(proc)
             return None
 
     return marker_type or check_log_marker()
@@ -123,35 +177,69 @@ def check_log_marker():
     return None
 
 
-def reap(proc, pgid, marker):
+def terminate_group_safe(proc):
+    """
+    Best-effort group SIGTERM, then direct PID SIGKILL only.
+    Never crashes on PermissionError or ProcessLookupError.
+    """
+    pid = proc.pid
     try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        print("xcodebuild did not exit after kill — force kill")
+        pgid = os.getpgid(pid)
+    except OSError:
+        pgid = None
+
+    if pgid is not None:
+        print(f"SIGTERM → PGID {pgid}")
         try:
-            os.killpg(pgid, signal.SIGKILL)
-        except ProcessLookupError:
+            os.killpg(pgid, signal.SIGTERM)
+        except OSError as e:
+            print(f"SIGTERM to PGID failed ({e}) — direct SIGTERM to PID {pid}")
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+    else:
+        print(f"SIGTERM → PID {pid} (pgid unavailable)")
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
             pass
-        proc.wait(timeout=5)
+
+    time.sleep(5)
+
+    if proc.poll() is not None:
+        return
+
+    print(f"SIGKILL → PID {pid}")
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except OSError as e:
+        print(f"SIGKILL failed ({e}) — process may exit on its own")
+
+
+def reap(proc):
+    try:
+        proc.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        print("xcodebuild did not exit after signal — SIGKILL PID")
+        try:
+            os.kill(proc.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
     return proc.returncode or 0
 
 
-def terminate_group(pgid):
-    print(f"SIGTERM → PGID {pgid}")
+def log_diagnostics(proc):
+    pid = proc.pid
     try:
-        os.killpg(pgid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
-    time.sleep(5)
-    try:
-        os.killpg(pgid, signal.SIGKILL)
-        print(f"SIGKILL → PGID {pgid}")
-    except ProcessLookupError:
-        pass
-
-
-def log_diagnostics(pid, pgid):
-    print("=== DIAGNOSTIC: Process group ===")
+        pgid = os.getpgid(pid)
+    except OSError:
+        pgid = pid
+    print(f"=== DIAGNOSTIC: Process group PGID={pgid} ===")
     subprocess.run(
         ["ps", "-o", "pid,ppid,pgid,stat,command", "-g", str(pgid)],
         timeout=10, check=False,
@@ -163,6 +251,7 @@ def log_diagnostics(pid, pgid):
     )
     print("=== DIAGNOSTIC: Open FDs (xcodebuild) ===")
     subprocess.run(["lsof", "-p", str(pid)], timeout=10, check=False)
+    print(f"=== DIAGNOSTIC: Log size: {get_file_size(LOG_PATH)} bytes ===")
 
 
 def validate_xcresult():
