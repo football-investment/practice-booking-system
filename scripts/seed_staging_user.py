@@ -3,7 +3,9 @@
 Usage:
   DATABASE_URL=postgresql://... STAGING_USER_PASSWORD=... python scripts/seed_staging_user.py
 
-Creates a single staging test user if it does not already exist.
+Creates (or updates) staging-smoke@lfa-test.local via SQLAlchemy ORM so that
+all model-level defaults (payment_verified, credit_balance, xp_balance, etc.)
+are applied automatically without enumerating every NOT NULL column.
 The password is read from STAGING_USER_PASSWORD — never hardcoded.
 """
 
@@ -11,7 +13,8 @@ import os
 import sys
 
 import bcrypt
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 PASSWORD = os.environ.get("STAGING_USER_PASSWORD")
@@ -23,23 +26,26 @@ if not DATABASE_URL or not PASSWORD:
 EMAIL = "staging-smoke@lfa-test.local"
 NAME = "Staging Smoke User"
 
+# Import after env check so missing config is reported cleanly
+from app.models.user import User, UserRole  # noqa: E402
+
 engine = create_engine(DATABASE_URL)
 hashed = bcrypt.hashpw(PASSWORD.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-with engine.begin() as conn:
-    existing = conn.execute(text("SELECT id FROM users WHERE email = :email"), {"email": EMAIL}).fetchone()
+with Session(engine) as session:
+    existing = session.query(User).filter(User.email == EMAIL).first()
     if existing:
-        conn.execute(
-            text("UPDATE users SET password_hash = :h WHERE email = :email"),
-            {"h": hashed, "email": EMAIL},
-        )
+        existing.password_hash = hashed
+        session.commit()
         print(f"Updated password for existing staging user: {EMAIL}")
     else:
-        conn.execute(
-            text(
-                "INSERT INTO users (name, email, password_hash, role, is_active) "
-                "VALUES (:name, :email, :h, 'INSTRUCTOR', true)"
-            ),
-            {"name": NAME, "email": EMAIL, "h": hashed},
+        user = User(
+            name=NAME,
+            email=EMAIL,
+            password_hash=hashed,
+            role=UserRole.INSTRUCTOR,
+            is_active=True,
         )
-        print(f"Created staging user: {EMAIL}")
+        session.add(user)
+        session.commit()
+        print(f"Created staging user: {EMAIL} (role=INSTRUCTOR)")
