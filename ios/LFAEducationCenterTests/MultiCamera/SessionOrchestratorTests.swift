@@ -32,12 +32,15 @@ final class MockCancellable: Cancellable {
 @MainActor
 final class SessionOrchestratorTests: XCTestCase {
 
-    // SO-01: armCapture → armed (simulator: may fail due to no camera, which is valid)
+    // SO-01: armCapture → armed or failed (simulator: no rear camera → .failed is valid)
+    // MockPermissionProvider avoids AVCaptureDevice.requestAccess deadlock on @MainActor.
     func test_SO_01_arm_capture() async {
-        let orch = SessionCaptureOrchestrator()
+        let orch = SessionCaptureOrchestrator(captureManagerFactory: {
+            SessionCaptureManager(permissionProvider: MockPermissionProvider())
+        })
         XCTAssertEqual(orch.orchestrationState, .idle)
         await orch.armCapture(sessionUUID: "test", deviceId: 0)
-        // On simulator: either armed (mock) or failed (no camera) — both valid
+        // On simulator: either armed (mock camera ready) or failed (no rear camera) — both valid
         let valid = orch.orchestrationState == .armed ||
             { if case .failed = orch.orchestrationState { return true }; return false }()
         XCTAssertTrue(valid, "Expected armed or failed, got \(orch.orchestrationState)")

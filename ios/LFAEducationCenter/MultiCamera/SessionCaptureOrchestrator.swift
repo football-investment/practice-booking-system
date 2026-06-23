@@ -41,10 +41,14 @@ final class SessionCaptureOrchestrator: ObservableObject {
     private let timerProvider: OrchestrationTimerProvider
     private let clock: ScheduledCaptureClockManager
 
+    private let captureManagerFactory: () -> SessionCaptureManager
+
     init(timerProvider: OrchestrationTimerProvider = SystemOrchestrationTimer(),
-         clock: ScheduledCaptureClockManager? = nil) {
+         clock: ScheduledCaptureClockManager? = nil,
+         captureManagerFactory: @escaping () -> SessionCaptureManager = { SessionCaptureManager() }) {
         self.timerProvider = timerProvider
         self.clock = clock ?? ScheduledCaptureClockManager()
+        self.captureManagerFactory = captureManagerFactory
     }
 
     // MARK: — Arm
@@ -55,7 +59,7 @@ final class SessionCaptureOrchestrator: ObservableObject {
         self.deviceId = deviceId
         orchestrationState = .arming
 
-        let mgr = SessionCaptureManager()
+        let mgr = captureManagerFactory()
         self.captureManager = mgr
         await mgr.requestPermissions()
         guard mgr.state == .configuring else {
