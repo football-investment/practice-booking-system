@@ -144,25 +144,66 @@ jobs:
       - name: Run unit tests (LFAEducationCenterTests)
         timeout-minutes: 15
         run: |
-          set -o pipefail
+          SIM_UDID="${{ env.SIMULATOR_UDID }}"
+
+          cleanup() {
+            echo "── Cleanup ──"
+            xcrun simctl shutdown "$SIM_UDID" 2>/dev/null || true
+            xcrun simctl delete "$SIM_UDID" 2>/dev/null || true
+            pkill -f "xcodebuild.*test" 2>/dev/null || true
+            pkill -f "simctl" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          # Run xcodebuild test to file — no live pipe determines process lifecycle
+          XCODE_EXIT=0
           xcodebuild test \
             -project ios/LFAEducationCenter.xcodeproj \
             -scheme LFAEducationCenter \
             -configuration Debug \
-            -destination "platform=iOS Simulator,id=${{ env.SIMULATOR_UDID }}" \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
             -derivedDataPath /tmp/DerivedData \
             -resultBundlePath /tmp/TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            2>&1 | tee /tmp/xcodebuild-test.log | xcpretty --color --report junit --output /tmp/test-results.xml || true
-          xcrun simctl shutdown "${{ env.SIMULATOR_UDID }}" 2>/dev/null || true
-          if grep -q "TEST SUCCEEDED" /tmp/xcodebuild-test.log 2>/dev/null || grep -q "** TEST SUCCEEDED **" /tmp/xcodebuild-test.log 2>/dev/null; then
-            echo "✅ Tests passed"
-            exit 0
-          else
-            echo "❌ Tests failed — check xcresult bundle"
-            exit 1
+            > /tmp/xcodebuild-test.log 2>&1 || XCODE_EXIT=$?
+
+          echo "xcodebuild exit code: $XCODE_EXIT"
+
+          # Post-process: xcpretty for human-readable output + JUnit XML
+          if [ -f /tmp/xcodebuild-test.log ]; then
+            cat /tmp/xcodebuild-test.log | xcpretty --color --report junit --output /tmp/test-results.xml 2>/dev/null || true
           fi
+
+          # Primary verdict: xcresult bundle
+          if [ -d /tmp/TestResults.xcresult ]; then
+            echo "xcresult bundle exists"
+            FAILURES=$(xcrun xcresulttool get test-results summary \
+              --path /tmp/TestResults.xcresult 2>/dev/null \
+              | grep -oE '"failedTests" : [0-9]+' | grep -oE '[0-9]+' || echo "")
+            TOTAL=$(xcrun xcresulttool get test-results summary \
+              --path /tmp/TestResults.xcresult 2>/dev/null \
+              | grep -oE '"totalTests" : [0-9]+' | grep -oE '[0-9]+' || echo "")
+            echo "xcresult: total=$TOTAL failures=$FAILURES"
+            echo "### iOS Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "- Total tests: ${TOTAL:-unknown}" >> $GITHUB_STEP_SUMMARY
+            echo "- Failures: ${FAILURES:-unknown}" >> $GITHUB_STEP_SUMMARY
+            echo "- xcodebuild exit: $XCODE_EXIT" >> $GITHUB_STEP_SUMMARY
+            if [ "$FAILURES" = "0" ] && [ -n "$TOTAL" ] && [ "$TOTAL" != "0" ]; then
+              echo "Tests PASSED ($TOTAL tests, 0 failures)"
+              exit 0
+            fi
+          fi
+
+          # Fallback: raw log grep (xcresulttool may not be available on all runners)
+          if grep -q '\*\* TEST SUCCEEDED \*\*' /tmp/xcodebuild-test.log 2>/dev/null; then
+            echo "Tests PASSED (raw log fallback)"
+            exit 0
+          fi
+
+          echo "Tests FAILED (exit=$XCODE_EXIT)"
+          tail -50 /tmp/xcodebuild-test.log
+          exit 1
 
       # ── 8. Publish test results to PR ─────────────────────────────────────────
       - name: Publish test results
