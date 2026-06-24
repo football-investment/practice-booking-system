@@ -1,5 +1,8 @@
 import Foundation
 import AVFoundation
+import os.log
+
+private let orchLog = Logger(subsystem: "com.lovas-zoltan.lfa-education-center", category: "Orchestration")
 
 enum OrchestrationState: Equatable {
     case idle
@@ -66,10 +69,14 @@ final class SessionCaptureOrchestrator: ObservableObject {
     // MARK: — Arm
 
     func armCapture(sessionUUID: String, deviceId: Int) async {
-        guard orchestrationState == .idle, !isTornDown else { return }
+        guard orchestrationState == .idle, !isTornDown else {
+            orchLog.warning("armCapture skipped — state=\(String(describing: self.orchestrationState)) isTornDown=\(self.isTornDown)")
+            return
+        }
         self.sessionUUID = sessionUUID
         self.deviceId = deviceId
         orchestrationState = .arming
+        orchLog.info("armCapture: started sessionUUID=\(sessionUUID) deviceId=\(deviceId)")
 
         let mgr = captureManagerFactory()
         self.captureManager = mgr
@@ -88,8 +95,10 @@ final class SessionCaptureOrchestrator: ObservableObject {
 
         if mgr.state == .ready {
             orchestrationState = .armed
+            orchLog.info("armCapture: ARMED ✓ sessionUUID=\(sessionUUID)")
         } else {
             orchestrationState = .failed("Capture prepare failed: \(mgr.state)")
+            orchLog.error("armCapture: FAILED — captureManager.state=\(String(describing: mgr.state))")
         }
     }
 
@@ -101,6 +110,7 @@ final class SessionCaptureOrchestrator: ObservableObject {
         if case .stopping = orchestrationState { return }
         if case .completed = orchestrationState { return }
         guard orchestrationState == .armed, !isTornDown else {
+            orchLog.error("scheduleStart rejected — state=\(String(describing: self.orchestrationState)) (must be .armed)")
             if orchestrationState != .armed {
                 orchestrationState = .failed("Nem armed állapotban érkezett schedule")
             }
@@ -108,7 +118,9 @@ final class SessionCaptureOrchestrator: ObservableObject {
         }
         let localFire = clock.localFireDate(for: serverScheduledAt)
         let delay = localFire.timeIntervalSinceNow
+        orchLog.info("scheduleStart: serverAt=\(serverScheduledAt) localFire=\(localFire) delayMs=\(Int(delay*1000))")
         if delay < -2.0 {
+            orchLog.error("scheduleStart: expired by \(Int(-delay))s — failing")
             orchestrationState = .failed("Schedule lejárt (\(Int(-delay))s késés)")
             return
         }
@@ -134,11 +146,17 @@ final class SessionCaptureOrchestrator: ObservableObject {
     // MARK: — Capture
 
     private func fireScheduledCapture() {
-        guard case .scheduled = orchestrationState, !isTornDown else { return }
+        orchLog.info("fireScheduledCapture: called — orchState=\(String(describing: self.orchestrationState))")
+        guard case .scheduled = orchestrationState, !isTornDown else {
+            orchLog.warning("fireScheduledCapture: guard failed — orchState=\(String(describing: self.orchestrationState))")
+            return
+        }
         guard let mgr = captureManager, mgr.state == .ready else {
+            orchLog.error("fireScheduledCapture: captureManager not ready — mgrState=\(String(describing: self.captureManager?.state))")
             orchestrationState = .failed("Capture manager not ready at fire time")
             return
         }
+        orchLog.info("fireScheduledCapture: FIRING — starting capture")
         orchestrationState = .starting
         // Snapshot interface orientation at fire time; held fixed for the full recording.
         let captureOrientation = CaptureOrientationHelper.currentAVCaptureOrientation()

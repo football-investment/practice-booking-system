@@ -1,5 +1,11 @@
 import AVFoundation
 import UIKit
+import os.log
+
+private let captureLog = Logger(subsystem: "com.lovas-zoltan.lfa-education-center", category: "CaptureManager")
+#if DEBUG
+private let driftLog   = Logger(subsystem: "com.lovas-zoltan.lfa-education-center", category: "DriftMeasurement")
+#endif
 
 enum CaptureState: Equatable {
     case idle
@@ -221,7 +227,11 @@ final class SessionCaptureManager: NSObject, ObservableObject {
     // MARK: — Capture
 
     func startCapture(captureOrientation: AVCaptureVideoOrientation = .portrait) {
-        guard state == .ready, !isTornDown else { return }
+        captureLog.info("startCapture called — state=\(String(describing: self.state)) orientation=\(captureOrientation.name)")
+        guard state == .ready, !isTornDown else {
+            captureLog.warning("startCapture guard failed — state=\(String(describing: self.state))")
+            return
+        }
         guard fileStore.availableStorageBytes() > 100_000_000 else {
             state = .failed("Nincs elég tárhely (min 100 MB)")
             return
@@ -324,6 +334,7 @@ extension SessionCaptureManager: AVCaptureFileOutputRecordingDelegate {
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL,
                                 from connections: [AVCaptureConnection]) {
         let callbackTime = Date()  // ← first instruction; captures wall-clock before any main-actor hop
+        captureLog.info("didStartRecordingTo fired — url=\(fileURL.lastPathComponent, privacy: .public)")
         Task { @MainActor in
             guard !isTornDown, state != .tornDown else { return }
             state = .capturing
@@ -334,11 +345,14 @@ extension SessionCaptureManager: AVCaptureFileOutputRecordingDelegate {
                                                      didStartRecordingAt: callbackTime,
                                                      success: true)
                 driftStore.append(record)
-                print("[DriftMeasurement] cycle=\(ctx.cycleIndex) device=\(record.deviceType):\(record.deviceId) serverOffsetMs=\(String(format: "%.1f", record.serverOffsetMs)) callbackDelayMs=\(String(format: "%.1f", record.callbackDelayMs))")
+                let summary = "[DriftMeasurement] cycle=\(ctx.cycleIndex) device=\(record.deviceType):\(record.deviceId) serverOffsetMs=\(String(format: "%.1f", record.serverOffsetMs)) callbackDelayMs=\(String(format: "%.1f", record.callbackDelayMs))"
+                print(summary)
+                driftLog.info("\(summary, privacy: .public)")
                 let enc = JSONEncoder()
                 enc.outputFormatting = .sortedKeys
                 if let d = try? enc.encode(record), let s = String(data: d, encoding: .utf8) {
                     print("[DriftMeasurement:RECORD] \(s)")
+                    driftLog.info("[DriftMeasurement:RECORD] \(s, privacy: .public)")
                 }
             }
             #endif
