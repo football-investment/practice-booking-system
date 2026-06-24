@@ -18,6 +18,7 @@ import threading
 import uuid as _uuid
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.database import SessionLocal
 from app.models.managed_device import ManagedDevice
@@ -133,6 +134,108 @@ class TestCreateOrGetDevice:
         assert md is not None
         assert md.device_uuid is not None
         assert md.device_type == "iphone"
+
+
+# ── DU-05/07/08/09 — API-level authorization + validation ───────────────────
+
+class TestDeviceUUIDAPIValidation:
+
+    @staticmethod
+    def _setup_committed_session():
+        """Create committed user + active session, return (session_uuid, headers)."""
+        from app.core.auth import create_access_token
+        db = SessionLocal()
+        try:
+            user = _make_user(db)
+            s, p = _make_session_and_participant(db, user)
+            db.commit()
+            session_uuid = str(s.session_uuid)
+            email = user.email
+        finally:
+            db.close()
+        token = create_access_token(data={"sub": email})
+        headers = {"Authorization": f"Bearer {token}"}
+        return session_uuid, headers
+
+    def test_du_05_other_users_device_returns_403(self):
+        """DU-05: device_uuid owned by another user → 403."""
+        from app.core.auth import create_access_token
+        from app.main import app
+
+        setup_db = SessionLocal()
+        try:
+            user_a = _make_user(setup_db, tag="owner05")
+            user_b = _make_user(setup_db, tag="thief05")
+            setup_db.commit()
+
+            ds = DeviceService(setup_db)
+            md = ds.register_managed_device_with_uuid(user_a.id, _uuid.uuid4(), "ipad")
+            device_uuid_str = str(md.device_uuid)
+
+            s = MultiCameraSession(
+                created_by_user_id=user_b.id, status=SessionStatus.ACTIVE.value,
+                max_participants=4, max_devices=4,
+            )
+            setup_db.add(s)
+            setup_db.flush()
+            p = SessionParticipant(session_id=s.id, user_id=user_b.id, role="instructor")
+            setup_db.add(p)
+            setup_db.commit()
+            session_uuid = str(s.session_uuid)
+            email_b = user_b.email
+        finally:
+            setup_db.close()
+
+        token_b = create_access_token(data={"sub": email_b})
+        headers_b = {"Authorization": f"Bearer {token_b}"}
+
+        client = TestClient(app)
+        r = client.post(
+            f"/api/v1/multicamera/sessions/{session_uuid}/devices",
+            json={"device_uuid": device_uuid_str, "device_role": "instructor_primary"},
+            headers=headers_b,
+        )
+        assert r.status_code == 403, f"Expected 403, got {r.status_code}: {r.text}"
+
+    def test_du_07_no_uuid_no_type_returns_422(self):
+        """DU-07: neither device_uuid nor device_type → 422."""
+        from app.main import app
+
+        session_uuid, headers = self._setup_committed_session()
+        client = TestClient(app)
+        r = client.post(
+            f"/api/v1/multicamera/sessions/{session_uuid}/devices",
+            json={"device_role": "instructor_primary"},
+            headers=headers,
+        )
+        assert r.status_code == 422, f"Expected 422, got {r.status_code}: {r.text}"
+
+    def test_du_08_invalid_uuid_format_returns_422(self):
+        """DU-08: invalid UUID format → 422 (Pydantic validation)."""
+        from app.main import app
+
+        session_uuid, headers = self._setup_committed_session()
+        client = TestClient(app)
+        r = client.post(
+            f"/api/v1/multicamera/sessions/{session_uuid}/devices",
+            json={"device_uuid": "not-a-valid-uuid", "device_type": "iphone",
+                  "device_role": "instructor_primary"},
+            headers=headers,
+        )
+        assert r.status_code == 422, f"Expected 422, got {r.status_code}: {r.text}"
+
+    def test_du_09_uuid_unknown_no_type_returns_422(self):
+        """DU-09: device_uuid not found + no device_type → 422."""
+        from app.main import app
+
+        session_uuid, headers = self._setup_committed_session()
+        client = TestClient(app)
+        r = client.post(
+            f"/api/v1/multicamera/sessions/{session_uuid}/devices",
+            json={"device_uuid": str(_uuid.uuid4()), "device_role": "instructor_primary"},
+            headers=headers,
+        )
+        assert r.status_code == 422, f"Expected 422, got {r.status_code}: {r.text}"
 
 
 # ── DU-10 — device type mismatch ────────────────────────────────────────────

@@ -30,6 +30,14 @@ final class DeviceIdentityTests: XCTestCase {
         XCTAssertEqual(first, second, "Stable UUID must be identical on repeated calls")
     }
 
+    // DI-03: logout/clearAll does NOT clear device UUID
+    func test_DI_03_logoutClearAllPreservesDeviceUUID() {
+        let before = DeviceIdentity.stableDeviceUUID()
+        KeychainService.clearAll()
+        let after = DeviceIdentity.stableDeviceUUID()
+        XCTAssertEqual(before, after, "Device UUID must survive KeychainService.clearAll()")
+    }
+
     // DI-04: UUID format is valid RFC 4122
     func test_DI_04_uuidFormatValid() {
         let uuidString = DeviceIdentity.stableDeviceUUID()
