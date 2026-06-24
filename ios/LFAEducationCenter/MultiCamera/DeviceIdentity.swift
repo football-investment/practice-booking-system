@@ -20,16 +20,32 @@ enum DeviceIdentity {
 
     #if DEBUG
     static func resetForTesting() {
-        delete()
+        keychainDelete()
+        UserDefaults.standard.removeObject(forKey: keychainAccount)
     }
     #endif
 
-    // MARK: - Keychain (isolated from KeychainService.clearAll)
+    // MARK: - Persistent storage (Keychain primary, UserDefaults fallback)
 
     private static let service = "com.lovas-zoltan.lfa-education-center.device"
 
     private static func save(_ value: String) {
-        guard let data = value.data(using: .utf8) else { return }
+        let keychainOK = keychainSave(value)
+        if !keychainOK {
+            UserDefaults.standard.set(value, forKey: keychainAccount)
+        }
+    }
+
+    private static func load() -> String? {
+        if let kc = keychainLoad() { return kc }
+        return UserDefaults.standard.string(forKey: keychainAccount)
+    }
+
+    // MARK: - Keychain (isolated from KeychainService.clearAll)
+
+    @discardableResult
+    private static func keychainSave(_ value: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
         let query: [String: Any] = [
             kSecClass          as String: kSecClassGenericPassword,
             kSecAttrService    as String: service,
@@ -38,10 +54,10 @@ enum DeviceIdentity {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
         ]
         SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
     }
 
-    private static func load() -> String? {
+    private static func keychainLoad() -> String? {
         let query: [String: Any] = [
             kSecClass       as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -57,7 +73,7 @@ enum DeviceIdentity {
         return string
     }
 
-    private static func delete() {
+    private static func keychainDelete() {
         let query: [String: Any] = [
             kSecClass       as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
