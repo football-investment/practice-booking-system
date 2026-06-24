@@ -44,3 +44,29 @@ class DeviceRoleViolationError(Exception):
     def __init__(self, detail: str):
         self.detail = detail
         super().__init__(detail)
+
+
+class CycleNotFoundError(Exception):
+    pass
+
+
+class CycleConflictError(Exception):
+    """Duplicate idempotency_key within the same session."""
+    pass
+
+
+class DeviceNotReadyError(Exception):
+    """One or more required devices are not in 'ready' status at schedule time."""
+    def __init__(self, detail: str):
+        self.detail = detail
+        super().__init__(detail)
+
+
+class NoCycleDevicesError(Exception):
+    """Session has no non-removed devices to snapshot into the cycle."""
+    pass
+
+
+class InstructorRequiredError(Exception):
+    """Operation requires the caller to be the session instructor."""
+    pass
