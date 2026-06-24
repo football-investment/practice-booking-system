@@ -70,6 +70,7 @@ final class SessionCaptureOrchestrator: ObservableObject {
 
     func updateClock(requestDuration: TimeInterval, serverDateHeader: Date?) {
         clock.updateFromPolling(requestDuration: requestDuration, serverDateHeader: serverDateHeader)
+        clockQuality = clock.currentOffset.quality
     }
 
     // MARK: — Arm
