@@ -335,20 +335,20 @@ final class ClockSyncAndPairingTests: XCTestCase {
     func test_DST_CLOCK_07_positiveAndNegativeClockOffset() {
         let clock = ScheduledCaptureClockManager()
         let now = Date()
-        // Positive offset: server is 500ms ahead of local
+        // Positive offset: server is 50ms ahead of local (within 100ms cap)
         for _ in 0..<3 {
-            clock.updateFromPolling(requestDuration: 0.05, serverDateHeader: now.addingTimeInterval(0.5))
+            clock.updateFromPolling(requestDuration: 0.02, serverDateHeader: now.addingTimeInterval(0.06))
         }
-        XCTAssertGreaterThan(clock.currentOffset.offsetSeconds, 0.4)
+        XCTAssertGreaterThan(clock.currentOffset.offsetSeconds, 0.04)
         XCTAssertEqual(clock.currentOffset.quality, .synchronized)
 
         clock.reset()
 
-        // Negative offset: server is 300ms behind local
+        // Negative offset: server is 50ms behind local (within 100ms cap)
         for _ in 0..<3 {
-            clock.updateFromPolling(requestDuration: 0.05, serverDateHeader: now.addingTimeInterval(-0.35))
+            clock.updateFromPolling(requestDuration: 0.02, serverDateHeader: now.addingTimeInterval(-0.06))
         }
-        XCTAssertLessThan(clock.currentOffset.offsetSeconds, -0.2)
+        XCTAssertLessThan(clock.currentOffset.offsetSeconds, -0.04)
         XCTAssertEqual(clock.currentOffset.quality, .synchronized)
     }
 

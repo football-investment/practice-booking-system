@@ -55,7 +55,7 @@ final class ScheduledCaptureClockManager: ObservableObject {
     // cause offsets of several seconds even when both clocks are NTP-accurate.
     // Reject any sample where |offset| > 1s — NTP-synchronized devices should be
     // within ~100ms, so a 1s offset is certainly a measurement artifact.
-    private static let maxAbsoluteOffsetSeconds: Double = 1.0
+    private static let maxAbsoluteOffsetSeconds: Double = 0.1
 
     var sampleCount: Int { samples.count }
 
