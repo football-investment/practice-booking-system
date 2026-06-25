@@ -141,6 +141,7 @@ struct MultiCameraSessionDTO: Codable, Equatable {
     let maxDevices: Int
     let revision: Int
     let calibration: CalibrationPlaceholderDTO?
+    let scheduledStartAt: String?
     let createdAt: String
     let startedAt: String?
     let stoppedAt: String?
@@ -158,6 +159,7 @@ struct MultiCameraSessionDTO: Codable, Equatable {
         case maxParticipants = "max_participants"
         case maxDevices = "max_devices"
         case revision, calibration
+        case scheduledStartAt = "scheduled_start_at"
         case createdAt = "created_at"
         case startedAt = "started_at"
         case stoppedAt = "stopped_at"

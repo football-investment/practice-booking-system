@@ -116,4 +116,37 @@ final class MultiCameraSessionContractTests: XCTestCase {
         XCTAssertNotNil(gopro.managedByDeviceId)
         XCTAssertEqual(gopro.managedByDeviceId, 2)
     }
+
+    // SCP-11: scheduledStartAt present in fixture
+    func test_SCP_11_scheduledStartAtPresent() throws {
+        let data = try fixtureData()
+        let session = try JSONDecoder().decode(MultiCameraSessionDTO.self, from: data)
+        XCTAssertEqual(session.scheduledStartAt, "2026-06-22T10:04:52+00:00")
+    }
+
+    // SCP-12: scheduledStartAt null decode
+    func test_SCP_12_scheduledStartAtNull() throws {
+        let json = """
+        {
+          "id": 99, "session_uuid": "00000000-0000-0000-0000-000000000099",
+          "status": "lobby", "created_by_user_id": 1,
+          "max_participants": 2, "max_devices": 4, "revision": 1,
+          "calibration": null, "scheduled_start_at": null,
+          "created_at": "2026-06-22T10:00:00+00:00",
+          "started_at": null, "stopped_at": null, "finalized_at": null, "cancelled_at": null,
+          "participants": [], "devices": [], "streams": []
+        }
+        """.data(using: .utf8)!
+        let session = try JSONDecoder().decode(MultiCameraSessionDTO.self, from: json)
+        XCTAssertNil(session.scheduledStartAt)
+    }
+
+    // SCP-13: scheduledStartAt round-trip
+    func test_SCP_13_scheduledStartAtRoundTrip() throws {
+        let data = try fixtureData()
+        let session = try JSONDecoder().decode(MultiCameraSessionDTO.self, from: data)
+        let reEncoded = try JSONEncoder().encode(session)
+        let reDecoded = try JSONDecoder().decode(MultiCameraSessionDTO.self, from: reEncoded)
+        XCTAssertEqual(session.scheduledStartAt, reDecoded.scheduledStartAt)
+    }
 }
