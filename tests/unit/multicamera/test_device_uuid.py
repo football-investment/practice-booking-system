@@ -19,8 +19,11 @@ import uuid as _uuid
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event as sa_event
+from sqlalchemy.orm import sessionmaker
 
-from app.database import SessionLocal
+from app.database import engine, get_db
+from app.main import app
 from app.models.managed_device import ManagedDevice
 from app.models.multicamera_session import (
     MultiCameraSession,
@@ -33,17 +36,39 @@ from app.services.multicamera.device_service import DeviceService
 from app.services.multicamera.session_service import SessionService
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Fixtures ────────────────────────────────────────────────────────────────
 
 @pytest.fixture()
 def db():
-    session = SessionLocal()
+    connection = engine.connect()
+    transaction = connection.begin()
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+    session = TestSession()
+    connection.begin_nested()
+
+    @sa_event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, txn):
+        if txn.nested and not txn._parent.nested:
+            sess.begin_nested()
+
     try:
         yield session
     finally:
-        session.rollback()
         session.close()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
 
+
+@pytest.fixture()
+def client(db):
+    app.dependency_overrides[get_db] = lambda: db
+    with TestClient(app, raise_server_exceptions=False) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _make_user(db, tag=None):
     tag = tag or _uuid.uuid4().hex[:8]
@@ -67,6 +92,12 @@ def _make_session_and_participant(db, user):
     db.add(p)
     db.flush()
     return s, p
+
+
+def _auth_headers(user):
+    from app.core.auth import create_access_token
+    token = create_access_token(data={"sub": user.email})
+    return {"Authorization": f"Bearer {token}"}
 
 
 # ── DU-01 — create with client UUID ─────────────────────────────────────────
@@ -140,56 +171,28 @@ class TestCreateOrGetDevice:
 
 class TestDeviceUUIDAPIValidation:
 
-    @staticmethod
-    def _setup_committed_session():
-        """Create committed user + active session, return (session_uuid, headers)."""
-        from app.core.auth import create_access_token
-        db = SessionLocal()
-        try:
-            user = _make_user(db)
-            s, p = _make_session_and_participant(db, user)
-            db.commit()
-            session_uuid = str(s.session_uuid)
-            email = user.email
-        finally:
-            db.close()
-        token = create_access_token(data={"sub": email})
-        headers = {"Authorization": f"Bearer {token}"}
-        return session_uuid, headers
-
-    def test_du_05_other_users_device_returns_403(self):
+    def test_du_05_other_users_device_returns_403(self, db, client):
         """DU-05: device_uuid owned by another user → 403."""
-        from app.core.auth import create_access_token
-        from app.main import app
+        user_a = _make_user(db)
+        user_b = _make_user(db)
+        db.commit()
 
-        setup_db = SessionLocal()
-        try:
-            user_a = _make_user(setup_db, tag="owner05")
-            user_b = _make_user(setup_db, tag="thief05")
-            setup_db.commit()
+        ds = DeviceService(db)
+        md = ds.register_managed_device_with_uuid(user_a.id, _uuid.uuid4(), "ipad")
+        device_uuid_str = str(md.device_uuid)
 
-            ds = DeviceService(setup_db)
-            md = ds.register_managed_device_with_uuid(user_a.id, _uuid.uuid4(), "ipad")
-            device_uuid_str = str(md.device_uuid)
+        s = MultiCameraSession(
+            created_by_user_id=user_b.id, status=SessionStatus.ACTIVE.value,
+            max_participants=4, max_devices=4,
+        )
+        db.add(s)
+        db.flush()
+        p = SessionParticipant(session_id=s.id, user_id=user_b.id, role="instructor")
+        db.add(p)
+        db.commit()
+        session_uuid = str(s.session_uuid)
 
-            s = MultiCameraSession(
-                created_by_user_id=user_b.id, status=SessionStatus.ACTIVE.value,
-                max_participants=4, max_devices=4,
-            )
-            setup_db.add(s)
-            setup_db.flush()
-            p = SessionParticipant(session_id=s.id, user_id=user_b.id, role="instructor")
-            setup_db.add(p)
-            setup_db.commit()
-            session_uuid = str(s.session_uuid)
-            email_b = user_b.email
-        finally:
-            setup_db.close()
-
-        token_b = create_access_token(data={"sub": email_b})
-        headers_b = {"Authorization": f"Bearer {token_b}"}
-
-        client = TestClient(app)
+        headers_b = _auth_headers(user_b)
         r = client.post(
             f"/api/v1/multicamera/sessions/{session_uuid}/devices",
             json={"device_uuid": device_uuid_str, "device_role": "instructor_primary"},
@@ -197,41 +200,44 @@ class TestDeviceUUIDAPIValidation:
         )
         assert r.status_code == 403, f"Expected 403, got {r.status_code}: {r.text}"
 
-    def test_du_07_no_uuid_no_type_returns_422(self):
+    def test_du_07_no_uuid_no_type_returns_422(self, db, client):
         """DU-07: neither device_uuid nor device_type → 422."""
-        from app.main import app
+        user = _make_user(db)
+        s, p = _make_session_and_participant(db, user)
+        db.commit()
 
-        session_uuid, headers = self._setup_committed_session()
-        client = TestClient(app)
+        headers = _auth_headers(user)
         r = client.post(
-            f"/api/v1/multicamera/sessions/{session_uuid}/devices",
+            f"/api/v1/multicamera/sessions/{s.session_uuid}/devices",
             json={"device_role": "instructor_primary"},
             headers=headers,
         )
         assert r.status_code == 422, f"Expected 422, got {r.status_code}: {r.text}"
 
-    def test_du_08_invalid_uuid_format_returns_422(self):
+    def test_du_08_invalid_uuid_format_returns_422(self, db, client):
         """DU-08: invalid UUID format → 422 (Pydantic validation)."""
-        from app.main import app
+        user = _make_user(db)
+        s, p = _make_session_and_participant(db, user)
+        db.commit()
 
-        session_uuid, headers = self._setup_committed_session()
-        client = TestClient(app)
+        headers = _auth_headers(user)
         r = client.post(
-            f"/api/v1/multicamera/sessions/{session_uuid}/devices",
+            f"/api/v1/multicamera/sessions/{s.session_uuid}/devices",
             json={"device_uuid": "not-a-valid-uuid", "device_type": "iphone",
                   "device_role": "instructor_primary"},
             headers=headers,
         )
         assert r.status_code == 422, f"Expected 422, got {r.status_code}: {r.text}"
 
-    def test_du_09_uuid_unknown_no_type_returns_422(self):
+    def test_du_09_uuid_unknown_no_type_returns_422(self, db, client):
         """DU-09: device_uuid not found + no device_type → 422."""
-        from app.main import app
+        user = _make_user(db)
+        s, p = _make_session_and_participant(db, user)
+        db.commit()
 
-        session_uuid, headers = self._setup_committed_session()
-        client = TestClient(app)
+        headers = _auth_headers(user)
         r = client.post(
-            f"/api/v1/multicamera/sessions/{session_uuid}/devices",
+            f"/api/v1/multicamera/sessions/{s.session_uuid}/devices",
             json={"device_uuid": str(_uuid.uuid4()), "device_role": "instructor_primary"},
             headers=headers,
         )
@@ -255,14 +261,18 @@ class TestDeviceTypeMismatch:
 
 
 # ── DU-11 — concurrent UUID create ──────────────────────────────────────────
+# Concurrency tests need real committed data visible across threads.
+# They use direct SessionLocal with explicit cleanup.
 
 class TestConcurrentDeviceCreate:
     def test_du_11_concurrent_same_uuid_exactly_one_device(self):
         """DU-11: two threads creating same UUID → exactly one ManagedDevice."""
-        setup_db = SessionLocal()
+        from app.database import SessionLocal
+
         client_uuid = _uuid.uuid4()
+        setup_db = SessionLocal()
         try:
-            user = _make_user(setup_db, tag=f"conc-{client_uuid.hex[:6]}")
+            user = _make_user(setup_db)
             setup_db.commit()
             user_id = user.id
         except Exception:
@@ -294,32 +304,42 @@ class TestConcurrentDeviceCreate:
         t1.join()
         t2.join()
 
-        assert not errors, f"Unexpected errors: {errors}"
-        assert len(results) == 2
-        assert results[0] == results[1], "Both threads must return the same ManagedDevice"
-
         check_db = SessionLocal()
         try:
+            assert not errors, f"Unexpected errors: {errors}"
+            assert len(results) == 2
+            assert results[0] == results[1], "Both threads must return the same ManagedDevice"
+
             count = check_db.query(ManagedDevice).filter(
                 ManagedDevice.device_uuid == client_uuid
             ).count()
             assert count == 1, f"Expected exactly 1 ManagedDevice, got {count}"
         finally:
+            # Cleanup committed data
+            check_db.query(ManagedDevice).filter(
+                ManagedDevice.device_uuid == client_uuid
+            ).delete()
+            check_db.query(User).filter(User.id == user_id).delete()
+            check_db.commit()
             check_db.close()
 
     def test_du_12_concurrent_same_session_device_exactly_one(self):
         """DU-12: two threads registering same device to same session → one SessionDevice."""
-        setup_db = SessionLocal()
+        from app.database import SessionLocal
+
         client_uuid = _uuid.uuid4()
+        setup_db = SessionLocal()
         try:
-            user = _make_user(setup_db, tag=f"sd-conc-{client_uuid.hex[:6]}")
+            user = _make_user(setup_db)
             s, p = _make_session_and_participant(setup_db, user)
             ds = DeviceService(setup_db)
             md = ds.register_managed_device_with_uuid(user.id, client_uuid, "ipad")
             setup_db.commit()
+            user_id = user.id
             session_uuid = s.session_uuid
             session_id = s.id
             device_id = md.id
+            participant_id = p.id
         except Exception:
             setup_db.rollback()
             raise
@@ -347,16 +367,30 @@ class TestConcurrentDeviceCreate:
         t1.join()
         t2.join()
 
-        # At least one must succeed; IntegrityError on second is acceptable
-        successful = [r for r in results]
-        assert len(successful) >= 1, f"At least one must succeed; errors={errors}"
-
         check_db = SessionLocal()
         try:
+            successful = [r for r in results]
+            assert len(successful) >= 1, f"At least one must succeed; errors={errors}"
+
             count = check_db.query(SessionDevice).filter(
                 SessionDevice.session_id == session_id,
                 SessionDevice.device_id == device_id,
             ).count()
             assert count == 1, f"Expected exactly 1 SessionDevice, got {count}"
         finally:
+            # Cleanup committed data (reverse dependency order)
+            check_db.query(SessionDevice).filter(
+                SessionDevice.session_id == session_id,
+            ).delete()
+            check_db.query(SessionParticipant).filter(
+                SessionParticipant.id == participant_id,
+            ).delete()
+            check_db.query(MultiCameraSession).filter(
+                MultiCameraSession.id == session_id,
+            ).delete()
+            check_db.query(ManagedDevice).filter(
+                ManagedDevice.device_uuid == client_uuid,
+            ).delete()
+            check_db.query(User).filter(User.id == user_id).delete()
+            check_db.commit()
             check_db.close()
