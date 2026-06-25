@@ -8,11 +8,34 @@ Exposes:
 
 No Celery, Redis, APScheduler, WebSocket, ML, static files, or media.
 No CORS middleware — the only client is the native iOS app.
+Auto-migrate: runs alembic upgrade head on cold start.
 """
+
+import os
+import sys
+from pathlib import Path
 
 from fastapi import FastAPI, APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+
+# ── Auto-migrate on cold start ──────────────────────────────────────────────
+# Vercel serverless: each cold start must bring the DB schema up to date.
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+def _run_migrations():
+    try:
+        from alembic.config import Config
+        from alembic import command
+        cfg = Config(os.path.join(_project_root, "alembic.ini"))
+        cfg.set_main_option("script_location", os.path.join(_project_root, "alembic"))
+        command.upgrade(cfg, "head")
+    except Exception as e:
+        print(f"[staging] auto-migrate warning: {e}")
+
+_run_migrations()
 
 from app.api.api_v1.endpoints.auth import (
     login,
