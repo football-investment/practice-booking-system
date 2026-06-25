@@ -174,14 +174,15 @@ final class ClockSyncServiceTests: XCTestCase {
 
     // CS-04: adjustedServerTimeMs advances with elapsed monotonic time
     func test_CS_04_adjustedServerTimeMsAdvancesWithMonotonic() async throws {
-        // rttMs=40, serverEpochMs=1_700_000_000_020
-        // estimated = 1_700_000_000_020 + 20 = 1_700_000_000_040
+        // takeSample() makes ONE wallClockMs() call (t1WallMs after response).
+        // rttMs = (100.040 - 100.0) * 1000 = 40ms
+        // estimatedServerAtSampleMs = 1_700_000_000_020 + 20 = 1_700_000_000_040
         // sampledAtMono = 100.040
         // 1 second later: mono = 101.040 → elapsed = 1000ms
-        // expected adjusted = 1_700_000_000_040 + 1000 = 1_700_000_001_040
+        // adjustedServerTimeMs = 1_700_000_000_040 + 1000 = 1_700_000_001_040
         let seqClock = SequenceClock(
-            wallMs: [1_700_000_000_000.0, 1_700_000_000_040.0],
-            mono:   [100.0, 100.040, 101.040]
+            wallMs: [1_700_000_000_040.0],      // t1WallMs only (1 wall call per sample)
+            mono:   [100.0, 100.040, 101.040]   // t0Mono, t1Mono, adjustedServerTimeMs call
         )
         let api = FakeSystemTimeAPIClient(responses: [.success(makeDTO(epochMs: 1_700_000_000_020))])
         let service = ClockSyncService(
@@ -220,10 +221,14 @@ final class ClockSyncServiceTests: XCTestCase {
 
     // CS-07: 2/3 samples fail, 1 succeeds → returns that sample's result
     func test_CS_07_partialFailureSucceeds() async throws {
-        // sample 3 succeeds with rtt=50ms
+        // Failed samples: only t0Mono called (fetch throws before t1Mono/t1WallMs).
+        // sample 1 (fail): mono[0]=100.0
+        // sample 2 (fail): mono[1]=100.0
+        // sample 3 (ok):   mono[2]=100.0 (t0Mono), mono[3]=100.050 (t1Mono), wall[0]=50.0 (t1WallMs)
+        // rttMs = (100.050 - 100.0) * 1000 = 50ms
         let seqClock = SequenceClock(
-            wallMs: [0.0, 0.0, 0.0, 50.0],
-            mono:   [100.0, 100.0, 100.0, 100.050, 200.0]
+            wallMs: [50.0],
+            mono:   [100.0, 100.0, 100.0, 100.050]
         )
         let api = FakeSystemTimeAPIClient(responses: [
             .failure(FakeError.network),
@@ -306,6 +311,21 @@ final class ClockSyncServiceTests: XCTestCase {
                        "Wall clock jump must not affect monotonic-based server time estimate")
         XCTAssertNotEqual(adjusted!, 1_700_000_010_040.0 + 500.0,
                           "Must not reflect the wall clock jump (+10s)")
+    }
+
+    // CS-13: sampleCount=0 → ClockSyncError.noSamplesSucceeded, no crash
+    func test_CS_13_sampleCountZeroThrows() async {
+        let api = FakeSystemTimeAPIClient(responses: [])
+        let service = ClockSyncService(apiClient: api, sampleCount: 0)
+        do {
+            _ = try await service.sync()
+            XCTFail("Expected ClockSyncError.noSamplesSucceeded")
+        } catch ClockSyncError.noSamplesSucceeded {
+            // expected — guard fires before loop, no crash
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertEqual(api.callCount, 0, "No API calls should be made when sampleCount=0")
     }
 
     // CS-12: rttMs=0 (identical mono values) — no NaN, no crash

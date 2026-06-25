@@ -36,6 +36,7 @@ struct LiveSystemTimeAPIClient: SystemTimeAPIClient {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 5.0
 
         #if DEBUG
         let session = APIClient._testURLSession ?? URLSession.shared
@@ -104,6 +105,7 @@ actor ClockSyncService {
     // MARK: — Sync
 
     func sync() async throws -> ClockSyncResult {
+        guard sampleCount > 0 else { throw ClockSyncError.noSamplesSucceeded }
         var samples: [ClockSample] = []
 
         for i in 1...sampleCount {
