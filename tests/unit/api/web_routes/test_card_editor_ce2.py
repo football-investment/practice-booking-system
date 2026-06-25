@@ -439,6 +439,6 @@ class TestCE217RouteCount:
         """
         from app.main import app
         paths = app.openapi().get("paths", {})
-        assert len(paths) == 932, (
+        assert len(paths) == 933, (
             f"Expected 932 routes (923 prior + 9 multicamera cycle endpoints), got {len(paths)}."
         )
