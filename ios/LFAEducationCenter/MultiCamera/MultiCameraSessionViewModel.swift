@@ -80,7 +80,8 @@ final class MultiCameraSessionViewModel: ObservableObject {
                 guard let token = authManager.accessToken else { throw LobbyError.noAuth }
                 let session = try await MultiCameraAPIClient.createSession(token: token, maxP: maxP, maxD: maxD)
                 state = .inLobby(session: session)
-                await autoRegisterDevice(sessionUuid: session.sessionUuid)
+                let myParticipantId = session.participants.first { $0.userId == (Self.cachedUserId ?? 0) }?.id
+                await autoRegisterDevice(sessionUuid: session.sessionUuid, participantId: myParticipantId)
                 startPolling(uuid: session.sessionUuid)
                 startHeartbeat(uuid: session.sessionUuid)
                 startClockSync()
@@ -99,7 +100,8 @@ final class MultiCameraSessionViewModel: ObservableObject {
                 _ = try await MultiCameraAPIClient.joinSession(token: token, uuid: uuid, role: role)
                 let session = try await MultiCameraAPIClient.getSession(token: token, uuid: uuid)
                 state = .inLobby(session: session)
-                await autoRegisterDevice(sessionUuid: session.sessionUuid)
+                let myParticipantId = session.participants.first { $0.userId == (Self.cachedUserId ?? 0) }?.id
+                await autoRegisterDevice(sessionUuid: session.sessionUuid, participantId: myParticipantId)
                 startPolling(uuid: session.sessionUuid)
                 startHeartbeat(uuid: session.sessionUuid)
                 startClockSync()
@@ -173,7 +175,7 @@ final class MultiCameraSessionViewModel: ObservableObject {
 
     // MARK: — Auto device register
 
-    private func autoRegisterDevice(sessionUuid: String) async {
+    private func autoRegisterDevice(sessionUuid: String, participantId: Int?) async {
         guard let token = authManager.accessToken else {
             deviceRegisterError = "No auth token"
             return
@@ -187,7 +189,7 @@ final class MultiCameraSessionViewModel: ObservableObject {
             deviceUuid: nil, deviceType: deviceType,
             deviceName: UIDevice.current.name, bleIdentifier: nil,
             deviceRole: deviceType == .ipad ? .instructorPrimary : .playerPrimary,
-            participantId: nil, managedByDeviceId: nil
+            participantId: participantId, managedByDeviceId: nil
         )
         do {
             let sd = try await MultiCameraAPIClient.registerDevice(token: token, uuid: sessionUuid, request: request)
@@ -207,9 +209,10 @@ final class MultiCameraSessionViewModel: ObservableObject {
     }
 
     func retryDeviceRegistration() {
-        guard let uuid = sessionUuid else { return }
+        guard case .inLobby(let session) = state else { return }
         deviceRegisterError = nil
-        Task { await autoRegisterDevice(sessionUuid: uuid) }
+        let myParticipantId = session.participants.first { $0.userId == (Self.cachedUserId ?? 0) }?.id
+        Task { await autoRegisterDevice(sessionUuid: session.sessionUuid, participantId: myParticipantId) }
     }
 
     // MARK: — Polling
