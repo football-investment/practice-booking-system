@@ -254,3 +254,56 @@ def debug_test_session_create():
         result["error"] = str(e)
         result["traceback"] = traceback.format_exc()
     return result
+
+
+@app.get("/api/v1/debug/test-cycle-create", tags=["debug"])
+def debug_test_cycle_create():
+    """Full cycle flow: create session → activate → create cycle → cleanup. No auth."""
+    import traceback
+    from app.database import SessionLocal
+    result = {"step": "init", "error": None, "traceback": None}
+    try:
+        db = SessionLocal()
+        from app.services.multicamera.session_service import SessionService
+        from app.services.multicamera.cycle_service import CycleService
+        from app.models.user import User
+        from app.models.multicamera_session import SessionParticipant
+
+        ss = SessionService(db)
+        cs = CycleService(db)
+
+        user = db.query(User).filter(User.is_active.is_(True)).first()
+        if not user:
+            return {"step": "init", "error": "No active user"}
+
+        # 1. Create + join
+        session = ss.create_session(user.id, max_participants=2, max_devices=4)
+        ss.join_session(session.session_uuid, user.id, "instructor")
+        result["step"] = "session_created"
+        result["session_uuid"] = str(session.session_uuid)
+        result["session_status"] = session.status
+
+        # 2. Transition to active
+        updated = ss.transition_session(session.session_uuid, "active", session.revision)
+        result["step"] = "activated"
+        result["session_status"] = updated.status
+
+        # 3. Create cycle
+        participant = db.query(SessionParticipant).filter(
+            SessionParticipant.session_id == session.id,
+            SessionParticipant.user_id == user.id,
+        ).first()
+        cycle = cs.create_cycle(session.session_uuid, "test-idem-key", participant.id)
+        result["step"] = "cycle_created"
+        result["cycle_id"] = cycle.id
+        result["cycle_status"] = cycle.status
+
+        # 4. Cleanup
+        session.status = "cancelled"
+        db.commit()
+        result["step"] = "cleanup_done"
+        db.close()
+    except Exception as e:
+        result["error"] = str(e)
+        result["traceback"] = traceback.format_exc()
+    return result
