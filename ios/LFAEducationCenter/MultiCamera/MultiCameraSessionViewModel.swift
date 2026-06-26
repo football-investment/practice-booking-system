@@ -32,6 +32,7 @@ final class MultiCameraSessionViewModel: ObservableObject {
     @Published private(set) var state: LobbyState = .idle
     @Published private(set) var sessionDeviceId: Int?
     @Published private(set) var clockSyncState: ClockSyncState = .notSynced
+    @Published private(set) var deviceRegisterError: String?
 
     private var pollingTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
@@ -79,7 +80,8 @@ final class MultiCameraSessionViewModel: ObservableObject {
                 guard let token = authManager.accessToken else { throw LobbyError.noAuth }
                 let session = try await MultiCameraAPIClient.createSession(token: token, maxP: maxP, maxD: maxD)
                 state = .inLobby(session: session)
-                await autoRegisterDevice(sessionUuid: session.sessionUuid)
+                let myParticipantId = session.participants.first { $0.userId == (Self.cachedUserId ?? 0) }?.id
+                await autoRegisterDevice(sessionUuid: session.sessionUuid, participantId: myParticipantId)
                 startPolling(uuid: session.sessionUuid)
                 startHeartbeat(uuid: session.sessionUuid)
                 startClockSync()
@@ -98,7 +100,8 @@ final class MultiCameraSessionViewModel: ObservableObject {
                 _ = try await MultiCameraAPIClient.joinSession(token: token, uuid: uuid, role: role)
                 let session = try await MultiCameraAPIClient.getSession(token: token, uuid: uuid)
                 state = .inLobby(session: session)
-                await autoRegisterDevice(sessionUuid: session.sessionUuid)
+                let myParticipantId = session.participants.first { $0.userId == (Self.cachedUserId ?? 0) }?.id
+                await autoRegisterDevice(sessionUuid: session.sessionUuid, participantId: myParticipantId)
                 startPolling(uuid: session.sessionUuid)
                 startHeartbeat(uuid: session.sessionUuid)
                 startClockSync()
@@ -155,8 +158,14 @@ final class MultiCameraSessionViewModel: ObservableObject {
     }
 
     func beginCycle() {
-        guard canStartCapture, let uuid = sessionUuid, let sdId = sessionDeviceId else { return }
-        cycleOrchestrator?.startCycle(sessionUuid: uuid, sessionDeviceId: sdId)
+        guard canStartCapture,
+              case .inLobby(let session) = state,
+              let sdId = sessionDeviceId else { return }
+        cycleOrchestrator?.startCycle(
+            sessionUuid: session.sessionUuid,
+            sessionDeviceId: sdId,
+            sessionRevision: session.revision
+        )
     }
 
     func endCycle() {
@@ -166,28 +175,44 @@ final class MultiCameraSessionViewModel: ObservableObject {
 
     // MARK: — Auto device register
 
-    private func autoRegisterDevice(sessionUuid: String) async {
-        guard let token = authManager.accessToken else { return }
-        let stableUUID = DeviceIdentity.stableDeviceUUID()
-        let logId = DeviceIdentity.logSafeIdentifier()
+    private func autoRegisterDevice(sessionUuid: String, participantId: Int?) async {
+        guard let token = authManager.accessToken else {
+            deviceRegisterError = "No auth token"
+            return
+        }
         #if targetEnvironment(simulator)
         let deviceType: MCDeviceType = .iphone
         #else
         let deviceType: MCDeviceType = UIDevice.current.userInterfaceIdiom == .pad ? .ipad : .iphone
         #endif
         let request = RegisterDeviceRequest(
-            deviceUuid: stableUUID, deviceType: deviceType,
+            deviceUuid: nil, deviceType: deviceType,
             deviceName: UIDevice.current.name, bleIdentifier: nil,
             deviceRole: deviceType == .ipad ? .instructorPrimary : .playerPrimary,
-            participantId: nil, managedByDeviceId: nil
+            participantId: participantId, managedByDeviceId: nil
         )
         do {
             let sd = try await MultiCameraAPIClient.registerDevice(token: token, uuid: sessionUuid, request: request)
             sessionDeviceId = sd.id
-            print("[LobbyVM] autoRegisterDevice: OK sdId=\(sd.id) deviceUUID=\(logId)")
+            deviceRegisterError = nil
+            print("[LobbyVM] autoRegisterDevice: OK sdId=\(sd.id)")
+            _ = try await MultiCameraAPIClient.updateDeviceStatus(
+                token: token, uuid: sessionUuid,
+                sessionDeviceId: sd.id, targetStatus: .ready,
+                deviceRevision: sd.revision
+            )
+            print("[LobbyVM] autoRegisterDevice: device \(sd.id) → ready")
         } catch {
-            print("[LobbyVM] autoRegisterDevice: FAILED deviceUUID=\(logId) error=\(error)")
+            deviceRegisterError = "\(error)"
+            print("[LobbyVM] autoRegisterDevice: FAILED error=\(error)")
         }
+    }
+
+    func retryDeviceRegistration() {
+        guard case .inLobby(let session) = state else { return }
+        deviceRegisterError = nil
+        let myParticipantId = session.participants.first { $0.userId == (Self.cachedUserId ?? 0) }?.id
+        Task { await autoRegisterDevice(sessionUuid: session.sessionUuid, participantId: myParticipantId) }
     }
 
     // MARK: — Polling
@@ -288,19 +313,22 @@ final class MultiCameraSessionViewModel: ObservableObject {
     }
 
     private func mapError(_ error: Error) -> String {
-        let nsError = error as NSError
-        if nsError.domain == "APIClient" {
-            switch nsError.code {
-            case 401: return "Nincs bejelentkezve"
-            case 403: return "Nincs jogosultság"
-            case 404: return "Session nem található"
-            case 409: return "Session megtelt vagy verzióütközés"
-            case 422: return "Érvénytelen művelet"
-            default: return "Szerverhiba (\(nsError.code))"
+        if error is LobbyError { return "Nincs bejelentkezve" }
+        if let apiErr = error as? APIError {
+            switch apiErr {
+            case .invalidURL:
+                return "Invalid URL"
+            case .httpError(let code, let detail):
+                return "HTTP \(code): \(detail ?? "no detail")"
+            case .decodingError:
+                return "Decode error (response mismatch)"
+            case .networkError(let underlying):
+                return "Network: \(underlying.localizedDescription)"
+            case .unauthorized:
+                return "Unauthorized (token expired?)"
             }
         }
-        if error is LobbyError { return "Nincs bejelentkezve" }
-        return "Hálózati hiba"
+        return "Error: \(error)"
     }
 }
 

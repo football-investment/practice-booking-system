@@ -13,18 +13,25 @@ private final class FakeAccessTokenProvider: AccessTokenProvider {
 
 @MainActor
 private final class MockCycleAPIClient: CycleAPIClient {
+    var activateResult:     Result<MultiCameraSessionDTO, Error> = .success(makeTestSession())
     var createResult:       Result<CaptureCycleDTO, Error> = .success(makeTestCycle(id: 1, revision: 1))
     var scheduleResult:     Result<CaptureCycleDTO, Error> = .success(makeTestCycle(id: 1, revision: 2, scheduledStartAt: futureISO(offsetSeconds: 10), status: .recordingPending))
     var stopResult:         Result<CaptureCycleDTO, Error> = .success(makeTestCycle(id: 1, revision: 3, status: .stopping))
     var confirmStartResult: Result<CaptureCycleDTO, Error> = .success(makeTestCycle(id: 1, revision: 4, status: .recording))
     var confirmStopResult:  Result<CaptureCycleDTO, Error> = .success(makeTestCycle(id: 1, revision: 5, status: .completed))
 
+    private(set) var activateCallCount            = 0
     private(set) var createCallCount              = 0
     private(set) var scheduleCallCount            = 0
     private(set) var confirmStartCallCount        = 0
     private(set) var confirmStopCallCount         = 0
     private(set) var lastConfirmStartRevision: Int? = nil
     private(set) var lastConfirmStopRevision:  Int? = nil
+
+    func activateSession(token: String, uuid: String, revision: Int) async throws -> MultiCameraSessionDTO {
+        activateCallCount += 1
+        return try activateResult.get()
+    }
 
     func createCycle(token: String, uuid: String, idempotencyKey: String) async throws -> CaptureCycleDTO {
         createCallCount += 1
@@ -109,6 +116,17 @@ private func makeTestCycle(
     )
 }
 
+private func makeTestSession(status: SessionStatus = .active, revision: Int = 5) -> MultiCameraSessionDTO {
+    MultiCameraSessionDTO(
+        id: 1, sessionUuid: "test-uuid", status: status,
+        createdByUserId: 1, maxParticipants: 2, maxDevices: 4,
+        revision: revision, calibration: nil, scheduledStartAt: nil,
+        createdAt: "2026-06-25T10:00:00.000Z", startedAt: nil,
+        stoppedAt: nil, finalizedAt: nil, cancelledAt: nil,
+        participants: [], devices: [], streams: []
+    )
+}
+
 // MARK: — ClockSyncService helpers
 
 /// Creates a synced ClockSyncService using a fake API client that reports the real current time.
@@ -165,7 +183,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
     func test_CYC_O_01_createCycleAPIError_failsWithApiError() async throws {
         let authProvider = FakeAccessTokenProvider()
         let apiClient = MockCycleAPIClient()
-        apiClient.createResult = .failure(NSError(domain: "APIClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "server error"]))
+        apiClient.createResult = .failure(APIError.httpError(statusCode: 500, detail: "server error"))
         let clockService = await makeSyncedClockService()
         let captureController = FakeCaptureController()
         let sleepProvider: (UInt64) async throws -> Void = { _ in } // immediate
@@ -178,7 +196,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .failed = $0 { return true }
@@ -202,7 +220,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
         let apiClient = MockCycleAPIClient()
         // create OK, schedule fails
         apiClient.createResult = .success(makeTestCycle(id: 1, revision: 1))
-        apiClient.scheduleResult = .failure(NSError(domain: "APIClient", code: 503, userInfo: [NSLocalizedDescriptionKey: "unavailable"]))
+        apiClient.scheduleResult = .failure(APIError.httpError(statusCode: 503, detail: "unavailable"))
         let clockService = await makeSyncedClockService()
         let captureController = FakeCaptureController()
         let sleepProvider: (UInt64) async throws -> Void = { _ in }
@@ -215,7 +233,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .failed = $0 { return true }
@@ -252,7 +270,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .failed = $0 { return true }
@@ -280,7 +298,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .failed = $0 { return true }
@@ -309,7 +327,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .failed = $0 { return true }
@@ -338,7 +356,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .failed = $0 { return true }
@@ -378,7 +396,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         // Wait for startCapture to be called
         await waitForOrchestratorState(orchestrator) {
@@ -413,7 +431,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .capturing = $0 { return true }
@@ -449,7 +467,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .capturing = $0 { return true }
@@ -474,7 +492,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
         let apiClient = MockCycleAPIClient()
         apiClient.createResult = .success(makeTestCycle(id: 1, revision: 1))
         apiClient.scheduleResult = .success(makeTestCycle(id: 1, revision: 2, scheduledStartAt: futureISO(offsetSeconds: 0.001), status: .recordingPending))
-        apiClient.confirmStartResult = .failure(NSError(domain: "APIClient", code: 409, userInfo: [NSLocalizedDescriptionKey: "conflict"]))
+        apiClient.confirmStartResult = .failure(APIError.httpError(statusCode: 409, detail: "conflict"))
         let clockService = await makeSyncedClockService()
         let captureController = FakeCaptureController()
         let sleepProvider: (UInt64) async throws -> Void = { _ in }
@@ -487,7 +505,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .failed = $0 { return true }
@@ -511,7 +529,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
         let apiClient = MockCycleAPIClient()
         apiClient.createResult = .success(makeTestCycle(id: 1, revision: 1))
         apiClient.scheduleResult = .success(makeTestCycle(id: 1, revision: 2, scheduledStartAt: futureISO(offsetSeconds: 0.001), status: .recordingPending))
-        apiClient.confirmStartResult = .failure(NSError(domain: "APIClient", code: 422, userInfo: [NSLocalizedDescriptionKey: "invalid transition"]))
+        apiClient.confirmStartResult = .failure(APIError.httpError(statusCode: 422, detail: "invalid transition"))
         let clockService = await makeSyncedClockService()
         let captureController = FakeCaptureController()
         let sleepProvider: (UInt64) async throws -> Void = { _ in }
@@ -524,7 +542,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .failed = $0 { return true }
@@ -562,7 +580,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         // Wait for capturing state
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
@@ -597,7 +615,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
         apiClient.createResult = .success(makeTestCycle(id: 1, revision: 1))
         apiClient.scheduleResult = .success(makeTestCycle(id: 1, revision: 2, scheduledStartAt: futureISO(offsetSeconds: 0.001), status: .recordingPending))
         apiClient.confirmStartResult = .success(makeTestCycle(id: 1, revision: 4, status: .recording))
-        apiClient.confirmStopResult = .failure(NSError(domain: "APIClient", code: 409, userInfo: [NSLocalizedDescriptionKey: "conflict"]))
+        apiClient.confirmStopResult = .failure(APIError.httpError(statusCode: 409, detail: "conflict"))
         let clockService = await makeSyncedClockService()
         let captureController = FakeCaptureController()
         let sleepProvider: (UInt64) async throws -> Void = { _ in }
@@ -610,7 +628,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .capturing = $0 { return true }
@@ -646,7 +664,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
         apiClient.createResult = .success(makeTestCycle(id: 1, revision: 1))
         apiClient.scheduleResult = .success(makeTestCycle(id: 1, revision: 2, scheduledStartAt: futureISO(offsetSeconds: 0.001), status: .recordingPending))
         apiClient.confirmStartResult = .success(makeTestCycle(id: 1, revision: 4, status: .recording))
-        apiClient.confirmStopResult = .failure(NSError(domain: "APIClient", code: 422, userInfo: [NSLocalizedDescriptionKey: "invalid stop"]))
+        apiClient.confirmStopResult = .failure(APIError.httpError(statusCode: 422, detail: "invalid stop"))
         let clockService = await makeSyncedClockService()
         let captureController = FakeCaptureController()
         let sleepProvider: (UInt64) async throws -> Void = { _ in }
@@ -659,7 +677,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .capturing = $0 { return true }
@@ -711,7 +729,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         // Wait for it to reach waitingForStart
         await waitForOrchestratorState(orchestrator, timeout: 2.0) {
@@ -756,7 +774,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .capturing = $0 { return true }
@@ -796,7 +814,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)  // sdId=1 ≠ 99
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)  // sdId=1 ≠ 99
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .failed = $0 { return true }
@@ -825,8 +843,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             scheduledStartAt: futureISO(offsetSeconds: 0.001),
             status: .recordingPending
         ))
-        apiClient.confirmStartResult = .failure(NSError(domain: "APIClient", code: 409,
-            userInfo: [NSLocalizedDescriptionKey: "revision mismatch"]))
+        apiClient.confirmStartResult = .failure(APIError.httpError(statusCode: 409, detail: "revision mismatch"))
         let clockService = await makeSyncedClockService()
         let captureController = FakeCaptureController()
         let sleepProvider: (UInt64) async throws -> Void = { _ in }
@@ -839,7 +856,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .failed = $0 { return true }
@@ -884,7 +901,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator, timeout: 3.0) {
             if case .capturing = $0 { return true }
@@ -923,7 +940,7 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
             sleepProvider: sleepProvider
         )
 
-        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1)
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
 
         await waitForOrchestratorState(orchestrator) {
             if case .failed = $0 { return true }
@@ -931,5 +948,93 @@ final class CycleCaptureOrchestratorTests: XCTestCase {
         }
 
         XCTAssertEqual(orchestrator.state, .failed(.noAuth))
+    }
+
+    // CYC-O-21: activateSession called before createCycle
+    func test_CYC_O_21_activateCalledBeforeCreate() async throws {
+        let authProvider = FakeAccessTokenProvider()
+        let apiClient = MockCycleAPIClient()
+        let clockService = await makeSyncedClockService()
+        let captureController = FakeCaptureController()
+
+        let orchestrator = CycleCaptureOrchestrator(
+            authManager: authProvider,
+            clockSyncService: clockService,
+            captureController: captureController,
+            cycleAPIClient: apiClient,
+            sleepProvider: { _ in }
+        )
+
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
+
+        await waitForOrchestratorState(orchestrator) {
+            if case .capturing = $0 { return true }
+            if case .failed = $0 { return true }
+            return false
+        }
+
+        XCTAssertEqual(apiClient.activateCallCount, 1, "activateSession must be called once")
+        XCTAssertGreaterThanOrEqual(apiClient.createCallCount, 1, "createCycle must be called after activate")
+    }
+
+    // CYC-O-22: activateSession 409 (already active) → proceeds to createCycle
+    func test_CYC_O_22_activate409_proceedsToCreate() async throws {
+        let authProvider = FakeAccessTokenProvider()
+        let apiClient = MockCycleAPIClient()
+        apiClient.activateResult = .failure(APIError.httpError(statusCode: 409, detail: "already active"))
+        let clockService = await makeSyncedClockService()
+        let captureController = FakeCaptureController()
+
+        let orchestrator = CycleCaptureOrchestrator(
+            authManager: authProvider,
+            clockSyncService: clockService,
+            captureController: captureController,
+            cycleAPIClient: apiClient,
+            sleepProvider: { _ in }
+        )
+
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
+
+        await waitForOrchestratorState(orchestrator) {
+            if case .capturing = $0 { return true }
+            if case .failed = $0 { return true }
+            return false
+        }
+
+        XCTAssertEqual(apiClient.activateCallCount, 1)
+        XCTAssertGreaterThanOrEqual(apiClient.createCallCount, 1, "409 on activate should not block createCycle")
+    }
+
+    // CYC-O-23: activateSession non-409 error → failed, createCycle not called
+    func test_CYC_O_23_activateError_failsWithoutCreate() async throws {
+        let authProvider = FakeAccessTokenProvider()
+        let apiClient = MockCycleAPIClient()
+        apiClient.activateResult = .failure(APIError.httpError(statusCode: 500, detail: "server error"))
+        let clockService = await makeSyncedClockService()
+        let captureController = FakeCaptureController()
+
+        let orchestrator = CycleCaptureOrchestrator(
+            authManager: authProvider,
+            clockSyncService: clockService,
+            captureController: captureController,
+            cycleAPIClient: apiClient,
+            sleepProvider: { _ in }
+        )
+
+        orchestrator.startCycle(sessionUuid: "test-uuid", sessionDeviceId: 1, sessionRevision: 1)
+
+        await waitForOrchestratorState(orchestrator) {
+            if case .failed = $0 { return true }
+            return false
+        }
+
+        XCTAssertEqual(apiClient.activateCallCount, 1)
+        XCTAssertEqual(apiClient.createCallCount, 0, "createCycle must NOT be called after activate failure")
+        if case .failed(let f) = orchestrator.state,
+           case .apiError(let code, _) = f {
+            XCTAssertEqual(code, 500)
+        } else {
+            XCTFail("Expected .failed(.apiError(500, ...)), got \(orchestrator.state)")
+        }
     }
 }
