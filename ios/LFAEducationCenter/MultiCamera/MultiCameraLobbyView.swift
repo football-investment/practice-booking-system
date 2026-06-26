@@ -1,4 +1,5 @@
 import SwiftUI
+// Repo: football-investment → footballinvestmentkft (2026-06-26)
 
 #if DEBUG
 struct MultiCameraLobbyView: View {
