@@ -767,12 +767,14 @@ class TestTransitionGuards:
         result = svc.activate_session(s.session_uuid, s.revision)
         assert SessionStatus(result.status) == SessionStatus.ACTIVE
 
-    def test_tr_02_activate_from_active_raises(self, db, active_session):
-        """TR-02: already ACTIVE session → InvalidTransitionError on second activate."""
+    def test_tr_02_activate_from_active_is_idempotent(self, db, active_session):
+        """TR-02: already ACTIVE session → idempotent success (same revision, no DB write)."""
         s, p_inst, sd1, sd2 = active_session
+        revision_before = s.revision
         svc = CycleService(db)
-        with pytest.raises(InvalidTransitionError):
-            svc.activate_session(s.session_uuid, s.revision)
+        result = svc.activate_session(s.session_uuid, s.revision)
+        assert SessionStatus(result.status) == SessionStatus.ACTIVE
+        assert result.revision == revision_before
 
     def test_tr_03_activate_from_completed_raises(self, db, users):
         """TR-03: COMPLETED session → InvalidTransitionError."""
