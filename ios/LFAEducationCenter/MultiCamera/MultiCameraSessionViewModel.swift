@@ -194,6 +194,12 @@ final class MultiCameraSessionViewModel: ObservableObject {
             sessionDeviceId = sd.id
             deviceRegisterError = nil
             print("[LobbyVM] autoRegisterDevice: OK sdId=\(sd.id)")
+            _ = try await MultiCameraAPIClient.updateDeviceStatus(
+                token: token, uuid: sessionUuid,
+                sessionDeviceId: sd.id, targetStatus: .ready,
+                deviceRevision: sd.revision
+            )
+            print("[LobbyVM] autoRegisterDevice: device \(sd.id) → ready")
         } catch {
             deviceRegisterError = "\(error)"
             print("[LobbyVM] autoRegisterDevice: FAILED error=\(error)")
