@@ -127,6 +127,13 @@ final class PlayerCycleListenerTests: XCTestCase {
         XCTAssertTrue(listener.handledCycleIds.contains(8))
     }
 
+    // PCL-07c: CycleStatus.failed (backend failure) → same terminal handling as .completed.
+    func test_pcl_07c_failed_status_cycle_returns_waiting_and_marks_handled() {
+        let result = listener.classify([makeCycle(id: 11, status: .failed)])
+        XCTAssertEqual(result, .waitingForCycle)
+        XCTAssertTrue(listener.handledCycleIds.contains(11))
+    }
+
     // PCL-08: Duplicate guard — cycle seen as .completed is blocked on next classify call.
     // Covers the scenario where the same cycle ID reappears as .recordingPending.
     func test_pcl_08_completed_cycle_id_blocked_on_next_classify() {
