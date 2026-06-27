@@ -22,6 +22,9 @@ private final class MockCycleAPIClientForPCO: CycleAPIClient {
 
     private(set) var confirmStartCallCount = 0
 
+    func getSession(token: String, uuid: String) async throws -> MultiCameraSessionDTO {
+        fatalError("not used in PCO tests")
+    }
     func activateSession(token: String, uuid: String, revision: Int) async throws -> MultiCameraSessionDTO {
         fatalError("not used in PCO tests")
     }
