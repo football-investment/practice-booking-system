@@ -218,7 +218,7 @@ final class MultiCameraSessionViewModel: ObservableObject {
             if let listener = playerCycleListener, let orch = playerCaptureOrchestrator {
                 orch.attach(listener: listener, sessionUuid: sessionUuid, playerSessionDeviceId: sd.id)
             }
-            if sd.deviceRole != .instructorPrimary && sd.deviceRole != .playerPrimary {
+            if sd.deviceRole != .instructorPrimary {
                 await capturePreparable?.autoPrepare(sessionUUID: sessionUuid, deviceId: sd.id)
             }
         } catch {
@@ -322,10 +322,7 @@ final class MultiCameraSessionViewModel: ObservableObject {
     }
 
     static func resolveIsController(role: MCDeviceRole?) -> Bool {
-        switch role {
-        case .instructorPrimary, .playerPrimary: return true
-        default: return false
-        }
+        role == .instructorPrimary
     }
 
     var myDeviceRole: MCDeviceRole? {
