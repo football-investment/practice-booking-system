@@ -96,12 +96,12 @@ final class CaptureAuthorityTests: XCTestCase {
         )
     }
 
-    // MARK: — CTL-06: isController is true for playerPrimary
+    // MARK: — CTL-06: isController is false for playerPrimary (instructor-present sessions)
 
-    func test_CTL_06_isController_trueFor_playerPrimary() {
-        XCTAssertTrue(
+    func test_CTL_06_isController_falseFor_playerPrimary() {
+        XCTAssertFalse(
             MultiCameraSessionViewModel.resolveIsController(role: .playerPrimary),
-            "CTL-06: playerPrimary must be a controller"
+            "CTL-06: playerPrimary must NOT be a controller when instructor is present"
         )
     }
 
