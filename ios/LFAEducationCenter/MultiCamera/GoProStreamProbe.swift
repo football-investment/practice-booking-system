@@ -21,10 +21,47 @@ import UIKit
 
 #if DEBUG
 
+struct PMTStreamEntry {
+    let pid: Int
+    let streamType: UInt8
+    let descriptorTags: [UInt8]
+
+    var streamTypeHex: String { String(format: "0x%02X", streamType) }
+    var descriptorTagsHex: [String] { descriptorTags.map { String(format: "0x%02X", $0) } }
+
+    /// Known video-ish stream_types per ISO/IEC 13818-1 + ATSC/DVB registrations.
+    /// 0x1B = H.264/AVC, 0x24 = H.265/HEVC, 0x02 = MPEG-2 video, 0x10 = MPEG-4 video.
+    var isVideoCandidate: Bool { [0x1B, 0x24, 0x02, 0x10].contains(streamType) }
+    var codecGuess: String? {
+        switch streamType {
+        case 0x1B: return "h264"
+        case 0x24: return "hevc"
+        case 0x02: return "mpeg2"
+        case 0x10: return "mpeg4"
+        default: return nil
+        }
+    }
+}
+
 private struct MPEGTSDemuxer {
     private(set) var videoPID: Int?
+    private(set) var selectedCodec: String?
     private(set) var pmtPID: Int?
+    private(set) var pmtStreams: [PMTStreamEntry] = []
+    private(set) var patParseCount = 0
+    private(set) var pmtParseCount = 0
     private var payload = Data()
+
+    var videoCandidatePIDs: [Int] { pmtStreams.filter { $0.isVideoCandidate }.map { $0.pid } }
+
+    var reasonNoVideoPID: String? {
+        guard videoPID == nil else { return nil }
+        guard pmtPID != nil else { return "PAT found but PMT never parsed within the observation window" }
+        guard !pmtStreams.isEmpty else { return "PMT PID known but no PMT section parsed yet (0 streams found)" }
+        let summary = pmtStreams.map { "pid=\($0.pid) streamType=\($0.streamTypeHex)" }.joined(separator: ", ")
+        return "PMT parsed (\(pmtStreams.count) stream(s)) but none matched a known video stream_type " +
+               "(0x1B=H.264, 0x24=HEVC, 0x02=MPEG2, 0x10=MPEG4). Found: [\(summary)]"
+    }
 
     // Self-validating TS sync search diagnostics — do NOT assume byte 0 of
     // every UDP datagram is a TS sync byte (0x47). GoPro's preview stream may
@@ -131,14 +168,21 @@ private struct MPEGTSDemuxer {
         let sectionLength = (Int(b[base + 1] & 0x0F) << 8) | Int(b[base + 2])
         var i = base + 8 // skip table_id..last_section_number
         let end = base + 3 + sectionLength - 4 // exclude CRC32
+        var foundProgram = false
         while i + 4 <= end, i + 4 <= b.count {
             let programNumber = (Int(b[i]) << 8) | Int(b[i + 1])
             let pid = (Int(b[i + 2] & 0x1F) << 8) | Int(b[i + 3])
-            if programNumber != 0 { pmtPID = pid } // first non-PAT-itself program
+            if programNumber != 0 { pmtPID = pid; foundProgram = true } // first non-PAT-itself program
             i += 4
         }
+        if foundProgram { patParseCount += 1 }
     }
 
+    /// Parses every elementary stream entry in the PMT (not just the first
+    /// H.264 match) — pid, stream_type, and raw descriptor tags for each —
+    /// so a "no video PID found" result is fully explainable from the diag
+    /// file: what stream_types WERE present, any AVC/HEVC descriptors, any
+    /// private/GoPro-specific (telemetry/metadata) streams, etc.
     private mutating func parsePMT(_ section: Data) {
         let b = [UInt8](section)
         guard b.count > 12 else { return }
@@ -149,14 +193,35 @@ private struct MPEGTSDemuxer {
         let programInfoLength = (Int(b[base + 10] & 0x0F) << 8) | Int(b[base + 11])
         var i = base + 12 + programInfoLength
         let end = base + 3 + sectionLength - 4
+        var streams: [PMTStreamEntry] = []
         while i + 5 <= end, i + 5 <= b.count {
             let streamType = b[i]
             let pid = (Int(b[i + 1] & 0x1F) << 8) | Int(b[i + 2])
             let esInfoLength = (Int(b[i + 3] & 0x0F) << 8) | Int(b[i + 4])
-            if streamType == 0x1B, videoPID == nil { // H.264
-                videoPID = pid
+            var descriptorTags: [UInt8] = []
+            var d = i + 5
+            let esEnd = min(d + esInfoLength, b.count)
+            while d + 2 <= esEnd {
+                descriptorTags.append(b[d]) // descriptor_tag (e.g. 0x28 AVC, 0x38/0x39 HEVC)
+                let descLen = Int(b[d + 1])
+                d += 2 + descLen
             }
+            streams.append(PMTStreamEntry(pid: pid, streamType: streamType, descriptorTags: descriptorTags))
             i += 5 + esInfoLength
+        }
+        guard !streams.isEmpty else { return }
+        pmtStreams = streams
+        pmtParseCount += 1
+        if videoPID == nil {
+            // Prefer H.264 (matches the decode pipeline today); fall back to
+            // HEVC (VPS/SPS/PPS path) if that's what the camera is sending.
+            if let h264 = streams.first(where: { $0.streamType == 0x1B }) {
+                videoPID = h264.pid; selectedCodec = "h264"
+            } else if let hevc = streams.first(where: { $0.streamType == 0x24 }) {
+                videoPID = hevc.pid; selectedCodec = "hevc"
+            } else if let other = streams.first(where: { $0.isVideoCandidate }) {
+                videoPID = other.pid; selectedCodec = other.codecGuess
+            }
         }
     }
 
@@ -202,8 +267,9 @@ final class GoProStreamProbe: ObservableObject {
     private var demuxer = MPEGTSDemuxer()
     private var decompressionSession: VTDecompressionSession?
     private var formatDescription: CMVideoFormatDescription?
-    private var spsData: Data?
-    private var ppsData: Data?
+    private var spsData: Data?  // H.264 SPS, or HEVC SPS (codec disambiguated by demuxer.selectedCodec)
+    private var ppsData: Data?  // H.264 PPS, or HEVC PPS
+    private var vpsData: Data?  // HEVC VPS only
 
     private var packetsReceived = 0
     private var bytesReceived = 0
@@ -254,9 +320,23 @@ final class GoProStreamProbe: ObservableObject {
         diag["tsSyncHitDatagrams"] = demuxer.syncHitDatagrams
         diag["tsSyncMissDatagrams"] = demuxer.syncMissDatagrams
         diag["pmtPIDFound"] = demuxer.pmtPID != nil
+        diag["pmtParseCount"] = demuxer.pmtParseCount
+        diag["patParseCount"] = demuxer.patParseCount
+        diag["pmtStreams"] = demuxer.pmtStreams.map { entry -> [String: Any] in
+            [
+                "pid": entry.pid,
+                "streamType": entry.streamTypeHex,
+                "descriptorTags": entry.descriptorTagsHex,
+            ]
+        }
+        diag["videoCandidatePIDs"] = demuxer.videoCandidatePIDs
+        diag["selectedVideoPID"] = demuxer.videoPID ?? NSNull()
+        diag["selectedCodec"] = demuxer.selectedCodec ?? NSNull()
+        diag["reasonNoVideoPID"] = demuxer.reasonNoVideoPID ?? NSNull()
         diag["videoPIDFound"] = demuxer.videoPID != nil
         diag["spsSeen"] = spsData != nil
         diag["ppsSeen"] = ppsData != nil
+        diag["vpsSeen"] = vpsData != nil
         diag["decodeAttempts"] = decodeAttempts
         diag["decodeSuccesses"] = decodeSuccesses
         diag["fps"] = estimateFPS()
@@ -281,6 +361,7 @@ final class GoProStreamProbe: ObservableObject {
         demuxer = MPEGTSDemuxer()
         spsData = nil
         ppsData = nil
+        vpsData = nil
         formatDescription = nil
         if let session = decompressionSession {
             VTDecompressionSessionInvalidate(session)
@@ -346,26 +427,60 @@ final class GoProStreamProbe: ObservableObject {
         for nal in nals { handleNAL(nal) }
     }
 
-    // MARK: — H.264 NAL handling + VideoToolbox decode
+    // MARK: — H.264/HEVC NAL handling + VideoToolbox decode
+    //
+    // The PMT's selected stream_type (demuxer.selectedCodec) decides how NAL
+    // headers are parsed: H.264 uses a 1-byte header (type = byte0 & 0x1F),
+    // HEVC uses a 2-byte header (type = (byte0 >> 1) & 0x3F) with an extra
+    // parameter set (VPS) alongside SPS/PPS.
 
     private func handleNAL(_ nal: Data) {
+        switch demuxer.selectedCodec {
+        case "hevc":
+            handleHEVCNAL(nal)
+        default: // "h264", mpeg2/mpeg4 fallbacks are not decoded (no VideoToolbox path for them here)
+            handleH264NAL(nal)
+        }
+    }
+
+    private func handleH264NAL(_ nal: Data) {
         guard let firstByte = nal.first else { return }
         let nalType = firstByte & 0x1F
         switch nalType {
         case 7: // SPS
             spsData = nal
-            tryBuildFormatDescription()
+            tryBuildH264FormatDescription()
         case 8: // PPS
             ppsData = nal
-            tryBuildFormatDescription()
+            tryBuildH264FormatDescription()
         case 5, 1: // IDR / non-IDR slice
-            decodeFrame(nal, isKeyframe: nalType == 5)
+            decodeFrame(nal)
         default:
             break
         }
     }
 
-    private func tryBuildFormatDescription() {
+    private func handleHEVCNAL(_ nal: Data) {
+        guard nal.count >= 2 else { return }
+        let nalType = (nal[nal.startIndex] >> 1) & 0x3F
+        switch nalType {
+        case 32: // VPS
+            vpsData = nal
+            tryBuildHEVCFormatDescription()
+        case 33: // SPS
+            spsData = nal
+            tryBuildHEVCFormatDescription()
+        case 34: // PPS
+            ppsData = nal
+            tryBuildHEVCFormatDescription()
+        case 0...31: // VCL (slice) NAL units — trailing/leading/IDR/CRA etc.
+            decodeFrame(nal)
+        default:
+            break
+        }
+    }
+
+    private func tryBuildH264FormatDescription() {
         guard let sps = spsData, let pps = ppsData else { return }
         let spsBytes = [UInt8](sps)
         let ppsBytes = [UInt8](pps)
@@ -387,10 +502,43 @@ final class GoProStreamProbe: ObservableObject {
             }
         }
         if result == noErr {
-            print("[GOPRO-STREAM-POC] format description created from SPS/PPS")
+            print("[GOPRO-STREAM-POC] H.264 format description created from SPS/PPS")
             createDecompressionSession()
         } else {
-            lastError = "format_description_failed: OSStatus \(result)"
+            lastError = "h264_format_description_failed: OSStatus \(result)"
+        }
+    }
+
+    private func tryBuildHEVCFormatDescription() {
+        guard let vps = vpsData, let sps = spsData, let pps = ppsData else { return }
+        let vpsBytes = [UInt8](vps)
+        let spsBytes = [UInt8](sps)
+        let ppsBytes = [UInt8](pps)
+        let result = vpsBytes.withUnsafeBufferPointer { vpsPtr -> OSStatus in
+            spsBytes.withUnsafeBufferPointer { spsPtr -> OSStatus in
+                ppsBytes.withUnsafeBufferPointer { ppsPtr -> OSStatus in
+                    let pointers: [UnsafePointer<UInt8>] = [vpsPtr.baseAddress!, spsPtr.baseAddress!, ppsPtr.baseAddress!]
+                    let sizes: [Int] = [vpsPtr.count, spsPtr.count, ppsPtr.count]
+                    var fmtDesc: CMVideoFormatDescription?
+                    let status = CMVideoFormatDescriptionCreateFromHEVCParameterSets(
+                        allocator: kCFAllocatorDefault,
+                        parameterSetCount: 3,
+                        parameterSetPointers: pointers,
+                        parameterSetSizes: sizes,
+                        nalUnitHeaderLength: 4,
+                        extensions: nil,
+                        formatDescriptionOut: &fmtDesc
+                    )
+                    if status == noErr { self.formatDescription = fmtDesc }
+                    return status
+                }
+            }
+        }
+        if result == noErr {
+            print("[GOPRO-STREAM-POC] HEVC format description created from VPS/SPS/PPS")
+            createDecompressionSession()
+        } else {
+            lastError = "hevc_format_description_failed: OSStatus \(result)"
         }
     }
 
@@ -423,7 +571,7 @@ final class GoProStreamProbe: ObservableObject {
         }
     }
 
-    private func decodeFrame(_ nal: Data, isKeyframe: Bool) {
+    private func decodeFrame(_ nal: Data) {
         guard let session = decompressionSession else { return } // no SPS/PPS yet — drop
         decodeAttempts += 1
 
