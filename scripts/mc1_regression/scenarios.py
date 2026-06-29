@@ -1194,7 +1194,9 @@ def scenario_gopro_preview_poc(ctx: ScenarioContext) -> ScenarioReport:
         udp_ok = (diag.get("udpPacketsReceived") or 0) > 0
         sync_ok = diag.get("tsSyncOffsetDetected") is not None
         mpegts_ok = bool(diag.get("videoPIDFound"))
-        nal_ok = bool(diag.get("spsSeen")) and bool(diag.get("ppsSeen"))
+        codec = diag.get("selectedCodec")
+        nal_ok = (codec == "hevc" and bool(diag.get("vpsSeen")) and bool(diag.get("spsSeen")) and bool(diag.get("ppsSeen"))) \
+            or (codec != "hevc" and bool(diag.get("spsSeen")) and bool(diag.get("ppsSeen")))
         decode_ok = (diag.get("decodeSuccesses") or 0) > 0
 
         report.step("[layer] HTTP stream/start", http_ok, value=diag.get("streamStartHTTPStatus"))
@@ -1202,9 +1204,13 @@ def scenario_gopro_preview_poc(ctx: ScenarioContext) -> ScenarioReport:
         report.step("[layer] TS sync offset found", sync_ok,
                     offset=diag.get("tsSyncOffsetDetected"), format_guess=diag.get("tsSyncFormatGuess"),
                     hit=diag.get("tsSyncHitDatagrams"), miss=diag.get("tsSyncMissDatagrams"))
-        report.step("[layer] MPEG-TS video PID found", mpegts_ok, value=diag.get("videoPIDFound"))
-        report.step("[layer] H.264 SPS/PPS seen", nal_ok,
-                    sps=diag.get("spsSeen"), pps=diag.get("ppsSeen"))
+        report.step("[layer] MPEG-TS video PID found", mpegts_ok,
+                    selected_pid=diag.get("selectedVideoPID"), codec=codec,
+                    candidates=diag.get("videoCandidatePIDs"), pmt_streams=diag.get("pmtStreams"),
+                    pat_parses=diag.get("patParseCount"), pmt_parses=diag.get("pmtParseCount"),
+                    reason=diag.get("reasonNoVideoPID"))
+        report.step("[layer] H.264/HEVC parameter sets seen", nal_ok,
+                    vps=diag.get("vpsSeen"), sps=diag.get("spsSeen"), pps=diag.get("ppsSeen"))
         report.step("[layer] VideoToolbox decode success", decode_ok,
                     attempts=diag.get("decodeAttempts"), successes=diag.get("decodeSuccesses"))
 
@@ -1214,11 +1220,21 @@ def scenario_gopro_preview_poc(ctx: ScenarioContext) -> ScenarioReport:
               f"TS-SYNC={'OK' if sync_ok else 'FAIL'} "
               f"(offset={diag.get('tsSyncOffsetDetected')}, {diag.get('tsSyncFormatGuess')}, "
               f"hit={diag.get('tsSyncHitDatagrams', 0)}/miss={diag.get('tsSyncMissDatagrams', 0)}) | "
-              f"MPEG-TS/PID={'OK' if mpegts_ok else 'FAIL'} | "
-              f"NAL/SPS-PPS={'OK' if nal_ok else 'FAIL'} | "
+              f"MPEG-TS/PID={'OK' if mpegts_ok else 'FAIL'} "
+              f"(pid={diag.get('selectedVideoPID')}, codec={codec}) | "
+              f"NAL/PARAMSETS={'OK' if nal_ok else 'FAIL'} | "
               f"DECODE={'OK' if decode_ok else 'FAIL'} "
               f"({diag.get('decodeSuccesses', 0)}/{diag.get('decodeAttempts', 0)}) | "
               f"fps={diag.get('fps', 0)}")
+
+        if not mpegts_ok:
+            print(f"[preview-poc] PMT introspection — every elementary stream found "
+                  f"(PAT parses={diag.get('patParseCount')}, PMT parses={diag.get('pmtParseCount')}):")
+            for s in (diag.get("pmtStreams") or []):
+                print(f"[preview-poc]   pid={s.get('pid')} streamType={s.get('streamType')} "
+                      f"descriptorTags={s.get('descriptorTags')}")
+            print(f"[preview-poc] videoCandidatePIDs={diag.get('videoCandidatePIDs')} "
+                  f"reasonNoVideoPID={diag.get('reasonNoVideoPID')}")
 
         if not http_ok:
             raise ValidationError(f"stream/start HTTP failed: {diag.get('streamStartHTTPStatus')}")
@@ -1238,14 +1254,14 @@ def scenario_gopro_preview_poc(ctx: ScenarioContext) -> ScenarioReport:
         if not mpegts_ok:
             raise ValidationError(
                 f"TS sync found at offset {diag.get('tsSyncOffsetDetected')} "
-                f"({diag.get('tsSyncFormatGuess')}) but no H.264 PID found in PAT/PMT — "
-                f"PMT may not have been captured yet in the observation window, or "
-                f"uses a different stream_type than 0x1B."
+                f"({diag.get('tsSyncFormatGuess')}) but no recognized video stream_type "
+                f"in PMT. {diag.get('reasonNoVideoPID')}"
             )
         if not nal_ok:
             raise ValidationError(
-                "Video PID found but no SPS/PPS NAL seen — H.264 parameter sets "
-                "never arrived or weren't recognized."
+                f"Video PID {diag.get('selectedVideoPID')} (codec={codec}) found but "
+                f"parameter sets incomplete (vps={diag.get('vpsSeen')}, "
+                f"sps={diag.get('spsSeen')}, pps={diag.get('ppsSeen')})."
             )
         if not decode_ok:
             raise ValidationError(
