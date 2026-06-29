@@ -266,7 +266,20 @@ final class GoProStreamProbe: ObservableObject {
     private var listener: NWListener?
     private var demuxer = MPEGTSDemuxer()
     private var decompressionSession: VTDecompressionSession?
-    private var formatDescription: CMVideoFormatDescription?
+    private var formatDescription: CMVideoFormatDescription? {
+        didSet {
+            guard let fmtDesc = formatDescription else { previewWidth = nil; previewHeight = nil; return }
+            let dims = CMVideoFormatDescriptionGetDimensions(fmtDesc)
+            previewWidth = Int(dims.width)
+            previewHeight = Int(dims.height)
+        }
+    }
+    /// Actual decoded preview dimensions, read from the SPS-derived format
+    /// description — NOT assumed from any stream/start query parameter,
+    /// since the Open GoPro preview stream's real resolution/aspect was
+    /// never measured before this probe (see docs/GOPRO_LIVE_PREVIEW_POC_PLAN.md).
+    private var previewWidth: Int?
+    private var previewHeight: Int?
     private var spsData: Data?  // H.264 SPS, or HEVC SPS (codec disambiguated by demuxer.selectedCodec)
     private var ppsData: Data?  // H.264 PPS, or HEVC PPS
     private var vpsData: Data?  // HEVC VPS only
@@ -340,6 +353,9 @@ final class GoProStreamProbe: ObservableObject {
         diag["decodeAttempts"] = decodeAttempts
         diag["decodeSuccesses"] = decodeSuccesses
         diag["fps"] = estimateFPS()
+        diag["previewWidth"] = previewWidth ?? NSNull()
+        diag["previewHeight"] = previewHeight ?? NSNull()
+        diag["previewAspectRatio"] = Self.aspectRatioLabel(width: previewWidth, height: previewHeight) ?? NSNull()
         if let first = firstPacketAt, let last = lastPacketAt {
             diag["firstPacketLatencyMs"] = first.timeIntervalSince1970 * 1000
             diag["streamDurationObservedMs"] = last.timeIntervalSince(first) * 1000
@@ -643,6 +659,17 @@ final class GoProStreamProbe: ObservableObject {
         guard elapsed > 0 else { return 0 }
         return Double(frameTimestamps.count - 1) / elapsed
     }
+
+    /// Reduces width:height to a simple ratio string (e.g. "16:9") via GCD —
+    /// read from the actual decoded SPS, not assumed from any stream/start
+    /// query parameter (which the Open GoPro API may or may not honor; see
+    /// GitHub issues #118/#459 cited in the aspect-ratio audit).
+    private static func aspectRatioLabel(width: Int?, height: Int?) -> String? {
+        guard let w = width, let h = height, w > 0, h > 0 else { return nil }
+        func gcd(_ a: Int, _ b: Int) -> Int { b == 0 ? a : gcd(b, a % b) }
+        let d = gcd(w, h)
+        return "\(w/d):\(h/d)"
+    }
 }
 
 /// Writes the GoProStreamProbe diagnostic dict to Documents/gopro_stream_diag.json,
@@ -659,6 +686,44 @@ enum GoProStreamDiagWriter {
         let url = docs.appendingPathComponent(fileName)
         try? data.write(to: url, options: .atomic)
         print("[GOPRO-STREAM-POC] wrote \(fileName): \(diag)")
+    }
+}
+
+// MARK: — GoPro Preview Aspect Probe (distinct from gopro-camera-state-probe)
+//
+// gopro-camera-state-probe = HTTP camera/state read only, NO preview started.
+// gopro-preview-aspect-probe = ACTUALLY starts the live preview stream and
+// measures its real decoded width/height/aspect/codec/fps — the camera/state
+// settings (VideoAspectRatio etc.) describe the ARCHIVAL recording profile,
+// NOT necessarily the separate, independent preview stream's actual geometry
+// (see docs/GOPRO_LIVE_PREVIEW_POC_PLAN.md and the aspect-ratio audit —
+// Open GoPro GitHub issues #118/#459 document that preview resolution query
+// parameters are unreliable across firmware/models).
+enum GoProPreviewAspectDiagWriter {
+    static let fileName = "gopro_preview_aspect_diag.json"
+
+    /// Pulls just the aspect-relevant subset out of a full GoProStreamProbe
+    /// diag dict into its own artifact, per the explicit separate-file
+    /// requirement (Block: GoPro Preview Aspect Probe).
+    static func write(from fullDiag: [String: Any]) {
+        let subset: [String: Any] = [
+            "timestamp": fullDiag["timestamp"] ?? NSNull(),
+            "previewWidth": fullDiag["previewWidth"] ?? NSNull(),
+            "previewHeight": fullDiag["previewHeight"] ?? NSNull(),
+            "previewAspectRatio": fullDiag["previewAspectRatio"] ?? NSNull(),
+            "previewCodec": fullDiag["selectedCodec"] ?? NSNull(),
+            "previewFPS": fullDiag["fps"] ?? NSNull(),
+            "decodedFrameCount": fullDiag["decodeSuccesses"] ?? NSNull(),
+            "decodeAttempts": fullDiag["decodeAttempts"] ?? NSNull(),
+            "streamStartHTTPStatus": fullDiag["streamStartHTTPStatus"] ?? NSNull(),
+            "errorReason": fullDiag["errorReason"] ?? NSNull(),
+        ]
+        guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first,
+              JSONSerialization.isValidJSONObject(subset),
+              let data = try? JSONSerialization.data(withJSONObject: subset, options: [.prettyPrinted]) else { return }
+        let url = docs.appendingPathComponent(fileName)
+        try? data.write(to: url, options: .atomic)
+        print("[GOPRO-PREVIEW-ASPECT] wrote \(fileName): \(subset)")
     }
 }
 

@@ -51,6 +51,9 @@ enum MC1AutomationAction: Equatable {
     case goProCombinedCycleProof(durationSeconds: TimeInterval)
     // Capture Quality block: read (not write) the GoPro's current camera/state — debug-only
     case goProCameraStateProbe
+    // GoPro Preview Aspect Probe: starts live preview, measures actual decoded
+    // width/height/aspect — distinct from goProCameraStateProbe (no preview there)
+    case goProPreviewAspectProbe(durationSeconds: TimeInterval)
 }
 
 final class MC1AutomationBridge: ObservableObject {
@@ -155,6 +158,11 @@ final class MC1AutomationBridge: ObservableObject {
         case "gopro-camera-state-probe":
             print("[MC1-AUTO] received action=gopro-camera-state-probe")
             lastAction = .goProCameraStateProbe
+            return true
+        case "gopro-preview-aspect-probe":
+            let duration = value("duration_s").flatMap(Double.init) ?? 20
+            print("[MC1-AUTO] received action=gopro-preview-aspect-probe duration_s=\(duration)")
+            lastAction = .goProPreviewAspectProbe(durationSeconds: duration)
             return true
         default:
             print("[MC1-AUTO] received unknown action=\(action)")

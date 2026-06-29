@@ -347,6 +347,13 @@ struct MultiCameraLobbyView: View {
                     let diag = await GoProCameraStateProbe.run()
                     GoProCameraStateDiagWriter.write(diag)
                 }
+            case .goProPreviewAspectProbe(let durationSeconds):
+                Task {
+                    print("[GOPRO-PREVIEW-ASPECT] starting live preview (camera/state probe has NO preview — this one does)...")
+                    let diag = await GoProStreamProbe.shared.run(durationSeconds: durationSeconds)
+                    GoProStreamDiagWriter.write(diag)
+                    GoProPreviewAspectDiagWriter.write(from: diag)
+                }
             }
         }
         .sheet(isPresented: $showQRScanner) {
