@@ -26,16 +26,74 @@ private struct MPEGTSDemuxer {
     private(set) var pmtPID: Int?
     private var payload = Data()
 
-    /// Feed one or more concatenated 188-byte TS packets. Returns newly
-    /// completed Annex-B NAL units (start-code delimited) found in the
-    /// video PID's payload since the last call.
+    // Self-validating TS sync search diagnostics — do NOT assume byte 0 of
+    // every UDP datagram is a TS sync byte (0x47). GoPro's preview stream may
+    // wrap MPEG-TS in RTP (typically a 12-byte header before the TS payload),
+    // which silently breaks a fixed offset=0 assumption: byte 0 is read as a
+    // TS header, every field downstream is garbage, and PAT/PMT detection
+    // becomes a matter of luck instead of working reliably.
+    private(set) var detectedSyncOffset: Int?
+    private(set) var syncHitDatagrams = 0
+    private(set) var syncMissDatagrams = 0
+
+    var formatGuess: String {
+        guard let offset = detectedSyncOffset else { return "unknown_no_sync_found" }
+        switch offset {
+        case 0: return "raw_mpegts (sync offset 0)"
+        case 10...14: return "rtp_wrapped_mpegts (sync offset \(offset), consistent with a 12-byte RTP header)"
+        default: return "unknown_offset_\(offset)"
+        }
+    }
+
+    /// Self-validating sync search: try offsets 0...16 and accept the first
+    /// one where 0x47 repeats at the expected 188-byte TS packet stride
+    /// three times in a row (offset, offset+188, offset+376). This handles
+    /// both raw MPEG-TS-over-UDP (offset 0) and RTP-wrapped MPEG-TS (offset
+    /// ~12) without assuming which one the GoPro is actually sending.
+    private static func findSyncOffset(in bytes: [UInt8]) -> Int? {
+        let maxOffsetForTriple = min(16, bytes.count - 377)
+        if maxOffsetForTriple >= 0 {
+            for offset in 0...maxOffsetForTriple {
+                if bytes[offset] == 0x47, bytes[offset + 188] == 0x47, bytes[offset + 376] == 0x47 {
+                    return offset
+                }
+            }
+        }
+        // Datagram too short to validate 3 strides (e.g. a small trailing
+        // packet) — fall back to a weaker double-stride check.
+        let maxOffsetForDouble = min(16, bytes.count - 189)
+        if maxOffsetForDouble >= 0 {
+            for offset in 0...maxOffsetForDouble {
+                if bytes[offset] == 0x47, bytes[offset + 188] == 0x47 {
+                    return offset
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Feed one UDP datagram. Returns newly completed Annex-B NAL units
+    /// (start-code delimited) found in the video PID's payload since the
+    /// last call.
     mutating func feed(_ datagram: Data) -> [Data] {
-        var offset = 0
-        while offset + 188 <= datagram.count {
-            let packet = datagram[datagram.startIndex + offset ..< datagram.startIndex + offset + 188]
-            offset += 188
-            guard packet.first == 0x47 else { continue } // not TS-aligned, drop
-            parsePacket(packet)
+        let bytes = [UInt8](datagram)
+        guard let offset = Self.findSyncOffset(in: bytes) else {
+            syncMissDatagrams += 1
+            return []
+        }
+        syncHitDatagrams += 1
+        if detectedSyncOffset == nil { detectedSyncOffset = offset }
+
+        var cursor = offset
+        while cursor + 188 <= bytes.count {
+            if bytes[cursor] == 0x47 {
+                let packet = datagram.subdata(
+                    in: datagram.index(datagram.startIndex, offsetBy: cursor)
+                        ..< datagram.index(datagram.startIndex, offsetBy: cursor + 188)
+                )
+                parsePacket(packet)
+            }
+            cursor += 188
         }
         return drainNALs()
     }
@@ -191,6 +249,10 @@ final class GoProStreamProbe: ObservableObject {
         isRunning = false
         diag["udpPacketsReceived"] = packetsReceived
         diag["udpBytesReceived"] = bytesReceived
+        diag["tsSyncOffsetDetected"] = demuxer.detectedSyncOffset ?? NSNull()
+        diag["tsSyncFormatGuess"] = demuxer.formatGuess
+        diag["tsSyncHitDatagrams"] = demuxer.syncHitDatagrams
+        diag["tsSyncMissDatagrams"] = demuxer.syncMissDatagrams
         diag["pmtPIDFound"] = demuxer.pmtPID != nil
         diag["videoPIDFound"] = demuxer.videoPID != nil
         diag["spsSeen"] = spsData != nil

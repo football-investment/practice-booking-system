@@ -1192,12 +1192,16 @@ def scenario_gopro_preview_poc(ctx: ScenarioContext) -> ScenarioReport:
         #    it stops, per the POC plan's "honest pass/fail" requirement.
         http_ok = diag.get("streamStartHTTPStatus") == "ok"
         udp_ok = (diag.get("udpPacketsReceived") or 0) > 0
+        sync_ok = diag.get("tsSyncOffsetDetected") is not None
         mpegts_ok = bool(diag.get("videoPIDFound"))
         nal_ok = bool(diag.get("spsSeen")) and bool(diag.get("ppsSeen"))
         decode_ok = (diag.get("decodeSuccesses") or 0) > 0
 
         report.step("[layer] HTTP stream/start", http_ok, value=diag.get("streamStartHTTPStatus"))
         report.step("[layer] UDP packets received", udp_ok, value=diag.get("udpPacketsReceived"))
+        report.step("[layer] TS sync offset found", sync_ok,
+                    offset=diag.get("tsSyncOffsetDetected"), format_guess=diag.get("tsSyncFormatGuess"),
+                    hit=diag.get("tsSyncHitDatagrams"), miss=diag.get("tsSyncMissDatagrams"))
         report.step("[layer] MPEG-TS video PID found", mpegts_ok, value=diag.get("videoPIDFound"))
         report.step("[layer] H.264 SPS/PPS seen", nal_ok,
                     sps=diag.get("spsSeen"), pps=diag.get("ppsSeen"))
@@ -1207,6 +1211,9 @@ def scenario_gopro_preview_poc(ctx: ScenarioContext) -> ScenarioReport:
         print(f"[preview-poc] LAYER BREAKDOWN: "
               f"HTTP={'OK' if http_ok else 'FAIL'} | "
               f"UDP={'OK' if udp_ok else 'FAIL'} ({diag.get('udpPacketsReceived', 0)} pkts) | "
+              f"TS-SYNC={'OK' if sync_ok else 'FAIL'} "
+              f"(offset={diag.get('tsSyncOffsetDetected')}, {diag.get('tsSyncFormatGuess')}, "
+              f"hit={diag.get('tsSyncHitDatagrams', 0)}/miss={diag.get('tsSyncMissDatagrams', 0)}) | "
               f"MPEG-TS/PID={'OK' if mpegts_ok else 'FAIL'} | "
               f"NAL/SPS-PPS={'OK' if nal_ok else 'FAIL'} | "
               f"DECODE={'OK' if decode_ok else 'FAIL'} "
@@ -1221,10 +1228,19 @@ def scenario_gopro_preview_poc(ctx: ScenarioContext) -> ScenarioReport:
                 "actually start streaming, the GoPro AP routing dropped it, or the "
                 "NWListener bound to the wrong interface."
             )
+        if not sync_ok:
+            raise ValidationError(
+                "UDP packets received but no stable TS sync offset (0x47 at offset, "
+                "offset+188, offset+376) found within the first 16 bytes of any "
+                "datagram — the payload may not be MPEG-TS at all (different "
+                "container/codec), or it needs a wider offset search."
+            )
         if not mpegts_ok:
             raise ValidationError(
-                "UDP packets received but no H.264 PID found in PAT/PMT — the "
-                "stream format may not be MPEG-TS as assumed, or the demux is broken."
+                f"TS sync found at offset {diag.get('tsSyncOffsetDetected')} "
+                f"({diag.get('tsSyncFormatGuess')}) but no H.264 PID found in PAT/PMT — "
+                f"PMT may not have been captured yet in the observation window, or "
+                f"uses a different stream_type than 0x1B."
             )
         if not nal_ok:
             raise ValidationError(
