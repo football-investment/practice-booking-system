@@ -1705,6 +1705,182 @@ def scenario_gopro_camera_state_probe(ctx: ScenarioContext) -> ScenarioReport:
     return report
 
 
+PREVIEW_ASPECT_PROBE_TIMEOUT_SECONDS = 180
+PREVIEW_ASPECT_PROBE_STREAM_DURATION_SECONDS = 20
+PREVIEW_ASPECT_PROBE_SETTLE_SECONDS = 5
+
+
+def scenario_gopro_preview_aspect_probe(ctx: ScenarioContext) -> ScenarioReport:
+    """GoPro Preview Aspect Probe — DISTINCT from gopro-camera-state-probe.
+
+    gopro-camera-state-probe:    HTTP camera/state read ONLY — no preview,
+                                  no UDP, no decode, no live image.
+    gopro-preview-aspect-probe:  ACTUALLY starts the live preview stream
+                                  (stream/start -> UDP -> MPEG-TS demux ->
+                                  H.264/HEVC decode) and measures the real
+                                  decoded width/height/aspect/codec/fps —
+                                  because the GoPro's archival recording
+                                  profile (camera/state settings) and the
+                                  preview stream's actual geometry are two
+                                  independent things that were never
+                                  measured together before this scenario
+                                  (see docs/GOPRO_LIVE_PREVIEW_POC_PLAN.md
+                                  and the aspect-ratio audit).
+
+    PASS criteria (gopro_preview_aspect_diag.json-grounded):
+      1. GoPro device_status==ready on backend (same Block 1 precondition)
+      2. streamStartHTTPStatus == "ok"
+      3. decodedFrameCount > 0
+      4. previewWidth/previewHeight/previewAspectRatio all present (not null)
+    A human should also visually confirm a live GoPro image appeared on the
+    instructor dashboard during this run — the script cannot verify pixels,
+    only that frames were successfully decoded.
+    """
+    import json
+    import time as _time
+    from pathlib import Path
+
+    report = ScenarioReport(name="gopro-preview-aspect-probe", passed=False)
+    session = create_session(ctx.api_base, ctx.instructor_token)
+    session_uuid = session["session_uuid"]
+    report.session_uuid = session_uuid
+    print(f"[preview-aspect] session created: {session_uuid}")
+
+    try:
+        print("[preview-aspect] Joining iPhone as instructor...")
+        send_deep_link(ctx.iphone_udid, "join", session_uuid=session_uuid, role="instructor")
+        _time.sleep(5)
+
+        def iphone_registered():
+            s = get_session(ctx.api_base, ctx.instructor_token, session_uuid)
+            return next((d for d in s.get("devices", [])
+                         if d["device_role"] == "instructor_primary"), None)
+
+        instructor_dev = poll_until(
+            "iPhone registered as instructor_primary",
+            DEVICE_REGISTER_TIMEOUT_SECONDS, iphone_registered,
+        )
+        instructor_id = instructor_dev["id"]
+        report.step("iphone registered as instructor", True, device_id=instructor_id)
+
+        gopro_sd = register_device(
+            ctx.api_base, ctx.instructor_token, session_uuid,
+            device_role="auxiliary_camera", device_type="gopro",
+            device_name="GoPro HERO13 (preview-aspect-probe)",
+            managed_by_device_id=instructor_id,
+        )
+        gopro_device_id = gopro_sd["id"]
+        report.step("gopro registered (managed by instructor)", True,
+                    gopro_device_id=gopro_device_id)
+
+        print(f"[preview-aspect] Sending gopro-connect to iPhone (gopro_device_id={gopro_device_id})...")
+        print("[preview-aspect] Physical: ensure GoPro is on and in BLE pairing mode.")
+        send_deep_link(ctx.iphone_udid, "gopro-connect", gopro_device_id=str(gopro_device_id))
+        report.step("gopro-connect deep link sent", True)
+        print("[preview-aspect] >>> GoPro Wi-Fi auto-join unavailable under current provisioning")
+        print("[preview-aspect] >>> Manual action required: iPhone Settings -> Wi-Fi -> select GoPro SSID")
+        print("[preview-aspect] >>> Return to LFA app after Wi-Fi connection")
+        print("[preview-aspect] >>> App will verify GoPro HTTP and signal backend ready")
+
+        _time.sleep(15)
+        send_deep_link(ctx.iphone_udid, "dump-snapshot")
+        print("[preview-aspect] >>> Check console/iphone_console.log for "
+              "'gopro_connection: Csatlakozz: <SSID>' — that <SSID> is the GoPro WiFi network name.")
+
+        input(
+            "\n[preview-aspect] >>> Join the GoPro WiFi network on the iPhone now "
+            "(Settings -> Wi-Fi -> GoPro SSID), then return to the LFA app.\n"
+            "[preview-aspect] >>> Press ENTER here ONLY after the iPhone shows it is "
+            "connected to the GoPro WiFi network: "
+        )
+        print("[preview-aspect] Operator confirmed manual WiFi join — resending gopro-connect...")
+        send_deep_link(ctx.iphone_udid, "gopro-connect", gopro_device_id=str(gopro_device_id))
+        report.step("gopro-connect re-sent after manual join", True)
+
+        def gopro_device_ready():
+            s = get_session(ctx.api_base, ctx.instructor_token, session_uuid)
+            for d in s.get("devices", []):
+                if d["id"] == gopro_device_id:
+                    status = d.get("device_status") or d.get("status")
+                    if status == "ready":
+                        return d
+            return None
+
+        try:
+            poll_until("GoPro device_status==ready on backend",
+                       PREVIEW_ASPECT_PROBE_TIMEOUT_SECONDS, gopro_device_ready)
+            report.step("gopro device_status==ready (backend-verified)", True)
+        except ValidationError as e:
+            report.step("gopro device_status==ready (backend-verified)", False, error=str(e))
+            raise ValidationError(
+                f"GoPro never reached device_status=ready — this is the Block 1 "
+                f"precondition, not the preview aspect probe itself. {e}"
+            )
+
+        print(f"[preview-aspect] Sending gopro-preview-aspect-probe "
+              f"(duration_s={PREVIEW_ASPECT_PROBE_STREAM_DURATION_SECONDS})... "
+              f"watch the instructor dashboard GoPro panel now for a live image.")
+        send_deep_link(ctx.iphone_udid, "gopro-preview-aspect-probe",
+                        duration_s=str(PREVIEW_ASPECT_PROBE_STREAM_DURATION_SECONDS))
+        report.step("gopro-preview-aspect-probe deep link sent", True)
+        wait_s = PREVIEW_ASPECT_PROBE_STREAM_DURATION_SECONDS + PREVIEW_ASPECT_PROBE_SETTLE_SECONDS
+        print(f"[preview-aspect] Waiting {wait_s}s for stream/start -> UDP -> decode -> stream/stop...")
+        _time.sleep(wait_s)
+
+        local_diag = str(ctx.artifact.dir / "gopro_preview_aspect_diag.json")
+        if not copy_app_container_file(ctx.iphone_udid, "Documents/gopro_preview_aspect_diag.json", local_diag):
+            report.step("gopro_preview_aspect_diag.json collected", False, error="copy failed")
+            raise ValidationError("gopro_preview_aspect_diag.json was not collectable.")
+        try:
+            diag = json.loads(Path(local_diag).read_text())
+        except (OSError, json.JSONDecodeError) as e:
+            report.step("gopro_preview_aspect_diag.json collected", False, error=f"unparseable: {e}")
+            raise ValidationError(f"gopro_preview_aspect_diag.json copied but unparseable: {e}")
+        report.step("gopro_preview_aspect_diag.json collected", True, **diag)
+        print(f"[preview-aspect] gopro_preview_aspect_diag.json: {json.dumps(diag, indent=2)}")
+
+        http_ok = diag.get("streamStartHTTPStatus") == "ok"
+        decode_ok = (diag.get("decodedFrameCount") or 0) > 0
+        dims_ok = diag.get("previewWidth") is not None and diag.get("previewHeight") is not None \
+            and diag.get("previewAspectRatio") is not None
+
+        report.step("[layer] stream/start HTTP", http_ok, value=diag.get("streamStartHTTPStatus"))
+        report.step("[layer] decoded frames > 0", decode_ok, value=diag.get("decodedFrameCount"))
+        report.step("[layer] preview width/height/aspect known", dims_ok,
+                    width=diag.get("previewWidth"), height=diag.get("previewHeight"),
+                    aspect=diag.get("previewAspectRatio"))
+
+        print(f"[preview-aspect] LAYER BREAKDOWN: "
+              f"HTTP={'OK' if http_ok else 'FAIL'} | "
+              f"DECODE={'OK' if decode_ok else 'FAIL'} ({diag.get('decodedFrameCount', 0)} frames) | "
+              f"DIMENSIONS={'OK' if dims_ok else 'FAIL'} "
+              f"({diag.get('previewWidth')}x{diag.get('previewHeight')}, {diag.get('previewAspectRatio')}) | "
+              f"codec={diag.get('previewCodec')} fps={diag.get('previewFPS')}")
+
+        if not http_ok:
+            raise ValidationError(f"stream/start HTTP failed: {diag.get('streamStartHTTPStatus')}")
+        if not decode_ok:
+            raise ValidationError(
+                f"No frames decoded (decodedFrameCount={diag.get('decodedFrameCount')}, "
+                f"decodeAttempts={diag.get('decodeAttempts')}) — errorReason={diag.get('errorReason')}"
+            )
+        if not dims_ok:
+            raise ValidationError(
+                "Frames decoded but no width/height/aspect captured — format "
+                "description may not have propagated before the first decode."
+            )
+
+        report.passed = True
+        print("[preview-aspect] === PASS: live GoPro preview decoded with measured aspect — "
+              "VISUALLY CONFIRM a live image was shown on the dashboard GoPro panel ===")
+
+    except ValidationError as e:
+        report.error = str(e)
+        report.passed = False
+        print(f"[preview-aspect] === FAIL: {e} ===")
+    return report
+
+
 SCENARIOS = {
     "smoke": scenario_smoke,
     "multicycle": scenario_multicycle,
@@ -1716,5 +1892,6 @@ SCENARIOS = {
     "gopro-preview-poc": scenario_gopro_preview_poc,
     "gopro-combined-cycle-proof": scenario_gopro_combined_cycle_proof,
     "gopro-camera-state-probe": scenario_gopro_camera_state_probe,
+    "gopro-preview-aspect-probe": scenario_gopro_preview_aspect_probe,
     "tricamera-capture-skeleton-proof": scenario_tricamera_capture_skeleton_proof,
 }
