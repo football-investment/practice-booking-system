@@ -1,0 +1,39 @@
+# Python virtualenvs
+venv/
+.venv/
+env/
+
+# iOS / Xcode
+ios/
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Git
+.git/
+
+# Compiled Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Test artifacts / screenshots
+tests_e2e/screenshots/
+tests_e2e/videos/
+
+# Scripts/POC that aren't needed in Docker
+scripts/smart_snap_poc1/
+scripts/mc1_regression/
+
+# Misc
+.DS_Store
+*.log
+*.tmp
+.vercel/
+.agents/
