@@ -733,6 +733,14 @@ def scenario_tricamera_capture_skeleton_proof(ctx: ScenarioContext) -> ScenarioR
         # 4. Devices ready
         _mark_devices_ready(ctx, report, session_uuid)
 
+        # 4.5. Start GoPro preview stream (non-blocking on device side, 60s window).
+        # Must be sent BEFORE begin-cycle so the dashboard GoPro panel has live
+        # frames when skeleton overlay is validated by the operator.
+        print("[proof] gopro-stream-start → iPhone (starts GoProStreamProbe, 60s window)...")
+        send_deep_link(ctx.iphone_udid, "gopro-stream-start")
+        _time.sleep(3)  # give stream/start HTTP request time to reach GoPro
+        report.step("gopro-stream-start sent", True)
+
         # 5. Begin cycle (instructor = iPhone)
         print("[proof] begin-cycle → iPhone/instructor...")
         send_deep_link(ctx.iphone_udid, "begin-cycle")

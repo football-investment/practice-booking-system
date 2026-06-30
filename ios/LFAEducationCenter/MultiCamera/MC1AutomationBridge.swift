@@ -57,6 +57,9 @@ enum MC1AutomationAction: Equatable {
     // GoPro 8:7 Recording Preset Read/Write Validation — the first GoPro POC
     // that actually WRITES a setting, with mandatory rollback on any failure.
     case goProPresetWriteValidation
+    // Start GoProStreamProbe while the InstructorDashboard is live so the GoPro
+    // panel receives frames and skeleton overlay can be validated in-scenario.
+    case goProStreamStart
 }
 
 final class MC1AutomationBridge: ObservableObject {
@@ -170,6 +173,10 @@ final class MC1AutomationBridge: ObservableObject {
         case "gopro-preset-write-validation":
             print("[MC1-AUTO] received action=gopro-preset-write-validation")
             lastAction = .goProPresetWriteValidation
+            return true
+        case "gopro-stream-start":
+            print("[MC1-AUTO] received action=gopro-stream-start")
+            lastAction = .goProStreamStart
             return true
         default:
             print("[MC1-AUTO] received unknown action=\(action)")

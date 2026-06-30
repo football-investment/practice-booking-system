@@ -104,22 +104,42 @@ if [[ -z "${_IDEVICESYSLOG}" ]]; then
 elif [[ -z "${_IDEVICEID}" ]]; then
   echo "WARNING: idevice_id not found. Console capture disabled."
 else
-  # Get all legacy UDIDs visible to libimobiledevice (USB-connected only)
+  # Get all legacy UDIDs visible to libimobiledevice (USB-connected only).
+  # Optional override: set IPHONE_LEGACY_UDID / IPAD_LEGACY_UDID env vars to
+  # skip auto-detection (get them via: idevice_id -l).
   _LEGACY_UDIDS="$("${_IDEVICEID}" -l 2>/dev/null || true)"
-  if [[ -z "${_LEGACY_UDIDS}" ]]; then
-    echo "WARNING: No device visible to idevicesyslog (not USB-connected or not trusted)."
-    echo "  Connect iPhone via USB and trust this Mac on the device."
-  else
-    # Use the first (and typically only) legacy UDID for iphone capture.
-    # If iPad has a different UDID it will appear on a second line.
+  if [[ -z "${IPHONE_LEGACY_UDID:-}" ]]; then
     _IPHONE_LEGACY_UDID="$(echo "${_LEGACY_UDIDS}" | head -1)"
+  else
+    _IPHONE_LEGACY_UDID="${IPHONE_LEGACY_UDID}"
+  fi
+  if [[ -z "${IPAD_LEGACY_UDID:-}" ]]; then
     _IPAD_LEGACY_UDID="$(echo "${_LEGACY_UDIDS}" | sed -n '2p')"
-    [[ -z "${_IPAD_LEGACY_UDID}" ]] && _IPAD_LEGACY_UDID="${_IPHONE_LEGACY_UDID}"
+  else
+    _IPAD_LEGACY_UDID="${IPAD_LEGACY_UDID}"
+  fi
+
+  if [[ -z "${_IPHONE_LEGACY_UDID}" ]]; then
+    echo "WARNING: iPhone not visible to idevicesyslog. Connect via USB and trust this Mac."
+    echo "  Console capture disabled. Set IPHONE_LEGACY_UDID to override auto-detection."
+  else
     echo "Starting console capture (idevicesyslog → LFAEducationCenter)..."
     echo "  iPhone legacy UDID: ${_IPHONE_LEGACY_UDID}"
     "${_IDEVICESYSLOG}" --udid "${_IPHONE_LEGACY_UDID}" --process LFAEducationCenter \
       > "${OUT_DIR}/console/iphone_console.log" 2>&1 &
     IPHONE_CONSOLE_PID=$!
+  fi
+
+  if [[ -z "${_IPAD_LEGACY_UDID}" ]]; then
+    echo "WARNING: iPad not visible to idevicesyslog (must be USB-connected, not WiFi-only)."
+    echo "  iPad console capture SKIPPED. Set IPAD_LEGACY_UDID env var to enable."
+    echo "  Get UDID: idevice_id -l  (while iPad is USB-connected)"
+  elif [[ "${_IPAD_LEGACY_UDID}" == "${_IPHONE_LEGACY_UDID}" ]]; then
+    echo "WARNING: Only one device visible to idevicesyslog — iPad and iPhone appear identical."
+    echo "  iPad console capture SKIPPED to avoid duplicate logs."
+    echo "  Connect iPad via USB and trust this Mac, then set IPAD_LEGACY_UDID."
+  else
+    echo "  iPad  legacy UDID: ${_IPAD_LEGACY_UDID}"
     "${_IDEVICESYSLOG}" --udid "${_IPAD_LEGACY_UDID}" --process LFAEducationCenter \
       > "${OUT_DIR}/console/ipad_console.log" 2>&1 &
     IPAD_CONSOLE_PID=$!
