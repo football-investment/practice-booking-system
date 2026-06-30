@@ -352,6 +352,14 @@ struct MultiCameraLobbyView: View {
                     print("[GOPRO-PRESET-POC] starting 8:7 preset read/write/verify/recording/preview chain...")
                     _ = await GoProRecordingPresetProbe.run()
                 }
+            case .goProStreamStart:
+                // Non-blocking: fire-and-forget for the recording window duration.
+                // Dashboard's onReceive(goProStreamProbe.objectWillChange) feeds the
+                // GoPro panel's LivePoseOverlayProcessor as frames arrive.
+                Task {
+                    print("[MC1-AUTO] gopro-stream-start → GoProStreamProbe.shared.run(60s)")
+                    _ = await GoProStreamProbe.shared.run(durationSeconds: 60)
+                }
             }
         }
         .sheet(isPresented: $showQRScanner) {
