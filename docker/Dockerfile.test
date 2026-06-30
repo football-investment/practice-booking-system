@@ -15,7 +15,7 @@
 #   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 # =============================================================================
 
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 # ── System dependencies required by Playwright/Chromium ──────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     # psycopg2-binary build deps (no pre-built wheel for Python 3.13 ARM64)
     libpq-dev \
-    gcc \
+    build-essential \
     # Utilities
     curl \
     fonts-liberation \
